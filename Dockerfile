@@ -1,34 +1,67 @@
-# Base PHP + Apache
-FROM php:8.4-apache
+# syntax=docker/dockerfile:1
+
+############################
+# Dependencies stage
+############################
+FROM php:8.4-cli as deps
+
+WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
-    libzip-dev \
     zip \
-    && docker-php-ext-install pdo pdo_mysql zip
-
-# Enable Apache rewrite
-RUN a2enmod rewrite
-
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy project
-COPY . .
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd zip pdo pdo_mysql bcmath
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Laravel dependencies
-RUN composer install --no-interaction --prefer-dist
+# Copy only composer files first (better caching)
+COPY composer.json composer.lock ./
 
-# Set permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
+# Install PHP dependencies
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
 
-# Set Apache document root to /public
-RUN sed -i 's!/var/www/html!/var/www/html/public!g' \
-    /etc/apache2/sites-available/000-default.conf
+############################
+# Application stage
+############################
+FROM php:8.4-apache as final
 
-EXPOSE 80
+WORKDIR /var/www/html
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd zip pdo pdo_mysql bcmath \
+    && a2enmod rewrite
+
+# Use production php.ini
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# Copy vendor from deps stage
+COPY --from=deps /app/vendor ./vendor
+
+# Copy application
+COPY . .
+
+# Set permissions (important for Laravel)
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+USER www-data

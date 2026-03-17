@@ -33,3 +33,11 @@
 **/vendor
 LICENSE
 README.md
+.git
+.gitignore
+node_modules
+vendor
+storage/logs
+.env
+Dockerfile
+docker-compose.yml
