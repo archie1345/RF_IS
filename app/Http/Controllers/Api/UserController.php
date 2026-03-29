@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\User;
 
 class UserController extends Controller
 {
@@ -12,7 +13,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        return user::all();
+        return User::all();
     }
 
     /**
@@ -22,7 +23,7 @@ class UserController extends Controller
     {
         $user = User::create([
             'email' => $request->email,
-            'pass_hash' => bcrypt($request->password),
+            'password' => bcrypt($request->password),
             'role' => $request->role
         ]);
         return response()->json($user, 201);
@@ -43,8 +44,13 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->update($request->all());
+        $data = $request->all();
 
+        if(isset($request->password)){
+            $data['password'] = bcrypt($request->password);
+        }
+
+        $user->update($data);
         return response()->json($user);
     }
 

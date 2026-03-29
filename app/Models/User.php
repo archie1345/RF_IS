@@ -11,24 +11,24 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $table = 'users';
-    protected $primaryKey = 'uid';
+    protected $primaryKey = 'id';
 
     protected $fillable = [
         'email',
-        'pass_hash',
+        'password',
         'role',
-        'is-active'
+        // 'is-active'
     ];
 
     protected $hidden = [
-        'pass_hash'
+        'password',
     ];
 
-    protected $timestamps = true;
+    public $timestamps = true;
 
     public function getAuthPassword()
     {
-        return $this->pass_hash;
+        return $this->password;
     }
 
     public function isAdmin()
