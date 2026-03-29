@@ -11,8 +11,88 @@ services:
   server:
     build:
       context: .
+    container_name: rf-server
     ports:
-      - 9000:80
+      - "9200:80"
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    secrets:
+      - db-password 
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=laravel
+      - DB_USERNAME=laravel
+      - DB_PASSWORD_FILE=/run/secrets/db-password
+    command: >
+      sh -c "
+      /usr/local/bin/composer install --no-interaction --prefer-dist &&
+      php artisan migrate --force &&
+      chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
+      chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
+      apache2-foreground
+      "
+
+  vite:
+    build:
+      context: .
+    container_name: rf-vite
+    working_dir: /var/www/html
+    ports:
+      - "9201:9201"
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/node_modules
+    command: sh -c "npm install && npm run dev -- --host"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+  db:
+    image: mysql:8.0
+    restart: always
+    container_name: rf-db
+    secrets:
+      - db-password
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=laravel
+      - MYSQL_USER=laravel
+      - MYSQL_PASSWORD_FILE=/run/secrets/db-password
+      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
+    expose:
+      - 3306
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    container_name: rf-phpmyadmin
+    ports:
+      - "9202:80"
+    depends_on:
+      - db
+    environment:
+      - PMA_HOST=db
+      - PMA_USER=laravel
+      - PMA_PASSWORD_FILE=/run/secrets/db-password
+      - PMA_ROOT_PASSWORD_FILE=/run/secrets/db-password
+    secrets:
+      - db-password
+
+volumes:
+  db-data:
+
+secrets:
+  db-password:
+    file: db/password.txt
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
