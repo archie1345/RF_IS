@@ -12,7 +12,7 @@ class CoachController extends Controller
      */
     public function index()
     {
-        //
+        return Coach::all();
     }
 
     /**
@@ -20,7 +20,12 @@ class CoachController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'specialization' => 'required|string|max:255',
+        ]);
+
+        return Coach::create($request->all());
     }
 
     /**
@@ -28,7 +33,7 @@ class CoachController extends Controller
      */
     public function show(string $id)
     {
-        //
+        return Coach::findOrFail($id);
     }
 
     /**
@@ -36,7 +41,17 @@ class CoachController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $coach = Coach::findOrFail($id);
+
+        $request->validate([
+            'c_name' => 'sometimes|required|string|max:255',
+            'c_phone' => 'sometimes|required|string|max:20',
+            
+        ]);
+
+        $coach->update($request->all());
+
+        return $coach;
     }
 
     /**
@@ -44,6 +59,9 @@ class CoachController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $coach = Coach::findOrFail($id);
+        $coach->delete();
+
+        return response()->json(['message' => 'Coach deleted successfully']);
     }
 }

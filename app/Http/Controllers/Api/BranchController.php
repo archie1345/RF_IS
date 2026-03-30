@@ -12,7 +12,7 @@ class BranchController extends Controller
      */
     public function index()
     {
-        //
+        return Branch::all();
     }
 
     /**
@@ -20,7 +20,13 @@ class BranchController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'location' => 'required|string|max:255',
+        ]);
+
+        return Branch::create($request->all());
+
     }
 
     /**
@@ -28,7 +34,7 @@ class BranchController extends Controller
      */
     public function show(string $id)
     {
-        //
+        return Branch::findOrFail($id);
     }
 
     /**
@@ -36,7 +42,16 @@ class BranchController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $branch = Branch::findOrFail($id);
+
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'location' => 'sometimes|required|string|max:255',
+        ]);
+
+        $branch->update($request->all());
+
+        return $branch;
     }
 
     /**
@@ -44,6 +59,9 @@ class BranchController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $branch = Branch::findOrFail($id);
+        $branch->delete();
+
+        return response()->json(['message' => 'Branch deleted successfully']);
     }
 }

@@ -18,6 +18,31 @@ Route::get('/athletes/{id}', [AthleteController::class, 'show']);
 Route::post('/athletes', [AthleteController::class, 'store']);
 Route::put('/athletes/{id}', [AthleteController::class, 'update']);
 Route::delete('/athletes/{id}', [AthleteController::class, 'destroy']);
+Route::put('/athletes/{id}/restore', [AthleteController::class, 'restore']);
+
+Route::get('/branches', [BranchController::class, 'index']);
+Route::get('/branches/{id}', [BranchController::class, 'show']);
+Route::post('/branches', [BranchController::class, 'store']);
+Route::put('/branches/{id}', [BranchController::class, 'update']);
+Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
+
+Route::get('/groups', [GroupController::class, 'index']);
+Route::get('/groups/{id}', [GroupController::class, 'show']);
+Route::post('/groups', [GroupController::class, 'store']);
+Route::put('/groups/{id}', [GroupController::class, 'update']);
+Route::delete('/groups/{id}', [GroupController::class, 'destroy']);
+
+Route::get('/coaches', [CoachController::class, 'index']);
+Route::get('/coaches/{id}', [CoachController::class, 'show']);
+Route::post('/coaches', [CoachController::class, 'store']);
+Route::put('/coaches/{id}', [CoachController::class, 'update']);
+Route::delete('/coaches/{id}', [CoachController::class, 'destroy']);
+
+Route::get('/payments', [PaymentController::class, 'index']);
+Route::get('/payments/{id}', [PaymentController::class, 'show']);
+Route::post('/payments', [PaymentController::class, 'store']);
+Route::put('/payments/{id}', [PaymentController::class, 'update']);
+Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);
 
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/{id}', [UserController::class, 'show']);

@@ -21,10 +21,16 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:6',
+            'role' => 'required|in:ADMIN,COACH,ATHLETE'
+        ]);
+
         $user = User::create([
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'role' => $request->role
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'role' => $validated['role']
         ]);
         return response()->json($user, 201);
     }

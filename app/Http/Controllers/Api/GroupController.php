@@ -12,7 +12,7 @@ class GroupController extends Controller
      */
     public function index()
     {
-        //
+        return Group::all();
     }
 
     /**
@@ -20,7 +20,13 @@ class GroupController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'branch_id' => 'required|exists:branches,id',
+            'description' => 'nullable|string',
+        ]);
+
+        return Group::create($request->all());
     }
 
     /**
@@ -28,7 +34,7 @@ class GroupController extends Controller
      */
     public function show(string $id)
     {
-        //
+        return Group::findOrFail($id);
     }
 
     /**
@@ -36,7 +42,21 @@ class GroupController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $group = Group::findOrFail($id);
+
+        if(!$group){
+            return response()->json(['message' => 'Group not found'], 404);
+        }
+
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'branch_id' => 'sometimes|required|exists:branches,id',
+            'description' => 'sometimes|nullable|string',
+        ]);
+
+        $group->update($request->all());
+
+        return $group;
     }
 
     /**
@@ -44,6 +64,14 @@ class GroupController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $group = Group::findOrFail($id);
+
+        if(!$group){
+            return response()->json(['message' => 'Group not found'], 404);
+        }
+
+        $group->delete();
+
+        return response()->json(['message' => 'Group deleted successfully'], 200);
     }
 }

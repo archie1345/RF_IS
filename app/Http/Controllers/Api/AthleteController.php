@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Hash;
 
 class AthleteController extends Controller
 {
-    use SoftDeletes;
     /**
      * Display a listing of the resource.
      */
@@ -44,7 +43,7 @@ class AthleteController extends Controller
             'weight_kg' => 'required|numeric',
             'phone' => 'nullable|string|max:20',
             'alamat' => 'nullable|string',
-            'geup' => 'required|in:GEUP_1,GEUP_2,GEUP_3,GEUP_4,GEUP_5,GEUP_6,GEUP_7,GEUP_8,GEUP_9,GEUP_10,DAN|default:GEUP_10',
+            'geup' => 'required|in:GEUP_1,GEUP_2,GEUP_3,GEUP_4,GEUP_5,GEUP_6,GEUP_7,GEUP_8,GEUP_9,GEUP_10,DAN',
             'id' => 'required|exists:users,id',
             'group_id' => 'required|exists:class_groups,group_id',
             'parent_id' => 'nullable|exists:parents,parent_id',
