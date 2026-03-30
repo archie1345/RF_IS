@@ -18,6 +18,7 @@ Route::get('/athletes/{id}', [AthleteController::class, 'show']);
 Route::post('/athletes', [AthleteController::class, 'store']);
 Route::put('/athletes/{id}', [AthleteController::class, 'update']);
 Route::delete('/athletes/{id}', [AthleteController::class, 'destroy']);
+
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/{id}', [UserController::class, 'show']);
 Route::post('/users', [UserController::class, 'store']);

@@ -4,9 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Athlete extends Model{
+    use SoftDeletes, HasFactory;
+    protected $table = 'athletes';
+
+    public $timestamps = false;
+
     protected $primaryKey = 'aid';
+    public $incrementing = true;
+    protected $keyType = 'int';
 
     protected $fillable = [
         'name',
@@ -19,11 +27,18 @@ class Athlete extends Model{
         'phone',
         'alamat',
         'geup',
-        'uid',
+        'id',
         'gid',
         'pid',
-        'brid'
+        'brid',
     ];
+
+    protected $hidden = [
+        'nik_hash',
+        'bpjs_hash',
+    ];
+
+    protected $dates = ['deleted_at'];
 
     public function group()
     {
