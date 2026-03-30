@@ -19,6 +19,7 @@ return new class extends Migration
             $table->enum('role', ['admin', 'coach', 'parent','athlete'])->default('athlete');
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -35,6 +36,16 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
+
+        Schema::create('parents', function (Blueprint $table) {
+            $table->id('parent_id');
+            $table->foreignId('id')->constrained('users')->onDelete('cascade')->index();
+            $table->string('p_name', 100);
+            $table->string('p_phone', 20)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
     }
 
     /**
@@ -42,8 +53,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('parents');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
     }
 };

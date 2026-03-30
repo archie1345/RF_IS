@@ -6,26 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Hash;
 
 class AthleteController extends Controller
 {
+    use SoftDeletes;
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return Athlete::whereNull('deleted_at')->get();
+        return Athlete::whereNull('deleted_at')->with(['group','branch','parent'])->get();
     }
     
-    
-    // public function index()
-    // {
-    //     return Athlete::with(['group','branch','parent'])->get();
-    // }
+    /**
+     * Display the specified resource.
+     */
     
     public function show(string $id)
     {
-        $athlete = Athlete::where('aid', $id)->whereNull('deleted_at')->first();
+        $athlete = Athlete::where('athlete_id', $id)->whereNull('deleted_at')->first();
 
         if (!$athlete) {
             return response()->json(['message' => 'Athlete not found'], 404);
@@ -36,36 +36,66 @@ class AthleteController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'bday' => 'required|date',
+            'gender' => 'required|in:MALE,FEMALE',
+            'height_cm' => 'required|numeric',
+            'weight_kg' => 'required|numeric',
+            'phone' => 'nullable|string|max:20',
+            'alamat' => 'nullable|string',
+            'geup' => 'required|in:GEUP_1,GEUP_2,GEUP_3,GEUP_4,GEUP_5,GEUP_6,GEUP_7,GEUP_8,GEUP_9,GEUP_10,DAN|default:GEUP_10',
+            'id' => 'required|exists:users,id',
+            'group_id' => 'required|exists:class_groups,group_id',
+            'parent_id' => 'nullable|exists:parents,parent_id',
+            'branch_id' => 'required|exists:branches,branch_id',
+        ]);
+
         $athlete = Athlete::create([
-            'name' => $request->name,
-            'bday' => $request->bday,
-            'gender' => $request->gender,
-            'height_cm' => $request->height_cm,
-            'weight_kg' => $request->weight_kg,
+            ...$validated,
             'nik_hash' => $request->nik_hash ?? str_repeat('a', 64),
             'bpjs_hash' => $request->bpjs_hash ?? str_repeat('b', 64),
-            'phone' => $request->phone ?? NULL,
-            'alamat' => $request->alamat ?? NULL,
-            'geup' => $request->geup ?? "GEUP_10",
-            'id' => $request->id,
-            'gid' => $request->gid ?? 1,
-            'pid' => $request->pid ?? NULL,
-            'brid' => $request->brid ?? 1,
         ]);
         return response()->json($athlete, 201);
     }
 
     public function update(Request $request, string $id)
     {
-        $athlete = Athlete::where('aid', $id)->whereNull('deleted_at')->first();
+        $athlete = Athlete::where('athlete_id', $id)->whereNull('deleted_at')->first();
 
         if (!$athlete) {
             return response()->json(['message' => 'Athlete not found'], 404);
         }
 
-        $athlete->update($request->only(['name','bday','gender','height_cm','weight_kg','phone','alamat','geup','gid','pid','brid']));
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'bday' => 'sometimes|required|date',
+            'gender' => 'sometimes|required|in:MALE,FEMALE',
+            'height_cm' => 'sometimes|required|numeric',
+            'weight_kg' => 'sometimes|required|numeric',
+            'phone' => 'nullable|string|max:20',
+            'alamat' => 'nullable|string',
+            'geup' => 'nullable|in:GEUP_1,GEUP_2,GEUP_3,GEUP_4,GEUP_5,GEUP_6,GEUP_7,GEUP_8,GEUP_9,GEUP_10,DAN',
+            'group_id' => 'sometimes|required|exists:class_groups,group_id',
+            'parent_id' => 'sometimes|nullable|exists:parents,parent_id',
+            'branch_id' => 'sometimes|required|exists:branches,branch_id',
+            'nik' => 'sometimes|nullable|string|size:16',
+            'bpjs' => 'sometimes|required|string|size:13',
+        ]);
 
-        return response()->json($athlete);
+        if (isset($validated['nik'])) {
+            $validated['nik_hash'] = hash('sha256', $validated['nik']);
+        }
+
+        if (isset($validated['bpjs'])) {
+            $validated['bpjs_hash'] = hash('sha256', $validated['bpjs']);
+        }
+
+        unset($validated['nik'], $validated['bpjs']);
+
+        $athlete->update($validated);
+
+        return response()->json($athlete, 200);
     }
 
     public function destroy(string $id)
@@ -79,5 +109,18 @@ class AthleteController extends Controller
         $athlete->delete();
 
         return response()->json(['message' => 'Deleted']);
+    }
+
+    public function restore(string $id)
+    {
+        $athlete = Athlete::withTrashed()->find($id);
+
+        if (!$athlete) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        $athlete->restore();
+
+        return response()->json(['message' => 'Restored']);
     }
 }

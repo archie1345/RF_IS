@@ -12,7 +12,7 @@ class Athlete extends Model{
 
     public $timestamps = false;
 
-    protected $primaryKey = 'aid';
+    protected $primaryKey = 'athlete_id';
     public $incrementing = true;
     protected $keyType = 'int';
 
@@ -28,9 +28,9 @@ class Athlete extends Model{
         'alamat',
         'geup',
         'id',
-        'gid',
-        'pid',
-        'brid',
+        'group_id',
+        'parent_id',
+        'branch_id',
     ];
 
     protected $hidden = [
@@ -42,16 +42,21 @@ class Athlete extends Model{
 
     public function group()
     {
-        return $this->belongsTo(Group::class,'gid');
+        return $this->belongsTo(Group::class,'group_id');
     }
 
     public function branch()
     {
-        return $this->belongsTo(Branch::class,'brid');
+        return $this->belongsTo(Branch::class,'branch_id');
     }
 
     public function parent()
     {
-        return $this->belongsTo(ParentModel::class,'pid');
+        return $this->belongsTo(ParentModel::class,'parent_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class,'id');
     }
 }

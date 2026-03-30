@@ -26,6 +26,7 @@ class User extends Authenticatable
     ];
 
     public $timestamps = true;
+    protected $dates = ['deleted_at'];
 
     public function getAuthPassword()
     {
