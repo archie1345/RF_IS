@@ -9,15 +9,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $table = 'users';
     protected $primaryKey = 'id';
 
     protected $fillable = [
+        'name',
         'email',
         'password',
+        'gender',
         'role',
+        'bday',
+        'phone',
         // 'is-active'
     ];
 
@@ -26,7 +30,7 @@ class User extends Authenticatable
     ];
 
     public $timestamps = true;
-    protected $dates = ['deleted_at'];
+    protected $dates = ['deleted_at', 'bday'];
 
     public function getAuthPassword()
     {

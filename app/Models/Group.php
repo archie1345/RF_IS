@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class group extends Model
+class Group extends Model
 {
-    use softdeletes;
+    use SoftDeletes;
     protected $table = 'class_groups';
-    public $timestamps = false;
+    public $timestamps = true;
     protected $primaryKey = 'group_id';
     public $incrementing = true;
     protected $keyType = 'int';

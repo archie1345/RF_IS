@@ -17,10 +17,14 @@ class ApplicationDataSeeder extends Seeder
         $now = now();
 
         $adminUserId = DB::table('users')->insertGetId([
+            'name' => 'Admin RFIS',
             'email' => 'admin@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('password'),
+            'gender' => 'MALE',
             'role' => 'admin',
+            'bday' => '1990-01-10',
+            'phone' => '081200000001',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -31,10 +35,14 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $coachUserId = DB::table('users')->insertGetId([
+            'name' => 'Budi Santoso',
             'email' => 'coach@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('password'),
+            'gender' => 'MALE',
             'role' => 'coach',
+            'bday' => '1988-07-21',
+            'phone' => '081200000002',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -45,10 +53,14 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $parentUserId = DB::table('users')->insertGetId([
+            'name' => 'Rina Putri',
             'email' => 'parent@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('password'),
+            'gender' => 'FEMALE',
             'role' => 'parent',
+            'bday' => '1985-03-15',
+            'phone' => '081200000003',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -59,10 +71,14 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $athleteUserId = DB::table('users')->insertGetId([
+            'name' => 'Adit Pratama',
             'email' => 'athlete@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('password'),
+            'gender' => 'MALE',
             'role' => 'athlete',
+            'bday' => '2012-05-14',
+            'phone' => '081200000004',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -95,17 +111,22 @@ class ApplicationDataSeeder extends Seeder
             'location' => 'Jakarta Selatan',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ], 'branch_id');
 
         $groupId = DB::table('class_groups')->insertGetId([
             'group_name' => 'Junior Sparring',
             'description' => 'Fundamental technique and sparring preparation.',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
         ], 'group_id');
 
         $parentId = DB::table('parents')->insertGetId([
             'id' => $parentUserId,
-            'p_name' => 'Rina Putri',
-            'p_phone' => '081234567890',
+            'relation' => 'mother',
+            'occupation' => 'Accountant',
+            'notes' => 'Primary emergency contact.',
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
@@ -113,8 +134,9 @@ class ApplicationDataSeeder extends Seeder
 
         $coachId = DB::table('coaches')->insertGetId([
             'id' => $coachUserId,
-            'c_name' => 'Budi Santoso',
-            'c_phone' => '081298765432',
+            'specialization' => 'Kyorugi and youth development',
+            'bio' => 'National-level coach assigned to junior athletes.',
+            'status' => 'active',
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
@@ -136,14 +158,10 @@ class ApplicationDataSeeder extends Seeder
             'group_id' => $groupId,
             'parent_id' => $parentId,
             'branch_id' => $branchId,
-            'name' => 'Adit Pratama',
-            'bday' => '2012-05-14',
-            'gender' => 'MALE',
             'height_cm' => 150.50,
             'weight_kg' => 42.30,
             'nik_hash' => hash('sha256', '3174001205120001'),
             'bpjs_hash' => hash('sha256', 'BPJS-00001'),
-            'phone' => '081355577799',
             'alamat' => 'Jl. Merdeka No. 10, Jakarta',
             'geup' => 'GEUP_8',
             'created_at' => $now,
@@ -157,18 +175,19 @@ class ApplicationDataSeeder extends Seeder
             'status' => 'PRESENT',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         $eventId = DB::table('events')->insertGetId([
             'e_name' => 'Jakarta Open Championship',
-            'date' => $now->copy()->addMonth()->toDateString(),
+            'e_date' => $now->copy()->addMonth()->toDateString(),
             'location' => 'GOR Soemantri',
             'level' => 'REGIONAL',
             'entry_fee' => 250000,
             'description' => 'Regional tournament for junior and senior athletes.',
             'organizer' => 'Pengprov Taekwondo DKI',
             'contact_info' => 'event@rfis.test',
-            'sponsor' => 'RFIS Sports',
+            'sponsors' => 'RFIS Sports',
             'status' => 'SCHEDULED',
             'poster_url' => 'https://example.test/posters/jakarta-open.jpg',
             'created_at' => $now,
@@ -184,6 +203,7 @@ class ApplicationDataSeeder extends Seeder
             'status' => 'CONFIRMED',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         DB::table('event_results')->insert([
@@ -192,6 +212,7 @@ class ApplicationDataSeeder extends Seeder
             'result' => 'PARTICIPATED',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         DB::table('licenses')->insert([
@@ -204,6 +225,7 @@ class ApplicationDataSeeder extends Seeder
             'issued_by' => 'RFIS Administration',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         $paymentId = DB::table('payments')->insertGetId([
@@ -219,10 +241,11 @@ class ApplicationDataSeeder extends Seeder
             'notes' => 'Monthly tuition payment.',
             'created_at' => $now,
             'updated_at' => $now,
-        ], 'payid');
+            'deleted_at' => null,
+        ], 'payment_id');
 
         DB::table('payment_transactions')->insert([
-            'payid' => $paymentId,
+            'payment_id' => $paymentId,
             'verified_by' => $adminUserId,
             'amount' => 300000,
             'transaction_date' => $now->toDateString(),
@@ -231,6 +254,7 @@ class ApplicationDataSeeder extends Seeder
             'notes' => 'Verified by finance admin.',
             'created_at' => $now,
             'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         DB::table('jobs')->insert([

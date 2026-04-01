@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('licenses', function (Blueprint $table) {
-            $table->id('lid');
+            $table->id('license_id');
             $table->foreignId('id')->constrained('users')->onDelete('cascade');
             $table->string('license_number', 50)->unique();
             $table->enum('license_type', ['BELT', 'COACH', 'REFEREE', 'UNKNOWN'])->default('UNKNOWN')->index();

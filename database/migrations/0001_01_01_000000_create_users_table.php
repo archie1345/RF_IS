@@ -16,7 +16,11 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('gender',['MALE','FEMALE'])->index();
             $table->enum('role', ['admin', 'coach', 'parent','athlete'])->default('athlete');
+            $table->date('bday')->nullable();
+            $table->string('phone', 20)->nullable();
+            $table->string('name', 100)->nullable();
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
@@ -40,8 +44,9 @@ return new class extends Migration
         Schema::create('parents', function (Blueprint $table) {
             $table->id('parent_id');
             $table->foreignId('id')->constrained('users')->onDelete('cascade')->index();
-            $table->string('p_name', 100);
-            $table->string('p_phone', 20)->nullable();
+            $table->enum('relation', ['father', 'mother', 'guardian'])->index();
+            $table->string('occupation', 100)->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

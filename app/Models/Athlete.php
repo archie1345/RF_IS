@@ -10,21 +10,15 @@ class Athlete extends Model{
     use SoftDeletes, HasFactory;
     protected $table = 'athletes';
 
-    public $timestamps = false;
-
     protected $primaryKey = 'athlete_id';
     public $incrementing = true;
     protected $keyType = 'int';
 
     protected $fillable = [
-        'name',
-        'bday',
-        'gender',
         'height_cm',
         'weight_kg',
         'nik_hash',
         'bpjs_hash',
-        'phone',
         'alamat',
         'geup',
         'id',

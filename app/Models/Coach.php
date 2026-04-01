@@ -6,26 +6,27 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
-class Parents extends Model
+class Coach extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'parents';
+    protected $table = 'coaches';
     public $timestamps = true;
-    protected $primaryKey = 'parent_id';
+    protected $primaryKey = 'coach_id';
     public $incrementing = true;
     protected $keyType = 'int';
+
     protected $fillable = [
         'id',
-        'relation',
-        'occupation',
-        'notes',
+        'status',
+        'specialization',
+        'bio',
     ];
 
     protected $dates = ['deleted_at'];
 
-    public function athletes()
+    public function user()
     {
-        return $this->hasMany(Athlete::class,'parent_id');
+        return $this->belongsTo(User::class, 'id', 'id');
     }
 }

@@ -29,7 +29,7 @@ return new class extends Migration
 
         Schema::create('payment_transactions', function (Blueprint $table) {
             $table->id('ptid');
-            $table->foreignId('payid')->constrained('payments', 'payment_id')->cascadeOnDelete();
+            $table->foreignId('payment_id')->constrained('payments', 'payment_id')->cascadeOnDelete();
             $table->foreignId('verified_by')->nullable()->constrained('users', 'id')->nullOnDelete();
             $table->decimal('amount', 10, 2);
             $table->date('transaction_date');

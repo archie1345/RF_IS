@@ -5,9 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class branch extends Model
+class Branch extends Model
 {
-    use softdeletes;
+    use SoftDeletes;
     protected $table = 'branches';
     public $timestamps = true;
     

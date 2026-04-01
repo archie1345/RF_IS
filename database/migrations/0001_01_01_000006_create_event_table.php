@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::create('events', function (Blueprint $table) {
             $table->id('event_id');
             $table->string('e_name', 100);
-            $table->date('date')->index();
+            $table->date('e_date')->index();
             $table->string('location', 255)->nullable();
             $table->enum('level', ['LOCAL', 'REGIONAL', 'NATIONAL', 'INTERNATIONAL'])->default('LOCAL')->index();
             $table->decimal('entry_fee', 10, 2)->default(0.00);
             $table->text('description')->nullable();
             $table->string('organizer', 255)->nullable();
             $table->string('contact_info', 255)->nullable();
-            $table->string('sponsor', 255)->nullable();
+            $table->string('sponsors', 255)->nullable();
             $table->enum('status', ['SCHEDULED', 'ONGOING', 'COMPLETED', 'CANCELED'])->default('SCHEDULED')->index();
             $table->string('poster_url', 255)->nullable();
             $table->timestamps();

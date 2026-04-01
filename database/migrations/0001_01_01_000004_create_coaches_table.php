@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::create('coaches', function (Blueprint $table) {
             $table->id('coach_id');
             $table->foreignId('id')->constrained('users')->onDelete('cascade');
-            $table->string('c_name', 100);
-            $table->string('c_phone', 20)->nullable();
+            $table->string('specialization', 255)->nullable();
+            $table->text('bio')->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active')->index();
             $table->timestamps();
             $table->softDeletes();
         });
