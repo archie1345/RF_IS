@@ -21,6 +21,7 @@ return new class extends Migration
             $table->date('expiry_date')->nullable();
             $table->string('issued_by', 100)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -47,4 +47,9 @@ class User extends Authenticatable
     {
         return $this->role === 'parent';
     }
+
+    public function isAthlete()
+    {
+        return $this->role === 'athlete';
+    }
 }

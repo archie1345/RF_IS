@@ -37,6 +37,7 @@ return new class extends Migration
             $table->date('date')->index();
             $table->enum('status', ['PRESENT', 'ABSENT', 'EXCUSED'])->default('ABSENT')->index();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

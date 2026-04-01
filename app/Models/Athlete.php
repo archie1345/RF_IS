@@ -52,7 +52,7 @@ class Athlete extends Model{
 
     public function parent()
     {
-        return $this->belongsTo(ParentModel::class,'parent_id');
+        return $this->belongsTo(Parents::class,'parent_id');
     }
 
     public function user()

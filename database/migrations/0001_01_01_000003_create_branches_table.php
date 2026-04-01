@@ -16,12 +16,15 @@ return new class extends Migration
             $table->string('branch_name', 100)->index();
             $table->string('location', 255)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('class_groups', function (Blueprint $table) {
             $table->id('group_id');
             $table->string('group_name', 100);
             $table->text('description')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -36,6 +36,7 @@ return new class extends Migration
             $table->timestamp('registered_at')->useCurrent();
             $table->enum('status', ['REGISTERED', 'CANCELED','PENDING','CONFIRMED'])->default('PENDING')->index();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('event_results', function (Blueprint $table) {
@@ -44,6 +45,7 @@ return new class extends Migration
             $table->foreignId('event_id')->constrained('events', 'event_id')->cascadeOnDelete();
             $table->enum('result', ['GOLD', 'SILVER', 'BRONZE', 'PARTICIPATED'])->default('PARTICIPATED')->index();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

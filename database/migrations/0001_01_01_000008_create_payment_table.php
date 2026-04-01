@@ -24,6 +24,7 @@ return new class extends Migration
             $table->enum('status', ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'])->default('PENDING')->index();
             $table->text('notes')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('payment_transactions', function (Blueprint $table) {
@@ -36,6 +37,7 @@ return new class extends Migration
             $table->enum('transaction_type', ['PAYMENT', 'REFUND'])->default('PAYMENT')->index();
             $table->text('notes')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

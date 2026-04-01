@@ -26,5 +26,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/postman
 
 db/password.txt
