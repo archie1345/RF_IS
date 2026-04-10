@@ -29,6 +29,15 @@ class User extends Authenticatable
         'password',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'bday' => 'date',
+            'password' => 'hashed',
+        ];
+    }
+
     public $timestamps = true;
     protected $dates = ['deleted_at', 'bday'];
 

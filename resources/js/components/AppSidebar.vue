@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import {
+    BadgeCheck,
     CalendarCheck2,
     CalendarRange,
     CreditCard,
@@ -44,6 +45,7 @@ const role = computed<AppRole>(() => {
 const navByRole: Record<AppRole, NavItem[]> = {
     admin: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
         { title: 'Athletes', href: managementRoutes.athletes, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },

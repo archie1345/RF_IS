@@ -19,6 +19,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Athletes/Index');
     })->name('athletes.index');
 
+    Route::get('admin', function () {
+        return Inertia::render('Admin/Index');
+    })->name('admin.index');
+
     Route::get('payments', function () {
         return Inertia::render('Payments/Index');
     })->name('payments.index');
