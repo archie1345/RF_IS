@@ -1,5 +1,14 @@
 <?php
 
+use App\Http\Controllers\AdminManagementController;
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AthleteManagementController;
+use App\Http\Controllers\AttendanceManagementController;
+use App\Http\Controllers\ChampionshipManagementController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PaymentManagementController;
+use App\Http\Controllers\ParentChildContextController;
+use App\Http\Controllers\SessionManagementController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -11,33 +20,46 @@ Route::get('/', function () {
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
-    Route::get('athletes', function () {
-        return Inertia::render('Athletes/Index');
-    })->name('athletes.index');
+    Route::get('athletes', [AthleteManagementController::class, 'index'])->name('athletes.index');
+    Route::post('athletes', [AthleteManagementController::class, 'store'])->name('athletes.store');
+    Route::post('athletes/{athlete}/parent-link', [AthleteManagementController::class, 'linkParent'])->name('athletes.parent-link');
 
-    Route::get('admin', function () {
-        return Inertia::render('Admin/Index');
-    })->name('admin.index');
+    Route::get('admin', [AdminManagementController::class, 'index'])->name('admin.index');
+    Route::get('admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs.index');
+    Route::post('admin/accounts', [AdminManagementController::class, 'store'])->name('admin.accounts.store');
+    Route::put('admin/accounts/{user}', [AdminManagementController::class, 'update'])->name('admin.accounts.update');
+    Route::post('admin/branches', [AdminManagementController::class, 'storeBranch'])->name('admin.branches.store');
+    Route::put('admin/branches/{branch}', [AdminManagementController::class, 'updateBranch'])->name('admin.branches.update');
+    Route::delete('admin/branches/{branch}', [AdminManagementController::class, 'destroyBranch'])->name('admin.branches.destroy');
+    Route::post('admin/groups', [AdminManagementController::class, 'storeGroup'])->name('admin.groups.store');
+    Route::put('admin/groups/{group}', [AdminManagementController::class, 'updateGroup'])->name('admin.groups.update');
+    Route::delete('admin/groups/{group}', [AdminManagementController::class, 'destroyGroup'])->name('admin.groups.destroy');
 
-    Route::get('payments', function () {
-        return Inertia::render('Payments/Index');
-    })->name('payments.index');
+    Route::get('payments', [PaymentManagementController::class, 'index'])->name('payments.index');
+    Route::post('payments', [PaymentManagementController::class, 'store'])->name('payments.store');
 
-    Route::get('attendance', function () {
-        return Inertia::render('Attendance/Index');
-    })->name('attendance.index');
+    Route::get('attendance', [AttendanceManagementController::class, 'index'])->name('attendance.index');
+    Route::post('attendance', [AttendanceManagementController::class, 'store'])->name('attendance.store');
+    Route::post('attendance/bulk-update', [AttendanceManagementController::class, 'bulkUpdate'])->name('attendance.bulk-update');
+    Route::put('attendance/{attendance}', [AttendanceManagementController::class, 'update'])->name('attendance.update');
 
-    Route::get('championships', function () {
-        return Inertia::render('Championships/Index');
-    })->name('championships.index');
+    Route::get('championships', [ChampionshipManagementController::class, 'index'])->name('championships.index');
+    Route::post('championships/registrations', [ChampionshipManagementController::class, 'storeRegistration'])->name('championships.registrations.store');
 
-    Route::get('sessions', function () {
-        return Inertia::render('Sessions/Index');
-    })->name('sessions.index');
+    Route::get('sessions', [SessionManagementController::class, 'index'])->name('sessions.index');
+    Route::post('sessions', [SessionManagementController::class, 'store'])->name('sessions.store');
+    Route::put('sessions/{session}', [SessionManagementController::class, 'update'])->name('sessions.update');
+    Route::delete('sessions/{session}', [SessionManagementController::class, 'destroy'])->name('sessions.destroy');
+    Route::post('sessions/{session}/join', [SessionManagementController::class, 'join'])->name('sessions.join');
+    Route::get('sessions/{session}/attendance', [SessionManagementController::class, 'attendanceSheet'])->name('sessions.attendance');
+    Route::post('sessions/{session}/coach-attendance', [SessionManagementController::class, 'addCoachAttendance'])->name('sessions.coach-attendance.store');
+    Route::put('sessions/coach-attendance/{coachAttendance}', [SessionManagementController::class, 'updateCoachAttendance'])->name('sessions.coach-attendance.update');
+    Route::delete('sessions/coach-attendance/{coachAttendance}', [SessionManagementController::class, 'destroyCoachAttendance'])->name('sessions.coach-attendance.destroy');
+
+    Route::post('parent/children/{athlete}/switch', [ParentChildContextController::class, 'switch'])->name('parent.children.switch');
+    Route::delete('parent/children/switch', [ParentChildContextController::class, 'clear'])->name('parent.children.clear');
 });
 
 require __DIR__.'/settings.php';

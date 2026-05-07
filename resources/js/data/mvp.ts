@@ -7,6 +7,7 @@ import type {
 
 export const managementRoutes = {
     dashboard: '/dashboard',
+    activityLogs: '/admin/activity-logs',
     athletes: '/athletes',
     payments: '/payments',
     attendance: '/attendance',

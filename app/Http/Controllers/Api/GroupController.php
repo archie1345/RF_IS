@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Group;
 use Illuminate\Http\Request;
 
 class GroupController extends Controller
@@ -12,7 +13,14 @@ class GroupController extends Controller
      */
     public function index()
     {
-        return Group::all();
+        return Group::query()
+            ->orderBy('group_name')
+            ->get()
+            ->map(fn (Group $group) => [
+                'id' => (string) $group->group_id,
+                'name' => $group->group_name,
+                'description' => $group->description,
+            ]);
     }
 
     /**
@@ -22,11 +30,13 @@ class GroupController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'branch_id' => 'required|exists:branches,id',
             'description' => 'nullable|string',
         ]);
 
-        return Group::create($request->all());
+        return Group::create([
+            'group_name' => $request->string('name')->toString(),
+            'description' => $request->input('description'),
+        ]);
     }
 
     /**
@@ -34,7 +44,13 @@ class GroupController extends Controller
      */
     public function show(string $id)
     {
-        return Group::findOrFail($id);
+        $group = Group::findOrFail($id);
+
+        return [
+            'id' => (string) $group->group_id,
+            'name' => $group->group_name,
+            'description' => $group->description,
+        ];
     }
 
     /**
@@ -44,19 +60,21 @@ class GroupController extends Controller
     {
         $group = Group::findOrFail($id);
 
-        if(!$group){
-            return response()->json(['message' => 'Group not found'], 404);
-        }
-
         $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'branch_id' => 'sometimes|required|exists:branches,id',
             'description' => 'sometimes|nullable|string',
         ]);
 
-        $group->update($request->all());
+        $group->update([
+            'group_name' => $request->has('name') ? $request->string('name')->toString() : $group->group_name,
+            'description' => $request->has('description') ? $request->input('description') : $group->description,
+        ]);
 
-        return $group;
+        return [
+            'id' => (string) $group->group_id,
+            'name' => $group->group_name,
+            'description' => $group->description,
+        ];
     }
 
     /**
@@ -65,10 +83,6 @@ class GroupController extends Controller
     public function destroy(string $id)
     {
         $group = Group::findOrFail($id);
-
-        if(!$group){
-            return response()->json(['message' => 'Group not found'], 404);
-        }
 
         $group->delete();
 

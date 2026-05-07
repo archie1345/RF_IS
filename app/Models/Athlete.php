@@ -18,7 +18,9 @@ class Athlete extends Model{
         'height_cm',
         'weight_kg',
         'nik_hash',
+        'nik_encrypted',
         'bpjs_hash',
+        'bpjs_encrypted',
         'alamat',
         'geup',
         'id',
@@ -33,6 +35,14 @@ class Athlete extends Model{
     ];
 
     protected $dates = ['deleted_at'];
+
+    protected function casts(): array
+    {
+        return [
+            'nik_encrypted' => 'encrypted',
+            'bpjs_encrypted' => 'encrypted',
+        ];
+    }
 
     public function group()
     {

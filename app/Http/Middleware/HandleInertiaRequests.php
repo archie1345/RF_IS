@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Athlete;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,11 +36,34 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $activeChildId = $request->session()->get('active_child_id');
+        $children = [];
+        $activeChild = null;
+
+        if ($user && $user->isParent()) {
+            $children = $user->children()
+                ->with('user:id,name')
+                ->orderBy('athlete_id')
+                ->get()
+                ->map(fn (Athlete $athlete) => [
+                    'athlete_id' => $athlete->athlete_id,
+                    'name' => $athlete->user?->name ?? 'Unknown athlete',
+                ])
+                ->values();
+
+            if ($activeChildId !== null) {
+                $activeChild = $children->firstWhere('athlete_id', (int) $activeChildId);
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                'children' => $children,
+                'activeChild' => $activeChild,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

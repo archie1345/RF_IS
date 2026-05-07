@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -22,6 +24,7 @@ class User extends Authenticatable
         'role',
         'bday',
         'phone',
+        'account_status',
         // 'is-active'
     ];
 
@@ -64,5 +67,32 @@ class User extends Authenticatable
     public function isAthlete()
     {
         return $this->role === 'athlete';
+    }
+
+    public function parentProfile(): HasOne
+    {
+        return $this->hasOne(Parents::class, 'id', 'id');
+    }
+
+    public function children(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Athlete::class,
+            Parents::class,
+            'id',
+            'parent_id',
+            'id',
+            'parent_id',
+        );
+    }
+
+    public function athleteProfile(): HasOne
+    {
+        return $this->hasOne(Athlete::class, 'id', 'id');
+    }
+
+    public function coachProfile(): HasOne
+    {
+        return $this->hasOne(Coach::class, 'id', 'id');
     }
 }

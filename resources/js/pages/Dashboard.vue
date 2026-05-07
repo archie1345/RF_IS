@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import DataTable from '@/components/mvp/DataTable.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
-import { Button } from '@/components/ui/button';
-import {
-    dashboardContent,
-    dashboardSnapshotRows,
-    managementRoutes,
-} from '@/data/mvp';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import DashboardDataSections from '@/components/dashboard/DashboardDataSections.vue';
+import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
+import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
+import { useLiveReload } from '@/composables/useLiveReload';
+import { managementRoutes } from '@/data/mvp';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
-import type { AppRole, TableColumn } from '@/types/mvp';
+import type { DashboardPageProps } from '@/types/dashboard';
+import type { AppRole } from '@/types/mvp';
 import { type BreadcrumbItem } from '@/types';
 import { computed } from 'vue';
 
@@ -23,26 +20,31 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const page = usePage<{ auth: Auth }>();
+const props = defineProps<DashboardPageProps>();
 
 const role = computed<AppRole>(() => {
     const userRole = page.props.auth?.user?.role;
 
-    return userRole === 'admin' ||
-        userRole === 'coach' ||
-        userRole === 'parent' ||
-        userRole === 'athlete'
-        ? userRole
-        : 'athlete';
+    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete' ? userRole : 'athlete';
 });
 
-const content = computed(() => dashboardContent[role.value]);
+const children = computed(() => page.props.auth.children ?? []);
+const activeChild = computed(() => page.props.auth.activeChild ?? null);
 
-const snapshotColumns: TableColumn[] = [
-    { key: 'workflow', label: 'Workflow' },
-    { key: 'owner', label: 'Owner' },
-    { key: 'status', label: 'Status' },
-    { key: 'target', label: 'Target' },
-];
+function switchChild(value: string): void {
+    if (!value) {
+        router.delete('/parent/children/switch', { preserveScroll: true });
+        return;
+    }
+
+    router.post(`/parent/children/${value}/switch`, {}, { preserveScroll: true });
+}
+
+useLiveReload(
+    () => role.value === 'admin',
+    () => router.reload({ only: ['activityPreviewRows', 'metrics', 'snapshotRows'], preserveUrl: true }),
+    10000,
+);
 </script>
 
 <template>
@@ -50,65 +52,27 @@ const snapshotColumns: TableColumn[] = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection
-                eyebrow="MVP dashboard"
-                :title="content.headline"
-                :description="content.description"
-            >
-                <template #actions>
-                    <Button as-child>
-                        <Link :href="content.panels[0].ctaHref">
-                            {{ content.panels[0].ctaLabel }}
-                        </Link>
-                    </Button>
-                </template>
-
-                <div class="grid gap-4 md:grid-cols-3">
-                    <StatCard
-                        v-for="metric in content.metrics"
-                        :key="metric.label"
-                        v-bind="metric"
-                    />
-                </div>
-            </PageSection>
-
-            <div class="grid gap-6 xl:grid-cols-2">
-                <section
-                    v-for="panel in content.panels"
-                    :key="panel.title"
-                    class="rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card to-muted/60 p-6 shadow-sm"
-                >
-                    <div class="space-y-4">
-                        <div class="space-y-2">
-                            <h2 class="text-xl font-semibold tracking-tight">
-                                {{ panel.title }}
-                            </h2>
-                            <p class="text-sm leading-6 text-muted-foreground">
-                                {{ panel.description }}
-                            </p>
-                        </div>
-                        <ul class="space-y-2 text-sm text-muted-foreground">
-                            <li
-                                v-for="item in panel.items"
-                                :key="item"
-                                class="rounded-2xl bg-background/80 px-4 py-3"
-                            >
-                                {{ item }}
-                            </li>
-                        </ul>
-                        <Button as-child variant="outline">
-                            <Link :href="panel.ctaHref">{{ panel.ctaLabel }}</Link>
-                        </Button>
-                    </div>
-                </section>
-            </div>
-
-            <DataTable
-                title="Cross-team operating snapshot"
-                description="A shared view of the highest-priority workflows behind the MVP modules."
-                :columns="snapshotColumns"
-                :rows="dashboardSnapshotRows"
+            <DashboardHeroSection
+                :role="role"
+                :metrics="props.metrics"
+                :children="children"
+                :active-child="activeChild"
+                @switch-child="switchChild"
             />
+
+            <DashboardDataSections
+                :role="role"
+                :announcements="props.announcements"
+                :upcoming-events="props.upcomingEvents"
+                :profile-summary="props.profileSummary"
+                :medal-rows="props.medalRows"
+                :activity-preview-rows="props.activityPreviewRows"
+                :attendance-rows="props.attendanceRows"
+                :payment-rows="props.paymentRows"
+                :snapshot-rows="props.snapshotRows"
+            />
+
+            <ParentSettingsCard v-if="role === 'parent'" />
         </div>
     </AppLayout>
 </template>

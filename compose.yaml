@@ -30,6 +30,7 @@ services:
       - DB_PASSWORD_FILE=/run/secrets/db-password
     command: >
       sh -c "
+      git config --global --add safe.directory /var/www/html &&
       /usr/local/bin/composer install --no-interaction --prefer-dist &&
       php artisan migrate --force &&
       chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
@@ -126,4 +127,3 @@ secrets:
 # secrets:
 #   db-password:
 #     file: db/password.txt
-

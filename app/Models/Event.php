@@ -23,6 +23,7 @@ class Event extends Model
         'location',
         'level',
         'entry_fee',
+        'max_slots',
         'description',
         'organizer',
         'contact_info',
@@ -32,4 +33,9 @@ class Event extends Model
     ];
 
     protected $dates = ['deleted_at', 'e_date'];
+
+    public function registrations()
+    {
+        return $this->hasMany(EventRegistration::class, 'event_id', 'event_id');
+    }
 }

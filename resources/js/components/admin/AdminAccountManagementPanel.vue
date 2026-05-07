@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
-import { Building2, Mail, PencilLine, Plus, ShieldCheck, UserRoundCog } from 'lucide-vue-next';
-import PageSection from '@/components/mvp/PageSection.vue';
+import { computed, ref } from 'vue';
+import { useForm } from '@inertiajs/vue3';
+import { PencilLine, UserRoundCog } from 'lucide-vue-next';
+import CrudManagementPanel from '@/components/admin/CrudManagementPanel.vue';
 import StatCard from '@/components/mvp/StatCard.vue';
-import StatusBadge from '@/components/mvp/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,22 +16,25 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
-import type { Metric } from '@/types/mvp';
+import type { Metric, TableColumn, TableRow } from '@/types/mvp';
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
 }>();
 
-const users = ref<AdminAccountRow[]>([...props.initialUsers]);
 const isFormOpen = ref(false);
 const editingId = ref<number | null>(null);
 
-const form = reactive({
+const users = computed(() => props.initialUsers);
+
+const form = useForm({
     name: '',
     email: '',
     role: 'athlete' as AdminAccountRole,
     branch: '',
     status: 'active' as AdminAccountRow['status'],
+    password: '',
+    password_confirmation: '',
 });
 
 const stats = computed<Metric[]>(() => [
@@ -83,13 +86,56 @@ const statusTone: Record<AdminAccountRow['status'], 'success' | 'warning' | 'dan
     suspended: 'danger',
 };
 
+const columns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'email', label: 'Contact' },
+    { key: 'roleLabel', label: 'Role' },
+    { key: 'branch', label: 'Branch' },
+    { key: 'statusLabel', label: 'Status' },
+    { key: 'createdAt', label: 'Created' },
+];
+
+const rows = computed<TableRow[]>(() =>
+    users.value.map((user) => ({
+        id: String(user.id),
+        name: user.name,
+        email: user.email,
+        roleLabel: {
+            kind: 'badge',
+            text: roleLabel[user.role],
+            tone: roleTone[user.role],
+        },
+        branch: user.branch,
+        statusLabel: {
+            kind: 'badge',
+            text: user.status.charAt(0).toUpperCase() + user.status.slice(1),
+            tone: statusTone[user.status],
+        },
+        createdAt: user.createdAt,
+    })),
+);
+
+function openEditByRow(row: TableRow) {
+    const user = users.value.find((entry) => String(entry.id) === row.id);
+
+    if (!user) {
+        return;
+    }
+
+    openEdit(user);
+}
+
 const resetForm = () => {
     editingId.value = null;
+    form.reset();
+    form.clearErrors();
     form.name = '';
     form.email = '';
     form.role = 'athlete';
     form.branch = '';
     form.status = 'active';
+    form.password = '';
+    form.password_confirmation = '';
 };
 
 const openCreate = () => {
@@ -104,166 +150,73 @@ const openEdit = (user: AdminAccountRow) => {
     form.role = user.role;
     form.branch = user.branch;
     form.status = user.status;
+    form.password = '';
+    form.password_confirmation = '';
     isFormOpen.value = true;
 };
 
+function generatePassword() {
+    const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
+    form.password = generated;
+    form.password_confirmation = generated;
+}
+
 const submit = () => {
+    const payload = {
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        status: form.status,
+        password: form.password,
+        password_confirmation: form.password_confirmation,
+    };
+
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            isFormOpen.value = false;
+            resetForm();
+        },
+    };
+
     if (editingId.value !== null) {
-        users.value = users.value.map((user) =>
-            user.id === editingId.value
-                ? {
-                      ...user,
-                      name: form.name,
-                      email: form.email,
-                      role: form.role,
-                      branch: form.branch,
-                      status: form.status,
-                  }
-                : user,
-        );
-    } else {
-        users.value = [
-            {
-                id: Math.max(...users.value.map((user) => user.id), 0) + 1,
-                name: form.name,
-                email: form.email,
-                role: form.role,
-                branch: form.branch,
-                status: form.status,
-                createdAt: new Date().toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                }),
-            },
-            ...users.value,
-        ];
+        form.transform(() => payload).put(`/admin/accounts/${editingId.value}`, options);
+
+        return;
     }
 
-    isFormOpen.value = false;
-    resetForm();
+    form.transform(() => payload).post('/admin/accounts', options);
 };
 </script>
 
 <template>
     <div class="space-y-6">
-        <PageSection
+        <CrudManagementPanel
             eyebrow="Admin panel"
             title="Account Management"
             description="Modeled after the JTE admin workspace: one place to review account types, manage access, and prepare new users for onboarding."
+            create-label="New account"
+            table-title="Account roster"
+            table-description="A role-based management table for admins, coaches, parents, and athletes. This is the same operating shape as your JTE panel, adapted to RF IS roles."
+            :columns="columns"
+            :rows="rows"
+            empty-text="No accounts available yet."
+            action-label="Action"
+            @create="openCreate"
         >
-            <template #actions>
-                <Button class="gap-2" @click="openCreate">
-                    <Plus class="size-4" />
-                    New account
-                </Button>
+            <template #stats>
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
+                </div>
             </template>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
-            </div>
-        </PageSection>
-
-        <PageSection
-            title="Account roster"
-            description="A role-based management table for admins, coaches, parents, and athletes. This is the same operating shape as your JTE panel, adapted to RF IS roles."
-        >
-            <div class="overflow-x-auto">
-                <table class="min-w-full border-separate border-spacing-y-2">
-                    <thead>
-                        <tr class="text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            <th class="px-3 py-2">Name</th>
-                            <th class="px-3 py-2">Contact</th>
-                            <th class="px-3 py-2">Role</th>
-                            <th class="px-3 py-2">Branch</th>
-                            <th class="px-3 py-2">Status</th>
-                            <th class="px-3 py-2">Created</th>
-                            <th class="px-3 py-2 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="user in users"
-                            :key="user.id"
-                            class="bg-muted/40 text-sm text-foreground"
-                        >
-                            <td class="rounded-l-2xl px-3 py-4">
-                                <div class="font-medium">{{ user.name }}</div>
-                            </td>
-                            <td class="px-3 py-4 text-muted-foreground">{{ user.email }}</td>
-                            <td class="px-3 py-4">
-                                <StatusBadge :label="roleLabel[user.role]" :tone="roleTone[user.role]" />
-                            </td>
-                            <td class="px-3 py-4">{{ user.branch }}</td>
-                            <td class="px-3 py-4">
-                                <StatusBadge
-                                    :label="user.status.charAt(0).toUpperCase() + user.status.slice(1)"
-                                    :tone="statusTone[user.status]"
-                                />
-                            </td>
-                            <td class="px-3 py-4 text-muted-foreground">{{ user.createdAt }}</td>
-                            <td class="rounded-r-2xl px-3 py-4 text-right">
-                                <Button variant="outline" class="gap-2" @click="openEdit(user)">
-                                    <PencilLine class="size-4" />
-                                    Edit
-                                </Button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </PageSection>
-
-        <div class="grid gap-6 xl:grid-cols-3">
-            <div class="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <div class="rounded-2xl bg-rose-500/10 p-3 text-rose-600">
-                        <ShieldCheck class="size-5" />
-                    </div>
-                    <div>
-                        <h3 class="font-semibold">Access tiers</h3>
-                        <p class="text-sm text-muted-foreground">Keep high-risk permissions visible.</p>
-                    </div>
-                </div>
-                <div class="mt-4 space-y-3 text-sm text-muted-foreground">
-                    <p>Admins can manage athlete, payment, event, and session operations.</p>
-                    <p>Coaches focus on attendance, schedules, and athlete readiness.</p>
-                    <p>Parents and athletes stay limited to their own visibility layer.</p>
-                </div>
-            </div>
-
-            <div class="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <div class="rounded-2xl bg-sky-500/10 p-3 text-sky-600">
-                        <Building2 class="size-5" />
-                    </div>
-                    <div>
-                        <h3 class="font-semibold">Branch ownership</h3>
-                        <p class="text-sm text-muted-foreground">See where accounts are attached operationally.</p>
-                    </div>
-                </div>
-                <div class="mt-4 space-y-3 text-sm text-muted-foreground">
-                    <p>Use branch ownership to scope coaching access and admin follow-up.</p>
-                    <p>It also helps later when we connect roster, payment, and attendance filters.</p>
-                </div>
-            </div>
-
-            <div class="rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <div class="rounded-2xl bg-amber-500/10 p-3 text-amber-600">
-                        <Mail class="size-5" />
-                    </div>
-                    <div>
-                        <h3 class="font-semibold">Invitation flow</h3>
-                        <p class="text-sm text-muted-foreground">Track who still needs setup help.</p>
-                    </div>
-                </div>
-                <div class="mt-4 space-y-3 text-sm text-muted-foreground">
-                    <p>Invited accounts can later connect to Fortify registration or password setup.</p>
-                    <p>This panel keeps the management flow visible before backend actions are wired.</p>
-                </div>
-            </div>
-        </div>
+            <template #row-actions="{ row }">
+                <Button variant="outline" class="gap-2" @click="openEditByRow(row)">
+                    <PencilLine class="size-4" />
+                    Edit
+                </Button>
+            </template>
+        </CrudManagementPanel>
     </div>
 
     <Dialog v-model:open="isFormOpen">
@@ -282,10 +235,12 @@ const submit = () => {
                 <div class="grid gap-2">
                     <Label for="admin-name">Full name</Label>
                     <Input id="admin-name" v-model="form.name" placeholder="Enter full name" />
+                    <p v-if="form.errors.name" class="text-sm text-destructive">{{ form.errors.name }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-email">Email</Label>
                     <Input id="admin-email" v-model="form.email" placeholder="name@example.com" />
+                    <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-role">Role</Label>
@@ -299,6 +254,7 @@ const submit = () => {
                         <option value="parent">Parent</option>
                         <option value="athlete">Athlete</option>
                     </select>
+                    <p v-if="form.errors.role" class="text-sm text-destructive">{{ form.errors.role }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-status">Status</Label>
@@ -311,16 +267,44 @@ const submit = () => {
                         <option value="invited">Invited</option>
                         <option value="suspended">Suspended</option>
                     </select>
+                    <p v-if="form.errors.status" class="text-sm text-destructive">{{ form.errors.status }}</p>
+                </div>
+                <div class="grid gap-2">
+                    <div class="flex items-center justify-between gap-3">
+                        <Label for="admin-password">Password</Label>
+                        <Button type="button" variant="outline" size="sm" @click="generatePassword">
+                            Generate
+                        </Button>
+                    </div>
+                    <Input
+                        id="admin-password"
+                        v-model="form.password"
+                        type="text"
+                        :placeholder="editingId !== null ? 'Leave blank to keep current password' : 'Set initial password'"
+                    />
+                    <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
+                </div>
+                <div class="grid gap-2">
+                    <Label for="admin-password-confirmation">Confirm password</Label>
+                    <Input
+                        id="admin-password-confirmation"
+                        v-model="form.password_confirmation"
+                        type="text"
+                        placeholder="Repeat password"
+                    />
                 </div>
                 <div class="grid gap-2 md:col-span-2">
                     <Label for="admin-branch">Branch</Label>
-                    <Input id="admin-branch" v-model="form.branch" placeholder="Jakarta Selatan" />
+                    <Input id="admin-branch" v-model="form.branch" placeholder="Branch is derived from linked role records" disabled />
+                    <p class="text-sm text-muted-foreground">
+                        Branch is currently read-only here and comes from the linked athlete, coach, or child records in the database.
+                    </p>
                 </div>
             </div>
 
             <DialogFooter class="gap-2">
                 <Button variant="outline" @click="isFormOpen = false">Cancel</Button>
-                <Button @click="submit">
+                <Button :disabled="form.processing" @click="submit">
                     {{ editingId !== null ? 'Save changes' : 'Create account' }}
                 </Button>
             </DialogFooter>

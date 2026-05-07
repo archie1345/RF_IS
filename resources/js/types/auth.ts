@@ -10,8 +10,15 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type ParentChild = {
+    athlete_id: number;
+    name: string;
+};
+
 export type Auth = {
     user: User;
+    children?: ParentChild[];
+    activeChild?: ParentChild | null;
 };
 
 export type TwoFactorConfigContent = {

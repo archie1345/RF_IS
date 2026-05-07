@@ -36,6 +36,11 @@ export type TableColumn = {
     align?: 'left' | 'right';
 };
 
+export type SelectOption = {
+    value: number;
+    label: string;
+};
+
 export type RoleDashboardContent = {
     headline: string;
     description: string;

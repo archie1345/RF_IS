@@ -4,8 +4,8 @@ import { usePage } from '@inertiajs/vue3';
 import {
     BadgeCheck,
     CalendarCheck2,
-    CalendarRange,
     CreditCard,
+    FileClock,
     LayoutGrid,
     Trophy,
     Users,
@@ -48,15 +48,14 @@ const navByRole: Record<AppRole, NavItem[]> = {
         { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
         { title: 'Athletes', href: managementRoutes.athletes, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
+        { title: 'Attendance', href: managementRoutes.sessions, icon: CalendarCheck2 },
         { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Coach Sessions', href: managementRoutes.sessions, icon: CalendarRange },
+        { title: 'User Activity Log', href: managementRoutes.activityLogs, icon: FileClock },
     ],
     coach: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
         { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
         { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Coach Sessions', href: managementRoutes.sessions, icon: CalendarRange },
     ],
     parent: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },

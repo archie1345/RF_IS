@@ -1,40 +1,30 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import FormInputField from '@/components/forms/FormInputField.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/mvp/DataTable.vue';
 import PageSection from '@/components/mvp/PageSection.vue';
 import StatCard from '@/components/mvp/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { attendanceRows, managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/mvp';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, TableColumn } from '@/types/mvp';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/mvp';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
+const props = defineProps<{
+    metrics: Metric[];
+    rows: TableRow[];
+    athletes: SelectOption[];
+    sessions: (SelectOption & { href?: string; date?: string; title?: string })[];
+    branches: SelectOption[];
+    groups: SelectOption[];
+    role: 'admin' | 'coach' | 'parent' | 'athlete';
+    activeAthleteId: number | null;
+}>();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: managementRoutes.dashboard },
     { title: 'Attendance', href: managementRoutes.attendance },
-];
-
-const metrics: Metric[] = [
-    {
-        label: 'Attendance today',
-        value: '89%',
-        detail: '94 of 106 expected athletes checked in',
-        tone: 'success',
-    },
-    {
-        label: 'Late arrivals',
-        value: '7',
-        detail: 'Most were from the morning conditioning group',
-        tone: 'warning',
-    },
-    {
-        label: 'Repeated absences',
-        value: '3',
-        detail: 'Needs parent follow-up this week',
-        tone: 'info',
-    },
 ];
 
 const columns: TableColumn[] = [
@@ -44,6 +34,89 @@ const columns: TableColumn[] = [
     { key: 'checkin', label: 'Check-in', align: 'right' },
     { key: 'status', label: 'Status' },
 ];
+
+const form = useForm({
+    athlete_id: props.activeAthleteId ? String(props.activeAthleteId) : '',
+    coach_session_id: '',
+    date: '',
+    status: 'PRESENT',
+    checked_in_time: '',
+    notes: '',
+    follow_up_owner: '',
+});
+
+const sessionForm = useForm({
+    title: '',
+    branch_id: '',
+    group_id: '',
+    location: '',
+    session_date: '',
+    start_time: '',
+    end_time: '',
+    status: 'DRAFT',
+});
+const coachSessionName = ref('');
+const coachSessionError = ref('');
+
+const isAdmin = computed(() => props.role === 'admin');
+const isCoach = computed(() => props.role === 'coach');
+const isAthlete = computed(() => props.role === 'athlete');
+const roleTitle = computed(() => {
+    if (isAdmin.value) return 'Admin attendance management';
+    if (isCoach.value) return 'Coach attendance management';
+    if (isAthlete.value) return 'Athlete self attendance';
+    return 'Attendance tracking';
+});
+
+function submit() {
+    form.post('/attendance', {
+        onSuccess: () => form.reset('athlete_id', 'coach_session_id', 'date', 'checked_in_time', 'notes', 'follow_up_owner'),
+    });
+}
+
+function setAttendanceStatus(id: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') {
+    const attendanceId = id.replace('ATT-', '');
+    router.put(`/attendance/${attendanceId}`, { status }, { preserveScroll: true });
+}
+
+function openSessionAttendance(href?: string) {
+    if (!href) return;
+    router.visit(href);
+}
+
+function openSessionFromCoachInput() {
+    const query = coachSessionName.value.trim().toLowerCase();
+    if (!query) {
+        coachSessionError.value = 'Session name is required.';
+        return;
+    }
+
+    const matchedSession =
+        props.sessions.find((session) => session.title?.toLowerCase() === query) ??
+        props.sessions.find((session) => session.title?.toLowerCase().includes(query)) ??
+        props.sessions.find((session) => session.label.toLowerCase().includes(query));
+
+    if (!matchedSession?.href) {
+        coachSessionError.value = 'Session not found. Try the full session name.';
+        return;
+    }
+
+    coachSessionError.value = '';
+    openSessionAttendance(matchedSession.href);
+}
+
+function applySessionDate(sessionValue: string) {
+    const selected = props.sessions.find((session) => String(session.value) === sessionValue);
+    if (selected?.date) {
+        form.date = selected.date;
+    }
+}
+
+function submitSession() {
+    sessionForm.post('/sessions', {
+        onSuccess: () => sessionForm.reset(),
+    });
+}
 </script>
 
 <template>
@@ -51,47 +124,58 @@ const columns: TableColumn[] = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection
-                eyebrow="Basic module"
-                title="Attendance tracking"
-                description="The attendance MVP covers the core coaching workflow: capture daily presence, flag issues fast, and keep the roster readable across roles."
-            >
+            <PageSection eyebrow="Basic module" :title="roleTitle" description="Role-specific attendance flow for athlete, coach, and admin.">
                 <template #actions>
-                    <Button>Mark attendance</Button>
+                    <Button v-if="isAdmin || isCoach" type="button" variant="outline" @click="sessionForm.title = sessionForm.title">
+                        Attendance
+                    </Button>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
-                    <StatCard v-for="metric in metrics" :key="metric.label" v-bind="metric" />
+                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
 
-            <div class="grid gap-6 xl:grid-cols-[1.55fr_1fr]">
-                <DataTable
-                    title="Session check-ins"
-                    description="A shared attendance table that works for admin oversight, coach operations, and parent visibility."
-                    :columns="columns"
-                    :rows="attendanceRows"
-                />
+            <div class="grid gap-6">
 
-                <PageSection
-                    title="Coach note"
-                    description="A lightweight side panel for the daily attendance workflow before we wire in full filters and presence actions."
-                >
-                    <div class="grid gap-4">
-                        <div class="grid gap-2">
-                            <Label for="attendance-session">Session</Label>
-                            <Input id="attendance-session" placeholder="Morning conditioning" />
+                <PageSection v-if="isCoach || isAdmin" title="Session attendance sheet" description="Pick a session, open the dedicated attendance sheet page, and update athlete statuses there.">
+                    <form class="grid gap-4" @submit.prevent="submitSession">
+                        <FormInputField id="session-name" v-model="sessionForm.title" label="Session name" placeholder="Evening attendance block" :error="sessionForm.errors.title" />
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <FormSelectField id="session-branch" v-model="sessionForm.branch_id" label="Branch" :options="props.branches" :error="sessionForm.errors.branch_id" />
                         </div>
-                        <div class="grid gap-2">
-                            <Label for="attendance-note">Issue to track</Label>
-                            <Input id="attendance-note" placeholder="Late arrivals from school pickup" />
+                        <FormSelectField id="session-group" v-model="sessionForm.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="sessionForm.errors.group_id" />
+                        <FormInputField id="session-location" v-model="sessionForm.location" label="Location" placeholder="Hall A" :error="sessionForm.errors.location" />
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <FormInputField id="session-date" v-model="sessionForm.session_date" label="Date" type="date" :error="sessionForm.errors.session_date" />
+                            <FormInputField id="session-start" v-model="sessionForm.start_time" label="Start time (24h)" type="time" :error="sessionForm.errors.start_time" />
+                            <FormInputField id="session-end" v-model="sessionForm.end_time" label="End time (24h)" type="time" :error="sessionForm.errors.end_time" />
                         </div>
-                        <div class="grid gap-2">
-                            <Label for="attendance-followup">Follow-up owner</Label>
-                            <Input id="attendance-followup" placeholder="Coach Maya" />
-                        </div>
-                        <Button>Save note</Button>
-                    </div>
+                        <FormSelectField id="session-status" v-model="sessionForm.status" label="Status" :options="[{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'NEEDS_ASSISTANT', label: 'Needs assistant' }, { value: 'CANCELED', label: 'Canceled' }]" :error="sessionForm.errors.status" />
+                        <Button type="submit" :disabled="sessionForm.processing">Create attendance session</Button>
+                    </form>
+
+                    <form v-if="isCoach" class="mt-6 grid gap-3 border-t pt-5" @submit.prevent="openSessionFromCoachInput">
+                        <FormInputField id="coach-session-name" v-model="coachSessionName" label="Coach session panel" placeholder="Type your session name" :error="coachSessionError" />
+                        <Button type="submit" variant="outline">Open session attendance</Button>
+                    </form>
+
+                    <DataTable title="Session check-ins" description="Set athlete attendance directly. Once session time has passed, updates are hidden and locked." :columns="columns" :rows="props.rows" searchable search-placeholder="Search athlete/session/coach..." action-label="Attendance">
+                        <template #row-actions="{ row }">
+                            <span v-if="row.is_locked" class="text-xs text-muted-foreground">Closed</span>
+                            <div v-else class="flex items-center justify-end gap-2">
+                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Present'" @click="setAttendanceStatus(String(row.id), 'PRESENT')">
+                                    Present
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Absent'" @click="setAttendanceStatus(String(row.id), 'ABSENT')">
+                                    Absent
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Excused'" @click="setAttendanceStatus(String(row.id), 'EXCUSED')">
+                                    Excused
+                                </Button>
+                            </div>
+                        </template>
+                    </DataTable>
                 </PageSection>
             </div>
         </div>

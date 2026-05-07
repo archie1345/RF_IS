@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Menu, Search } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { BookOpen, Folder, LayoutGrid, Menu, Search, Users } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import {
     NavigationMenu,
     NavigationMenuItem,
@@ -48,6 +56,12 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const auth = computed(() => page.props.auth);
+const isParent = computed(() => auth.value?.user?.role === 'parent');
+const parentChildren = computed(() => auth.value?.children ?? []);
+const activeChild = computed(() => auth.value?.activeChild ?? null);
+const isChildPickerOpen = ref(false);
+const childSearch = ref('');
+const visibleChildrenCount = ref(12);
 const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 
 const activeItemStyles =
@@ -73,6 +87,47 @@ const rightNavItems: NavItem[] = [
         icon: BookOpen,
     },
 ];
+
+const filteredChildren = computed(() => {
+    const query = childSearch.value.trim().toLowerCase();
+
+    if (!query) {
+        return parentChildren.value;
+    }
+
+    return parentChildren.value.filter((child) => child.name.toLowerCase().includes(query));
+});
+
+const visibleChildren = computed(() => filteredChildren.value.slice(0, visibleChildrenCount.value));
+
+watch(isChildPickerOpen, (isOpen) => {
+    if (!isOpen) {
+        childSearch.value = '';
+        visibleChildrenCount.value = 12;
+    }
+});
+
+watch(childSearch, () => {
+    visibleChildrenCount.value = 12;
+});
+
+function switchChild(athleteId: number | string) {
+    if (!athleteId) {
+        return;
+    }
+
+    isChildPickerOpen.value = false;
+
+    router.post(`/parent/children/${athleteId}/switch`, {}, { preserveScroll: true });
+}
+
+function clearChildContext() {
+    router.delete('/parent/children/switch', { preserveScroll: true });
+}
+
+function showMoreChildren() {
+    visibleChildrenCount.value += 12;
+}
 </script>
 
 <template>
@@ -189,6 +244,31 @@ const rightNavItems: NavItem[] = [
                 </div>
 
                 <div class="ml-auto flex items-center space-x-2">
+                    <div v-if="isParent && parentChildren.length > 0" class="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="hidden h-9 items-center gap-2 lg:inline-flex"
+                            @click="isChildPickerOpen = true"
+                        >
+                            <Users class="size-4" />
+                            {{ activeChild?.name ?? 'Select child' }}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            class="lg:hidden"
+                            @click="isChildPickerOpen = true"
+                        >
+                            <Users class="size-5" />
+                            <span class="sr-only">Open child picker</span>
+                        </Button>
+                        <Button v-if="activeChild" type="button" variant="outline" size="sm" @click="clearChildContext">
+                            Exit view
+                        </Button>
+                    </div>
+
                     <div class="relative flex items-center space-x-1">
                         <Button
                             variant="ghost"
@@ -279,5 +359,68 @@ const rightNavItems: NavItem[] = [
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </div>
         </div>
+
+        <Dialog v-model:open="isChildPickerOpen">
+            <DialogContent class="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2">
+                        <Users class="size-5" />
+                        Switch child account
+                    </DialogTitle>
+                    <DialogDescription>
+                        Search and open the child account context you want to view.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-4">
+                    <Input
+                        v-model="childSearch"
+                        placeholder="Search child name"
+                    />
+
+                    <div class="rounded-2xl border border-border/70">
+                        <div
+                            v-if="visibleChildren.length > 0"
+                            class="max-h-80 space-y-1 overflow-y-auto p-2"
+                        >
+                            <button
+                                v-for="child in visibleChildren"
+                                :key="child.athlete_id"
+                                type="button"
+                                class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-muted"
+                                :class="child.athlete_id === activeChild?.athlete_id ? 'bg-muted' : ''"
+                                @click="switchChild(child.athlete_id)"
+                            >
+                                <span class="font-medium text-foreground">{{ child.name }}</span>
+                                <span
+                                    v-if="child.athlete_id === activeChild?.athlete_id"
+                                    class="text-xs uppercase tracking-[0.16em] text-muted-foreground"
+                                >
+                                    Active
+                                </span>
+                            </button>
+                        </div>
+
+                        <div v-else class="px-4 py-8 text-center text-sm text-muted-foreground">
+                            No child matches that search.
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm text-muted-foreground">
+                            Showing {{ visibleChildren.length }} of {{ filteredChildren.length }} children
+                        </p>
+                        <Button
+                            v-if="visibleChildren.length < filteredChildren.length"
+                            type="button"
+                            variant="outline"
+                            @click="showMoreChildren"
+                        >
+                            Show more
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>
