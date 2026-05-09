@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Metric } from '@/types/mvp';
+import type { Metric } from '@/types/management';
 
 const props = defineProps<Metric>();
 
@@ -15,13 +15,14 @@ const accentClasses = {
 </script>
 
 <template>
-    <Card :class="cn('rounded-3xl border shadow-sm', accentClasses[props.tone ?? 'neutral'])">
-        <CardContent class="space-y-3 p-5">
+    <Card :class="cn('rounded-2xl border shadow-sm sm:rounded-3xl', accentClasses[props.tone ?? 'neutral'])">
+        <CardContent class="space-y-3 p-4 sm:p-5">
             <p class="text-sm font-medium text-muted-foreground">{{ props.label }}</p>
             <div class="space-y-1">
-                <p class="text-3xl font-semibold tracking-tight">{{ props.value }}</p>
+                <p class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ props.value }}</p>
                 <p class="text-sm text-muted-foreground">{{ props.detail }}</p>
             </div>
         </CardContent>
     </Card>
 </template>
+

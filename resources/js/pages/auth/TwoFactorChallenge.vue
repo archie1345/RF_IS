@@ -131,3 +131,4 @@ const code = ref<string>('');
         </div>
     </AuthLayout>
 </template>
+

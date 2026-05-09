@@ -3,11 +3,13 @@ import type {
     RoleDashboardContent,
     TableBadgeCell,
     TableRow,
-} from '@/types/mvp';
+} from '@/types/management';
 
 export const managementRoutes = {
     dashboard: '/dashboard',
+    componentsPlayground: '/components-playground',
     activityLogs: '/admin/activity-logs',
+    parentChildSwitcher: '/parent/children',
     athletes: '/athletes',
     payments: '/payments',
     attendance: '/attendance',
@@ -417,3 +419,4 @@ export const sessionRows: TableRow[] = [
         status: badge('Needs assistant', 'warning'),
     },
 ];
+

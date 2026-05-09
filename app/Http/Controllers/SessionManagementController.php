@@ -41,7 +41,7 @@ class SessionManagementController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        return Inertia::render('Sessions/Index', [
+        return Inertia::render('SessionsPage', [
             'metrics' => [
                 ['label' => 'Scheduled sessions', 'value' => (string) $sessions->count(), 'detail' => 'Across all active branches', 'tone' => 'info'],
                 ['label' => 'Confirmed coverage', 'value' => (string) $sessions->where('status', 'CONFIRMED')->count(), 'detail' => 'Sessions fully staffed and approved', 'tone' => 'success'],
@@ -261,7 +261,7 @@ class SessionManagementController extends Controller
         $athletePresentCount = $attendance->where('status', 'PRESENT')->count();
         $coachTeachCount = $coachAttendance->where('status', 'TEACH')->count();
 
-        return Inertia::render('Sessions/AttendanceSheet', [
+        return Inertia::render('SessionsAttendancePage', [
             'session' => [
                 'id' => $session->csid,
                 'title' => $session->title,
@@ -428,3 +428,4 @@ class SessionManagementController extends Controller
         return $firstCoachId ? (int) $firstCoachId : null;
     }
 }
+

@@ -28,10 +28,10 @@ const open = ref(props.defaultOpen);
     <Collapsible v-model:open="open">
         <PageSection :title="title" :description="description" :eyebrow="eyebrow">
             <template #actions>
-                <div class="flex items-center gap-2">
+                <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                     <slot name="actions" />
                     <CollapsibleTrigger as-child>
-                        <Button type="button" variant="outline" size="sm">
+                        <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto">
                             {{ open ? collapseLabel : expandLabel }}
                             <ChevronDown class="ml-2 h-4 w-4 transition-transform" :class="open ? 'rotate-180' : ''" />
                         </Button>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ClipboardList, PencilLine, UserRoundCog } from 'lucide-vue-next';
-import CrudManagementPanel from '@/components/admin/CrudManagementPanel.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -14,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Group } from '@/types/group';
-import type { TableColumn, TableRow } from '@/types/mvp';
+import type { TableColumn, TableRow } from '@/types/management';
 
 const props = defineProps<{
     groups: Group[];
@@ -90,7 +91,7 @@ function submit() {
 
 <template>
     <div>
-        <CrudManagementPanel
+        <ManagementTablePanel
             eyebrow="Admin panel"
             title="Group Management"
             description="Manage athlete groups with the same reusable CRUD table and dialog pattern used across the admin workspace."
@@ -104,7 +105,7 @@ function submit() {
             @create="openCreate"
         >
             <template #row-actions="{ row }">
-                <div class="flex justify-end gap-2">
+                <ActionButtonsRow>
                     <Button variant="outline" class="gap-2" @click="openEdit(row)">
                         <PencilLine class="size-4" />
                         Edit
@@ -112,9 +113,9 @@ function submit() {
                     <Button variant="destructive" @click="emit('delete', row.id)">
                         Remove
                     </Button>
-                </div>
+                </ActionButtonsRow>
             </template>
-        </CrudManagementPanel>
+        </ManagementTablePanel>
 
         <Dialog v-model:open="isFormOpen">
             <DialogContent class="sm:max-w-xl">
@@ -152,4 +153,5 @@ function submit() {
         </Dialog>
     </div>
 </template>
+
 

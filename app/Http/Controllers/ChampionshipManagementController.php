@@ -27,7 +27,7 @@ class ChampionshipManagementController extends Controller
 
         $registrations = EventRegistration::query()->get();
 
-        return Inertia::render('Championships/Index', [
+        return Inertia::render('ChampionshipsPage', [
             'metrics' => [
                 ['label' => 'Open registrations', 'value' => (string) $events->where('status', 'SCHEDULED')->count(), 'detail' => 'Published events currently taking entries', 'tone' => 'warning'],
                 ['label' => 'Athletes submitted', 'value' => (string) $registrations->count(), 'detail' => 'Total registration records created', 'tone' => 'info'],
@@ -126,3 +126,4 @@ class ChampionshipManagementController extends Controller
         return $this->badge('Unpaid', 'danger');
     }
 }
+

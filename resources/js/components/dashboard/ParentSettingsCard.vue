@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PageSection from '@/components/mvp/PageSection.vue';
+import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { Link } from '@inertiajs/vue3';
 </script>
@@ -11,3 +11,4 @@ import { Link } from '@inertiajs/vue3';
         </Button>
     </PageSection>
 </template>
+

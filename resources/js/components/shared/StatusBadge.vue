@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { StatusTone } from '@/types/mvp';
+import type { StatusTone } from '@/types/management';
 
 const props = withDefaults(
     defineProps<{
@@ -30,3 +30,4 @@ const toneClasses = {
         {{ props.label }}
     </Badge>
 </template>
+

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useSlots } from 'vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import StatusBadge from '@/components/mvp/StatusBadge.vue';
-import type { TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/mvp';
+import StatusBadge from '@/components/shared/StatusBadge.vue';
+import type { TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/management';
 
 const props = defineProps<{
     title: string;
@@ -52,10 +52,10 @@ const filteredRows = computed(() => {
 </script>
 
 <template>
-    <Card class="rounded-3xl border shadow-sm">
-        <CardHeader class="space-y-1">
-            <CardTitle class="text-xl">{{ title }}</CardTitle>
-            <CardDescription>{{ description }}</CardDescription>
+    <Card class="w-full max-w-full rounded-2xl border shadow-sm sm:rounded-3xl">
+        <CardHeader class="space-y-1 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+            <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
+            <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
             <div v-if="props.searchable" class="pt-2">
                 <input
                     v-model="search"
@@ -65,20 +65,21 @@ const filteredRows = computed(() => {
                 >
             </div>
         </CardHeader>
-        <CardContent>
-            <div class="overflow-x-auto">
-                <table class="min-w-full border-separate border-spacing-y-2">
+        <CardContent class="px-0 pb-3 sm:px-6 sm:pb-6">
+            <div class="px-4 pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
+            <div class="w-full max-w-full overflow-x-auto px-2 sm:px-0">
+                <table class="w-max min-w-full border-separate border-spacing-y-2">
                     <thead>
                         <tr class="text-left text-xs uppercase tracking-[0.16em] text-muted-foreground">
                             <th
                                 v-for="column in props.columns"
                                 :key="column.key"
-                                class="px-3 py-2 font-semibold"
+                                class="px-2 py-2 font-semibold sm:px-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
                                 {{ column.label }}
                             </th>
-                            <th v-if="hasRowActions" class="px-3 py-2 text-right font-semibold">
+                            <th v-if="hasRowActions" class="px-2 py-2 text-right font-semibold sm:px-3">
                                 {{ props.actionLabel ?? 'Action' }}
                             </th>
                         </tr>
@@ -92,7 +93,7 @@ const filteredRows = computed(() => {
                             <td
                                 v-for="column in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="px-3 py-3 first:rounded-l-2xl last:rounded-r-2xl"
+                                class="px-2 py-3 first:rounded-l-xl last:rounded-r-xl sm:px-3 sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
                                 <slot
@@ -109,7 +110,7 @@ const filteredRows = computed(() => {
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
-                            <td v-if="hasRowActions" class="px-3 py-3 text-right">
+                            <td v-if="hasRowActions" class="px-2 py-3 text-right sm:px-3">
                                 <slot name="row-actions" :row="row" />
                             </td>
                         </tr>
@@ -129,3 +130,4 @@ const filteredRows = computed(() => {
         </CardContent>
     </Card>
 </template>
+

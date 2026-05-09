@@ -128,3 +128,4 @@ const user = page.props.auth.user;
         </SettingsLayout>
     </AppLayout>
 </template>
+

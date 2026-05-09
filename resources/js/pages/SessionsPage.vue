@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
-import CollapsibleSection from '@/components/mvp/CollapsibleSection.vue';
-import DataTable from '@/components/mvp/DataTable.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import DataTable from '@/components/shared/DataTable.vue';
+import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/mvp';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -57,10 +58,14 @@ const editForm = useForm({
 });
 
 const editingSessionId = ref<number | null>(null);
+const showSessionForm = ref(false);
 
 function submit() {
     form.post('/sessions', {
-        onSuccess: () => form.reset(),
+        onSuccess: () => {
+            form.reset();
+            showSessionForm.value = false;
+        },
     });
 }
 
@@ -74,6 +79,7 @@ function startEdit(row: TableRow) {
     editForm.start_time = String(row.start_time ?? '');
     editForm.end_time = String(row.end_time ?? '');
     editForm.status = String(row.status_value ?? 'DRAFT');
+    showSessionForm.value = true;
 }
 
 function submitEdit() {
@@ -82,6 +88,7 @@ function submitEdit() {
         onSuccess: () => {
             editingSessionId.value = null;
             editForm.reset();
+            showSessionForm.value = false;
         },
     });
 }
@@ -89,6 +96,15 @@ function submitEdit() {
 function cancelEdit() {
     editingSessionId.value = null;
     editForm.reset();
+    showSessionForm.value = false;
+}
+
+function openCreateSessionForm() {
+    editingSessionId.value = null;
+    editForm.reset();
+    form.reset();
+    form.clearErrors();
+    showSessionForm.value = true;
 }
 
 function removeSession(row: TableRow) {
@@ -112,7 +128,7 @@ function joinSession(row: TableRow) {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection title="Session" description="Schedule training sessions and keep the live coaching calendar synced.">
                 <template #actions>
-                    <Button type="button">Schedule session</Button>
+                    <Button type="button" @click="openCreateSessionForm">Schedule session</Button>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
@@ -121,7 +137,23 @@ function joinSession(row: TableRow) {
             </PageSection>
 
             <div class="grid gap-6">
-                <CollapsibleSection :title="editingSessionId ? 'Edit session' : 'Session draft'" description="Create or update a session and assign coaches, branch, date, and operational status." collapse-label="Hide form" expand-label="Show form">
+                <DataTable title="Session lineup" description="Training sessions persisted from the coach scheduling workflow." :columns="columns" :rows="props.rows" action-label="Actions">
+                    <template #row-actions="{ row }">
+                        <ActionButtonsRow>
+                            <Button as-child size="sm" variant="outline">
+                                <Link :href="`/sessions/${String(row.id).replace('SES-', '')}/attendance`">Open</Link>
+                            </Button>
+                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
+                            <Button size="sm" variant="outline" @click="startEdit(row)">Edit</Button>
+                            <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
+                        </ActionButtonsRow>
+                    </template>
+                </DataTable>
+            </div>
+        </div>
+
+        <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelEdit">
+                <PageSection :title="editingSessionId ? 'Edit session' : 'Session draft'" description="Create or update a session and assign coaches, branch, date, and operational status.">
                     <form v-if="editingSessionId" class="grid gap-4" @submit.prevent="submitEdit">
                         <FormInputField id="edit-session-name" v-model="editForm.title" label="Session name" placeholder="Junior sparring block" :error="editForm.errors.title" />
                         <div class="grid gap-4 md:grid-cols-2">
@@ -135,9 +167,9 @@ function joinSession(row: TableRow) {
                             <FormInputField id="edit-session-end" v-model="editForm.end_time" label="End time" type="time" :error="editForm.errors.end_time" />
                         </div>
                         <FormSelectField id="edit-session-status" v-model="editForm.status" label="Status" :options="[{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'NEEDS_ASSISTANT', label: 'Needs assistant' }, { value: 'CANCELED', label: 'Canceled' }]" :error="editForm.errors.status" />
-                        <div class="flex items-center gap-2">
-                            <Button type="submit" :disabled="editForm.processing">Update session</Button>
-                            <Button type="button" variant="outline" @click="cancelEdit">Cancel</Button>
+                        <div class="flex flex-wrap gap-3">
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="editForm.processing">Update session</Button>
+                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelEdit">Cancel</Button>
                         </div>
                     </form>
 
@@ -154,23 +186,13 @@ function joinSession(row: TableRow) {
                             <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
                         </div>
                         <FormSelectField id="session-status" v-model="form.status" label="Status" :options="[{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'NEEDS_ASSISTANT', label: 'Needs assistant' }, { value: 'CANCELED', label: 'Canceled' }]" :error="form.errors.status" />
-                        <Button type="submit" :disabled="form.processing">Save schedule</Button>
-                    </form>
-                </CollapsibleSection>
-
-                <DataTable title="Session lineup" description="Training sessions persisted from the coach scheduling workflow." :columns="columns" :rows="props.rows" action-label="Actions">
-                    <template #row-actions="{ row }">
-                        <div class="flex items-center justify-end gap-2">
-                            <Button as-child size="sm" variant="outline">
-                                <Link :href="`/sessions/${String(row.id).replace('SES-', '')}/attendance`">Open</Link>
-                            </Button>
-                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
-                            <Button size="sm" variant="outline" @click="startEdit(row)">Edit</Button>
-                            <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
+                        <div class="flex flex-wrap gap-3">
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Save schedule</Button>
+                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelEdit">Cancel</Button>
                         </div>
-                    </template>
-                </DataTable>
-            </div>
-        </div>
+                    </form>
+                </PageSection>
+        </FormModal>
     </AppLayout>
 </template>
+

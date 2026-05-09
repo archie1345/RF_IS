@@ -24,7 +24,7 @@ class PaymentManagementController extends Controller
             ->latest('payment_date')
             ->get();
 
-        return Inertia::render('Payments/Index', [
+        return Inertia::render('PaymentsPage', [
             'metrics' => [
                 ['label' => 'Collected this month', 'value' => $this->rupiah((float) $payments->whereBetween('payment_date', [now()->startOfMonth(), now()->endOfMonth()])->sum('paid_amount')), 'detail' => 'Verified receipts for the current month', 'tone' => 'success'],
                 ['label' => 'Outstanding balance', 'value' => $this->rupiah((float) $payments->sum('remaining_amount')), 'detail' => 'Still open across all active invoices', 'tone' => 'warning'],
@@ -112,3 +112,4 @@ class PaymentManagementController extends Controller
         return $this->badge('Unpaid', 'danger');
     }
 }
+

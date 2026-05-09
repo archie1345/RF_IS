@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import DataTable from '@/components/mvp/DataTable.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import { dashboardColumns, mapAnnouncements, mapProfileSummary } from '@/data/dashboard';
-import type { AppRole, TableRow } from '@/types/mvp';
+import type { AppRole, TableRow } from '@/types/management';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps<{
@@ -48,3 +48,4 @@ const props = defineProps<{
 
     <DataTable title="Operational snapshot" description="Reusable dynamic table for any modules/columns" :columns="dashboardColumns.snapshot" :rows="props.snapshotRows" />
 </template>
+

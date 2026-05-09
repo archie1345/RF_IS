@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import DataTable from '@/components/mvp/DataTable.vue';
+import DataTable from '@/components/shared/DataTable.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
+import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableColumn, TableRow } from '@/types/mvp';
+import type { SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps<{
@@ -98,11 +99,7 @@ function removeCoach(rowId: string) {
             <PageSection title="Coach attendance table" description="Add coaches to this session and mark whether they teach or not.">
                 <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
                     <div class="grid gap-2">
-                        <Label for="coach-picker">Add coach</Label>
-                        <select id="coach-picker" v-model="coachForm.coach_id" class="flex h-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-slate-500 focus:outline-none">
-                            <option value="">Select coach</option>
-                            <option v-for="coach in props.coachOptions" :key="coach.value" :value="coach.value">{{ coach.label }}</option>
-                        </select>
+                        <FormSelectField id="coach-picker" v-model="coachForm.coach_id" label="Add coach" :options="props.coachOptions" placeholder="Select coach" />
                         <InputError :message="coachForm.errors.coach_id" />
                     </div>
                     <div class="flex items-end">
@@ -120,11 +117,11 @@ function removeCoach(rowId: string) {
                     action-label="Actions"
                 >
                     <template #row-actions="{ row }">
-                        <div class="flex items-center justify-end gap-2">
+                        <ActionButtonsRow>
                             <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Teach</Button>
                             <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Not teach</Button>
                             <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))">Delete</Button>
-                        </div>
+                        </ActionButtonsRow>
                     </template>
                 </DataTable>
             </PageSection>
@@ -139,12 +136,13 @@ function removeCoach(rowId: string) {
                 action-label="Actions"
             >
                 <template #row-actions="{ row }">
-                    <div class="flex items-center justify-end gap-2">
+                    <ActionButtonsRow>
                         <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'PRESENT')">Attend</Button>
                         <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'ABSENT')">Not attend</Button>
-                    </div>
+                    </ActionButtonsRow>
                 </template>
             </DataTable>
         </div>
     </AppLayout>
 </template>
+

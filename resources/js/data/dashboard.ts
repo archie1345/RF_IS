@@ -1,4 +1,4 @@
-import type { TableColumn, TableRow } from '@/types/mvp';
+import type { TableColumn, TableRow } from '@/types/management';
 
 export const dashboardColumns = {
     announcement: [{ key: 'text', label: 'Announcement' }] as TableColumn[],
@@ -47,3 +47,4 @@ export function mapAnnouncements(announcements: string[]): TableRow[] {
 export function mapProfileSummary(summary: Record<string, string>): TableRow[] {
     return Object.entries(summary).map(([field, value]) => ({ id: field, field, value }));
 }
+

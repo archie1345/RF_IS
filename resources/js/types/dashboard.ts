@@ -1,4 +1,4 @@
-import type { Metric, TableRow } from '@/types/mvp';
+import type { Metric, TableRow } from '@/types/management';
 
 export type DashboardPageProps = {
     metrics: Metric[];
@@ -11,3 +11,4 @@ export type DashboardPageProps = {
     medalRows: TableRow[];
     profileSummary: Record<string, string>;
 };
+

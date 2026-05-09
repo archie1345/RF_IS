@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import {
     BadgeCheck,
+    Blocks,
     CalendarCheck2,
     CreditCard,
     FileClock,
@@ -23,10 +24,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import type { Auth } from '@/types/auth';
 import { type NavItem } from '@/types';
-import type { AppRole } from '@/types/mvp';
+import type { AppRole } from '@/types/management';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<{ auth: Auth }>();
@@ -46,6 +47,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     admin: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
         { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
+        { title: 'Components Playground', href: managementRoutes.componentsPlayground, icon: Blocks },
         { title: 'Athletes', href: managementRoutes.athletes, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: managementRoutes.sessions, icon: CalendarCheck2 },
@@ -59,6 +61,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     ],
     parent: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Switch Child', href: managementRoutes.parentChildSwitcher, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
         { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
@@ -100,3 +103,4 @@ const footerNavItems: NavItem[] = [];
     </Sidebar>
     <slot />
 </template>
+

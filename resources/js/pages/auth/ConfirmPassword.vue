@@ -51,3 +51,4 @@ import { store } from '@/routes/password/confirm';
         </Form>
     </AuthLayout>
 </template>
+

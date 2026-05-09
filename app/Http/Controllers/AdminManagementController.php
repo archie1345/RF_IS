@@ -4,17 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\Coach;
+use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Group;
 use App\Models\Parents;
+use App\Models\Payment;
+use App\Models\Session;
+use App\Models\Attendance;
+use App\Models\Athlete;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminManagementController extends Controller
 {
@@ -31,7 +40,7 @@ class AdminManagementController extends Controller
             ->latest('id')
             ->get();
 
-        return Inertia::render('Admin/Index', [
+        return Inertia::render('AdminPage', [
             'users' => $users->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name ?? 'Unnamed user',
@@ -62,6 +71,7 @@ class AdminManagementController extends Controller
             'debugbar' => [
                 'enabled' => class_exists(\Barryvdh\Debugbar\ServiceProvider::class),
             ],
+            'importResult' => session('importResult'),
         ]);
     }
 
@@ -134,7 +144,7 @@ class AdminManagementController extends Controller
         return redirect()->route('admin.index');
     }
 
-    public function destroyBranch(Branch $branch): RedirectResponse
+    public function destroyBranch(Request $request, Branch $branch): RedirectResponse
     {
         ActivityLogger::log($request, 'admin.branch.deleted', 'admin', 'Deleted branch', $branch, ['branch_name' => $branch->branch_name]);
         $branch->delete();
@@ -174,12 +184,70 @@ class AdminManagementController extends Controller
         return redirect()->route('admin.index');
     }
 
-    public function destroyGroup(Group $group): RedirectResponse
+    public function destroyGroup(Request $request, Group $group): RedirectResponse
     {
         ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted group', $group, ['group_name' => $group->group_name]);
         $group->delete();
 
         return redirect()->route('admin.index');
+    }
+
+    public function importCsv(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ]);
+
+        [$headers, $rows] = $this->readCsvRows($request->file('file')->getRealPath());
+        $result = ['entity' => $validated['entity'], 'imported' => 0, 'failed' => 0, 'errors' => []];
+
+        foreach ($rows as $index => $row) {
+            try {
+                $this->importRow($validated['entity'], $row);
+                $result['imported']++;
+            } catch (\Throwable $exception) {
+                $result['failed']++;
+                $result['errors'][] = 'Row '.($index + 2).': '.$exception->getMessage();
+            }
+        }
+
+        return redirect()->route('admin.index')->with('importResult', $result);
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $entity = $request->validate([
+            'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
+        ])['entity'];
+
+        [$headers, $rows] = $this->exportRows($entity);
+        $filename = $entity.'_export_'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($headers, $rows): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function downloadTemplate(Request $request): StreamedResponse
+    {
+        $entity = $request->validate([
+            'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
+        ])['entity'];
+
+        [$headers] = $this->templateRows($entity);
+        $filename = $entity.'_template.csv';
+
+        return response()->streamDownload(function () use ($headers): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     private function validateAccount(Request $request, ?User $user = null): array
@@ -230,4 +298,224 @@ class AdminManagementController extends Controller
             );
         }
     }
+
+    private function readCsvRows(string $path): array
+    {
+        $handle = fopen($path, 'r');
+        $headers = fgetcsv($handle);
+        $headers = array_map(fn ($value) => strtolower(trim((string) $value)), $headers ?: []);
+        $rows = [];
+
+        while (($line = fgetcsv($handle)) !== false) {
+            if ($line === [null] || count(array_filter($line, fn ($cell) => trim((string) $cell) !== '')) === 0) {
+                continue;
+            }
+            $rows[] = array_combine($headers, array_pad($line, count($headers), null));
+        }
+        fclose($handle);
+
+        return [$headers, $rows];
+    }
+
+    private function importRow(string $entity, array $row): void
+    {
+        match ($entity) {
+            'athletes' => $this->importAthleteRow($row),
+            'payments' => $this->importPaymentRow($row),
+            'sessions' => $this->importSessionRow($row),
+            'attendance' => $this->importAttendanceRow($row),
+            'events' => $this->importEventRow($row),
+            'event_registrations' => $this->importEventRegistrationRow($row),
+            default => throw new \RuntimeException('Unsupported entity.'),
+        };
+    }
+
+    private function importAthleteRow(array $row): void
+    {
+        $email = trim((string) ($row['email'] ?? ''));
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($email === '' || $name === '') {
+            throw new \RuntimeException('name and email are required.');
+        }
+
+        DB::transaction(function () use ($row, $email, $name): void {
+            $user = User::query()->firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => Hash::make('TempPass123!'),
+                    'gender' => strtoupper((string) ($row['gender'] ?? 'MALE')),
+                    'role' => 'athlete',
+                    'bday' => $this->nullableDate($row['bday'] ?? null),
+                    'phone' => $this->nullableString($row['phone'] ?? null),
+                ],
+            );
+
+            $user->update([
+                'name' => $name,
+                'gender' => strtoupper((string) ($row['gender'] ?? 'MALE')),
+                'bday' => $this->nullableDate($row['bday'] ?? null),
+                'phone' => $this->nullableString($row['phone'] ?? null),
+            ]);
+
+            Athlete::query()->updateOrCreate(
+                ['id' => $user->id],
+                [
+                    'branch_id' => (int) ($row['branch_id'] ?? 0),
+                    'group_id' => $this->nullableInt($row['group_id'] ?? null),
+                    'parent_id' => $this->nullableInt($row['parent_id'] ?? null),
+                    'height_cm' => (float) ($row['height_cm'] ?? 0),
+                    'weight_kg' => (float) ($row['weight_kg'] ?? 0),
+                    'alamat' => $this->nullableString($row['alamat'] ?? null),
+                    'geup' => strtoupper((string) ($row['geup'] ?? 'GEUP_10')),
+                    'nik_hash' => ! empty($row['nik']) ? hash('sha256', preg_replace('/\s+/', '', (string) $row['nik'])) : null,
+                    'nik_encrypted' => $this->nullableString($row['nik'] ?? null),
+                    'bpjs_hash' => ! empty($row['bpjs']) ? hash('sha256', preg_replace('/\s+/', '', (string) $row['bpjs'])) : null,
+                    'bpjs_encrypted' => $this->nullableString($row['bpjs'] ?? null),
+                ],
+            );
+        });
+    }
+
+    private function importPaymentRow(array $row): void
+    {
+        Payment::query()->create([
+            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'payment_type' => strtoupper((string) ($row['payment_type'] ?? 'OTHER')),
+            'amount' => (float) ($row['total_amount'] ?? 0),
+            'reference_id' => $this->nullableString($row['reference_id'] ?? null),
+            'total_amount' => (float) ($row['total_amount'] ?? 0),
+            'paid_amount' => (float) ($row['paid_amount'] ?? 0),
+            'remaining_amount' => max((float) ($row['total_amount'] ?? 0) - (float) ($row['paid_amount'] ?? 0), 0),
+            'payment_date' => $this->nullableDate($row['payment_date'] ?? null) ?? now()->toDateString(),
+            'status' => strtoupper((string) ($row['status'] ?? 'PENDING')),
+            'notes' => $this->nullableString($row['notes'] ?? null),
+        ]);
+    }
+
+    private function importSessionRow(array $row): void
+    {
+        Session::query()->create([
+            'coach_id' => $this->nullableInt($row['coach_id'] ?? null),
+            'branch_id' => (int) ($row['branch_id'] ?? 0),
+            'group_id' => $this->nullableInt($row['group_id'] ?? null),
+            'title' => (string) ($row['title'] ?? ''),
+            'location' => $this->nullableString($row['location'] ?? null),
+            'session_date' => $this->nullableDate($row['session_date'] ?? null) ?? now()->toDateString(),
+            'start_time' => (string) ($row['start_time'] ?? '08:00'),
+            'end_time' => (string) ($row['end_time'] ?? '09:00'),
+            'status' => strtoupper((string) ($row['status'] ?? 'DRAFT')),
+        ]);
+    }
+
+    private function importAttendanceRow(array $row): void
+    {
+        Attendance::query()->create([
+            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'coach_session_id' => (int) ($row['coach_session_id'] ?? 0),
+            'date' => $this->nullableDate($row['date'] ?? null) ?? now()->toDateString(),
+            'status' => strtoupper((string) ($row['status'] ?? 'ABSENT')),
+            'checked_in_at' => ! empty($row['checked_in_time']) ? Carbon::parse((string) $row['date'].' '.(string) $row['checked_in_time']) : null,
+            'notes' => $this->nullableString($row['notes'] ?? null),
+            'follow_up_owner' => $this->nullableString($row['follow_up_owner'] ?? null),
+        ]);
+    }
+
+    private function importEventRow(array $row): void
+    {
+        Event::query()->create([
+            'e_name' => (string) ($row['e_name'] ?? ''),
+            'e_date' => $this->nullableDate($row['e_date'] ?? null) ?? now()->toDateString(),
+            'location' => $this->nullableString($row['location'] ?? null),
+            'level' => $this->nullableString($row['level'] ?? null),
+            'entry_fee' => (float) ($row['entry_fee'] ?? 0),
+            'max_slots' => (int) ($row['max_slots'] ?? 0),
+            'description' => $this->nullableString($row['description'] ?? null),
+            'organizer' => $this->nullableString($row['organizer'] ?? null),
+            'contact_info' => $this->nullableString($row['contact_info'] ?? null),
+            'sponsors' => $this->nullableString($row['sponsors'] ?? null),
+            'status' => strtoupper((string) ($row['status'] ?? 'SCHEDULED')),
+            'poster_url' => $this->nullableString($row['poster_url'] ?? null),
+        ]);
+    }
+
+    private function importEventRegistrationRow(array $row): void
+    {
+        EventRegistration::query()->create([
+            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'event_id' => (int) ($row['event_id'] ?? 0),
+            'category' => strtoupper((string) ($row['category'] ?? 'UNKNOWN')),
+            'division' => $this->nullableString($row['division'] ?? null),
+            'status' => strtoupper((string) ($row['status'] ?? 'PENDING')),
+        ]);
+    }
+
+    private function exportRows(string $entity): array
+    {
+        return match ($entity) {
+            'athletes' => $this->templateRows('athletes', Athlete::query()->with('user')->get()->map(fn ($item) => [
+                $item->user?->name, $item->user?->email, $item->user?->gender, optional($item->user?->bday)->format('Y-m-d'),
+                $item->user?->phone, $item->height_cm, $item->weight_kg, $item->alamat, $item->branch_id, $item->group_id,
+                $item->geup, $item->parent_id, $item->nik_encrypted, $item->bpjs_encrypted,
+            ])->all()),
+            'payments' => $this->templateRows('payments', Payment::query()->get()->map(fn ($item) => [
+                $item->athlete_id, $item->payment_type, $item->total_amount, $item->paid_amount, optional($item->payment_date)->format('Y-m-d'),
+                $item->status, $item->reference_id, $item->notes,
+            ])->all()),
+            'sessions' => $this->templateRows('sessions', Session::query()->get()->map(fn ($item) => [
+                $item->title, $item->branch_id, $item->group_id, $item->coach_id, $item->location,
+                optional($item->session_date)->format('Y-m-d'), $item->start_time, $item->end_time, $item->status,
+            ])->all()),
+            'attendance' => $this->templateRows('attendance', Attendance::query()->get()->map(fn ($item) => [
+                $item->athlete_id, $item->coach_session_id, optional($item->date)->format('Y-m-d'),
+                $item->status, optional($item->checked_in_at)->format('H:i'), $item->notes, $item->follow_up_owner,
+            ])->all()),
+            'events' => $this->templateRows('events', Event::query()->get()->map(fn ($item) => [
+                $item->e_name, optional($item->e_date)->format('Y-m-d'), $item->location, $item->level, $item->entry_fee,
+                $item->max_slots, $item->description, $item->organizer, $item->contact_info, $item->sponsors, $item->status, $item->poster_url,
+            ])->all()),
+            'event_registrations' => $this->templateRows('event_registrations', EventRegistration::query()->get()->map(fn ($item) => [
+                $item->athlete_id, $item->event_id, $item->category, $item->division, $item->status,
+            ])->all()),
+            default => [[], []],
+        };
+    }
+
+    private function templateRows(string $entity, array $rows = []): array
+    {
+        $headers = match ($entity) {
+            'athletes' => ['name', 'email', 'gender', 'bday', 'phone', 'height_cm', 'weight_kg', 'alamat', 'branch_id', 'group_id', 'geup', 'parent_id', 'nik', 'bpjs'],
+            'payments' => ['athlete_id', 'payment_type', 'total_amount', 'paid_amount', 'payment_date', 'status', 'reference_id', 'notes'],
+            'sessions' => ['title', 'branch_id', 'group_id', 'coach_id', 'location', 'session_date', 'start_time', 'end_time', 'status'],
+            'attendance' => ['athlete_id', 'coach_session_id', 'date', 'status', 'checked_in_time', 'notes', 'follow_up_owner'],
+            'events' => ['e_name', 'e_date', 'location', 'level', 'entry_fee', 'max_slots', 'description', 'organizer', 'contact_info', 'sponsors', 'status', 'poster_url'],
+            'event_registrations' => ['athlete_id', 'event_id', 'category', 'division', 'status'],
+            default => [],
+        };
+
+        return [$headers, $rows];
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $trimmed = trim((string) ($value ?? ''));
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return (int) $value;
+    }
+
+    private function nullableDate(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return Carbon::parse((string) $value)->format('Y-m-d');
+    }
 }
+

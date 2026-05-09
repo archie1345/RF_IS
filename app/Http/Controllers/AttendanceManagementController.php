@@ -76,7 +76,7 @@ class AttendanceManagementController extends Controller
         $presentToday = $todayRecords->where('status', 'PRESENT')->count();
         $attendanceRate = $todayRecords->count() > 0 ? (int) round(($presentToday / $todayRecords->count()) * 100) : 0;
 
-        return Inertia::render('Attendance/Index', [
+        return Inertia::render('AttendancePage', [
             'metrics' => [
                 ['label' => 'Attendance today', 'value' => $attendanceRate.'%', 'detail' => $presentToday.' present records logged today', 'tone' => 'success'],
                 ['label' => 'Absent records this week', 'value' => (string) $attendance->whereBetween('date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->where('status', 'ABSENT')->count(), 'detail' => 'Weekly absences that may need follow-up', 'tone' => 'warning'],
@@ -304,3 +304,4 @@ class AttendanceManagementController extends Controller
         }
     }
 }
+

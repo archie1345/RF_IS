@@ -30,9 +30,10 @@ class ActivityLogController extends Controller
                 'ip' => $log->ip_address ?? '-',
             ]);
 
-        return Inertia::render('Admin/ActivityLogs', [
+        return Inertia::render('AdminActivityLogsPage', [
             'rows' => $rows->items(),
             'total' => $rows->total(),
         ]);
     }
 }
+

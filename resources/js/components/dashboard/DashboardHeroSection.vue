@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import PageSection from '@/components/mvp/PageSection.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import type { ParentChild } from '@/types/auth';
-import type { AppRole, Metric } from '@/types/mvp';
+import type { AppRole, Metric } from '@/types/management';
 
 const props = defineProps<{
     role: AppRole;
@@ -37,3 +37,4 @@ const emit = defineEmits<{
         </div>
     </PageSection>
 </template>
+

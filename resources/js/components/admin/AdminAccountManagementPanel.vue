@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { PencilLine, UserRoundCog } from 'lucide-vue-next';
-import CrudManagementPanel from '@/components/admin/CrudManagementPanel.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
+import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
-import type { Metric, TableColumn, TableRow } from '@/types/mvp';
+import type { Metric, TableColumn, TableRow } from '@/types/management';
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
@@ -191,7 +191,7 @@ const submit = () => {
 
 <template>
     <div class="space-y-6">
-        <CrudManagementPanel
+        <ManagementTablePanel
             eyebrow="Admin panel"
             title="Account Management"
             description="Modeled after the JTE admin workspace: one place to review account types, manage access, and prepare new users for onboarding."
@@ -216,7 +216,7 @@ const submit = () => {
                     Edit
                 </Button>
             </template>
-        </CrudManagementPanel>
+        </ManagementTablePanel>
     </div>
 
     <Dialog v-model:open="isFormOpen">
@@ -311,3 +311,4 @@ const submit = () => {
         </DialogContent>
     </Dialog>
 </template>
+

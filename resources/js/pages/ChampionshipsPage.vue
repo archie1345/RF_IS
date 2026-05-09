@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
-import DataTable from '@/components/mvp/DataTable.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
+import DataTable from '@/components/shared/DataTable.vue';
+import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/mvp';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -39,10 +41,14 @@ const form = useForm({
     category: 'KYORUGI',
     division: '',
 });
+const showRegistrationForm = ref(false);
 
 function submit() {
     form.post('/championships/registrations', {
-        onSuccess: () => form.reset(),
+        onSuccess: () => {
+            form.reset();
+            showRegistrationForm.value = false;
+        },
     });
 }
 </script>
@@ -54,7 +60,7 @@ function submit() {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection eyebrow="Event module" title="Championships and registrations" description="Track upcoming events and create registration records against live slot availability.">
                 <template #actions>
-                    <Button type="button">New championship</Button>
+                    <Button type="button" @click="showRegistrationForm = true">New registration</Button>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
@@ -62,9 +68,10 @@ function submit() {
                 </div>
             </PageSection>
 
-            <div class="grid gap-6 xl:grid-cols-[1.55fr_1fr]">
-                <DataTable title="Upcoming championships" description="Live event list with registration counts from the database." :columns="columns" :rows="props.rows" />
+            <DataTable title="Upcoming championships" description="Live event list with registration counts from the database." :columns="columns" :rows="props.rows" />
+        </div>
 
+        <FormModal :open="showRegistrationForm" max-width-class="max-w-xl" @close="showRegistrationForm = false">
                 <PageSection title="Registration checklist" description="Register an athlete into an existing championship event.">
                     <form class="grid gap-4" @submit.prevent="submit">
                         <div class="grid gap-2">
@@ -102,10 +109,13 @@ function submit() {
                             <Input id="event-weight" v-model="form.division" placeholder="Junior under 45 kg" />
                             <InputError :message="form.errors.division" />
                         </div>
-                        <Button type="submit" :disabled="form.processing">Submit registration</Button>
+                        <div class="flex flex-wrap gap-3">
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Submit registration</Button>
+                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showRegistrationForm = false">Cancel</Button>
+                        </div>
                     </form>
                 </PageSection>
-            </div>
-        </div>
+        </FormModal>
     </AppLayout>
 </template>
+

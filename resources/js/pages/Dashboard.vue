@@ -4,11 +4,11 @@ import DashboardDataSections from '@/components/dashboard/DashboardDataSections.
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
 import type { DashboardPageProps } from '@/types/dashboard';
-import type { AppRole } from '@/types/mvp';
+import type { AppRole } from '@/types/management';
 import { type BreadcrumbItem } from '@/types';
 import { computed } from 'vue';
 
@@ -76,3 +76,4 @@ useLiveReload(
         </div>
     </AppLayout>
 </template>
+

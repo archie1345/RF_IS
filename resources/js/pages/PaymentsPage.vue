@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
-import DataTable from '@/components/mvp/DataTable.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
-import StatCard from '@/components/mvp/StatCard.vue';
+import DataTable from '@/components/shared/DataTable.vue';
+import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { managementRoutes } from '@/data/mvp';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/mvp';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -40,10 +42,14 @@ const form = useForm({
     payment_date: '',
     notes: '',
 });
+const showPaymentForm = ref(false);
 
 function submit() {
     form.post('/payments', {
-        onSuccess: () => form.reset(),
+        onSuccess: () => {
+            form.reset();
+            showPaymentForm.value = false;
+        },
     });
 }
 </script>
@@ -55,7 +61,7 @@ function submit() {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection eyebrow="Core module" title="Payment management" description="Record tuition, championship fees, and other invoice activity against the live payment ledger.">
                 <template #actions>
-                    <Button type="button">Create invoice</Button>
+                    <Button type="button" @click="showPaymentForm = true">Create invoice</Button>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
@@ -63,9 +69,10 @@ function submit() {
                 </div>
             </PageSection>
 
-            <div class="grid gap-6 xl:grid-cols-[1.55fr_1fr]">
-                <DataTable title="Recent payment activity" description="Live invoice and payment rows from the payments table." :columns="columns" :rows="props.rows" />
+            <DataTable title="Recent payment activity" description="Live invoice and payment rows from the payments table." :columns="columns" :rows="props.rows" />
+        </div>
 
+        <FormModal :open="showPaymentForm" max-width-class="max-w-xl" @close="showPaymentForm = false">
                 <PageSection title="Quick collection action" description="Create a payment record and let the backend calculate completion status and remaining balance.">
                     <form class="grid gap-4" @submit.prevent="submit">
                         <div class="grid gap-2">
@@ -120,10 +127,13 @@ function submit() {
                             <Input id="payment-notes" v-model="form.notes" placeholder="Optional finance note" />
                             <InputError :message="form.errors.notes" />
                         </div>
-                        <Button type="submit" :disabled="form.processing">Record payment</Button>
+                        <div class="flex flex-wrap gap-3">
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Record payment</Button>
+                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentForm = false">Cancel</Button>
+                        </div>
                     </form>
                 </PageSection>
-            </div>
-        </div>
+        </FormModal>
     </AppLayout>
 </template>
+

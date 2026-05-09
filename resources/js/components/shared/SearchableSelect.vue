@@ -72,7 +72,7 @@ function clearSelection() {
         <Button
             type="button"
             variant="outline"
-            class="h-9 w-full justify-between font-normal"
+            class="h-10 w-full justify-between font-normal"
             :disabled="disabled"
             @click="isOpen = true"
         >
@@ -83,7 +83,7 @@ function clearSelection() {
         </Button>
 
         <Dialog v-model:open="isOpen">
-            <DialogContent class="sm:max-w-xl">
+            <DialogContent class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
                 <DialogHeader>
                     <DialogTitle>{{ title ?? 'Select option' }}</DialogTitle>
                     <DialogDescription>
@@ -102,7 +102,7 @@ function clearSelection() {
                     </div>
 
                     <div class="rounded-2xl border border-border/70">
-                        <div v-if="filteredOptions.length > 0" class="max-h-80 space-y-1 overflow-y-auto p-2">
+                        <div v-if="filteredOptions.length > 0" class="max-h-72 space-y-1 overflow-y-auto p-2 sm:max-h-80">
                             <button
                                 v-for="option in filteredOptions"
                                 :key="String(option.value)"
@@ -124,7 +124,7 @@ function clearSelection() {
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
                         <p class="text-sm text-muted-foreground">
                             {{ filteredOptions.length }} option{{ filteredOptions.length === 1 ? '' : 's' }}
                         </p>
@@ -142,4 +142,3 @@ function clearSelection() {
         </Dialog>
     </div>
 </template>
-

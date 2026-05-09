@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import DataTable from '@/components/mvp/DataTable.vue';
-import PageSection from '@/components/mvp/PageSection.vue';
-import { managementRoutes } from '@/data/mvp';
+import DataTable from '@/components/shared/DataTable.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableRow } from '@/types/mvp';
+import type { TableColumn, TableRow } from '@/types/management';
 import { Head, router } from '@inertiajs/vue3';
 import { onMounted, onUnmounted } from 'vue';
 
@@ -63,3 +63,4 @@ onUnmounted(() => {
         </div>
     </AppLayout>
 </template>
+
