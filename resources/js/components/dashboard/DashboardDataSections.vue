@@ -2,27 +2,32 @@
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { managementRoutes } from '@/data/management';
-import { dashboardColumns, mapAnnouncements, mapProfileSummary } from '@/data/dashboard';
+import { dashboardColumns, mapProfileSummary } from '@/data/dashboard';
 import type { AppRole, TableRow } from '@/types/management';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps<{
     role: AppRole;
-    announcements: string[];
+    announcements: TableRow[];
     upcomingEvents: TableRow[];
     profileSummary: Record<string, string>;
     medalRows: TableRow[];
     activityPreviewRows: TableRow[];
     attendanceRows: TableRow[];
     paymentRows: TableRow[];
-    snapshotRows: TableRow[];
 }>();
 </script>
 
 <template>
     <div class="grid gap-6 xl:grid-cols-2">
-        <DataTable title="Announcements" description="Latest broadcast notes" :columns="dashboardColumns.announcement" :rows="mapAnnouncements(props.announcements)" />
-        <DataTable title="Upcoming events" description="Nearest events on calendar" :columns="dashboardColumns.event" :rows="props.upcomingEvents" />
+        <DataTable title="Announcements" description="Latest notices that affect this account." :columns="dashboardColumns.announcement" :rows="props.announcements" empty-text="No announcements right now.">
+            <template #row-actions>
+                <Button as-child variant="outline" size="sm">
+                    <Link :href="managementRoutes.announcements">Open</Link>
+                </Button>
+            </template>
+        </DataTable>
+        <DataTable title="Upcoming events" description="Nearest championships and club events." :columns="dashboardColumns.event" :rows="props.upcomingEvents" empty-text="No upcoming events." />
     </div>
 
     <div v-if="props.role === 'athlete'" class="grid gap-6 xl:grid-cols-2">
@@ -31,8 +36,8 @@ const props = defineProps<{
     </div>
 
     <div v-if="props.role === 'admin'" class="grid gap-6 xl:grid-cols-2">
-        <DataTable title="Admin medals" description="Overall medal summary" :columns="dashboardColumns.medal" :rows="props.medalRows" />
-        <DataTable title="Users activity log (live preview)" description="Auto-refresh every 10 seconds. Open full page for complete trace." :columns="dashboardColumns.log" :rows="props.activityPreviewRows">
+        <DataTable title="Medal summary" description="Overall achievement count by medal." :columns="dashboardColumns.medal" :rows="props.medalRows" />
+        <DataTable title="Recent account activity" description="Live preview of recent admin actions." :columns="dashboardColumns.log" :rows="props.activityPreviewRows">
             <template #row-actions>
                 <Button as-child variant="outline" size="sm">
                     <Link :href="managementRoutes.activityLogs">Open full log</Link>
@@ -42,10 +47,14 @@ const props = defineProps<{
     </div>
 
     <div class="grid gap-6 xl:grid-cols-2">
-        <DataTable title="Attendance" description="Training attendance records" :columns="dashboardColumns.attendance" :rows="props.attendanceRows" />
-        <DataTable title="Payment" description="Supports partial, full, and unpaid status" :columns="dashboardColumns.payment" :rows="props.paymentRows" />
+        <DataTable title="Attendance" description="Recent training attendance for the selected account scope." :columns="dashboardColumns.attendance" :rows="props.attendanceRows" empty-text="No attendance records yet." />
+        <DataTable title="Bills" description="Unpaid and recently updated payment records." :columns="dashboardColumns.payment" :rows="props.paymentRows" empty-text="No bills found.">
+            <template #row-actions>
+                <Button as-child variant="outline" size="sm">
+                    <Link :href="managementRoutes.payments">Open</Link>
+                </Button>
+            </template>
+        </DataTable>
     </div>
-
-    <DataTable title="Operational snapshot" description="Reusable dynamic table for any modules/columns" :columns="dashboardColumns.snapshot" :rows="props.snapshotRows" />
 </template>
 

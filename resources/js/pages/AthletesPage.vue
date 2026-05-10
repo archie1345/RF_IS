@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
 import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
@@ -12,8 +14,8 @@ import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -28,7 +30,6 @@ const props = defineProps<{
 const showNewAthleteForm = ref(false);
 const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
-const birthDateInput = ref<HTMLInputElement | null>(null);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: managementRoutes.dashboard },
@@ -49,6 +50,14 @@ const columns: TableColumn[] = [
 ];
 
 const geupOptions = ['GEUP_10', 'GEUP_9', 'GEUP_8', 'GEUP_7', 'GEUP_6', 'GEUP_5', 'GEUP_4', 'GEUP_3', 'GEUP_2', 'GEUP_1', 'DAN'];
+const genderOptions = [
+    { value: 'MALE', label: 'Male' },
+    { value: 'FEMALE', label: 'Female' },
+];
+const geupSelectOptions = computed(() => geupOptions.map((option) => ({
+    value: option,
+    label: option.replace('_', ' '),
+})));
 
 const form = useForm({
     name: '',
@@ -77,18 +86,9 @@ function submit() {
     };
 
     if (editingAthleteId.value) {
-        form.put(`/athletes/${editingAthleteId.value}`, options);
+        form.put(`/athletes/user/${editingAthleteId.value}`, options);
         return;
     }
-
-    form.post('/athletes', options);
-}
-
-function openCreateAthleteForm() {
-    editingAthleteId.value = null;
-    form.reset();
-    form.clearErrors();
-    showNewAthleteForm.value = true;
 }
 
 function closeAthleteForm() {
@@ -99,21 +99,8 @@ function closeAthleteForm() {
     form.clearErrors();
 }
 
-function openBirthDatePicker() {
-    const input = birthDateInput.value as (HTMLInputElement & { showPicker?: () => void }) | null;
-    if (!input) return;
-    if (typeof input.showPicker === 'function') {
-        input.showPicker();
-        return;
-    }
-    input.focus();
-    input.click();
-}
-
-function getAthleteId(row: TableRow) {
-    const raw = row.athlete_id ?? row.id;
-    const normalized = String(raw ?? '').replace(/^ATH-/, '');
-    return Number(normalized);
+function getUserId(row: TableRow) {
+    return Number(row.user_id ?? 0);
 }
 
 function toNumericString(value: unknown) {
@@ -122,15 +109,15 @@ function toNumericString(value: unknown) {
 }
 
 async function editAthlete(row: TableRow) {
-    const id = getAthleteId(row);
-    if (!id) return;
+    const userId = getUserId(row);
+    if (!userId) return;
     isLoadingAthlete.value = true;
     showNewAthleteForm.value = true;
     form.clearErrors();
     form.height_cm = toNumericString(row.height_cm);
     form.weight_kg = toNumericString(row.weight_kg);
     try {
-        const response = await fetch(`/athletes/${id}`, {
+        const response = await fetch(`/athletes/user/${userId}`, {
             headers: {
                 Accept: 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -142,7 +129,7 @@ async function editAthlete(row: TableRow) {
         }
 
         const data = await response.json();
-        editingAthleteId.value = id;
+        editingAthleteId.value = userId;
         form.name = String(data.name ?? '');
         form.email = String(data.email ?? '');
         form.gender = String(data.gender ?? 'MALE');
@@ -163,13 +150,6 @@ async function editAthlete(row: TableRow) {
         isLoadingAthlete.value = false;
     }
 }
-
-function deleteAthlete(row: TableRow) {
-    const id = getAthleteId(row);
-    if (!id) return;
-    if (!confirm('Delete this athlete?')) return;
-    router.delete(`/athletes/${id}`);
-}
 </script>
 
 <template>
@@ -180,19 +160,17 @@ function deleteAthlete(row: TableRow) {
             <ManagementTablePanel
                 eyebrow="Athlete Management"
                 title="Athlete Management workspace"
-                description="Manage athlete records."
-                create-label="New athlete"
+                description="View and edit athlete profiles. Create/delete accounts from Admin Panel only."
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
                 :columns="columns"
                 :rows="props.rows"
                 action-label="Actions"
-                @create="openCreateAthleteForm"
+                :show-create="false"
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="editAthlete(row)">Edit</Button>
-                        <Button size="sm" variant="destructive" @click="deleteAthlete(row)">Delete</Button>
                     </ActionButtonsRow>
                 </template>
             </ManagementTablePanel>
@@ -211,32 +189,8 @@ function deleteAthlete(row: TableRow) {
                             <InputError :message="form.errors.email" />
                         </div>
                         <div class="grid gap-4 md:grid-cols-2">
-                            <div class="grid gap-2">
-                                <Label for="athlete-gender">Gender</Label>
-                                <select
-                                    id="athlete-gender"
-                                    v-model="form.gender"
-                                    class="flex h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-8 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                >
-                                    <option value="MALE">Male</option>
-                                    <option value="FEMALE">Female</option>
-                                </select>
-                                <InputError :message="form.errors.gender" />
-                            </div>
-                            <div class="grid gap-2">
-                                <Label for="athlete-bday">Birth date</Label>
-                                <div class="flex gap-2">
-                                    <input
-                                        id="athlete-bday"
-                                        ref="birthDateInput"
-                                        v-model="form.bday"
-                                        type="date"
-                                        class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 aria-invalid:border-destructive h-9 w-full min-w-0 rounded-md border bg-background px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px]"
-                                    >
-                                    <Button type="button" variant="outline" @click="openBirthDatePicker">Pick</Button>
-                                </div>
-                                <InputError :message="form.errors.bday" />
-                            </div>
+                            <FormSelectField id="athlete-gender" v-model="form.gender" label="Gender" :options="genderOptions" :error="form.errors.gender" />
+                            <FormInputField id="athlete-bday" v-model="form.bday" label="Birth date" type="date" :error="form.errors.bday" />
                         </div>
                         <div class="grid gap-4 md:grid-cols-2">
                             <div class="grid gap-2">
@@ -244,19 +198,7 @@ function deleteAthlete(row: TableRow) {
                                 <Input id="athlete-phone" v-model="form.phone" placeholder="0812..." />
                                 <InputError :message="form.errors.phone" />
                             </div>
-                            <div class="grid gap-2">
-                                <Label for="athlete-geup">Geup</Label>
-                                <select
-                                    id="athlete-geup"
-                                    v-model="form.geup"
-                                    class="flex h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-8 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                >
-                                    <option v-for="option in geupOptions" :key="option" :value="option">
-                                        {{ option.replace('_', ' ') }}
-                                    </option>
-                                </select>
-                                <InputError :message="form.errors.geup" />
-                            </div>
+                            <FormSelectField id="athlete-geup" v-model="form.geup" label="Geup" :options="geupSelectOptions" :error="form.errors.geup" />
                         </div>
                         <div class="grid gap-4 md:grid-cols-2">
                             <FormNumberStepperField

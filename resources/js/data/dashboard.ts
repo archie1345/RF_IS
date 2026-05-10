@@ -1,7 +1,12 @@
 import type { TableColumn, TableRow } from '@/types/management';
 
 export const dashboardColumns = {
-    announcement: [{ key: 'text', label: 'Announcement' }] as TableColumn[],
+    announcement: [
+        { key: 'title', label: 'Announcement' },
+        { key: 'audience', label: 'Audience' },
+        { key: 'published', label: 'Published' },
+        { key: 'status', label: 'Status' },
+    ] as TableColumn[],
     event: [
         { key: 'event', label: 'Event' },
         { key: 'date', label: 'Date' },
@@ -13,7 +18,7 @@ export const dashboardColumns = {
         { key: 'status', label: 'Status' },
     ] as TableColumn[],
     payment: [
-        { key: 'athlete', label: 'Athlete' },
+        { key: 'athlete', label: 'Person' },
         { key: 'total', label: 'Total' },
         { key: 'paid', label: 'Paid' },
         { key: 'remaining', label: 'Remaining' },
@@ -39,10 +44,6 @@ export const dashboardColumns = {
         { key: 'value', label: 'Value' },
     ] as TableColumn[],
 };
-
-export function mapAnnouncements(announcements: string[]): TableRow[] {
-    return announcements.map((item, idx) => ({ id: `ann-${idx}`, text: item }));
-}
 
 export function mapProfileSummary(summary: Record<string, string>): TableRow[] {
     return Object.entries(summary).map(([field, value]) => ({ id: field, field, value }));

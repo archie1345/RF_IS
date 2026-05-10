@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsMvpData;
 use App\Models\ActivityLog;
+use App\Models\Announcement;
 use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Payment;
 use App\Models\Session;
+use App\Models\UserCertification;
+use App\Models\UserAchievement;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,9 +28,8 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'metrics' => $this->dashboardMetrics($request, $role),
-            'snapshotRows' => $this->snapshotRows(),
             'activityPreviewRows' => $this->activityPreviewRows(),
-            'announcements' => $this->announcements($role),
+            'announcements' => $this->announcements($request, $role),
             'upcomingEvents' => $this->upcomingEvents(),
             'attendanceRows' => $this->attendanceRows($request, $role),
             'paymentRows' => $this->paymentRows($request, $role),
@@ -40,7 +42,8 @@ class DashboardController extends Controller
     {
         $athleteCount = Athlete::count();
         $coachCount = Coach::count();
-        $outstandingBalance = (float) Payment::sum('remaining_amount');
+        $visiblePayments = $this->visiblePaymentsQuery($request, $role);
+        $outstandingBalance = (float) (clone $visiblePayments)->sum('remaining_amount');
         $upcomingEvents = Event::query()->whereDate('e_date', '>=', now()->toDateString())->count();
         $attendanceToday = Attendance::query()->whereDate('date', now()->toDateString())->count();
 
@@ -52,26 +55,16 @@ class DashboardController extends Controller
                 ['label' => 'Attendance today', 'value' => (string) $attendanceToday, 'detail' => 'Attendance records created today', 'tone' => 'neutral'],
             ],
             'parent' => [
-                ['label' => 'Selected child', 'value' => $request->session()->has('active_child_id') ? 'Chosen' : 'Not selected', 'detail' => 'Pick child from top selector', 'tone' => 'info'],
-                ['label' => 'Outstanding bills', 'value' => $this->rupiah((float) Payment::query()->where('remaining_amount', '>', 0)->sum('remaining_amount')), 'detail' => 'For linked child records', 'tone' => 'warning'],
+                ['label' => 'Selected child', 'value' => $request->session()->has('active_child_id') ? 'Chosen' : 'All linked', 'detail' => 'Use the selector when checking one child', 'tone' => 'info'],
+                ['label' => 'Outstanding bills', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Only linked child bills are counted', 'tone' => 'warning'],
                 ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Open events and competitions', 'tone' => 'success'],
             ],
             default => [
                 ['label' => 'Attendance entries', 'value' => (string) Attendance::query()->where('status', 'PRESENT')->count(), 'detail' => 'Recorded present sessions', 'tone' => 'success'],
                 ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Scheduled events ahead', 'tone' => 'info'],
-                ['label' => 'Unpaid balance', 'value' => $this->rupiah((float) Payment::sum('remaining_amount')), 'detail' => 'Pending bills', 'tone' => 'warning'],
+                ['label' => 'Unpaid balance', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Pending bills for this account', 'tone' => 'warning'],
             ],
         };
-    }
-
-    private function snapshotRows(): array
-    {
-        return [
-            ['id' => 'OPS-athletes', 'module' => 'Athletes', 'status' => $this->badge(Athlete::count() > 0 ? 'Connected' : 'Needs data', Athlete::count() > 0 ? 'success' : 'warning'), 'value' => Athlete::count().' records'],
-            ['id' => 'OPS-attendance', 'module' => 'Attendance', 'status' => $this->badge(Attendance::count() > 0 ? 'Healthy' : 'Empty', Attendance::count() > 0 ? 'success' : 'warning'), 'value' => Attendance::count().' rows'],
-            ['id' => 'OPS-events', 'module' => 'Events', 'status' => $this->badge(Event::count() > 0 ? 'Active' : 'Empty', Event::count() > 0 ? 'info' : 'neutral'), 'value' => Event::count().' events'],
-            ['id' => 'OPS-payments', 'module' => 'Payments', 'status' => $this->badge(Payment::sum('remaining_amount') > 0 ? 'Partial' : 'Clear', Payment::sum('remaining_amount') > 0 ? 'warning' : 'success'), 'value' => $this->rupiah((float) Payment::sum('remaining_amount'))],
-        ];
     }
 
     private function activityPreviewRows(): array
@@ -93,15 +86,36 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function announcements(string $role): array
+    private function announcements(Request $request, string $role): array
     {
-        $roleLabel = ucfirst($role);
+        $user = $request->user();
+        $isAdmin = (bool) $user?->isAdmin();
+        $roleTargets = collect($user?->assignedRoles() ?? [$role])
+            ->filter()
+            ->map(fn (string $role) => strtoupper($role))
+            ->push('ALL')
+            ->unique()
+            ->values();
 
-        return [
-            "$roleLabel dashboard now uses reusable dynamic tables.",
-            'Attendance session default status is absent for all athletes.',
-            'Event payment tracking supports partial and full payment.',
-        ];
+        return Announcement::query()
+            ->with('creator:id,name')
+            ->where('is_active', true)
+            ->when(! $isAdmin, fn ($q) => $q->whereIn('target_role', $roleTargets))
+            ->where(fn ($q) => $q->whereNull('publish_at')->orWhere('publish_at', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
+            ->latest('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (Announcement $announcement) => [
+                'id' => 'DANN-'.$announcement->id,
+                'title' => $announcement->title,
+                'message' => str($announcement->message)->limit(120)->toString(),
+                'audience' => $this->targetLabel($announcement->target_role),
+                'published' => $announcement->publish_at?->format('d M Y') ?? ($announcement->created_at?->format('d M Y') ?? '-'),
+                'status' => $this->badge('Published', 'success'),
+            ])
+            ->values()
+            ->all();
     }
 
     private function upcomingEvents(): array
@@ -131,6 +145,11 @@ class DashboardController extends Controller
                 $childIds = [(int) $request->session()->get('active_child_id')];
             }
             $query->whereIn('athlete_id', $childIds);
+        } elseif ($role === 'athlete') {
+            $athleteId = $request->user()?->athleteProfile?->athlete_id;
+            $query->when($athleteId, fn ($inner) => $inner->where('athlete_id', $athleteId));
+        } elseif ($role === 'coach' && ! $request->user()?->isAdmin()) {
+            $query->whereHas('session', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
         }
 
         return $query->limit(8)->get()->map(fn (Attendance $record) => [
@@ -143,19 +162,14 @@ class DashboardController extends Controller
 
     private function paymentRows(Request $request, string $role): array
     {
-        $query = Payment::query()->with('athlete.user:id,name')->latest('payment_date')->latest('payment_id');
-
-        if ($role === 'parent') {
-            $childIds = $request->user()?->children()->pluck('athletes.athlete_id')->all() ?? [];
-            if ($request->session()->has('active_child_id')) {
-                $childIds = [(int) $request->session()->get('active_child_id')];
-            }
-            $query->whereIn('athlete_id', $childIds);
-        }
+        $query = $this->visiblePaymentsQuery($request, $role)
+            ->with(['athlete.user:id,name', 'billableUser:id,name', 'payeeUser:id,name'])
+            ->latest('payment_date')
+            ->latest('payment_id');
 
         return $query->limit(8)->get()->map(fn (Payment $payment) => [
             'id' => 'DP-'.$payment->payment_id,
-            'athlete' => $payment->athlete?->user?->name ?? 'Unknown',
+            'athlete' => $this->paymentSubject($payment),
             'total' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
             'paid' => $this->rupiah((float) ($payment->paid_amount ?? 0)),
             'remaining' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
@@ -165,10 +179,16 @@ class DashboardController extends Controller
 
     private function medalRows(): array
     {
+        $counts = UserAchievement::query()
+            ->selectRaw('medal, COUNT(*) as total')
+            ->whereIn('medal', ['GOLD', 'SILVER', 'BRONZE'])
+            ->groupBy('medal')
+            ->pluck('total', 'medal');
+
         return [
-            ['id' => 'MED-gold', 'type' => 'Gold', 'count' => '0'],
-            ['id' => 'MED-silver', 'type' => 'Silver', 'count' => '0'],
-            ['id' => 'MED-bronze', 'type' => 'Bronze', 'count' => '0'],
+            ['id' => 'MED-gold', 'type' => 'Gold', 'count' => (string) ($counts['GOLD'] ?? 0)],
+            ['id' => 'MED-silver', 'type' => 'Silver', 'count' => (string) ($counts['SILVER'] ?? 0)],
+            ['id' => 'MED-bronze', 'type' => 'Bronze', 'count' => (string) ($counts['BRONZE'] ?? 0)],
         ];
     }
 
@@ -184,6 +204,76 @@ class DashboardController extends Controller
             'geup' => $athlete?->geup ?? '-',
             'height' => $athlete?->height_cm ? $athlete->height_cm.' cm' : '-',
             'weight' => $athlete?->weight_kg ? $athlete->weight_kg.' kg' : '-',
+            'certifications' => (string) UserCertification::query()->where('user_id', $request->user()?->id)->count(),
         ];
+    }
+
+    private function visiblePaymentsQuery(Request $request, string $role)
+    {
+        $query = Payment::query();
+        $user = $request->user();
+
+        if ($role === 'admin' || $user?->isAdmin()) {
+            return $query;
+        }
+
+        if ($role === 'parent') {
+            $childIds = $user?->children()->pluck('athletes.athlete_id')->all() ?? [];
+            $childUserIds = $user?->children()->pluck('athletes.id')->all() ?? [];
+            if ($request->session()->has('active_child_id')) {
+                $childIds = [(int) $request->session()->get('active_child_id')];
+                $childUserIds = \App\Models\Athlete::query()
+                    ->where('athlete_id', (int) $request->session()->get('active_child_id'))
+                    ->pluck('id')
+                    ->all();
+            }
+
+            return $query->where(function ($inner) use ($user, $childIds, $childUserIds): void {
+                $inner->where('billable_user_id', $user?->id)
+                    ->orWhere('payee_user_id', $user?->id)
+                    ->when(count($childIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('athlete_id', $childIds))
+                    ->when(count($childUserIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('billable_user_id', $childUserIds));
+            });
+        }
+
+        if ($role === 'athlete') {
+            $athleteId = $user?->athleteProfile?->athlete_id;
+
+            return $query->where(function ($inner) use ($user, $athleteId): void {
+                $inner->where('billable_user_id', $user?->id)
+                    ->when($athleteId, fn ($athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
+            });
+        }
+
+        if ($role === 'coach') {
+            return $query->where(function ($inner) use ($user): void {
+                $inner->where('billable_user_id', $user?->id)
+                    ->orWhere('payee_user_id', $user?->id);
+            });
+        }
+
+        return $query->where('billable_user_id', $user?->id);
+    }
+
+    private function targetLabel(string $targetRole): string
+    {
+        return match ($targetRole) {
+            'ADMIN' => 'Admins',
+            'COACH' => 'Coaches',
+            'PARENT' => 'Parents',
+            'ATHLETE' => 'Athletes',
+            default => 'Everyone',
+        };
+    }
+
+    private function paymentSubject(Payment $payment): string
+    {
+        if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
+            return 'Payroll: '.($payment->payeeUser?->name ?? 'Unknown coach');
+        }
+
+        return $payment->athlete?->user?->name
+            ?? $payment->billableUser?->name
+            ?? 'Unknown user';
     }
 }

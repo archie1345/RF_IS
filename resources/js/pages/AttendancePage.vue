@@ -12,7 +12,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -71,10 +71,42 @@ const roleTitle = computed(() => {
     return 'Attendance tracking';
 });
 
+function todayDate() {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 10);
+}
+
+function rowStatusText(row: TableRow) {
+    const status = row.status;
+    return typeof status === 'object' && status !== null && 'text' in status ? status.text : String(status ?? '');
+}
+
+function canUpdateRow(row: TableRow) {
+    return Boolean(row.can_update);
+}
+
 function submit() {
     form.post('/attendance', {
-        onSuccess: () => form.reset('athlete_id', 'coach_session_id', 'date', 'checked_in_time', 'notes', 'follow_up_owner'),
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset('checked_in_time', 'notes', 'follow_up_owner');
+            if (props.activeAthleteId) {
+                form.athlete_id = String(props.activeAthleteId);
+            }
+            if (!form.date) {
+                form.date = todayDate();
+            }
+        },
     });
+}
+
+function submitSelfAttendance(status: 'PRESENT' | 'ABSENT') {
+    form.status = status;
+    if (!form.date) {
+        form.date = todayDate();
+    }
+    submit();
 }
 
 function setAttendanceStatus(id: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') {
@@ -109,10 +141,14 @@ function openSessionFromCoachInput() {
 }
 
 function applySessionDate(sessionValue: string) {
+    form.coach_session_id = sessionValue;
     const selected = props.sessions.find((session) => String(session.value) === sessionValue);
     if (selected?.date) {
         form.date = selected.date;
+        return;
     }
+
+    form.date = todayDate();
 }
 
 function submitSession() {
@@ -123,6 +159,17 @@ function submitSession() {
         },
     });
 }
+
+onMounted(() => {
+    if (!form.date) {
+        form.date = todayDate();
+    }
+
+    if (props.sessions.length === 1) {
+        form.coach_session_id = String(props.sessions[0].value);
+        applySessionDate(form.coach_session_id);
+    }
+});
 </script>
 
 <template>
@@ -144,6 +191,58 @@ function submitSession() {
 
             <div class="grid gap-6">
 
+                <PageSection v-if="isAthlete" title="My attendance" description="Mark your own attendance for today or update an open session record.">
+                    <form class="grid gap-4 md:grid-cols-[1fr_auto]" @submit.prevent>
+                        <FormSelectField
+                            v-if="props.sessions.length > 1"
+                            id="attendance-session"
+                            :model-value="form.coach_session_id"
+                            label="Training session"
+                            :options="props.sessions"
+                            placeholder="General attendance"
+                            help="Choose today’s session if it is listed. Otherwise leave it as general attendance."
+                            :error="form.errors.coach_session_id"
+                            @update:model-value="applySessionDate"
+                        />
+                        <div v-else-if="props.sessions.length === 1" class="grid gap-2">
+                            <label class="text-sm font-medium">Training session</label>
+                            <input :value="props.sessions[0].label" disabled class="h-10 rounded-lg border border-input bg-muted px-3 py-2 text-sm">
+                        </div>
+                        <div v-else class="grid gap-2">
+                            <label class="text-sm font-medium">Training session</label>
+                            <input value="General attendance" disabled class="h-10 rounded-lg border border-input bg-muted px-3 py-2 text-sm">
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <Button type="button" :disabled="form.processing" @click="submitSelfAttendance('PRESENT')">Attend</Button>
+                            <Button type="button" variant="outline" :disabled="form.processing" @click="submitSelfAttendance('ABSENT')">Not attend</Button>
+                        </div>
+                    </form>
+
+                    <DataTable
+                        title="My attendance records"
+                        description="Open records can be corrected until the session closes."
+                        :columns="columns"
+                        :rows="props.rows"
+                        empty-text="No attendance records yet."
+                        searchable
+                        search-placeholder="Search session..."
+                        action-label="Attendance"
+                    >
+                        <template #row-actions="{ row }">
+                            <span v-if="row.is_locked" class="text-xs text-muted-foreground">Closed</span>
+                            <span v-else-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">View only</span>
+                            <ActionButtonsRow v-else>
+                                <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Present'" @click="setAttendanceStatus(String(row.id), 'PRESENT')">
+                                    Attend
+                                </Button>
+                                <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Absent'" @click="setAttendanceStatus(String(row.id), 'ABSENT')">
+                                    Not attend
+                                </Button>
+                            </ActionButtonsRow>
+                        </template>
+                    </DataTable>
+                </PageSection>
+
                 <PageSection v-if="isCoach || isAdmin" title="Session attendance sheet" description="Pick a session, open the dedicated attendance sheet page, and update athlete statuses there.">
                     <form v-if="isCoach" class="mt-6 grid gap-3 border-t pt-5" @submit.prevent="openSessionFromCoachInput">
                         <FormInputField id="coach-session-name" v-model="coachSessionName" label="Coach session panel" placeholder="Type your session name" :error="coachSessionError" />
@@ -153,14 +252,15 @@ function submitSession() {
                     <DataTable title="Session check-ins" description="Set athlete attendance directly. Once session time has passed, updates are hidden and locked." :columns="columns" :rows="props.rows" searchable search-placeholder="Search athlete/session/coach..." action-label="Attendance">
                         <template #row-actions="{ row }">
                             <span v-if="row.is_locked" class="text-xs text-muted-foreground">Closed</span>
+                            <span v-else-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">View only</span>
                             <ActionButtonsRow v-else>
-                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Present'" @click="setAttendanceStatus(String(row.id), 'PRESENT')">
-                                    Present
+                                <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Present'" @click="setAttendanceStatus(String(row.id), 'PRESENT')">
+                                    Attend
                                 </Button>
-                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Absent'" @click="setAttendanceStatus(String(row.id), 'ABSENT')">
-                                    Absent
+                                <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Absent'" @click="setAttendanceStatus(String(row.id), 'ABSENT')">
+                                    Not attend
                                 </Button>
-                                <Button type="button" size="sm" variant="outline" :disabled="(typeof row.status === 'object' ? row.status?.text : row.status) === 'Excused'" @click="setAttendanceStatus(String(row.id), 'EXCUSED')">
+                                <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Excused'" @click="setAttendanceStatus(String(row.id), 'EXCUSED')">
                                     Excused
                                 </Button>
                             </ActionButtonsRow>

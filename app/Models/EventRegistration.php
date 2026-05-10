@@ -25,6 +25,10 @@ class EventRegistration extends Model
         'category',
         'division',
         'status',
+        'result_medal',
+        'result_class_name',
+        'result_division',
+        'result_category',
     ];
 
     protected function casts(): array

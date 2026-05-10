@@ -42,7 +42,7 @@ function switchChild(value: string): void {
 
 useLiveReload(
     () => role.value === 'admin',
-    () => router.reload({ only: ['activityPreviewRows', 'metrics', 'snapshotRows'], preserveUrl: true }),
+    () => router.reload({ only: ['activityPreviewRows', 'metrics'], preserveUrl: true }),
     10000,
 );
 </script>
@@ -69,7 +69,6 @@ useLiveReload(
                 :activity-preview-rows="props.activityPreviewRows"
                 :attendance-rows="props.attendanceRows"
                 :payment-rows="props.paymentRows"
-                :snapshot-rows="props.snapshotRows"
             />
 
             <ParentSettingsCard v-if="role === 'parent'" />

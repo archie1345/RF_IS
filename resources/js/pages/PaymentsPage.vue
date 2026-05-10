@@ -1,23 +1,38 @@
 <script setup lang="ts">
-import InputError from '@/components/InputError.vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { Check, Download, ImagePlus, MessageCircleWarning, PencilLine, Trash2, XCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
+    isAdmin: boolean;
     metrics: Metric[];
     rows: TableRow[];
     athletes: SelectOption[];
+    users: SelectOption[];
+    coaches: SelectOption[];
+    invoiceTemplate?: {
+        company_name: string;
+        company_address: string | null;
+        company_phone: string | null;
+        company_email: string | null;
+        logo_url: string | null;
+        header_text: string | null;
+        footer_text: string | null;
+        payment_notes: string | null;
+    } | null;
+    paymentInstructions: string;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -25,32 +40,223 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Payments', href: managementRoutes.payments },
 ];
 
+const invoiceTemplateModalOpen = ref(false);
+
 const columns: TableColumn[] = [
-    { key: 'athlete', label: 'Athlete' },
-    { key: 'type', label: 'Payment type' },
+    { key: 'athlete', label: 'Person' },
+    { key: 'bill_kind', label: 'Kind' },
+    { key: 'type', label: 'Bill type' },
     { key: 'amount', label: 'Amount', align: 'right' },
     { key: 'balance', label: 'Balance', align: 'right' },
     { key: 'status', label: 'Status' },
+    { key: 'proof_status_label', label: 'Proof' },
 ];
+
+const paymentTypeOptions = [
+    { value: 'TUITION', label: 'Tuition' },
+    { value: 'UNIFORM', label: 'Uniform' },
+    { value: 'LICENSE', label: 'License' },
+    { value: 'CHAMPIONSHIP', label: 'Championship' },
+    { value: 'OTHER', label: 'Other' },
+];
+
+const collectionMethodOptions = [
+    { value: 'CASH', label: 'Cash' },
+    { value: 'TRANSFER', label: 'Transfer' },
+    { value: 'OTHER', label: 'Other' },
+];
+
+function todayDate() {
+    const date = new Date();
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 10);
+}
 
 const form = useForm({
     athlete_id: '',
+    billable_user_id: '',
+    payee_user_id: '',
+    bill_kind: 'INVOICE',
     payment_type: 'TUITION',
     collection_method: 'CASH',
     total_amount: '',
-    paid_amount: '',
-    payment_date: '',
+    paid_amount: '0',
+    payment_date: todayDate(),
     notes: '',
 });
 const showPaymentForm = ref(false);
+const editingPaymentId = ref<number | null>(null);
+const showProofForm = ref(false);
+const proofPaymentId = ref<number | null>(null);
+const proofForm = useForm({
+    notes: '',
+    proof_file: null as File | null,
+});
+const reviewForm = useForm({
+    decision: 'APPROVED',
+    notes: '',
+});
+
+const invoiceTemplateForm = useForm({
+    company_name: props.invoiceTemplate?.company_name ?? 'RF IS',
+    company_address: props.invoiceTemplate?.company_address ?? '',
+    company_phone: props.invoiceTemplate?.company_phone ?? '',
+    company_email: props.invoiceTemplate?.company_email ?? '',
+    logo_url: props.invoiceTemplate?.logo_url ?? '',
+    header_text: props.invoiceTemplate?.header_text ?? '',
+    footer_text: props.invoiceTemplate?.footer_text ?? '',
+    payment_notes: props.invoiceTemplate?.payment_notes ?? '',
+});
+
+const activeProofRow = computed(() => props.rows.find((row) => Number(row.payment_id) === proofPaymentId.value) ?? null);
+
+function remainingAmount(row: TableRow) {
+    return Number(row.remaining_amount_raw ?? 0);
+}
+
+function canUploadProof(row: TableRow) {
+    return !props.isAdmin && remainingAmount(row) > 0 && row.proof_status !== 'SUBMITTED' && row.proof_status !== 'APPROVED';
+}
+
+function canReviewProof(row: TableRow) {
+    return props.isAdmin && row.proof_status === 'SUBMITTED';
+}
+
+function setAthleteBill(value: string) {
+    form.athlete_id = value;
+    if (value) form.billable_user_id = '';
+}
+
+function setUserBill(value: string) {
+    form.billable_user_id = value;
+    if (value) form.athlete_id = '';
+}
 
 function submit() {
-    form.post('/payments', {
+    if (form.bill_kind === 'PAYROLL') {
+        form.payment_type = 'OTHER';
+        form.athlete_id = '';
+        form.billable_user_id = '';
+    } else {
+        form.payee_user_id = '';
+    }
+
+    if (!form.payment_date) {
+        form.payment_date = todayDate();
+    }
+
+    if (!form.paid_amount) {
+        form.paid_amount = '0';
+    }
+
+    const options = {
         onSuccess: () => {
             form.reset();
+            form.paid_amount = '0';
+            form.payment_date = todayDate();
             showPaymentForm.value = false;
+            editingPaymentId.value = null;
+        },
+    };
+
+    if (editingPaymentId.value) {
+        form.put(`/payments/${editingPaymentId.value}`, options);
+        return;
+    }
+
+    form.post('/payments', options);
+}
+
+function exportInvoice(paymentId: number | string) {
+    // Triggers the browser to download the file by hitting the Laravel endpoint
+    window.open(`/payments/${paymentId}/export`, '_blank');
+}
+
+function sendWaBilling(row: TableRow) {
+    const phoneRaw = String(row.athlete_phone ?? '').replace(/[^\d]/g, '');
+    if (!phoneRaw) return;
+    const phone = phoneRaw.startsWith('0') ? `62${phoneRaw.slice(1)}` : phoneRaw;
+    const text = encodeURIComponent(
+        `Halo, ini pengingat pembayaran ${row.type} untuk ${row.athlete}. ` +
+            `Total: ${row.amount}. Sisa: ${row.balance}.`
+    );
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+}
+
+function exportPaymentCsv() {
+    window.location.href = '/admin/data-transfer/export?entity=payments';
+}
+
+function openCreate() {
+    editingPaymentId.value = null;
+    form.reset();
+    form.bill_kind = 'INVOICE';
+    form.payment_type = 'TUITION';
+    form.collection_method = 'TRANSFER';
+    form.paid_amount = '0';
+    form.payment_date = todayDate();
+    form.clearErrors();
+    showPaymentForm.value = true;
+}
+
+function editPayment(row: TableRow) {
+    editingPaymentId.value = Number(row.payment_id);
+    form.athlete_id = String(row.athlete_id ?? '');
+    form.billable_user_id = String(row.billable_user_id ?? '');
+    form.payee_user_id = String(row.payee_user_id ?? '');
+    form.bill_kind = String(row.bill_kind ?? 'INVOICE');
+    form.payment_type = String(row.payment_type_raw ?? 'TUITION');
+    form.collection_method = String(row.collection_method_raw ?? 'CASH');
+    form.total_amount = String(row.total_amount_raw ?? '0');
+    form.paid_amount = String(row.paid_amount_raw ?? '0');
+    form.payment_date = String(row.payment_date_raw ?? '');
+    form.notes = String(row.notes_raw ?? '');
+    showPaymentForm.value = true;
+}
+
+function deletePayment(row: TableRow) {
+    const id = Number(row.payment_id);
+    if (!id) return;
+    if (!confirm('Delete this invoice?')) return;
+    router.delete(`/payments/${id}`, { preserveScroll: true });
+}
+
+function saveInvoiceTemplate() {
+    invoiceTemplateForm.post('/admin/invoice-template', {
+        preserveScroll: true,
+        onSuccess: () => {
+            invoiceTemplateModalOpen.value = false;
         },
     });
+}
+
+function openProofForm(row: TableRow) {
+    proofPaymentId.value = Number(row.payment_id);
+    proofForm.reset();
+    showProofForm.value = true;
+}
+
+function onProofFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    proofForm.proof_file = target.files?.[0] ?? null;
+}
+
+function submitProof() {
+    if (!proofPaymentId.value) return;
+    proofForm.post(`/payments/${proofPaymentId.value}/proof`, {
+        forceFormData: true,
+        onSuccess: () => {
+            showProofForm.value = false;
+        },
+    });
+}
+
+function reviewProof(row: TableRow, decision: 'APPROVED' | 'REJECTED') {
+    const id = Number(row.payment_id);
+    if (!id) return;
+    reviewForm.decision = decision;
+    reviewForm.notes = String(row.proof_notes ?? '');
+    reviewForm.put(`/payments/${id}/proof-review`, { preserveScroll: true });
 }
 </script>
 
@@ -59,9 +265,13 @@ function submit() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection eyebrow="Core module" title="Payment management" description="Record tuition, championship fees, and other invoice activity against the live payment ledger.">
+            <PageSection eyebrow="Payment center" title="Bills and payment proof" description="Admins issue bills first. Members pay outside the system, upload a receipt here, and admins approve it.">
                 <template #actions>
-                    <Button type="button" @click="showPaymentForm = true">Create invoice</Button>
+                    <div class="flex flex-wrap gap-2">
+                        <Button v-if="props.isAdmin" type="button" variant="outline" @click="invoiceTemplateModalOpen = true">Invoice settings</Button>
+                        <Button v-if="props.isAdmin" type="button" variant="outline" @click="exportPaymentCsv">Export CSV</Button>
+                        <Button v-if="props.isAdmin" type="button" @click="openCreate">Issue bill</Button>
+                    </div>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
@@ -69,71 +279,164 @@ function submit() {
                 </div>
             </PageSection>
 
-            <DataTable title="Recent payment activity" description="Live invoice and payment rows from the payments table." :columns="columns" :rows="props.rows" />
+            <DataTable title="Bills and receipts" description="Open a bill to download the invoice or upload payment proof. The balance changes only after admin approval." :columns="columns" :rows="props.rows" searchable search-placeholder="Search by name, bill type, or status">
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button type="button" size="sm" variant="outline" class="gap-2" @click="exportInvoice(row.payment_id as string | number)">
+                            <Download class="size-4" />
+                            Invoice
+                        </Button>
+                        <Button v-if="canUploadProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="openProofForm(row)">
+                            Pay / upload proof
+                        </Button>
+                        <a v-if="row.proof_url" :href="String(row.proof_url)" target="_blank" class="inline-flex h-8 items-center rounded-md border px-3 text-xs">View receipt</a>
+                        <Button v-if="props.isAdmin" type="button" size="sm" variant="outline" class="gap-2" @click="editPayment(row)">
+                            <PencilLine class="size-4" />
+                            Edit
+                        </Button>
+                        <Button v-if="props.isAdmin" type="button" size="sm" variant="destructive" class="gap-2" @click="deletePayment(row)">
+                            <Trash2 class="size-4" />
+                            Delete
+                        </Button>
+                        <Button v-if="canReviewProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="reviewProof(row, 'APPROVED')">
+                            <Check class="size-4" />
+                            Approve
+                        </Button>
+                        <Button v-if="canReviewProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="reviewProof(row, 'REJECTED')">
+                            <XCircle class="size-4" />
+                            Reject
+                        </Button>
+                        <Button v-if="props.isAdmin" type="button" size="sm" variant="outline" class="gap-2" @click="sendWaBilling(row)">
+                            <MessageCircleWarning class="size-4" />
+                            WhatsApp
+                        </Button>
+                    </ActionButtonsRow>
+                </template>
+            </DataTable>
         </div>
 
-        <FormModal :open="showPaymentForm" max-width-class="max-w-xl" @close="showPaymentForm = false">
-                <PageSection title="Quick collection action" description="Create a payment record and let the backend calculate completion status and remaining balance.">
+        <FormModal :open="showPaymentForm && props.isAdmin" max-width-class="max-w-xl" @close="showPaymentForm = false; editingPaymentId = null">
+                <PageSection :title="editingPaymentId ? 'Edit bill' : 'Issue a bill'" description="Choose the person, enter the amount, and the system will keep the unpaid balance until a receipt is approved.">
                     <form class="grid gap-4" @submit.prevent="submit">
-                        <div class="grid gap-2">
-                            <Label for="payment-athlete">Athlete</Label>
-                            <select id="payment-athlete" v-model="form.athlete_id" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
-                                <option value="">Select athlete</option>
-                                <option v-for="athlete in props.athletes" :key="athlete.value" :value="athlete.value">
-                                    {{ athlete.label }}
-                                </option>
-                            </select>
-                            <InputError :message="form.errors.athlete_id" />
+                        <FormSelectField
+                            id="payment-kind"
+                            v-model="form.bill_kind"
+                            label="What are you issuing?"
+                            :options="[
+                                { value: 'INVOICE', label: 'Bill for a member' },
+                                { value: 'PAYROLL', label: 'Coach payout record' },
+                            ]"
+                            help="Most payments should stay as Bill for a member."
+                            :error="form.errors.bill_kind"
+                        />
+                        <div v-if="form.bill_kind === 'INVOICE'" class="grid gap-4">
+                            <FormSelectField
+                                id="payment-athlete"
+                                :model-value="form.athlete_id"
+                                label="Athlete receiving this bill"
+                                :options="props.athletes"
+                                placeholder="Select athlete"
+                                help="Use this for tuition, uniform, license, and championship bills."
+                                :error="form.errors.athlete_id"
+                                @update:model-value="setAthleteBill"
+                            />
+                            <FormSelectField
+                                id="payment-user"
+                                :model-value="form.billable_user_id"
+                                label="Other account to bill"
+                                :options="props.users"
+                                placeholder="Only use this when the bill is not for an athlete"
+                                help="Picking a user here clears the athlete field so the bill is not duplicated."
+                                :error="form.errors.billable_user_id"
+                                @update:model-value="setUserBill"
+                            />
                         </div>
-                        <div class="grid gap-2">
-                            <Label for="payment-type">Payment type</Label>
-                            <select id="payment-type" v-model="form.payment_type" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
-                                <option value="TUITION">Tuition</option>
-                                <option value="UNIFORM">Uniform</option>
-                                <option value="LICENSE">License</option>
-                                <option value="CHAMPIONSHIP">Championship</option>
-                                <option value="OTHER">Other</option>
-                            </select>
-                            <InputError :message="form.errors.payment_type" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="payment-method">Collection method</Label>
-                            <select id="payment-method" v-model="form.collection_method" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs">
-                                <option value="CASH">Cash</option>
-                                <option value="TRANSFER">Transfer</option>
-                                <option value="OTHER">Other</option>
-                            </select>
-                            <InputError :message="form.errors.collection_method" />
-                        </div>
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div class="grid gap-2">
-                                <Label for="payment-total">Total amount</Label>
-                                <Input id="payment-total" v-model="form.total_amount" type="number" min="0" step="0.01" />
-                                <InputError :message="form.errors.total_amount" />
+                        <FormSelectField v-if="form.bill_kind === 'PAYROLL'" id="payment-coach" v-model="form.payee_user_id" label="Coach receiving payout" :options="props.coaches" placeholder="Select coach" required :error="form.errors.payee_user_id" />
+                        <FormSelectField v-if="form.bill_kind === 'INVOICE'" id="payment-type" v-model="form.payment_type" label="Bill category" :options="paymentTypeOptions" required :error="form.errors.payment_type" />
+                        <FormInputField id="payment-total" v-model="form.total_amount" label="Amount to pay" type="number" inputmode="decimal" min="0" step="1000" placeholder="Example: 250000" required :error="form.errors.total_amount" />
+                        <FormInputField id="payment-notes" v-model="form.notes" label="Note for this bill" placeholder="Example: May tuition" help="Optional. Keep it short and clear for the member." :error="form.errors.notes" />
+                        <input v-model="form.payment_date" type="hidden">
+                        <input v-if="!editingPaymentId" v-model="form.paid_amount" type="hidden">
+                        <details class="rounded-lg border border-border p-3">
+                            <summary class="cursor-pointer text-sm font-medium">Admin details</summary>
+                            <div class="mt-4 grid gap-4">
+                                <FormSelectField id="payment-method" v-model="form.collection_method" label="Expected payment method" :options="collectionMethodOptions" help="Used as a note on the bill." :error="form.errors.collection_method" />
+                                <div v-if="editingPaymentId" class="grid gap-4 md:grid-cols-2">
+                                    <FormInputField id="payment-paid" v-model="form.paid_amount" label="Amount already approved" type="number" inputmode="decimal" min="0" step="1000" :error="form.errors.paid_amount" />
+                                    <FormInputField id="payment-date" v-model="form.payment_date" label="Issue date" type="date" :error="form.errors.payment_date" />
+                                </div>
                             </div>
-                            <div class="grid gap-2">
-                                <Label for="payment-paid">Paid amount</Label>
-                                <Input id="payment-paid" v-model="form.paid_amount" type="number" min="0" step="0.01" />
-                                <InputError :message="form.errors.paid_amount" />
-                            </div>
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="payment-date">Payment date</Label>
-                            <Input id="payment-date" v-model="form.payment_date" type="date" />
-                            <InputError :message="form.errors.payment_date" />
-                        </div>
-                        <div class="grid gap-2">
-                            <Label for="payment-notes">Notes</Label>
-                            <Input id="payment-notes" v-model="form.notes" placeholder="Optional finance note" />
-                            <InputError :message="form.errors.notes" />
-                        </div>
+                        </details>
                         <div class="flex flex-wrap gap-3">
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Record payment</Button>
-                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentForm = false">Cancel</Button>
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ editingPaymentId ? 'Save changes' : 'Issue bill' }}</Button>
+                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentForm = false; editingPaymentId = null">Cancel</Button>
                         </div>
                     </form>
                 </PageSection>
         </FormModal>
+
+        <FormModal :open="invoiceTemplateModalOpen && props.isAdmin" max-width-class="max-w-2xl" @close="invoiceTemplateModalOpen = false">
+            <PageSection title="Invoice settings" description="These details appear on downloaded invoices and in the payment instructions members see before uploading a receipt.">
+                <form class="grid gap-6" @submit.prevent="saveInvoiceTemplate">
+                    <div class="grid gap-2">
+                        <label class="text-sm font-medium">Logo</label>
+                        <div class="flex items-center gap-4">
+                            <div class="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/50">
+                                <ImagePlus class="size-8 text-muted-foreground" />
+                            </div>
+                            <div class="flex-1">
+                                <FormInputField id="invoice-logo-url" v-model="invoiceTemplateForm.logo_url" type="url" label="Logo URL" placeholder="https://example.com/logo.png" help="Optional. Leave empty if you do not have a public logo link." :error="invoiceTemplateForm.errors.logo_url" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormInputField id="invoice-company-name" v-model="invoiceTemplateForm.company_name" label="Club name" required :error="invoiceTemplateForm.errors.company_name" />
+                        <FormInputField id="invoice-company-email" v-model="invoiceTemplateForm.company_email" label="Finance email" type="email" autocomplete="email" :error="invoiceTemplateForm.errors.company_email" />
+                        <FormInputField id="invoice-company-phone" v-model="invoiceTemplateForm.company_phone" label="Finance phone" autocomplete="tel" :error="invoiceTemplateForm.errors.company_phone" />
+                    </div>
+                    <div class="grid gap-2">
+                        <label for="invoice-company-address" class="text-sm font-medium">Company address</label>
+                        <textarea id="invoice-company-address" v-model="invoiceTemplateForm.company_address" rows="2" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <FormInputField id="invoice-header-text" v-model="invoiceTemplateForm.header_text" label="Invoice heading" placeholder="Example: Official payment invoice" :error="invoiceTemplateForm.errors.header_text" />
+                    <div class="grid gap-2">
+                        <label for="invoice-footer-text" class="text-sm font-medium">Footer note</label>
+                        <textarea id="invoice-footer-text" v-model="invoiceTemplateForm.footer_text" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <div class="grid gap-2">
+                        <label for="invoice-payment-notes" class="text-sm font-medium">Payment instructions</label>
+                        <textarea id="invoice-payment-notes" v-model="invoiceTemplateForm.payment_notes" rows="3" placeholder="Example: Transfer to BCA 123456789 a.n. RF IS, then upload the receipt here." class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" :disabled="invoiceTemplateForm.processing">Save invoice settings</Button>
+                        <Button type="button" variant="outline" @click="invoiceTemplateModalOpen = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="showProofForm" max-width-class="max-w-xl" @close="showProofForm = false">
+            <PageSection title="Pay this bill" description="Pay using the admin instructions, then upload a receipt so finance can approve it.">
+                <div v-if="activeProofRow" class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <p><span class="font-medium">Bill:</span> {{ activeProofRow.type }} for {{ activeProofRow.athlete }}</p>
+                    <p><span class="font-medium">Balance:</span> {{ activeProofRow.balance }}</p>
+                    <p class="leading-6 text-muted-foreground">{{ props.paymentInstructions }}</p>
+                </div>
+                <form class="grid gap-4" @submit.prevent="submitProof">
+                    <FormInputField id="proof-notes" v-model="proofForm.notes" label="Receipt note" placeholder="Example: Paid by bank transfer today" help="Optional, but useful if the receipt is hard to read." :error="proofForm.errors.notes" />
+                    <div class="grid gap-2">
+                        <label class="text-sm font-medium">Receipt or transfer screenshot</label>
+                        <input type="file" accept="image/*,.pdf" class="h-10 rounded-lg border border-input px-3 py-2 text-sm" @change="onProofFileChange">
+                        <p v-if="!proofForm.errors.proof_file" class="text-xs leading-5 text-muted-foreground">Accepted: image or PDF, up to 10 MB.</p>
+                        <p v-if="proofForm.errors.proof_file" class="text-sm text-destructive">{{ proofForm.errors.proof_file }}</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file">Send receipt for review</Button>
+                        <Button type="button" variant="outline" @click="showProofForm = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
     </AppLayout>
 </template>
-

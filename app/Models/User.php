@@ -3,15 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     protected $table = 'users';
     protected $primaryKey = 'id';
@@ -30,6 +32,9 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
+        'remember_token',
+        'two_factor_recovery_codes',
+        'two_factor_secret',
     ];
 
     protected function casts(): array
@@ -51,22 +56,47 @@ class User extends Authenticatable
 
     public function isAdmin()
     {
-        return $this->role === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function isCoach()
     {
-        return $this->role === 'coach';
+        return $this->hasRole('coach');
     }
 
     public function isParent()
     {
-        return $this->role === 'parent';
+        return $this->hasRole('parent');
     }
 
     public function isAthlete()
     {
-        return $this->role === 'athlete';
+        return $this->hasRole('athlete');
+    }
+
+    public function roleAssignments(): HasMany
+    {
+        return $this->hasMany(UserRoleAssignment::class);
+    }
+
+    public function assignedRoles(): array
+    {
+        if (! $this->relationLoaded('roleAssignments')) {
+            $this->load('roleAssignments');
+        }
+
+        $roles = $this->roleAssignments->pluck('role')->filter()->unique()->values()->all();
+
+        if (count($roles) === 0 && ! empty($this->role)) {
+            return [$this->role];
+        }
+
+        return $roles;
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return in_array($role, $this->assignedRoles(), true);
     }
 
     public function parentProfile(): HasOne
@@ -94,5 +124,20 @@ class User extends Authenticatable
     public function coachProfile(): HasOne
     {
         return $this->hasOne(Coach::class, 'id', 'id');
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(UserProfile::class);
+    }
+
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(UserCertification::class);
+    }
+
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(UserAchievement::class);
     }
 }

@@ -82,16 +82,21 @@ class AttendanceManagementController extends Controller
                 ['label' => 'Absent records this week', 'value' => (string) $attendance->whereBetween('date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->where('status', 'ABSENT')->count(), 'detail' => 'Weekly absences that may need follow-up', 'tone' => 'warning'],
                 ['label' => 'Sessions tracked', 'value' => (string) $attendance->pluck('coach_session_id')->filter()->unique()->count(), 'detail' => 'Distinct sessions referenced in the log', 'tone' => 'info'],
             ],
-            'rows' => $attendance->map(fn (Attendance $record) => [
-                'id' => 'ATT-'.$record->atid,
-                'athlete' => $record->athlete?->user?->name ?? 'Unknown athlete',
-                'session' => $record->session?->title ?? 'General attendance',
-                'session_href' => $record->session ? route('sessions.attendance', $record->session->csid) : '',
-                'is_locked' => $this->isAttendanceLocked($record),
-                'coach' => $record->session?->coach?->user?->name ?? 'Unassigned',
-                'checkin' => $this->formatTimeHm($record->checked_in_at) ?? '-',
-                'status' => $this->attendanceBadge((string) $record->status),
-            ])->values(),
+            'rows' => $attendance->map(function (Attendance $record) use ($user) {
+                $isLocked = $this->isAttendanceLocked($record);
+
+                return [
+                    'id' => 'ATT-'.$record->atid,
+                    'athlete' => $record->athlete?->user?->name ?? 'Unknown athlete',
+                    'session' => $record->session?->title ?? 'General attendance',
+                    'session_href' => $record->session ? route('sessions.attendance', $record->session->csid) : '',
+                    'is_locked' => $isLocked,
+                    'can_update' => ! $isLocked && $this->userCanUpdateAttendance($user, $record),
+                    'coach' => $record->session?->coach?->user?->name ?? 'Unassigned',
+                    'checkin' => $this->formatTimeHm($record->checked_in_at) ?? '-',
+                    'status' => $this->attendanceBadge((string) $record->status),
+                ];
+            })->values(),
             'athletes' => Athlete::query()
                 ->with('user:id,name')
                 ->when($parentScopedAthleteIds !== null, fn ($query) => $query->whereIn('athlete_id', $parentScopedAthleteIds))
@@ -100,7 +105,7 @@ class AttendanceManagementController extends Controller
                 ->map(fn (Athlete $athlete) => ['value' => $athlete->athlete_id, 'label' => $athlete->user?->name ?? 'Unknown athlete'])
                 ->sortBy('label')
                 ->values(),
-            'sessions' => Session::query()
+            'sessions' => $this->visibleSessionQuery($user)
                 ->with(['coach.user:id,name', 'branch:branch_id,branch_name'])
                 ->orderBy('session_date')
                 ->get()
@@ -162,21 +167,32 @@ class AttendanceManagementController extends Controller
             return back()->withErrors(['athlete_id' => 'Selected athlete is not linked to this parent account.']);
         }
 
+        if ($user?->isCoach() && ! empty($validated['coach_session_id'])) {
+            $session = Session::query()->find($validated['coach_session_id']);
+            if (! $session || ! $this->coachCanAccessSession($user->id, $session)) {
+                abort(403);
+            }
+        }
+
         $checkedInAt = null;
 
         if (! empty($validated['checked_in_time'])) {
             $checkedInAt = Carbon::createFromFormat('Y-m-d H:i', $validated['date'].' '.$validated['checked_in_time']);
         }
 
-        $attendance = Attendance::create([
-            'athlete_id' => $athleteId,
-            'coach_session_id' => $validated['coach_session_id'] ?? null,
-            'date' => $validated['date'],
-            'status' => $validated['status'],
-            'checked_in_at' => $checkedInAt,
-            'notes' => $validated['notes'] ?? null,
-            'follow_up_owner' => $validated['follow_up_owner'] ?? null,
-        ]);
+        $attendance = Attendance::query()->updateOrCreate(
+            [
+                'athlete_id' => $athleteId,
+                'coach_session_id' => $validated['coach_session_id'] ?? null,
+                'date' => $validated['date'],
+            ],
+            [
+                'status' => $validated['status'],
+                'checked_in_at' => $checkedInAt ?? ($validated['status'] === 'PRESENT' ? now() : null),
+                'notes' => $validated['notes'] ?? null,
+                'follow_up_owner' => $validated['follow_up_owner'] ?? null,
+            ],
+        );
 
         ActivityLogger::log(
             $request,
@@ -192,7 +208,11 @@ class AttendanceManagementController extends Controller
 
     public function update(Request $request, Attendance $attendance): RedirectResponse
     {
-        if ($this->isAttendanceLocked($attendance->loadMissing('session'))) {
+        $attendance->loadMissing(['athlete', 'session']);
+
+        abort_unless($this->userCanUpdateAttendance($request->user(), $attendance), 403);
+
+        if ($this->isAttendanceLocked($attendance)) {
             return back()->withErrors([
                 'status' => 'Attendance cannot be changed because the session time has passed.',
             ]);
@@ -221,11 +241,23 @@ class AttendanceManagementController extends Controller
 
     public function bulkUpdate(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
+
         $validated = $request->validate([
             'attendance_ids' => ['required', 'array', 'min:1'],
             'attendance_ids.*' => ['required', 'integer', 'exists:athlete_attendance,atid'],
             'status' => ['required', Rule::in(['PRESENT', 'ABSENT', 'EXCUSED'])],
         ]);
+
+        $attendanceRows = Attendance::query()
+            ->with(['athlete', 'session'])
+            ->whereIn('atid', $validated['attendance_ids'])
+            ->get();
+
+        abort_unless(
+            $attendanceRows->every(fn (Attendance $attendance) => $this->userCanUpdateAttendance($request->user(), $attendance) && ! $this->isAttendanceLocked($attendance)),
+            403,
+        );
 
         Attendance::query()
             ->whereIn('atid', $validated['attendance_ids'])
@@ -241,6 +273,72 @@ class AttendanceManagementController extends Controller
         );
 
         return back();
+    }
+
+    private function visibleSessionQuery($user)
+    {
+        $query = Session::query();
+
+        if (! $user || $user->isAdmin()) {
+            return $query;
+        }
+
+        if ($user->isCoach()) {
+            $coachId = Coach::query()->where('id', $user->id)->value('coach_id');
+
+            return $query->where(function ($sessionQuery) use ($coachId): void {
+                $sessionQuery->where('coach_id', $coachId);
+                if ($coachId && Schema::hasTable('coach_session_coaches')) {
+                    $sessionQuery->orWhereHas('coaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId));
+                }
+            });
+        }
+
+        if ($user->isAthlete()) {
+            $athlete = $user->athleteProfile;
+
+            return $query
+                ->when($athlete?->branch_id, fn ($sessionQuery) => $sessionQuery->where('branch_id', $athlete->branch_id))
+                ->when($athlete?->group_id, fn ($sessionQuery) => $sessionQuery->where(function ($groupQuery) use ($athlete): void {
+                    $groupQuery->whereNull('group_id')->orWhere('group_id', $athlete->group_id);
+                }));
+        }
+
+        return $query;
+    }
+
+    private function userCanUpdateAttendance($user, Attendance $attendance): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isCoach()) {
+            return $attendance->session
+                ? $this->coachCanAccessSession($user->id, $attendance->session)
+                : false;
+        }
+
+        if ($user->isAthlete()) {
+            return (int) $attendance->athlete_id === (int) $user->athleteProfile?->athlete_id;
+        }
+
+        return false;
+    }
+
+    private function coachCanAccessSession(int $userId, Session $session): bool
+    {
+        $coachId = Coach::query()->where('id', $userId)->value('coach_id');
+        if (! $coachId) {
+            return false;
+        }
+
+        return (int) $session->coach_id === (int) $coachId
+            || (Schema::hasTable('coach_session_coaches') && $session->coaches()->where('coaches.coach_id', $coachId)->exists());
     }
 
     private function attendanceBadge(string $status): array

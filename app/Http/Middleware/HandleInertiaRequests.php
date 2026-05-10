@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Athlete;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -61,7 +62,11 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $user,
+                'user' => $user ? [
+                    ...$user->toArray(),
+                    'roles' => $user->assignedRoles(),
+                    'avatar' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
+                ] : null,
                 'children' => $children,
                 'activeChild' => $activeChild,
             ],

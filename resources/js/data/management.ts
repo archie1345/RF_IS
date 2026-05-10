@@ -9,13 +9,17 @@ export const managementRoutes = {
     dashboard: '/dashboard',
     componentsPlayground: '/components-playground',
     activityLogs: '/admin/activity-logs',
+    announcements: '/announcements',
     parentChildSwitcher: '/parent/children',
     athletes: '/athletes',
+    coachParentManagement: '/coach-parent-management',
+    roleUsers: '/role-users',
+    achievements: '/achievements',
     payments: '/payments',
     attendance: '/attendance',
     championships: '/championships',
     sessions: '/sessions',
-} as const;
+} as const satisfies Record<string, string>;
 
 const badge = (text: string, tone: TableBadgeCell['tone'] = 'neutral') => ({
     kind: 'badge' as const,
@@ -25,7 +29,7 @@ const badge = (text: string, tone: TableBadgeCell['tone'] = 'neutral') => ({
 
 export const dashboardContent: Record<AppRole, RoleDashboardContent> = {
     admin: {
-        headline: 'Operations snapshot',
+        headline: 'Dashboard',
         description:
             'Keep athlete onboarding, collections, registrations, and training delivery moving from one place.',
         metrics: [
@@ -419,4 +423,3 @@ export const sessionRows: TableRow[] = [
         status: badge('Needs assistant', 'warning'),
     },
 ];
-

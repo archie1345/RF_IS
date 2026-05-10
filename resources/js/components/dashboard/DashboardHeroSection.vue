@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
+import { Button } from '@/components/ui/button';
+import { managementRoutes } from '@/data/management';
 import type { ParentChild } from '@/types/auth';
 import type { AppRole, Metric } from '@/types/management';
+import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const props = defineProps<{
     role: AppRole;
@@ -14,22 +19,70 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'switch-child', value: string): void;
 }>();
+
+const childOptions = (children: ParentChild[]) => [
+    { value: '', label: 'All children' },
+    ...children.map((child) => ({ value: String(child.athlete_id), label: child.name })),
+];
+
+const roleTitle = computed(() => {
+    return {
+        admin: 'Operations dashboard',
+        coach: 'Coach dashboard',
+        parent: 'Parent dashboard',
+        athlete: 'Athlete dashboard',
+    }[props.role];
+});
+
+const roleDescription = computed(() => {
+    return {
+        admin: 'Monitor the club, issue bills, post announcements, and follow recent activity.',
+        coach: 'Check sessions, attendance, events, and any bills connected to your account.',
+        parent: 'Review children, attendance, events, and bills without digging through admin menus.',
+        athlete: 'See your training, events, achievements, and payment status at a glance.',
+    }[props.role];
+});
+
+const quickActions = computed(() => {
+    if (props.role === 'admin') {
+        return [
+            { label: 'Issue bill', href: managementRoutes.payments },
+            { label: 'Post announcement', href: managementRoutes.announcements },
+        ];
+    }
+
+    if (props.role === 'coach') {
+        return [
+            { label: 'Sessions', href: managementRoutes.sessions },
+            { label: 'Payments', href: managementRoutes.payments },
+        ];
+    }
+
+    return [
+        { label: 'Payments', href: managementRoutes.payments },
+        { label: 'Championships', href: managementRoutes.championships },
+    ];
+});
 </script>
 
 <template>
-    <PageSection eyebrow="Role dashboard" :title="`${props.role.toUpperCase()} dashboard`" description="Role-focused operational overview using reusable dynamic tables.">
+    <PageSection eyebrow="Dashboard" :title="roleTitle" :description="roleDescription">
+        <template #actions>
+            <div class="flex flex-wrap gap-2">
+                <Button v-for="action in quickActions" :key="action.href" as-child variant="outline" size="sm">
+                    <Link :href="action.href">{{ action.label }}</Link>
+                </Button>
+            </div>
+        </template>
+
         <div v-if="props.role === 'parent'" class="mt-4 max-w-sm">
-            <label class="mb-2 block text-sm font-medium">Selected child</label>
-            <select
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
-                :value="props.activeChild?.athlete_id ?? ''"
-                @change="emit('switch-child', ($event.target as HTMLSelectElement).value)"
-            >
-                <option value="">All children</option>
-                <option v-for="child in props.children" :key="child.athlete_id" :value="child.athlete_id">
-                    {{ child.name }}
-                </option>
-            </select>
+            <FormSelectField
+                id="dashboard-selected-child"
+                :model-value="String(props.activeChild?.athlete_id ?? '')"
+                label="Child shown on dashboard"
+                :options="childOptions(props.children)"
+                @update:model-value="emit('switch-child', $event)"
+            />
         </div>
 
         <div class="grid gap-4 md:grid-cols-4">

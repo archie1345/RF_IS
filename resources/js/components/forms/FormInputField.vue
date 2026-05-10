@@ -3,15 +3,25 @@ import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
     id: string;
     label: string;
     modelValue: string;
     type?: string;
     placeholder?: string;
     error?: string;
+    help?: string;
+    required?: boolean;
+    disabled?: boolean;
+    autocomplete?: string;
+    inputmode?: string;
+    min?: string | number;
+    max?: string | number;
+    step?: string | number;
 }>(), {
     type: 'text',
+    required: false,
+    disabled: false,
 });
 
 const emit = defineEmits<{
@@ -21,18 +31,30 @@ const emit = defineEmits<{
 
 <template>
     <div class="grid gap-2">
-        <Label :for="id">{{ label }}</Label>
+        <div class="flex items-center justify-between gap-3">
+            <Label :for="id">{{ label }}</Label>
+            <span v-if="props.required" class="text-xs text-muted-foreground">Required</span>
+        </div>
         <Input
             :id="id"
-            :type="type"
-            :value="modelValue"
-            :placeholder="placeholder"
+            :type="props.type"
+            :model-value="props.modelValue"
+            :placeholder="props.placeholder"
+            :required="props.required"
+            :disabled="props.disabled"
+            :autocomplete="props.autocomplete"
+            :inputmode="props.inputmode"
+            :min="props.min"
+            :max="props.max"
+            :step="props.step"
+            :aria-invalid="Boolean(props.error)"
             :class="[
                 'h-10 rounded-lg border-input bg-background text-foreground [color-scheme:light] dark:[color-scheme:dark]',
-                type === 'date' || type === 'time' ? 'min-w-[10.5rem] pr-10' : '',
+                props.type === 'date' || props.type === 'time' ? 'min-w-[10.5rem] pr-10' : '',
             ]"
-            @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+            @update:model-value="emit('update:modelValue', String($event ?? ''))"
         />
-        <InputError :message="error" />
+        <p v-if="props.help && !props.error" class="text-xs leading-5 text-muted-foreground">{{ props.help }}</p>
+        <InputError :message="props.error" />
     </div>
 </template>

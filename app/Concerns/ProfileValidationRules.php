@@ -17,6 +17,9 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'gender' => ['nullable', Rule::in(['MALE', 'FEMALE'])],
+            'bday' => ['nullable', 'date'],
+            'phone' => ['nullable', 'string', 'max:20'],
         ];
     }
 

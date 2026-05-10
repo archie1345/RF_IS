@@ -52,7 +52,7 @@ const filteredRows = computed(() => {
 </script>
 
 <template>
-    <Card class="w-full max-w-full rounded-2xl border shadow-sm sm:rounded-3xl">
+    <Card class="w-full max-w-full rounded-lg border shadow-sm">
         <CardHeader class="space-y-1 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
             <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
             <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
@@ -88,12 +88,12 @@ const filteredRows = computed(() => {
                         <tr
                             v-for="row in filteredRows"
                             :key="row.id"
-                            class="rounded-2xl bg-muted/40 text-sm text-foreground"
+                            class="rounded-lg bg-muted/40 text-sm text-foreground"
                         >
                             <td
                                 v-for="column in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="px-2 py-3 first:rounded-l-xl last:rounded-r-xl sm:px-3 sm:first:rounded-l-2xl sm:last:rounded-r-2xl"
+                                class="px-2 py-3 first:rounded-l-lg last:rounded-r-lg sm:px-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
                                 <slot

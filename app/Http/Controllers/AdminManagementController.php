@@ -7,18 +7,22 @@ use App\Models\Coach;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Group;
+use App\Models\InvoiceTemplate;
 use App\Models\Parents;
 use App\Models\Payment;
 use App\Models\Session;
 use App\Models\Attendance;
 use App\Models\Athlete;
 use App\Models\User;
+use App\Models\UserProfile;
+use App\Models\UserRoleAssignment;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -29,13 +33,18 @@ class AdminManagementController extends Controller
 {
     public function index(): Response
     {
+        abort_unless(request()->user()?->isAdmin(), 403);
+
         $hasAccountStatus = Schema::hasColumn('users', 'account_status');
 
         $users = User::query()
+            ->withTrashed()
             ->with([
+                'roleAssignments',
                 'athleteProfile.branch:branch_id,branch_name',
                 'coachProfile',
                 'parentProfile.athletes.branch:branch_id,branch_name',
+                'profile',
             ])
             ->latest('id')
             ->get();
@@ -46,9 +55,13 @@ class AdminManagementController extends Controller
                 'name' => $user->name ?? 'Unnamed user',
                 'email' => $user->email,
                 'role' => $user->role,
+                'roles' => $user->assignedRoles(),
                 'branch' => $this->branchLabel($user),
                 'status' => $hasAccountStatus ? ($user->account_status ?? 'active') : 'active',
                 'createdAt' => $user->created_at?->format('d M Y') ?? '-',
+                'deletedAt' => $user->deleted_at?->format('d M Y H:i:s'),
+                'bio' => $user->profile?->bio,
+                'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
             ])->values(),
             'branches' => Branch::query()
                 ->orderBy('branch_name')
@@ -72,23 +85,64 @@ class AdminManagementController extends Controller
                 'enabled' => class_exists(\Barryvdh\Debugbar\ServiceProvider::class),
             ],
             'importResult' => session('importResult'),
+            'invoiceTemplate' => Schema::hasTable('invoice_templates')
+                ? InvoiceTemplate::query()->firstOrCreate(
+                    ['name' => 'default'],
+                    ['company_name' => 'RF IS'],
+                )
+                : null,
         ]);
+    }
+
+    public function updateInvoiceTemplate(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        if (! Schema::hasTable('invoice_templates')) {
+            return redirect()->route('admin.index')
+                ->withErrors(['invoice_template' => 'invoice_templates table does not exist yet. Run migrations first.']);
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:150'],
+            'company_address' => ['nullable', 'string', 'max:255'],
+            'company_phone' => ['nullable', 'string', 'max:60'],
+            'company_email' => ['nullable', 'email', 'max:120'],
+            'logo_url' => ['nullable', 'url', 'max:255'],
+            'header_text' => ['nullable', 'string', 'max:255'],
+            'footer_text' => ['nullable', 'string'],
+            'payment_notes' => ['nullable', 'string'],
+        ]);
+
+        InvoiceTemplate::query()->updateOrCreate(
+            ['name' => 'default'],
+            $validated,
+        );
+
+        ActivityLogger::log($request, 'admin.invoice-template.updated', 'admin', 'Updated invoice template settings');
+
+        return back();
     }
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $this->validateAccount($request);
+        $roles = $validated['roles'];
+        $primaryRole = $this->resolvePrimaryRole($roles);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'gender' => 'MALE',
-            'role' => $validated['role'],
+            'role' => $primaryRole,
             ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $validated['status']] : []),
         ]);
 
-        $this->syncRoleProfile($user);
+        $this->syncUserRoles($user, $roles);
+        $this->syncRoleProfile($user, $roles);
         ActivityLogger::log($request, 'admin.account.created', 'admin', 'Created user account', $user, ['role' => $user->role]);
 
         return redirect()->route('admin.index');
@@ -96,24 +150,78 @@ class AdminManagementController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $this->validateAccount($request, $user);
+        $roles = $validated['roles'];
+        $primaryRole = $this->resolvePrimaryRole($roles);
 
         $user->update([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'role' => $validated['role'],
+            'role' => $primaryRole,
             ...(! empty($validated['password']) ? ['password' => Hash::make($validated['password'])] : []),
             ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $validated['status']] : []),
         ]);
 
-        $this->syncRoleProfile($user);
+        $this->syncUserRoles($user, $roles);
+        $this->syncRoleProfile($user, $roles);
         ActivityLogger::log($request, 'admin.account.updated', 'admin', 'Updated user account', $user, ['role' => $user->role]);
+
+        return redirect()->route('admin.index');
+    }
+
+    public function updateAccountProfile(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'bio' => ['nullable', 'string'],
+            'profile_picture' => ['nullable', 'image', 'max:4096'],
+        ]);
+
+        $payload = ['bio' => $validated['bio'] ?? null];
+
+        if ($request->hasFile('profile_picture')) {
+            $payload['profile_picture_path'] = $request->file('profile_picture')->store('profiles', 'public');
+        }
+
+        UserProfile::query()->updateOrCreate(['user_id' => $user->id], $payload);
+        ActivityLogger::log($request, 'admin.account.profile.updated', 'admin', 'Updated account roster profile', $user, ['user_id' => $user->id]);
+
+        return redirect()->route('admin.index');
+    }
+
+    public function destroyAccount(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        if ((int) $request->user()?->id === (int) $user->id) {
+            return back()->withErrors(['account' => 'You cannot delete your own account.']);
+        }
+
+        $user->delete();
+        ActivityLogger::log($request, 'admin.account.deleted', 'admin', 'Soft deleted user account', $user, ['user_id' => $user->id]);
+
+        return redirect()->route('admin.index');
+    }
+
+    public function restoreAccount(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $user = User::withTrashed()->findOrFail($id);
+
+        $user->restore();
+        ActivityLogger::log($request, 'admin.account.restored', 'admin', 'Restored soft deleted user account', $user, ['user_id' => $user->id]);
 
         return redirect()->route('admin.index');
     }
 
     public function storeBranch(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'location' => ['required', 'string', 'max:255'],
@@ -130,6 +238,8 @@ class AdminManagementController extends Controller
 
     public function updateBranch(Request $request, Branch $branch): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'location' => ['required', 'string', 'max:255'],
@@ -146,6 +256,8 @@ class AdminManagementController extends Controller
 
     public function destroyBranch(Request $request, Branch $branch): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         ActivityLogger::log($request, 'admin.branch.deleted', 'admin', 'Deleted branch', $branch, ['branch_name' => $branch->branch_name]);
         $branch->delete();
 
@@ -154,6 +266,8 @@ class AdminManagementController extends Controller
 
     public function storeGroup(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
@@ -170,6 +284,8 @@ class AdminManagementController extends Controller
 
     public function updateGroup(Request $request, Group $group): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
@@ -186,6 +302,8 @@ class AdminManagementController extends Controller
 
     public function destroyGroup(Request $request, Group $group): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted group', $group, ['group_name' => $group->group_name]);
         $group->delete();
 
@@ -194,6 +312,8 @@ class AdminManagementController extends Controller
 
     public function importCsv(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $validated = $request->validate([
             'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
@@ -217,6 +337,8 @@ class AdminManagementController extends Controller
 
     public function exportCsv(Request $request): StreamedResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $entity = $request->validate([
             'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
         ])['entity'];
@@ -236,6 +358,8 @@ class AdminManagementController extends Controller
 
     public function downloadTemplate(Request $request): StreamedResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $entity = $request->validate([
             'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
         ])['entity'];
@@ -255,7 +379,8 @@ class AdminManagementController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
-            'role' => ['required', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
             'status' => ['required', Rule::in(['active', 'invited', 'suspended'])],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
         ]);
@@ -263,11 +388,11 @@ class AdminManagementController extends Controller
 
     private function branchLabel(User $user): string
     {
-        if ($user->role === 'athlete') {
+        if ($user->hasRole('athlete')) {
             return $user->athleteProfile?->branch?->branch_name ?? 'Unassigned';
         }
 
-        if ($user->role === 'parent') {
+        if ($user->hasRole('parent')) {
             return $user->parentProfile?->athletes
                 ?->pluck('branch.branch_name')
                 ->filter()
@@ -275,28 +400,85 @@ class AdminManagementController extends Controller
                 ->implode(', ') ?: 'Linked by child';
         }
 
-        if ($user->role === 'coach') {
+        if ($user->hasRole('coach')) {
             return $user->coachProfile ? 'Coaching team' : 'Unassigned';
         }
 
         return 'Head Office';
     }
 
-    private function syncRoleProfile(User $user): void
+    private function syncRoleProfile(User $user, array $roles): void
     {
-        if ($user->role === 'parent') {
+        $hasParentRole = in_array('parent', $roles, true);
+        $hasCoachRole = in_array('coach', $roles, true);
+        $hasAthleteRole = in_array('athlete', $roles, true);
+
+        if ($hasParentRole && ($hasCoachRole || $hasAthleteRole)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'roles' => 'Parent cannot be combined with athlete or coach.',
+            ]);
+        }
+
+        if ($hasParentRole) {
+            // Parent accounts are exclusive and cannot carry athlete/coach profiles.
+            if ($user->athleteProfile()->exists()) {
+                $user->athleteProfile()->delete();
+            }
+            if ($user->coachProfile()->exists()) {
+                $user->coachProfile()->delete();
+            }
+        }
+
+        if ($hasParentRole) {
             Parents::firstOrCreate(
                 ['id' => $user->id],
                 ['relation' => 'guardian'],
             );
+        } else {
+            $user->parentProfile()->delete();
         }
 
-        if ($user->role === 'coach') {
+        if ($hasCoachRole) {
             Coach::firstOrCreate(
                 ['id' => $user->id],
                 ['status' => 'active'],
             );
+        } else {
+            $user->coachProfile()->delete();
         }
+    }
+
+    private function syncUserRoles(User $user, array $roles): void
+    {
+        $roles = collect($roles)->unique()->values();
+        $existing = UserRoleAssignment::query()->where('user_id', $user->id)->pluck('role')->all();
+
+        $toDelete = array_values(array_diff($existing, $roles->all()));
+        if (count($toDelete) > 0) {
+            UserRoleAssignment::query()
+                ->where('user_id', $user->id)
+                ->whereIn('role', $toDelete)
+                ->delete();
+        }
+
+        foreach ($roles as $role) {
+            UserRoleAssignment::query()->firstOrCreate([
+                'user_id' => $user->id,
+                'role' => $role,
+            ]);
+        }
+    }
+
+    private function resolvePrimaryRole(array $roles): string
+    {
+        $priority = ['admin', 'coach', 'parent', 'athlete'];
+        foreach ($priority as $role) {
+            if (in_array($role, $roles, true)) {
+                return $role;
+            }
+        }
+
+        return 'athlete';
     }
 
     private function readCsvRows(string $path): array

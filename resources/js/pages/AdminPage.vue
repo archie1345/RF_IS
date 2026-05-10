@@ -101,9 +101,14 @@ function downloadTemplate() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <div class="flex justify-end">
-                <Button as-child variant="outline">
-                    <Link :href="managementRoutes.activityLogs">Open User Activity Log</Link>
-                </Button>
+                <div class="flex gap-2">
+                    <Button as-child variant="outline">
+                        <Link :href="managementRoutes.coachParentManagement">Manage Coaches & Parents</Link>
+                    </Button>
+                    <Button as-child variant="outline">
+                        <Link :href="managementRoutes.activityLogs">Open User Activity Log</Link>
+                    </Button>
+                </div>
             </div>
             <Alert v-if="!props.debugbar?.enabled" variant="default">
                 <AlertTitle>Debugbar is not installed yet</AlertTitle>
@@ -149,4 +154,3 @@ function downloadTemplate() {
         </div>
     </AppLayout>
 </template>
-

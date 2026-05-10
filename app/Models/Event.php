@@ -21,6 +21,7 @@ class Event extends Model
         'e_name',
         'e_date',
         'location',
+        'gmaps_url',
         'level',
         'entry_fee',
         'max_slots',
@@ -37,5 +38,10 @@ class Event extends Model
     public function registrations()
     {
         return $this->hasMany(EventRegistration::class, 'event_id', 'event_id');
+    }
+
+    public function coachRegistrations()
+    {
+        return $this->hasMany(EventCoachRegistration::class, 'event_id', 'event_id');
     }
 }

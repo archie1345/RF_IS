@@ -1,14 +1,18 @@
 <?php
 
 use App\Http\Controllers\AdminManagementController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AthleteManagementController;
 use App\Http\Controllers\AttendanceManagementController;
 use App\Http\Controllers\ChampionshipManagementController;
+use App\Http\Controllers\CoachParentManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentManagementController;
 use App\Http\Controllers\ParentChildContextController;
+use App\Http\Controllers\RoleUserManagementController;
 use App\Http\Controllers\SessionManagementController;
+use App\Http\Controllers\UserAchievementController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -21,11 +25,15 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
     Route::get('components-playground', function () {
         return Inertia::render('ComponentsPlaygroundPage');
     })->name('components-playground');
 
     Route::get('athletes', [AthleteManagementController::class, 'index'])->name('athletes.index');
+    Route::get('athletes/user/{user}', [AthleteManagementController::class, 'showByUser'])->name('athletes.show-by-user');
+    Route::put('athletes/user/{user}', [AthleteManagementController::class, 'upsertByUser'])->name('athletes.upsert-by-user');
     Route::get('athletes/{athlete}', [AthleteManagementController::class, 'show'])->name('athletes.show');
     Route::post('athletes', [AthleteManagementController::class, 'store'])->name('athletes.store');
     Route::put('athletes/{athlete}', [AthleteManagementController::class, 'update'])->name('athletes.update');
@@ -36,6 +44,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs.index');
     Route::post('admin/accounts', [AdminManagementController::class, 'store'])->name('admin.accounts.store');
     Route::put('admin/accounts/{user}', [AdminManagementController::class, 'update'])->name('admin.accounts.update');
+    Route::post('admin/accounts/{user}/profile', [AdminManagementController::class, 'updateAccountProfile'])->name('admin.accounts.profile.update');
+    Route::delete('admin/accounts/{user}', [AdminManagementController::class, 'destroyAccount'])->name('admin.accounts.destroy');
+    Route::put('admin/accounts/{id}/restore', [AdminManagementController::class, 'restoreAccount'])->name('admin.accounts.restore');
     Route::post('admin/branches', [AdminManagementController::class, 'storeBranch'])->name('admin.branches.store');
     Route::put('admin/branches/{branch}', [AdminManagementController::class, 'updateBranch'])->name('admin.branches.update');
     Route::delete('admin/branches/{branch}', [AdminManagementController::class, 'destroyBranch'])->name('admin.branches.destroy');
@@ -45,9 +56,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/data-transfer/import', [AdminManagementController::class, 'importCsv'])->name('admin.data-transfer.import');
     Route::get('admin/data-transfer/export', [AdminManagementController::class, 'exportCsv'])->name('admin.data-transfer.export');
     Route::get('admin/data-transfer/template', [AdminManagementController::class, 'downloadTemplate'])->name('admin.data-transfer.template');
+    Route::post('admin/invoice-template', [AdminManagementController::class, 'updateInvoiceTemplate'])->name('admin.invoice-template.update');
+    Route::get('coach-parent-management', [CoachParentManagementController::class, 'index'])->name('coach-parent.index');
+    Route::post('coach-parent-management/coaches', [CoachParentManagementController::class, 'storeCoach'])->name('coach-parent.coaches.store');
+    Route::put('coach-parent-management/coaches/{coach}', [CoachParentManagementController::class, 'updateCoach'])->name('coach-parent.coaches.update');
+    Route::post('coach-parent-management/parents', [CoachParentManagementController::class, 'storeParent'])->name('coach-parent.parents.store');
+    Route::put('coach-parent-management/parents/{parent}', [CoachParentManagementController::class, 'updateParent'])->name('coach-parent.parents.update');
+    Route::get('role-users', [RoleUserManagementController::class, 'index'])->name('role-users.index');
+    Route::post('role-users/{user}/profile', [RoleUserManagementController::class, 'upsertProfile'])->name('role-users.profile.upsert');
+    Route::post('role-users/{user}/certifications', [RoleUserManagementController::class, 'storeCertification'])->name('role-users.certifications.store');
+    Route::post('role-users/{user}/achievements', [RoleUserManagementController::class, 'storeAchievement'])->name('role-users.achievements.store');
 
     Route::get('payments', [PaymentManagementController::class, 'index'])->name('payments.index');
     Route::post('payments', [PaymentManagementController::class, 'store'])->name('payments.store');
+    Route::put('payments/{payment}', [PaymentManagementController::class, 'update'])->name('payments.update');
+    Route::delete('payments/{payment}', [PaymentManagementController::class, 'destroy'])->name('payments.destroy');
+    Route::put('payments/{payment}/status', [PaymentManagementController::class, 'updateStatus'])->name('payments.status.update');
+    Route::post('payments/{payment}/proof', [PaymentManagementController::class, 'submitProof'])->name('payments.proof.submit');
+    Route::put('payments/{payment}/proof-review', [PaymentManagementController::class, 'reviewProof'])->name('payments.proof.review');
+    Route::get('payments/{payment}/export', [PaymentManagementController::class, 'exportInvoice'])->name('payments.export');
 
     Route::get('attendance', [AttendanceManagementController::class, 'index'])->name('attendance.index');
     Route::post('attendance', [AttendanceManagementController::class, 'store'])->name('attendance.store');
@@ -55,7 +82,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('attendance/{attendance}', [AttendanceManagementController::class, 'update'])->name('attendance.update');
 
     Route::get('championships', [ChampionshipManagementController::class, 'index'])->name('championships.index');
+    Route::get('championships/{event}', [ChampionshipManagementController::class, 'show'])->name('championships.show');
+    Route::post('championships/events', [ChampionshipManagementController::class, 'storeEvent'])->name('championships.events.store');
     Route::post('championships/registrations', [ChampionshipManagementController::class, 'storeRegistration'])->name('championships.registrations.store');
+    Route::put('championships/registrations/{registration}/result', [ChampionshipManagementController::class, 'recordResult'])->name('championships.registrations.result');
+    Route::put('championships/payments/{payment}/settle', [ChampionshipManagementController::class, 'settleRegistrationPayment'])->name('championships.payments.settle');
+    Route::post('championships/{event}/coaches', [ChampionshipManagementController::class, 'storeCoachRegistration'])->name('championships.coaches.store');
 
     Route::get('sessions', [SessionManagementController::class, 'index'])->name('sessions.index');
     Route::post('sessions', [SessionManagementController::class, 'store'])->name('sessions.store');
@@ -70,6 +102,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('parent/children', [ParentChildContextController::class, 'index'])->name('parent.children.index');
     Route::post('parent/children/{athlete}/switch', [ParentChildContextController::class, 'switch'])->name('parent.children.switch');
     Route::delete('parent/children/switch', [ParentChildContextController::class, 'clear'])->name('parent.children.clear');
+
+    Route::redirect('my-profile', '/settings/profile');
+    Route::get('achievements', [UserAchievementController::class, 'index'])->name('achievements.index');
+    Route::post('achievements', [UserAchievementController::class, 'storeAchievement'])->name('achievements.store');
 });
 
 require __DIR__.'/settings.php';

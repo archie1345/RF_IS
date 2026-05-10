@@ -37,7 +37,7 @@ export type TableColumn = {
 };
 
 export type SelectOption = {
-    value: number;
+    value: number | string;
     label: string;
 };
 

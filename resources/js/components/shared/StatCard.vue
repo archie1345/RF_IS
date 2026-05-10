@@ -15,7 +15,7 @@ const accentClasses = {
 </script>
 
 <template>
-    <Card :class="cn('rounded-2xl border shadow-sm sm:rounded-3xl', accentClasses[props.tone ?? 'neutral'])">
+    <Card :class="cn('rounded-lg border shadow-sm', accentClasses[props.tone ?? 'neutral'])">
         <CardContent class="space-y-3 p-4 sm:p-5">
             <p class="text-sm font-medium text-muted-foreground">{{ props.label }}</p>
             <div class="space-y-1">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import { PencilLine, UserRoundCog } from 'lucide-vue-next';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import StatCard from '@/components/shared/StatCard.vue';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { Metric, TableColumn, TableRow } from '@/types/management';
 
@@ -30,11 +31,16 @@ const users = computed(() => props.initialUsers);
 const form = useForm({
     name: '',
     email: '',
-    role: 'athlete' as AdminAccountRole,
+    roles: ['athlete'] as AdminAccountRole[],
     branch: '',
     status: 'active' as AdminAccountRow['status'],
     password: '',
     password_confirmation: '',
+});
+
+const profileForm = useForm({
+    bio: '',
+    profile_picture: null as File | null,
 });
 
 const stats = computed<Metric[]>(() => [
@@ -47,7 +53,10 @@ const stats = computed<Metric[]>(() => [
     {
         label: 'Admins and coaches',
         value: String(
-            users.value.filter((user) => user.role === 'admin' || user.role === 'coach').length,
+            users.value.filter((user) => {
+                const roles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
+                return roles.includes('admin') || roles.includes('coach');
+            }).length,
         ),
         detail: 'Core operating team',
         tone: 'success',
@@ -80,6 +89,19 @@ const roleTone: Record<AdminAccountRole, 'danger' | 'info' | 'warning' | 'succes
     athlete: 'success',
 };
 
+const roleOptions = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'coach', label: 'Coach' },
+    { value: 'parent', label: 'Parent' },
+    { value: 'athlete', label: 'Athlete' },
+];
+
+const statusOptions = [
+    { value: 'active', label: 'Active' },
+    { value: 'invited', label: 'Invited' },
+    { value: 'suspended', label: 'Suspended' },
+];
+
 const statusTone: Record<AdminAccountRow['status'], 'success' | 'warning' | 'danger'> = {
     active: 'success',
     invited: 'warning',
@@ -89,10 +111,11 @@ const statusTone: Record<AdminAccountRow['status'], 'success' | 'warning' | 'dan
 const columns: TableColumn[] = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Contact' },
-    { key: 'roleLabel', label: 'Role' },
+    { key: 'roleLabel', label: 'Roles' },
     { key: 'branch', label: 'Branch' },
     { key: 'statusLabel', label: 'Status' },
     { key: 'createdAt', label: 'Created' },
+    { key: 'deletedAt', label: 'Deleted At' },
 ];
 
 const rows = computed<TableRow[]>(() =>
@@ -102,7 +125,7 @@ const rows = computed<TableRow[]>(() =>
         email: user.email,
         roleLabel: {
             kind: 'badge',
-            text: roleLabel[user.role],
+            text: (user.roles && user.roles.length > 0 ? user.roles : [user.role]).map((role) => roleLabel[role]).join(', '),
             tone: roleTone[user.role],
         },
         branch: user.branch,
@@ -112,6 +135,7 @@ const rows = computed<TableRow[]>(() =>
             tone: statusTone[user.status],
         },
         createdAt: user.createdAt,
+        deletedAt: user.deletedAt ?? '-',
     })),
 );
 
@@ -131,11 +155,14 @@ const resetForm = () => {
     form.clearErrors();
     form.name = '';
     form.email = '';
-    form.role = 'athlete';
+    form.roles = ['athlete'];
     form.branch = '';
     form.status = 'active';
     form.password = '';
     form.password_confirmation = '';
+    profileForm.reset();
+    profileForm.bio = '';
+    profileForm.profile_picture = null;
 };
 
 const openCreate = () => {
@@ -147,13 +174,20 @@ const openEdit = (user: AdminAccountRow) => {
     editingId.value = user.id;
     form.name = user.name;
     form.email = user.email;
-    form.role = user.role;
+    form.roles = user.roles && user.roles.length > 0 ? [...user.roles] : [user.role];
     form.branch = user.branch;
     form.status = user.status;
     form.password = '';
     form.password_confirmation = '';
+    profileForm.bio = user.bio ?? '';
+    profileForm.profile_picture = null;
     isFormOpen.value = true;
 };
+
+function onProfilePictureChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    profileForm.profile_picture = target.files?.[0] ?? null;
+}
 
 function generatePassword() {
     const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
@@ -165,7 +199,7 @@ const submit = () => {
     const payload = {
         name: form.name,
         email: form.email,
-        role: form.role,
+        roles: form.roles,
         status: form.status,
         password: form.password,
         password_confirmation: form.password_confirmation,
@@ -187,6 +221,27 @@ const submit = () => {
 
     form.transform(() => payload).post('/admin/accounts', options);
 };
+
+function saveRosterProfile() {
+    if (editingId.value === null) return;
+    profileForm.post(`/admin/accounts/${editingId.value}/profile`, {
+        forceFormData: true,
+        preserveScroll: true,
+    });
+}
+
+function deleteAccount(row: TableRow) {
+    const id = Number(row.id);
+    if (!id) return;
+    if (!confirm('Soft delete this account?')) return;
+    router.delete(`/admin/accounts/${id}`, { preserveScroll: true });
+}
+
+function restoreAccount(row: TableRow) {
+    const id = Number(row.id);
+    if (!id) return;
+    router.put(`/admin/accounts/${id}/restore`, {}, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -211,10 +266,14 @@ const submit = () => {
             </template>
 
             <template #row-actions="{ row }">
-                <Button variant="outline" class="gap-2" @click="openEditByRow(row)">
-                    <PencilLine class="size-4" />
-                    Edit
-                </Button>
+                <div class="flex gap-2 justify-end">
+                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
+                        <PencilLine class="size-4" />
+                        Edit
+                    </Button>
+                    <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)">Delete</Button>
+                    <Button v-else variant="outline" @click="restoreAccount(row)">Restore</Button>
+                </div>
             </template>
         </ManagementTablePanel>
     </div>
@@ -242,33 +301,30 @@ const submit = () => {
                     <Input id="admin-email" v-model="form.email" placeholder="name@example.com" />
                     <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
                 </div>
-                <div class="grid gap-2">
-                    <Label for="admin-role">Role</Label>
-                    <select
-                        id="admin-role"
-                        v-model="form.role"
-                        class="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option value="admin">Admin</option>
-                        <option value="coach">Coach</option>
-                        <option value="parent">Parent</option>
-                        <option value="athlete">Athlete</option>
-                    </select>
-                    <p v-if="form.errors.role" class="text-sm text-destructive">{{ form.errors.role }}</p>
+                <div class="grid gap-2 md:col-span-2">
+                    <Label>Roles</Label>
+                    <div class="grid gap-2 rounded-md border border-input p-3">
+                        <label v-for="option in roleOptions" :key="option.value" class="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                :checked="form.roles.includes(option.value as AdminAccountRole)"
+                                @change="
+                                    ($event) => {
+                                        const role = option.value as AdminAccountRole;
+                                        if (($event.target as HTMLInputElement).checked) {
+                                            if (!form.roles.includes(role)) form.roles.push(role);
+                                        } else {
+                                            form.roles = form.roles.filter((entry) => entry !== role);
+                                        }
+                                    }
+                                "
+                            >
+                            <span>{{ option.label }}</span>
+                        </label>
+                    </div>
+                    <p v-if="(form.errors as Record<string, string>)['roles']" class="text-sm text-destructive">{{ (form.errors as Record<string, string>)['roles'] }}</p>
                 </div>
-                <div class="grid gap-2">
-                    <Label for="admin-status">Status</Label>
-                    <select
-                        id="admin-status"
-                        v-model="form.status"
-                        class="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option value="active">Active</option>
-                        <option value="invited">Invited</option>
-                        <option value="suspended">Suspended</option>
-                    </select>
-                    <p v-if="form.errors.status" class="text-sm text-destructive">{{ form.errors.status }}</p>
-                </div>
+                <FormSelectField id="admin-status" v-model="form.status" label="Status" :options="statusOptions" :error="form.errors.status" />
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between gap-3">
                         <Label for="admin-password">Password</Label>
@@ -300,10 +356,23 @@ const submit = () => {
                         Branch is currently read-only here and comes from the linked athlete, coach, or child records in the database.
                     </p>
                 </div>
+                <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
+                    <Label for="admin-bio">Bio</Label>
+                    <textarea id="admin-bio" v-model="profileForm.bio" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                    <p v-if="profileForm.errors.bio" class="text-sm text-destructive">{{ profileForm.errors.bio }}</p>
+                </div>
+                <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
+                    <Label for="admin-profile-picture">Profile picture</Label>
+                    <Input id="admin-profile-picture" type="file" accept="image/*" @change="onProfilePictureChange" />
+                    <p v-if="profileForm.errors.profile_picture" class="text-sm text-destructive">{{ profileForm.errors.profile_picture }}</p>
+                </div>
             </div>
 
             <DialogFooter class="gap-2">
                 <Button variant="outline" @click="isFormOpen = false">Cancel</Button>
+                <Button v-if="editingId !== null" variant="outline" :disabled="profileForm.processing" @click="saveRosterProfile">
+                    Save profile
+                </Button>
                 <Button :disabled="form.processing" @click="submit">
                     {{ editingId !== null ? 'Save changes' : 'Create account' }}
                 </Button>

@@ -2,9 +2,8 @@ import type { Metric, TableRow } from '@/types/management';
 
 export type DashboardPageProps = {
     metrics: Metric[];
-    snapshotRows: TableRow[];
     activityPreviewRows: TableRow[];
-    announcements: string[];
+    announcements: TableRow[];
     upcomingEvents: TableRow[];
     attendanceRows: TableRow[];
     paymentRows: TableRow[];

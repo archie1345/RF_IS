@@ -7,12 +7,12 @@ defineProps<{
 </script>
 
 <template>
-    <section class="space-y-4 rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm sm:rounded-3xl sm:p-6">
+    <section class="space-y-4">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div class="space-y-2">
                 <p
                     v-if="eyebrow"
-                    class="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground"
+                    class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
                 >
                     {{ eyebrow }}
                 </p>
