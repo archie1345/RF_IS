@@ -7,7 +7,9 @@ import { Primitive } from "reka-ui"
 import { cn } from "@/lib/utils"
 import { badgeVariants } from "."
 
-const props = defineProps<PrimitiveProps & {
+const props = defineProps<{
+  as?: PrimitiveProps["as"]
+  asChild?: PrimitiveProps["asChild"]
   variant?: BadgeVariants["variant"]
   class?: HTMLAttributes["class"]
 }>()

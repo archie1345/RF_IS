@@ -39,15 +39,15 @@ function clearChild() {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection title="Choose Child Context" description="Select which child account data to view across attendance, payments, and championships.">
                 <template #actions>
-                    <div class="flex gap-2">
-                        <Button type="button" variant="outline" @click="router.visit(managementRoutes.dashboard)">Back to dashboard</Button>
-                        <Button v-if="props.activeChildId" type="button" variant="outline" @click="clearChild">Exit child view</Button>
+                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(managementRoutes.dashboard)">Back to dashboard</Button>
+                        <Button v-if="props.activeChildId" type="button" variant="outline" class="w-full sm:w-auto" @click="clearChild">Exit child view</Button>
                     </div>
                 </template>
             </PageSection>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div v-for="child in props.children" :key="child.athlete_id" class="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+                <div v-for="child in props.children" :key="child.athlete_id" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
                     <div class="space-y-2">
                         <div class="flex items-center justify-between gap-2">
                             <h3 class="text-lg font-semibold">{{ child.name }}</h3>

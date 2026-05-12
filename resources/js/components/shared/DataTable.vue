@@ -52,20 +52,20 @@ const filteredRows = computed(() => {
 </script>
 
 <template>
-    <Card class="w-full max-w-full rounded-lg border shadow-sm">
-        <CardHeader class="space-y-1 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+    <Card class="w-full max-w-full overflow-hidden rounded-xl border-border/70 bg-card shadow-sm">
+        <CardHeader class="space-y-1 px-4 pb-3 pt-4 sm:px-5 sm:pb-4 sm:pt-5">
             <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
             <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
             <div v-if="props.searchable" class="pt-2">
                 <input
                     v-model="search"
                     type="text"
-                    class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                    class="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm"
                     :placeholder="props.searchPlaceholder ?? 'Search table...'"
                 >
             </div>
         </CardHeader>
-        <CardContent class="px-0 pb-3 sm:px-6 sm:pb-6">
+        <CardContent class="px-0 pb-3 sm:px-5 sm:pb-5">
             <div class="px-4 pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
             <div class="w-full max-w-full overflow-x-auto px-2 sm:px-0">
                 <table class="w-max min-w-full border-separate border-spacing-y-2">
@@ -88,13 +88,16 @@ const filteredRows = computed(() => {
                         <tr
                             v-for="row in filteredRows"
                             :key="row.id"
-                            class="rounded-lg bg-muted/40 text-sm text-foreground"
+                            class="rounded-lg bg-muted/35 text-sm text-foreground transition-colors hover:bg-muted/60"
                         >
                             <td
                                 v-for="column in props.columns"
                                 :key="`${row.id}-${column.key}`"
                                 class="px-2 py-3 first:rounded-l-lg last:rounded-r-lg sm:px-3"
-                                :class="column.align === 'right' ? 'text-right' : 'text-left'"
+                                :class="[
+                                    column.align === 'right' ? 'text-right' : 'text-left',
+                                    hasRowActions ? 'last:rounded-r-none' : '',
+                                ]"
                             >
                                 <slot
                                     name="cell"
@@ -110,7 +113,7 @@ const filteredRows = computed(() => {
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
-                            <td v-if="hasRowActions" class="px-2 py-3 text-right sm:px-3">
+                            <td v-if="hasRowActions" class="rounded-r-lg px-2 py-3 text-right sm:px-3">
                                 <slot name="row-actions" :row="row" />
                             </td>
                         </tr>

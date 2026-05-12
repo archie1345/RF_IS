@@ -98,6 +98,7 @@ class ChampionshipManagementController extends Controller
 
         return Inertia::render('ChampionshipDetailPage', [
             'isAdmin' => request()->user()?->isAdmin() ?? false,
+            'isAthlete' => $request->user()?->hasRole('athlete'),
             'canManageCoaches' => request()->user()?->isAdmin() || request()->user()?->isCoach(),
             'canRecordResult' => request()->user()?->isAdmin() || request()->user()?->isCoach(),
             'event' => [

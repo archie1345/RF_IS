@@ -30,7 +30,7 @@ const slots = useSlots();
 </script>
 
 <template>
-    <div class="space-y-6 min-w-0">
+    <div class="min-w-0 space-y-6">
         <PageSection
             v-if="props.title || props.description || props.eyebrow || props.showCreate || slots.actions || slots.stats"
             :eyebrow="props.eyebrow ?? ''"

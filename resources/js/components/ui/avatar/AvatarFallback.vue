@@ -5,7 +5,7 @@ import { reactiveOmit } from "@vueuse/core"
 import { AvatarFallback } from "reka-ui"
 import { cn } from "@/lib/utils"
 
-const props = defineProps<AvatarFallbackProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps</* @vue-ignore */ AvatarFallbackProps & { class?: HTMLAttributes["class"] }>()
 
 const delegatedProps = reactiveOmit(props, "class")
 </script>

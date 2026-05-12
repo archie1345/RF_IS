@@ -341,7 +341,7 @@ function showMoreChildren() {
                                 </Avatar>
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="w-56">
+                        <DropdownMenuContent align="end" class="w-64">
                             <UserMenuContent :user="auth.user" />
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -361,7 +361,7 @@ function showMoreChildren() {
         </div>
 
         <Dialog v-model:open="isChildPickerOpen">
-            <DialogContent class="sm:max-w-xl">
+            <DialogContent class="w-[calc(100vw-1.5rem)] rounded-xl border-border/70 sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
                         <Users class="size-5" />
@@ -378,7 +378,7 @@ function showMoreChildren() {
                         placeholder="Search child name"
                     />
 
-                    <div class="rounded-2xl border border-border/70">
+                    <div class="rounded-xl border border-border/70 bg-card">
                         <div
                             v-if="visibleChildren.length > 0"
                             class="max-h-80 space-y-1 overflow-y-auto p-2"
@@ -387,7 +387,7 @@ function showMoreChildren() {
                                 v-for="child in visibleChildren"
                                 :key="child.athlete_id"
                                 type="button"
-                                class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-muted"
+                                class="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition hover:bg-muted"
                                 :class="child.athlete_id === activeChild?.athlete_id ? 'bg-muted' : ''"
                                 @click="switchChild(child.athlete_id)"
                             >

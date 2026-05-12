@@ -11,7 +11,11 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
     Route::post('settings/profile/certifications', [ProfileController::class, 'storeCertification'])->name('profile.certifications.store');
+    Route::put('settings/profile/certifications/{certification}', [ProfileController::class, 'updateCertification'])->name('profile.certifications.update');
+    Route::post('settings/profile/achievements', [ProfileController::class, 'storeAchievement'])->name('profile.achievements.store');
+    Route::put('settings/profile/achievements/{achievement}', [ProfileController::class, 'updateAchievement'])->name('profile.achievements.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

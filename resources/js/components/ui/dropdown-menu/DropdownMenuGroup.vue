@@ -2,7 +2,7 @@
 import type { DropdownMenuGroupProps } from "reka-ui"
 import { DropdownMenuGroup } from "reka-ui"
 
-const props = defineProps<DropdownMenuGroupProps>()
+const props = defineProps</* @vue-ignore */ DropdownMenuGroupProps>()
 </script>
 
 <template>

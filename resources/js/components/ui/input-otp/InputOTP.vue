@@ -6,9 +6,9 @@ import { useForwardPropsEmits } from "reka-ui"
 import { OTPInput } from "vue-input-otp"
 import { cn } from "@/lib/utils"
 
-const props = defineProps<OTPInputProps & { class?: HTMLAttributes["class"] }>()
+const props = defineProps() as OTPInputProps & { class?: HTMLAttributes["class"] }
 
-const emits = defineEmits<OTPInputEmits>()
+const emits = defineEmits()
 
 const delegatedProps = reactiveOmit(props, "class")
 

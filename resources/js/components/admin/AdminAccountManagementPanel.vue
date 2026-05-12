@@ -38,10 +38,10 @@ const form = useForm({
     password_confirmation: '',
 });
 
-const profileForm = useForm({
-    bio: '',
-    profile_picture: null as File | null,
-});
+// const profileForm = useForm({
+//     bio: '',
+//     profile_picture: null as File | null,
+// });
 
 const stats = computed<Metric[]>(() => [
     {
@@ -149,10 +149,10 @@ function openEditByRow(row: TableRow) {
     openEdit(user);
 }
 
-function viewProfile(row: TableRow) {
-    const userId = row.id;
-    router.visit(`/admin/accounts/${userId}`);
-}
+// function viewProfile(row: TableRow) {
+//     const userId = row.id;
+//     router.visit(`/admin/accounts/${userId}`);
+// }
 
 const resetForm = () => {
     editingId.value = null;
@@ -165,9 +165,9 @@ const resetForm = () => {
     form.status = 'active';
     form.password = '';
     form.password_confirmation = '';
-    profileForm.reset();
-    profileForm.bio = '';
-    profileForm.profile_picture = null;
+    // profileForm.reset();
+    // profileForm.bio = '';
+    // profileForm.profile_picture = null;
 };
 
 const openCreate = () => {
@@ -184,15 +184,15 @@ const openEdit = (user: AdminAccountRow) => {
     form.status = user.status;
     form.password = '';
     form.password_confirmation = '';
-    profileForm.bio = user.bio ?? '';
-    profileForm.profile_picture = null;
+    // profileForm.bio = user.bio ?? '';
+    // profileForm.profile_picture = null;
     isFormOpen.value = true;
 };
 
-function onProfilePictureChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    profileForm.profile_picture = target.files?.[0] ?? null;
-}
+// function onProfilePictureChange(event: Event) {
+//     const target = event.target as HTMLInputElement;
+//     profileForm.profile_picture = target.files?.[0] ?? null;
+// }
 
 function generatePassword() {
     const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
@@ -227,13 +227,13 @@ const submit = () => {
     form.transform(() => payload).post('/admin/accounts', options);
 };
 
-function saveRosterProfile() {
-    if (editingId.value === null) return;
-    profileForm.post(`/admin/accounts/${editingId.value}/profile`, {
-        forceFormData: true,
-        preserveScroll: true,
-    });
-}
+// function saveRosterProfile() {
+//     if (editingId.value === null) return;
+//     profileForm.post(`/admin/accounts/${editingId.value}/profile`, {
+//         forceFormData: true,
+//         preserveScroll: true,
+//     });
+// }
 
 function deleteAccount(row: TableRow) {
     const id = Number(row.id);
@@ -272,9 +272,12 @@ function restoreAccount(row: TableRow) {
 
             <template #row-actions="{ row }">
                 <div class="flex gap-2 justify-end">
-                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
+                    <!-- <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
                         <UserRoundCog class="size-4" />
-                        View Profile
+                        View Profile -->
+                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
+                        <PencilLine class="size-4" />
+                        Edit
                     </Button>
                     <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)">Delete</Button>
                     <Button v-else variant="outline" @click="restoreAccount(row)">Restore</Button>
@@ -354,14 +357,14 @@ function restoreAccount(row: TableRow) {
                         placeholder="Repeat password"
                     />
                 </div>
-                <div class="grid gap-2 md:col-span-2">
+                <!-- <div class="grid gap-2 md:col-span-2">
                     <Label for="admin-branch">Branch</Label>
                     <Input id="admin-branch" v-model="form.branch" placeholder="Branch is derived from linked role records" disabled />
                     <p class="text-sm text-muted-foreground">
                         Branch is currently read-only here and comes from the linked athlete, coach, or child records in the database.
                     </p>
-                </div>
-                <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
+                </div> -->
+                <!-- <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
                     <Label for="admin-bio">Bio</Label>
                     <textarea id="admin-bio" v-model="profileForm.bio" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm" />
                     <p v-if="profileForm.errors.bio" class="text-sm text-destructive">{{ profileForm.errors.bio }}</p>
@@ -370,14 +373,14 @@ function restoreAccount(row: TableRow) {
                     <Label for="admin-profile-picture">Profile picture</Label>
                     <Input id="admin-profile-picture" type="file" accept="image/*" @change="onProfilePictureChange" />
                     <p v-if="profileForm.errors.profile_picture" class="text-sm text-destructive">{{ profileForm.errors.profile_picture }}</p>
-                </div>
+                </div> -->
             </div>
 
             <DialogFooter class="gap-2">
                 <Button variant="outline" @click="isFormOpen = false">Cancel</Button>
-                <Button v-if="editingId !== null" variant="outline" :disabled="profileForm.processing" @click="saveRosterProfile">
+                <!-- <Button v-if="editingId !== null" variant="outline" :disabled="profileForm.processing" @click="saveRosterProfile">
                     Save profile
-                </Button>
+                </Button> -->
                 <Button :disabled="form.processing" @click="submit">
                     {{ editingId !== null ? 'Save changes' : 'Create account' }}
                 </Button>

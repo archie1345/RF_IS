@@ -60,10 +60,10 @@ class UsersManagementController extends Controller
             'tone' => 'success',
         ],
         [
-            'label' => 'Profiles missing parent links',
+            'label' => 'Athletes without parent links',
             'value' => (string) $athletes->whereNull('parent_id')->count(),
-            'detail' => 'Records still need parent connection',
-            'tone' => 'warning',
+            'detail' => 'Optional parent connections not set',
+            'tone' => 'info',
         ],
         [
             'label' => 'Branches represented',
@@ -99,20 +99,17 @@ class UsersManagementController extends Controller
                 : '-',
 
             'nik' => $canViewSensitiveIdentifiers
-                ? ($athlete?->nik_encrypted ?? 'Not stored')
+                ? ($athlete?->nik_ciphertext ?? ($athlete?->nik_hash ? 'Stored as hash only' : 'Not stored'))
                 : null,
 
             'bpjs' => $canViewSensitiveIdentifiers
-                ? ($athlete?->bpjs_encrypted ?? 'Not stored')
+                ? ($athlete?->bpjs_ciphertext ?? ($athlete?->bpjs_hash ? 'Stored as hash only' : 'Not stored'))
                 : null,
 
             'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
 
             'status' => $athlete
-                ? $this->badge(
-                    $athlete->parent_id ? 'Active' : 'Awaiting parent link',
-                    $athlete->parent_id ? 'success' : 'warning'
-                )
+                ? $this->badge('Active', 'success')
                 : $this->badge('Profile incomplete', 'warning'),
         ];
     })->values(),
@@ -126,7 +123,9 @@ class UsersManagementController extends Controller
             $coach = $user->coachProfile;
 
             return [
-                'id' => $coach?->coach_id ?? $user->id,
+                'id' => $user->id,
+                'user_id' => $user->id,
+                'coach_id' => $coach?->coach_id,
                 'name' => $user->name ?? 'Unknown coach',
                 'email' => $user->email ?? '-',
                 'role' => 'Coach',
@@ -141,7 +140,7 @@ class UsersManagementController extends Controller
         ->values(),
 
     'parentRows' => User::query()
-        ->with(['parentProfile'])
+        ->with(['parentProfile.athletes.user:id,name'])
         ->whereNull('deleted_at')
         ->get()
         ->filter(fn (User $user) => $user->hasRole('parent'))
@@ -149,7 +148,9 @@ class UsersManagementController extends Controller
             $parent = $user->parentProfile;
 
             return [
-                'id' => $parent?->parent_id ?? $user->id,
+                'id' => $user->id,
+                'user_id' => $user->id,
+                'parent_id' => $parent?->parent_id,
 
                 'name' => $user->name ?? 'Unknown parent',
 
@@ -160,6 +161,16 @@ class UsersManagementController extends Controller
                 'relation' => $parent?->relation ?? 'Guardian',
 
                 'occupation' => $parent?->occupation ?? '-',
+
+                'children' => $parent?->athletes
+                    ?->map(fn (Athlete $athlete) => $athlete->user?->name ?? 'Unknown athlete')
+                    ->filter()
+                    ->implode(', ') ?: '-',
+
+                'child_ids' => $parent?->athletes
+                    ?->pluck('athlete_id')
+                    ->map(fn ($id) => (string) $id)
+                    ->implode(',') ?? '',
             ];
         })
         ->values(),
@@ -219,8 +230,8 @@ class UsersManagementController extends Controller
             'group_id' => (string) ($athlete->group_id ?? ''),
             'geup' => $athlete->geup ?? 'GEUP_10',
             'parent_id' => (string) ($athlete->parent_id ?? ''),
-            'nik' => (string) ($athlete->nik_encrypted ?? ''),
-            'bpjs' => (string) ($athlete->bpjs_encrypted ?? ''),
+            'nik' => (string) ($athlete->nik_ciphertext ?? ''),
+            'bpjs' => (string) ($athlete->bpjs_ciphertext ?? ''),
         ]);
     }
 
@@ -234,12 +245,47 @@ class UsersManagementController extends Controller
         abort_if($request->user()?->isParent(), 403);
 
         $validated = $request->validate([
-            'parent_id' => ['required', 'exists:parents,parent_id'],
+            'parent_id' => ['nullable', 'exists:parents,parent_id'],
         ]);
 
         $athlete->update([
-            'parent_id' => $validated['parent_id'],
+            'parent_id' => $validated['parent_id'] ?? null,
         ]);
+
+        return redirect()->route('athletes.index');
+    }
+
+    public function syncParentChildren(Request $request, Parents $parent): RedirectResponse
+    {
+        abort_if($request->user()?->isParent(), 403);
+
+        $validated = $request->validate([
+            'athlete_ids' => ['nullable', 'array'],
+            'athlete_ids.*' => ['integer', 'exists:athletes,athlete_id'],
+        ]);
+
+        $athleteIds = collect($validated['athlete_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        DB::transaction(function () use ($parent, $athleteIds): void {
+            $currentChildren = Athlete::query()
+                ->where('parent_id', $parent->parent_id);
+
+            if ($athleteIds->isNotEmpty()) {
+                $currentChildren->whereNotIn('athlete_id', $athleteIds->all());
+            }
+
+            $currentChildren->update(['parent_id' => null]);
+
+            if ($athleteIds->isNotEmpty()) {
+                Athlete::query()
+                    ->whereIn('athlete_id', $athleteIds->all())
+                    ->update(['parent_id' => $parent->parent_id]);
+            }
+        });
 
         return redirect()->route('athletes.index');
     }
@@ -286,12 +332,12 @@ class UsersManagementController extends Controller
 
             if (! empty($validated['nik'])) {
                 $athletePayload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
-                $athletePayload['nik_encrypted'] = $validated['nik'];
+                $athletePayload['nik_ciphertext'] = $validated['nik'];
             }
 
             if (! empty($validated['bpjs'])) {
                 $athletePayload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
-                $athletePayload['bpjs_encrypted'] = $validated['bpjs'];
+                $athletePayload['bpjs_ciphertext'] = $validated['bpjs'];
             }
 
             $athlete->update($athletePayload);
@@ -328,8 +374,8 @@ class UsersManagementController extends Controller
             'group_id' => (string) ($athlete?->group_id ?? ''),
             'geup' => $athlete?->geup ?? 'GEUP_10',
             'parent_id' => (string) ($athlete?->parent_id ?? ''),
-            'nik' => (string) ($athlete?->nik_encrypted ?? ''),
-            'bpjs' => (string) ($athlete?->bpjs_encrypted ?? ''),
+            'nik' => (string) ($athlete?->nik_ciphertext ?? ''),
+            'bpjs' => (string) ($athlete?->bpjs_ciphertext ?? ''),
         ]);
     }
 
@@ -371,11 +417,17 @@ class UsersManagementController extends Controller
                 'weight_kg' => $validated['weight_kg'],
                 'alamat' => $validated['alamat'] ?? null,
                 'geup' => $validated['geup'],
-                'nik_hash' => ! empty($validated['nik']) ? hash('sha256', preg_replace('/\s+/', '', $validated['nik'])) : str_repeat('0', 64),
-                'nik_encrypted' => $validated['nik'] ?? null,
-                'bpjs_hash' => ! empty($validated['bpjs']) ? hash('sha256', preg_replace('/\s+/', '', $validated['bpjs'])) : str_repeat('0', 64),
-                'bpjs_encrypted' => $validated['bpjs'] ?? null,
             ];
+
+            if (! empty($validated['nik'])) {
+                $payload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
+                $payload['nik_ciphertext'] = $validated['nik'];
+            }
+
+            if (! empty($validated['bpjs'])) {
+                $payload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
+                $payload['bpjs_ciphertext'] = $validated['bpjs'];
+            }
 
             Athlete::query()->updateOrCreate(
                 ['id' => $user->id],
@@ -386,4 +438,3 @@ class UsersManagementController extends Controller
         return redirect()->route('athletes.index');
     }
 }
-

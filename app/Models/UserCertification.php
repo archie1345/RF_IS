@@ -12,6 +12,7 @@ class UserCertification extends Model
 
     protected $fillable = [
         'user_id',
+        'user_file_id',
         'cert_type',
         'title',
         'issuer',
@@ -32,5 +33,9 @@ class UserCertification extends Model
     {
         return $this->belongsTo(User::class);
     }
-}
 
+    public function file(): BelongsTo
+    {
+        return $this->belongsTo(UserFile::class, 'user_file_id');
+    }
+}

@@ -44,10 +44,14 @@ const props = withDefaults(defineProps<{
 const showNewAthleteForm = ref(false);
 const showCoachModal = ref(false);
 const showParentModal = ref(false);
+const showParentChildrenModal = ref(false);
 const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
 const editingCoachId = ref<string | null>(null);
 const editingParentId = ref<string | null>(null);
+const editingParentChildrenId = ref<number | null>(null);
+const editingParentChildrenName = ref('');
+const childSearch = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: managementRoutes.dashboard },
@@ -81,6 +85,7 @@ const parentColumns: TableColumn[] = [
     { key: 'role', label: 'Account role' },
     { key: 'relation', label: 'Relation' },
     { key: 'occupation', label: 'Occupation' },
+    { key: 'children', label: 'Children' },
 ];
 
 const geupOptions = ['GEUP_10', 'GEUP_9', 'GEUP_8', 'GEUP_7', 'GEUP_6', 'GEUP_5', 'GEUP_4', 'GEUP_3', 'GEUP_2', 'GEUP_1', 'DAN'];
@@ -122,6 +127,20 @@ const parentForm = useForm({
     notes: '',
 });
 
+const parentChildrenForm = useForm({
+    athlete_ids: [] as string[],
+});
+
+const filteredChildOptions = computed(() => {
+    const query = childSearch.value.trim().toLowerCase();
+
+    if (!query) {
+        return props.athletes;
+    }
+
+    return props.athletes.filter((option) => option.label.toLowerCase().includes(query));
+});
+
 function submit() {
     const options = {
         onSuccess: () => {
@@ -159,6 +178,10 @@ function getUserId(row: TableRow) {
     return Number(toNumericString(rawValue));
 }
 
+function getParentId(row: TableRow) {
+    return Number(toNumericString(row.parent_id ?? row.id));
+}
+
 function viewProfile(row: TableRow) {
     const userId = getUserId(row);
 
@@ -180,7 +203,7 @@ function openEditCoach(row: TableRow) {
 
 function saveCoach() {
     if (editingCoachId.value) {
-        coachForm.put(`/coach-parent-management/coaches/${editingCoachId.value}`, {
+        coachForm.put(`/users/${editingCoachId.value}/coach-profile`, {
             preserveScroll: true,
             onSuccess: () => {
                 showCoachModal.value = false;
@@ -200,7 +223,7 @@ function openEditParent(row: TableRow) {
 
 function saveParent() {
     if (editingParentId.value) {
-        parentForm.put(`/coach-parent-management/parents/${editingParentId.value}`, {
+        parentForm.put(`/users/${editingParentId.value}/parent-profile`, {
             preserveScroll: true,
             onSuccess: () => {
                 showParentModal.value = false;
@@ -208,6 +231,58 @@ function saveParent() {
         });
         return;
     }
+}
+
+function openLinkChildren(row: TableRow) {
+    const parentId = getParentId(row);
+
+    if (!parentId) {
+        console.error('Invalid parent ID', row);
+        return;
+    }
+
+    editingParentChildrenId.value = parentId;
+    editingParentChildrenName.value = String(row.name ?? 'Parent');
+    parentChildrenForm.athlete_ids = String(row.child_ids ?? '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    parentChildrenForm.clearErrors();
+    childSearch.value = '';
+    showParentChildrenModal.value = true;
+}
+
+function closeParentChildrenModal() {
+    showParentChildrenModal.value = false;
+    editingParentChildrenId.value = null;
+    editingParentChildrenName.value = '';
+    parentChildrenForm.athlete_ids = [];
+    parentChildrenForm.clearErrors();
+    childSearch.value = '';
+}
+
+function isChildSelected(value: string | number) {
+    return parentChildrenForm.athlete_ids.includes(String(value));
+}
+
+function toggleChild(value: string | number) {
+    const id = String(value);
+
+    if (isChildSelected(id)) {
+        parentChildrenForm.athlete_ids = parentChildrenForm.athlete_ids.filter((childId) => childId !== id);
+        return;
+    }
+
+    parentChildrenForm.athlete_ids = [...parentChildrenForm.athlete_ids, id];
+}
+
+function saveParentChildren() {
+    if (!editingParentChildrenId.value) return;
+
+    parentChildrenForm.put(`/users/parents/${editingParentChildrenId.value}/children`, {
+        preserveScroll: true,
+        onSuccess: closeParentChildrenModal,
+    });
 }
 </script>
 
@@ -243,7 +318,7 @@ function saveParent() {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit Coach</Button>
+                        <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
                     </ActionButtonsRow>
                 </template>
             </ManagementTablePanel>
@@ -257,7 +332,8 @@ function saveParent() {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button size="sm" variant="outline" @click="openEditParent(row)">Edit Parent</Button>
+                        <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)">Link Children</Button>
                     </ActionButtonsRow>
                 </template>
             </ManagementTablePanel> 
@@ -338,9 +414,9 @@ function saveParent() {
                     <SearchableSelect
                         v-model="form.parent_id"
                         :options="props.parents"
-                        placeholder="Link later"
+                        placeholder="No parent linked"
                         title="Select parent"
-                        description="Search parent accounts and link one to this athlete."
+                        description="Search parent accounts if this athlete should be linked to one. You can leave this empty."
                         search-placeholder="Search parent"
                         empty-text="No parent matches that search."
                     />
@@ -387,12 +463,12 @@ function saveParent() {
                     <FormInputField id="coach-specialization" v-model="coachForm.specialization" label="Specialization" placeholder="Sparring, Poomsae, Conditioning" :error="coachForm.errors.specialization" />
                     <div class="grid gap-2">
                         <label for="coach-bio" class="text-sm font-medium">Bio</label>
-                        <textarea id="coach-bio" v-model="coachForm.bio" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea id="coach-bio" v-model="coachForm.bio" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
                         <p v-if="coachForm.errors.bio" class="text-sm text-destructive">{{ coachForm.errors.bio }}</p>
                     </div>
-                    <div class="flex gap-3">
-                        <Button type="submit" :disabled="coachForm.processing">Update</Button>
-                        <Button type="button" variant="outline" @click="showCoachModal = false">Cancel</Button>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="coachForm.processing">Update</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showCoachModal = false">Cancel</Button>
                     </div>
                 </form>
             </PageSection>
@@ -405,12 +481,56 @@ function saveParent() {
                     <FormInputField id="parent-occupation" v-model="parentForm.occupation" label="Occupation" placeholder="Occupation" :error="parentForm.errors.occupation" />
                     <div class="grid gap-2">
                         <label for="parent-notes" class="text-sm font-medium">Notes</label>
-                        <textarea id="parent-notes" v-model="parentForm.notes" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea id="parent-notes" v-model="parentForm.notes" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
                         <p v-if="parentForm.errors.notes" class="text-sm text-destructive">{{ parentForm.errors.notes }}</p>
                     </div>
-                    <div class="flex gap-3">
-                        <Button type="submit" :disabled="parentForm.processing">Update</Button>
-                        <Button type="button" variant="outline" @click="showParentModal = false">Cancel</Button>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentForm.processing">Update</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showParentModal = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="showParentChildrenModal" max-width-class="max-w-2xl" @close="closeParentChildrenModal">
+            <PageSection
+                title="Link children"
+                :description="`Select every athlete child linked to ${editingParentChildrenName}. Leaving all unchecked is allowed.`"
+            >
+                <form class="grid gap-4" @submit.prevent="saveParentChildren">
+                    <div class="grid gap-2">
+                        <Label for="child-search">Search athletes</Label>
+                        <Input id="child-search" v-model="childSearch" placeholder="Search by athlete name" />
+                    </div>
+
+                    <div class="max-h-80 overflow-y-auto rounded-xl border border-border/70 bg-card p-2">
+                        <label
+                            v-for="athlete in filteredChildOptions"
+                            :key="String(athlete.value)"
+                            class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+                        >
+                            <input
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-input"
+                                :checked="isChildSelected(athlete.value)"
+                                @change="toggleChild(athlete.value)"
+                            />
+                            <span class="min-w-0 flex-1 truncate">{{ athlete.label }}</span>
+                        </label>
+
+                        <div v-if="filteredChildOptions.length === 0" class="px-3 py-8 text-center text-sm text-muted-foreground">
+                            No athletes match that search.
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-muted-foreground">
+                        {{ parentChildrenForm.athlete_ids.length }} child{{ parentChildrenForm.athlete_ids.length === 1 ? '' : 'ren' }} selected.
+                    </p>
+                    <InputError :message="parentChildrenForm.errors.athlete_ids" />
+
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentChildrenForm.processing">Save children</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeParentChildrenModal">Cancel</Button>
                     </div>
                 </form>
             </PageSection>

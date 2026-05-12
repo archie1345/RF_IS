@@ -14,6 +14,9 @@ use App\Models\Session;
 use App\Models\Attendance;
 use App\Models\Athlete;
 use App\Models\User;
+use App\Models\UserAchievement;
+use App\Models\UserCertification;
+use App\Models\UserFile;
 use App\Models\UserProfile;
 use App\Models\UserRoleAssignment;
 use App\Support\ActivityLogger;
@@ -25,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Intervention\Image\Laravel\Facades\Image;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -143,7 +147,7 @@ class AdminManagementController extends Controller
         $this->syncRoleProfile($user, $roles);
         ActivityLogger::log($request, 'admin.account.created', 'admin', 'Created user account', $user, ['role' => $user->role]);
 
-        return redirect()->route('admin.index');
+        return back();
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -181,13 +185,304 @@ class AdminManagementController extends Controller
         $payload = ['bio' => $validated['bio'] ?? null];
 
         if ($request->hasFile('profile_picture')) {
-            $payload['profile_picture_path'] = $request->file('profile_picture')->store('profiles', 'public');
+            if ($user->profile?->profile_picture_path) {
+                Storage::disk('public')->delete($user->profile->profile_picture_path);
+            }
+
+            $image = Image::decodePath($request->file('profile_picture')->getRealPath())
+                ->cover(600, 800)
+                ->encodeUsingMediaType('image/jpeg', quality: 90);
+
+            $path = 'profiles/'.uniqid('profile_', true).'.jpg';
+            Storage::disk('public')->put($path, (string) $image);
+
+            $payload['profile_picture_path'] = $path;
         }
 
         UserProfile::query()->updateOrCreate(['user_id' => $user->id], $payload);
         ActivityLogger::log($request, 'admin.account.profile.updated', 'admin', 'Updated account roster profile', $user, ['user_id' => $user->id]);
 
-        return redirect()->route('admin.index');
+        return back();
+    }
+
+    public function updateAthleteProfile(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($user->hasRole('athlete'), 404);
+
+        $validated = $request->validate([
+            'height_cm' => ['nullable', 'numeric', 'min:0'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'geup' => ['required', Rule::in(['GEUP_1', 'GEUP_2', 'GEUP_3', 'GEUP_4', 'GEUP_5', 'GEUP_6', 'GEUP_7', 'GEUP_8', 'GEUP_9', 'GEUP_10', 'DAN'])],
+            'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
+            'bday' => ['nullable', 'date'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'nik' => ['nullable', 'string', 'max:50'],
+            'bpjs' => ['nullable', 'string', 'max:50'],
+            'alamat' => ['nullable', 'string'],
+            'branch_id' => ['nullable', 'exists:branches,branch_id'],
+            'group_id' => ['nullable', 'exists:class_groups,group_id'],
+        ]);
+
+        DB::transaction(function () use ($user, $validated): void {
+            $athlete = $user->athleteProfile()->first();
+            $branchId = $validated['branch_id'] ?? $athlete?->branch_id ?? Branch::query()->value('branch_id');
+            $groupId = $validated['group_id'] ?? $athlete?->group_id ?? Group::query()->value('group_id');
+
+            if (! $branchId || ! $groupId) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'branch_id' => 'Create at least one branch and one group before saving an athlete profile.',
+                    'group_id' => 'Create at least one branch and one group before saving an athlete profile.',
+                ]);
+            }
+
+            $user->update([
+                'gender' => $validated['gender'],
+                'bday' => $validated['bday'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+            ]);
+
+            $payload = [
+                'height_cm' => $validated['height_cm'] ?? 0,
+                'weight_kg' => $validated['weight_kg'] ?? 0,
+                'geup' => $validated['geup'],
+                'alamat' => $validated['alamat'] ?? null,
+                'branch_id' => $branchId,
+                'group_id' => $groupId,
+            ];
+
+            if (array_key_exists('nik', $validated)) {
+                $nik = $this->nullableString($validated['nik'] ?? null);
+                $payload['nik_hash'] = $nik ? hash('sha256', preg_replace('/\s+/', '', $nik)) : null;
+                $payload['nik_ciphertext'] = $nik;
+            }
+
+            if (array_key_exists('bpjs', $validated)) {
+                $bpjs = $this->nullableString($validated['bpjs'] ?? null);
+                $payload['bpjs_hash'] = $bpjs ? hash('sha256', preg_replace('/\s+/', '', $bpjs)) : null;
+                $payload['bpjs_ciphertext'] = $bpjs;
+            }
+
+            Athlete::query()->updateOrCreate(
+                ['id' => $user->id],
+                $payload,
+            );
+        });
+
+        return back();
+    }
+
+    public function updateCoachProfile(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($user->hasRole('coach'), 404);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['active', 'inactive'])],
+            'specialization' => ['nullable', 'string', 'max:255'],
+            'bio' => ['nullable', 'string'],
+        ]);
+
+        Coach::query()->updateOrCreate(
+            ['id' => $user->id],
+            [
+                'status' => $validated['status'],
+                'specialization' => $validated['specialization'] ?? null,
+                'bio' => $validated['bio'] ?? null,
+            ],
+        );
+
+        return back();
+    }
+
+    public function updateParentProfile(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($user->hasRole('parent'), 404);
+
+        $validated = $request->validate([
+            'phone' => ['nullable', 'string', 'max:20'],
+            'relation' => ['required', Rule::in(['father', 'mother', 'guardian'])],
+            'occupation' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        DB::transaction(function () use ($user, $validated): void {
+            $user->update(['phone' => $validated['phone'] ?? null]);
+
+            Parents::query()->updateOrCreate(
+                ['id' => $user->id],
+                [
+                    'relation' => $validated['relation'],
+                    'occupation' => $validated['occupation'] ?? null,
+                    'notes' => $validated['notes'] ?? null,
+                ],
+            );
+        });
+
+        return back();
+    }
+
+    public function storeUserCertification(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'cert_type' => ['required', Rule::in(['BELT', 'REFEREE', 'TRAINER'])],
+            'title' => ['required', 'string', 'max:120'],
+            'issuer' => ['nullable', 'string', 'max:120'],
+            'certified_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:10240'],
+        ]);
+
+        $userFile = null;
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $path = $file->store('user-files', 'public');
+
+            $userFile = UserFile::query()->create([
+                'user_id' => $user->id,
+                'file_type' => 'CERTIFICATE',
+                'original_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size_bytes' => $file->getSize(),
+            ]);
+        }
+
+        $payload = collect($validated)->except('file')->all();
+
+        if (Schema::hasColumn('user_certifications', 'user_file_id')) {
+            $payload['user_file_id'] = $userFile?->id;
+        }
+
+        $user->certifications()->create($payload);
+
+        return back();
+    }
+
+    public function updateUserCertification(Request $request, User $user, UserCertification $certification): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless((int) $certification->user_id === (int) $user->id, 404);
+
+        $validated = $request->validate([
+            'cert_type' => ['required', Rule::in(['BELT', 'REFEREE', 'TRAINER'])],
+            'title' => ['required', 'string', 'max:120'],
+            'issuer' => ['nullable', 'string', 'max:120'],
+            'certified_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:10240'],
+        ]);
+
+        $payload = collect($validated)->except('file')->all();
+
+        if ($request->hasFile('file') && Schema::hasColumn('user_certifications', 'user_file_id')) {
+            $file = $request->file('file');
+            $path = $file->store('user-files', 'public');
+
+            $userFile = UserFile::query()->create([
+                'user_id' => $user->id,
+                'file_type' => 'CERTIFICATE',
+                'original_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size_bytes' => $file->getSize(),
+            ]);
+
+            $payload['user_file_id'] = $userFile->id;
+        }
+
+        $certification->update($payload);
+
+        return back();
+    }
+
+    public function storeUserAchievement(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'championship_name' => ['required', 'string', 'max:120'],
+            'medal' => ['required', Rule::in(['GOLD', 'SILVER', 'BRONZE', 'NONE'])],
+            'location' => ['nullable', 'string', 'max:160'],
+            'event_date' => ['nullable', 'date'],
+            'class_name' => ['nullable', 'string', 'max:120'],
+            'division' => ['nullable', 'string', 'max:120'],
+            'category' => ['nullable', 'string', 'max:120'],
+            'notes' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:10240'],
+        ]);
+
+        $userFile = null;
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $path = $file->store('user-files', 'public');
+
+            $userFile = UserFile::query()->create([
+                'user_id' => $user->id,
+                'file_type' => 'EVENT_DOCUMENT',
+                'original_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size_bytes' => $file->getSize(),
+            ]);
+        }
+
+        $payload = collect($validated)->except('file')->all() + ['is_auto_recorded' => false];
+
+        if (Schema::hasColumn('user_achievements', 'user_file_id')) {
+            $payload['user_file_id'] = $userFile?->id;
+        }
+
+        $user->achievements()->create($payload);
+
+        return back();
+    }
+
+    public function updateUserAchievement(Request $request, User $user, UserAchievement $achievement): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless((int) $achievement->user_id === (int) $user->id, 404);
+
+        $validated = $request->validate([
+            'championship_name' => ['required', 'string', 'max:120'],
+            'medal' => ['required', Rule::in(['GOLD', 'SILVER', 'BRONZE', 'NONE'])],
+            'location' => ['nullable', 'string', 'max:160'],
+            'event_date' => ['nullable', 'date'],
+            'class_name' => ['nullable', 'string', 'max:120'],
+            'division' => ['nullable', 'string', 'max:120'],
+            'category' => ['nullable', 'string', 'max:120'],
+            'notes' => ['nullable', 'string'],
+            'file' => ['nullable', 'file', 'max:10240'],
+        ]);
+
+        $payload = collect($validated)->except('file')->all();
+
+        if ($request->hasFile('file') && Schema::hasColumn('user_achievements', 'user_file_id')) {
+            $file = $request->file('file');
+            $path = $file->store('user-files', 'public');
+
+            $userFile = UserFile::query()->create([
+                'user_id' => $user->id,
+                'file_type' => 'EVENT_DOCUMENT',
+                'original_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'mime_type' => $file->getMimeType(),
+                'size_bytes' => $file->getSize(),
+            ]);
+
+            $payload['user_file_id'] = $userFile->id;
+        }
+
+        $achievement->update($payload);
+
+        return back();
     }
 
     public function destroyAccount(Request $request, User $user): RedirectResponse
@@ -227,16 +522,20 @@ class AdminManagementController extends Controller
             'coachProfile',
             'parentProfile.athletes.branch',
             'parentProfile.athletes.group',
-            'achievements',
-            'certifications',
+            'parentProfile.athletes.user',
+            'achievements.file',
+            'certifications.file',
             'roleAssignments',
         ]);
 
-        return Inertia::render('AdminUserProfilePage', [
+        return Inertia::render('profiles/ProfileDetailsPage', [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'gender' => $user->gender,
+                'bday' => $user->bday?->format('Y-m-d'),
+                'phone' => $user->phone,
                 'roles' => $user->assignedRoles(),
                 'bio' => $user->profile?->bio,
                 'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
@@ -244,26 +543,32 @@ class AdminManagementController extends Controller
                     'height_cm' => $user->athleteProfile->height_cm,
                     'weight_kg' => $user->athleteProfile->weight_kg,
                     'geup' => $user->athleteProfile->geup,
-                    'nik' => $user->athleteProfile->nik,
-                    'bpjs' => $user->athleteProfile->bpjs,
-                    'phone' => $user->athleteProfile->phone,
-                    'bday' => $user->athleteProfile->bday?->format('Y-m-d'),
-                    'gender' => $user->athleteProfile->gender,
+                    'nik' => $user->athleteProfile->nik_ciphertext,
+                    'bpjs' => $user->athleteProfile->bpjs_ciphertext,
+                    'nikHash' => $user->athleteProfile->nik_hash,
+                    'bpjsHash' => $user->athleteProfile->bpjs_hash,
+                    'phone' => $user->phone,
+                    'bday' => $user->bday?->format('Y-m-d'),
+                    'gender' => $user->gender,
                     'alamat' => $user->athleteProfile->alamat,
+                    'branch_id' => $user->athleteProfile->branch_id,
+                    'group_id' => $user->athleteProfile->group_id,
                     'branch' => $user->athleteProfile->branch,
                     'group' => $user->athleteProfile->group,
                 ] : null,
                 'coachProfile' => $user->coachProfile ? [
+                    'status' => $user->coachProfile->status,
                     'specialization' => $user->coachProfile->specialization,
-                    'experience_years' => $user->coachProfile->experience_years,
-                    'certifications' => $user->coachProfile->certifications,
+                    'bio' => $user->coachProfile->bio,
                 ] : null,
                 'parentProfile' => $user->parentProfile ? [
-                    'phone' => $user->parentProfile->phone,
-                    'relationship' => $user->parentProfile->relationship,
+                    'phone' => $user->phone,
+                    'relation' => $user->parentProfile->relation,
+                    'occupation' => $user->parentProfile->occupation,
+                    'notes' => $user->parentProfile->notes,
                     'athletes' => $user->parentProfile->athletes->map(fn ($athlete) => [
                         'id' => $athlete->athlete_id,
-                        'name' => $athlete->user->name,
+                        'name' => $athlete->user?->name ?? 'Unknown athlete',
                         'branch' => $athlete->branch,
                         'group' => $athlete->group,
                     ]),
@@ -278,6 +583,8 @@ class AdminManagementController extends Controller
                     'division' => $achievement->division,
                     'category' => $achievement->category,
                     'notes' => $achievement->notes,
+                    'fileName' => $achievement->file?->original_name,
+                    'fileUrl' => $achievement->file?->file_path ? Storage::url($achievement->file->file_path) : null,
                 ]),
                 'certifications' => $user->certifications->map(fn ($cert) => [
                     'id' => $cert->id,
@@ -287,8 +594,19 @@ class AdminManagementController extends Controller
                     'certified_at' => $cert->certified_at?->format('Y-m-d'),
                     'expires_at' => $cert->expires_at?->format('Y-m-d'),
                     'notes' => $cert->notes,
+                    'fileName' => $cert->file?->original_name,
+                    'fileUrl' => $cert->file?->file_path ? Storage::url($cert->file->file_path) : null,
                 ]),
             ],
+            'context' => 'admin',
+            'canEditAccount' => false,
+            'canEditRoleProfiles' => true,
+            'branches' => Branch::query()
+                ->orderBy('branch_name')
+                ->get(['branch_id as value', 'branch_name as label']),
+            'groups' => Group::query()
+                ->orderBy('group_name')
+                ->get(['group_id as value', 'group_name as label']),
         ]);
     }
 
@@ -452,9 +770,9 @@ class AdminManagementController extends Controller
                             'group_id' => intval($data['group_id'] ?? 0) ?: null,
                             'geup' => !empty($data['geup']) ? 'GEUP_' . trim($data['geup']) : 'GEUP_10',
                             'nik_hash' => trim($data['nik'] ?? '') ? hash('sha256', trim($data['nik'])) : null,
+                            'nik_ciphertext' => trim($data['nik'] ?? '') ?: null,
                             'bpjs_hash' => trim($data['bpjs'] ?? '') ? hash('sha256', trim($data['bpjs'])) : null,
-                            'nik_encrypted' => trim($data['nik'] ?? '') ?: null,
-                            'bpjs_encrypted' => trim($data['bpjs'] ?? '') ?: null,
+                            'bpjs_ciphertext' => trim($data['bpjs'] ?? '') ?: null,
                         ]
                     );
                 } elseif ($role === 'coach') {
@@ -704,9 +1022,9 @@ class AdminManagementController extends Controller
                     'alamat' => $this->nullableString($row['alamat'] ?? null),
                     'geup' => strtoupper((string) ($row['geup'] ?? 'GEUP_10')),
                     'nik_hash' => ! empty($row['nik']) ? hash('sha256', preg_replace('/\s+/', '', (string) $row['nik'])) : null,
-                    'nik_encrypted' => $this->nullableString($row['nik'] ?? null),
+                    'nik_ciphertext' => $this->nullableString($row['nik'] ?? null),
                     'bpjs_hash' => ! empty($row['bpjs']) ? hash('sha256', preg_replace('/\s+/', '', (string) $row['bpjs'])) : null,
-                    'bpjs_encrypted' => $this->nullableString($row['bpjs'] ?? null),
+                    'bpjs_ciphertext' => $this->nullableString($row['bpjs'] ?? null),
                 ],
             );
         });
@@ -791,7 +1109,7 @@ class AdminManagementController extends Controller
             'athletes' => $this->templateRows('athletes', Athlete::query()->with('user')->get()->map(fn ($item) => [
                 $item->user?->name, $item->user?->email, $item->user?->gender, optional($item->user?->bday)->format('Y-m-d'),
                 $item->user?->phone, $item->height_cm, $item->weight_kg, $item->alamat, $item->branch_id, $item->group_id,
-                $item->geup, $item->parent_id, $item->nik_encrypted, $item->bpjs_encrypted,
+                $item->geup, $item->parent_id, $item->nik_ciphertext, $item->bpjs_ciphertext,
             ])->all()),
             'payments' => $this->templateRows('payments', Payment::query()->get()->map(fn ($item) => [
                 $item->athlete_id, $item->payment_type, $item->total_amount, $item->paid_amount, optional($item->payment_date)->format('Y-m-d'),
@@ -853,4 +1171,3 @@ class AdminManagementController extends Controller
         return Carbon::parse((string) $value)->format('Y-m-d');
     }
 }
-

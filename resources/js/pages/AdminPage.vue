@@ -100,7 +100,7 @@ function downloadTemplate() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <div class="flex justify-end">
+            <!-- <div class="flex justify-end">
                 <div class="flex gap-2">
                     <Button as-child variant="outline">
                         <Link :href="managementRoutes.coachParentManagement">Manage Coaches & Parents</Link>
@@ -109,7 +109,7 @@ function downloadTemplate() {
                         <Link :href="managementRoutes.activityLogs">Open User Activity Log</Link>
                     </Button>
                 </div>
-            </div>
+            </div> -->
             <Alert v-if="!props.debugbar?.enabled" variant="default">
                 <AlertTitle>Debugbar is not installed yet</AlertTitle>
                 <AlertDescription>
@@ -117,7 +117,7 @@ function downloadTemplate() {
                 </AlertDescription>
             </Alert>
 
-            <PageSection title="Legacy Data Transfer" description="Import/export CSV files (Excel-compatible) to migrate data in bulk. Use template first, then import the filled file.">
+            <!-- <PageSection title="Legacy Data Transfer" description="Import/export CSV files (Excel-compatible) to migrate data in bulk. Use template first, then import the filled file.">
                 <div class="grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto] md:items-end">
                     <FormSelectField id="transfer-entity" v-model="transferForm.entity" label="Dataset" :options="transferOptions" />
                     <div class="grid gap-2">
@@ -136,7 +136,7 @@ function downloadTemplate() {
                         <li v-for="(error, index) in props.importResult.errors.slice(0, 10)" :key="index">{{ error }}</li>
                     </ul>
                 </div>
-            </PageSection>
+            </PageSection> -->
 
             <AdminAccountManagementPanel :initial-users="users" />
             <BranchManagement

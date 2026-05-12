@@ -15,6 +15,7 @@ import { onMounted, ref } from 'vue';
 
 const props = defineProps<{
     isAdmin: boolean;
+    isAthlete: boolean;
     canRegister: boolean;
     metrics: Metric[];
     rows: TableRow[];
@@ -99,9 +100,17 @@ function openRegistrationForEvent(row: TableRow) {
 }
 
 onMounted(() => {
-    if (!form.athlete_id && props.athletes.length === 1) {
-        form.athlete_id = String(props.athletes[0].value);
+
+    if (
+        props.isAthlete &&
+        !form.athlete_id &&
+        props.athletes.length === 1
+    ) {
+        form.athlete_id = String(
+            props.athletes[0].value
+        );
     }
+
     if (props.pendingPayments.length > 0) {
         openPaymentPrompt();
     }

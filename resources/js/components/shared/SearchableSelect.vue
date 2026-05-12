@@ -83,7 +83,7 @@ function clearSelection() {
         </Button>
 
         <Dialog v-model:open="isOpen">
-            <DialogContent class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto p-4 sm:max-w-xl sm:p-6">
+            <DialogContent class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border-border/70 p-4 sm:max-w-2xl sm:p-6">
                 <DialogHeader>
                     <DialogTitle>{{ title ?? 'Select option' }}</DialogTitle>
                     <DialogDescription>
@@ -101,13 +101,13 @@ function clearSelection() {
                         />
                     </div>
 
-                    <div class="rounded-2xl border border-border/70">
+                    <div class="rounded-xl border border-border/70 bg-card">
                         <div v-if="filteredOptions.length > 0" class="max-h-72 space-y-1 overflow-y-auto p-2 sm:max-h-80">
                             <button
                                 v-for="option in filteredOptions"
                                 :key="String(option.value)"
                                 type="button"
-                                class="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition hover:bg-muted"
+                                class="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition hover:bg-muted"
                                 :class="String(option.value) === String(modelValue) ? 'bg-muted' : ''"
                                 @click="selectOption(option.value)"
                             >

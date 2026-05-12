@@ -56,7 +56,7 @@ export const dashboardContent: Record<AppRole, RoleDashboardContent> = {
             {
                 title: 'Athlete intake',
                 description:
-                    'Review new athlete profiles, assign them to groups, and complete missing parent details.',
+                    'Review new athlete profiles, assign them to groups, and add parent links when needed.',
                 ctaLabel: 'Open athlete management',
                 ctaHref: managementRoutes.athletes,
                 items: [
@@ -288,7 +288,7 @@ export const athleteRows: TableRow[] = [
         branch: 'Bekasi',
         group: 'Beginner Kids',
         geup: 'GEUP 2',
-        status: badge('Awaiting parent link', 'info'),
+        status: badge('Active', 'success'),
     },
     {
         id: 'ATH-004',

@@ -18,9 +18,9 @@ class Athlete extends Model{
         'height_cm',
         'weight_kg',
         'nik_hash',
-        'nik_encrypted',
+        'nik_ciphertext',
         'bpjs_hash',
-        'bpjs_encrypted',
+        'bpjs_ciphertext',
         'alamat',
         'geup',
         'id',
@@ -39,8 +39,8 @@ class Athlete extends Model{
     protected function casts(): array
     {
         return [
-            'nik_encrypted' => 'encrypted',
-            'bpjs_encrypted' => 'encrypted',
+            'nik_ciphertext' => 'encrypted',
+            'bpjs_ciphertext' => 'encrypted',
         ];
     }
 

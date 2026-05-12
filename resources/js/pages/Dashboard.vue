@@ -7,10 +7,9 @@ import { useLiveReload } from '@/composables/useLiveReload';
 import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { Auth } from '@/types/auth';
-import type { DashboardPageProps } from '@/types/dashboard';
-import type { AppRole } from '@/types/management';
+import type { AppRole, Metric, TableRow } from '@/types/management';
 import { type BreadcrumbItem } from '@/types';
-import { computed } from 'vue';
+import { computed, type PropType } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -20,7 +19,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const page = usePage<{ auth: Auth }>();
-const props = defineProps<DashboardPageProps>();
+const props = defineProps({
+    metrics: { type: Array as PropType<Metric[]>, required: true },
+    activityPreviewRows: { type: Array as PropType<TableRow[]>, required: true },
+    announcements: { type: Array as PropType<TableRow[]>, required: true },
+    upcomingEvents: { type: Array as PropType<TableRow[]>, required: true },
+    attendanceRows: { type: Array as PropType<TableRow[]>, required: true },
+    paymentRows: { type: Array as PropType<TableRow[]>, required: true },
+    medalRows: { type: Array as PropType<TableRow[]>, required: true },
+    profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
+});
 
 const role = computed<AppRole>(() => {
     const userRole = page.props.auth?.user?.role;

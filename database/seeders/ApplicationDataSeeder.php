@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -161,7 +162,9 @@ class ApplicationDataSeeder extends Seeder
             'height_cm' => 150.50,
             'weight_kg' => 42.30,
             'nik_hash' => hash('sha256', '3174001205120001'),
+            'nik_ciphertext' => Crypt::encryptString('3174001205120001'),
             'bpjs_hash' => hash('sha256', 'BPJS-00001'),
+            'bpjs_ciphertext' => Crypt::encryptString('BPJS-00001'),
             'alamat' => 'Jl. Merdeka No. 10, Jakarta',
             'geup' => 'GEUP_8',
             'created_at' => $now,

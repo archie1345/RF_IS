@@ -9,13 +9,13 @@ import {
 import { cn } from "@/lib/utils"
 import NavigationMenuViewport from "./NavigationMenuViewport.vue"
 
-const props = withDefaults(defineProps<NavigationMenuRootProps & {
+const props = withDefaults(defineProps</* @vue-ignore */ NavigationMenuRootProps & {
   class?: HTMLAttributes["class"]
   viewport?: boolean
 }>(), {
   viewport: true,
 })
-const emits = defineEmits<NavigationMenuRootEmits>()
+const emits = defineEmits()
 
 const delegatedProps = reactiveOmit(props, "class", "viewport")
 const forwarded = useForwardPropsEmits(delegatedProps, emits)

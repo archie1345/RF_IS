@@ -2,7 +2,7 @@
 import type { CollapsibleTriggerProps } from "reka-ui"
 import { CollapsibleTrigger } from "reka-ui"
 
-const props = defineProps<CollapsibleTriggerProps>()
+const props = defineProps</* @vue-ignore */ CollapsibleTriggerProps>()
 </script>
 
 <template>

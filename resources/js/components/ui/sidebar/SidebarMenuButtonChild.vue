@@ -6,7 +6,9 @@ import { Primitive } from "reka-ui"
 import { cn } from "@/lib/utils"
 import { sidebarMenuButtonVariants } from "."
 
-export interface SidebarMenuButtonProps extends PrimitiveProps {
+export interface SidebarMenuButtonProps {
+  as?: PrimitiveProps["as"]
+  asChild?: PrimitiveProps["asChild"]
   variant?: SidebarMenuButtonVariants["variant"]
   size?: SidebarMenuButtonVariants["size"]
   isActive?: boolean
@@ -24,11 +26,11 @@ const props = withDefaults(defineProps<SidebarMenuButtonProps>(), {
   <Primitive
     data-slot="sidebar-menu-button"
     data-sidebar="menu-button"
-    :data-size="size"
-    :data-active="isActive"
-    :class="cn(sidebarMenuButtonVariants({ variant, size }), props.class)"
-    :as="as"
-    :as-child="asChild"
+    :data-size="props.size"
+    :data-active="props.isActive"
+    :class="cn(sidebarMenuButtonVariants({ variant: props.variant, size: props.size }), props.class)"
+    :as="props.as"
+    :as-child="props.asChild"
     v-bind="$attrs"
   >
     <slot />

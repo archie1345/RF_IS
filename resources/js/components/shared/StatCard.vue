@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { Metric } from '@/types/management';
 
-const props = defineProps<Metric>();
+const props = defineProps<{
+    label: string;
+    value: string;
+    detail: string;
+    tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+}>();
 
 const accentClasses = {
     neutral: 'border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60',
@@ -15,11 +19,11 @@ const accentClasses = {
 </script>
 
 <template>
-    <Card :class="cn('rounded-lg border shadow-sm', accentClasses[props.tone ?? 'neutral'])">
+    <Card :class="cn('rounded-xl border shadow-sm', accentClasses[props.tone ?? 'neutral'])">
         <CardContent class="space-y-3 p-4 sm:p-5">
             <p class="text-sm font-medium text-muted-foreground">{{ props.label }}</p>
             <div class="space-y-1">
-                <p class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ props.value }}</p>
+                <p class="text-2xl font-semibold sm:text-3xl">{{ props.value }}</p>
                 <p class="text-sm text-muted-foreground">{{ props.detail }}</p>
             </div>
         </CardContent>

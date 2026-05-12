@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { KeyRound, Palette, ShieldCheck, UserRound } from 'lucide-vue-next';
 import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
@@ -15,18 +15,22 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: editProfile(),
+        icon: UserRound,
     },
     {
         title: 'Password',
         href: editPassword(),
+        icon: KeyRound,
     },
     {
         title: 'Two-Factor Auth',
         href: show(),
+        icon: ShieldCheck,
     },
     {
         title: 'Appearance',
         href: editAppearance(),
+        icon: Palette,
     },
 ];
 
@@ -34,25 +38,28 @@ const { isCurrentUrl } = useCurrentUrl();
 </script>
 
 <template>
-    <div class="px-4 py-6">
+    <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <Heading
             title="Settings"
             description="Manage your profile and account settings"
         />
 
-        <div class="flex flex-col lg:flex-row lg:space-x-12">
-            <aside class="w-full max-w-xl lg:w-48">
+        <div class="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+            <aside class="min-w-0">
                 <nav
-                    class="flex flex-col space-y-1 space-x-0"
+                    class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0"
                     aria-label="Settings"
                 >
                     <Button
                         v-for="item in sidebarNavItems"
                         :key="toUrl(item.href)"
                         variant="ghost"
+                        size="sm"
                         :class="[
-                            'w-full justify-start',
-                            { 'bg-muted': isCurrentUrl(item.href) },
+                            'min-w-max justify-start rounded-lg border border-transparent px-3 text-muted-foreground lg:w-full lg:min-w-0',
+                            {
+                                'border-border bg-muted text-foreground shadow-sm': isCurrentUrl(item.href),
+                            },
                         ]"
                         as-child
                     >
@@ -64,10 +71,8 @@ const { isCurrentUrl } = useCurrentUrl();
                 </nav>
             </aside>
 
-            <Separator class="my-6 lg:hidden" />
-
-            <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-xl space-y-12">
+            <div class="min-w-0">
+                <section class="min-w-0 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-6">
                     <slot />
                 </section>
             </div>

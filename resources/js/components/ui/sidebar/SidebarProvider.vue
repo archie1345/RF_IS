@@ -15,9 +15,7 @@ const props = withDefaults(defineProps<{
   open: undefined,
 })
 
-const emits = defineEmits<{
-  "update:open": [open: boolean]
-}>()
+const emits = defineEmits()
 
 const isMobile = useMediaQuery("(max-width: 768px)")
 const openMobile = ref(false)
