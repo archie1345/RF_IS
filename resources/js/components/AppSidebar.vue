@@ -48,7 +48,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     admin: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
         { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
-        { title: 'Components Playground', href: managementRoutes.componentsPlayground, icon: Blocks },
+        // { title: 'Components Playground', href: managementRoutes.componentsPlayground, icon: Blocks },
         { title: 'Users', href: managementRoutes.athletes, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: managementRoutes.sessions, icon: CalendarCheck2 },
