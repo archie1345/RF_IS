@@ -42,6 +42,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const invoiceTemplateModalOpen = ref(false);
 
+const showReviewForm = ref(false);
+const reviewPaymentRow = ref<TableRow | null>(null);
+
 const columns: TableColumn[] = [
     { key: 'athlete', label: 'Person' },
     { key: 'bill_kind', label: 'Kind' },
@@ -86,6 +89,7 @@ const form = useForm({
 });
 const showPaymentForm = ref(false);
 const editingPaymentId = ref<number | null>(null);
+const editingPaymentRow = ref<TableRow | null>(null);
 const showProofForm = ref(false);
 const proofPaymentId = ref<number | null>(null);
 const proofForm = useForm({
@@ -94,6 +98,7 @@ const proofForm = useForm({
 });
 const reviewForm = useForm({
     decision: 'APPROVED',
+    approved_amount: '',
     notes: '',
 });
 
@@ -201,6 +206,7 @@ function openCreate() {
 
 function editPayment(row: TableRow) {
     editingPaymentId.value = Number(row.payment_id);
+    editingPaymentRow.value = row;
     form.athlete_id = String(row.athlete_id ?? '');
     form.billable_user_id = String(row.billable_user_id ?? '');
     form.payee_user_id = String(row.payee_user_id ?? '');
@@ -212,6 +218,16 @@ function editPayment(row: TableRow) {
     form.payment_date = String(row.payment_date_raw ?? '');
     form.notes = String(row.notes_raw ?? '');
     showPaymentForm.value = true;
+}
+
+function deleteFromEdit() {
+    if (editingPaymentRow.value) {
+        deletePayment(editingPaymentRow.value);
+        showPaymentForm.value = false;
+    }
+}
+function waFromEdit() {
+    if (editingPaymentRow.value) sendWaBilling(editingPaymentRow.value);
 }
 
 function deletePayment(row: TableRow) {
@@ -251,11 +267,34 @@ function submitProof() {
     });
 }
 
-function reviewProof(row: TableRow, decision: 'APPROVED' | 'REJECTED') {
-    const id = Number(row.payment_id);
-    if (!id) return;
-    reviewForm.decision = decision;
+function openReviewModal(row: TableRow) {
+    reviewPaymentRow.value = row;
+    reviewForm.decision = 'APPROVED';
+    const balance = Number(row.remaining_amount_raw ?? 0);
+    reviewForm.approved_amount = String(Math.max(balance, 0)); 
     reviewForm.notes = String(row.proof_notes ?? '');
+    showReviewForm.value = true;
+}
+
+function submitReview(decision: 'APPROVED' | 'REJECTED') {
+    if (!reviewPaymentRow.value) return;
+    const id = Number(reviewPaymentRow.value.payment_id);
+    reviewForm.decision = decision;
+    
+    if (decision === 'REJECTED' && !confirm('Are you sure you want to reject this receipt?')) return;
+
+    reviewForm.put(`/payments/${id}/proof-review`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showReviewForm.value = false;
+        }
+    });
+}
+
+function reviewProofReject(row: TableRow) {
+    if (!confirm('Are you sure you want to reject this payment proof?')) return;
+    const id = Number(row.payment_id);
+    reviewForm.decision = 'REJECTED';
     reviewForm.put(`/payments/${id}/proof-review`, { preserveScroll: true });
 }
 </script>
@@ -282,33 +321,22 @@ function reviewProof(row: TableRow, decision: 'APPROVED' | 'REJECTED') {
             <DataTable title="Bills and receipts" description="Open a bill to download the invoice or upload payment proof. The balance changes only after admin approval." :columns="columns" :rows="props.rows" searchable search-placeholder="Search by name, bill type, or status">
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" class="gap-2" @click="exportInvoice(row.payment_id as string | number)">
+                        <Button type="button" size="sm" variant="outline" title="Download Invoice" @click="exportInvoice(row.payment_id as string | number)">
                             <Download class="size-4" />
-                            Invoice
                         </Button>
+
                         <Button v-if="canUploadProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="openProofForm(row)">
-                            Pay / upload proof
+                            Pay / Upload
                         </Button>
-                        <a v-if="row.proof_url" :href="String(row.proof_url)" target="_blank" class="inline-flex h-8 items-center rounded-md border px-3 text-xs">View receipt</a>
+
+                        <a v-if="row.proof_url && !canReviewProof(row)" :href="String(row.proof_url)" target="_blank" class="inline-flex h-8 items-center rounded-md border px-3 text-xs">Receipt</a>
+
+                        <Button v-if="canReviewProof(row)" type="button" size="sm" class="gap-2" @click="openReviewModal(row)">
+                            Review Receipt
+                        </Button>
+
                         <Button v-if="props.isAdmin" type="button" size="sm" variant="outline" class="gap-2" @click="editPayment(row)">
-                            <PencilLine class="size-4" />
-                            Edit
-                        </Button>
-                        <Button v-if="props.isAdmin" type="button" size="sm" variant="destructive" class="gap-2" @click="deletePayment(row)">
-                            <Trash2 class="size-4" />
-                            Delete
-                        </Button>
-                        <Button v-if="canReviewProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="reviewProof(row, 'APPROVED')">
-                            <Check class="size-4" />
-                            Approve
-                        </Button>
-                        <Button v-if="canReviewProof(row)" type="button" size="sm" variant="outline" class="gap-2" @click="reviewProof(row, 'REJECTED')">
-                            <XCircle class="size-4" />
-                            Reject
-                        </Button>
-                        <Button v-if="props.isAdmin" type="button" size="sm" variant="outline" class="gap-2" @click="sendWaBilling(row)">
-                            <MessageCircleWarning class="size-4" />
-                            WhatsApp
+                            <PencilLine class="size-4" /> Edit / Manage
                         </Button>
                     </ActionButtonsRow>
                 </template>
@@ -316,63 +344,75 @@ function reviewProof(row: TableRow, decision: 'APPROVED' | 'REJECTED') {
         </div>
 
         <FormModal :open="showPaymentForm && props.isAdmin" max-width-class="max-w-xl" @close="showPaymentForm = false; editingPaymentId = null">
-                <PageSection :title="editingPaymentId ? 'Edit bill' : 'Issue a bill'" description="Choose the person, enter the amount, and the system will keep the unpaid balance until a receipt is approved.">
-                    <form class="grid gap-4" @submit.prevent="submit">
+            <PageSection :title="editingPaymentId ? 'Edit bill' : 'Issue a bill'" description="Choose the person, enter the amount, and the system will keep the unpaid balance until a receipt is approved.">
+                <form class="grid gap-4" @submit.prevent="submit">
+                    <FormSelectField
+                        id="payment-kind"
+                        v-model="form.bill_kind"
+                        label="What are you issuing?"
+                        :options="[
+                            { value: 'INVOICE', label: 'Bill for a member' },
+                            { value: 'PAYROLL', label: 'Coach payout record' },
+                        ]"
+                        help="Most payments should stay as Bill for a member."
+                        :error="form.errors.bill_kind"
+                    />
+                    <div v-if="form.bill_kind === 'INVOICE'" class="grid gap-4">
                         <FormSelectField
-                            id="payment-kind"
-                            v-model="form.bill_kind"
-                            label="What are you issuing?"
-                            :options="[
-                                { value: 'INVOICE', label: 'Bill for a member' },
-                                { value: 'PAYROLL', label: 'Coach payout record' },
-                            ]"
-                            help="Most payments should stay as Bill for a member."
-                            :error="form.errors.bill_kind"
+                            id="payment-athlete"
+                            :model-value="form.athlete_id"
+                            label="Athlete receiving this bill"
+                            :options="props.athletes"
+                            placeholder="Select athlete"
+                            help="Use this for tuition, uniform, license, and championship bills."
+                            :error="form.errors.athlete_id"
+                            @update:model-value="setAthleteBill"
                         />
-                        <div v-if="form.bill_kind === 'INVOICE'" class="grid gap-4">
-                            <FormSelectField
-                                id="payment-athlete"
-                                :model-value="form.athlete_id"
-                                label="Athlete receiving this bill"
-                                :options="props.athletes"
-                                placeholder="Select athlete"
-                                help="Use this for tuition, uniform, license, and championship bills."
-                                :error="form.errors.athlete_id"
-                                @update:model-value="setAthleteBill"
-                            />
-                            <FormSelectField
-                                id="payment-user"
-                                :model-value="form.billable_user_id"
-                                label="Other account to bill"
-                                :options="props.users"
-                                placeholder="Only use this when the bill is not for an athlete"
-                                help="Picking a user here clears the athlete field so the bill is not duplicated."
-                                :error="form.errors.billable_user_id"
-                                @update:model-value="setUserBill"
-                            />
-                        </div>
-                        <FormSelectField v-if="form.bill_kind === 'PAYROLL'" id="payment-coach" v-model="form.payee_user_id" label="Coach receiving payout" :options="props.coaches" placeholder="Select coach" required :error="form.errors.payee_user_id" />
-                        <FormSelectField v-if="form.bill_kind === 'INVOICE'" id="payment-type" v-model="form.payment_type" label="Bill category" :options="paymentTypeOptions" required :error="form.errors.payment_type" />
-                        <FormInputField id="payment-total" v-model="form.total_amount" label="Amount to pay" type="number" inputmode="decimal" min="0" step="1000" placeholder="Example: 250000" required :error="form.errors.total_amount" />
-                        <FormInputField id="payment-notes" v-model="form.notes" label="Note for this bill" placeholder="Example: May tuition" help="Optional. Keep it short and clear for the member." :error="form.errors.notes" />
-                        <input v-model="form.payment_date" type="hidden">
-                        <input v-if="!editingPaymentId" v-model="form.paid_amount" type="hidden">
-                        <details class="rounded-lg border border-border p-3">
-                            <summary class="cursor-pointer text-sm font-medium">Admin details</summary>
-                            <div class="mt-4 grid gap-4">
-                                <FormSelectField id="payment-method" v-model="form.collection_method" label="Expected payment method" :options="collectionMethodOptions" help="Used as a note on the bill." :error="form.errors.collection_method" />
-                                <div v-if="editingPaymentId" class="grid gap-4 md:grid-cols-2">
-                                    <FormInputField id="payment-paid" v-model="form.paid_amount" label="Amount already approved" type="number" inputmode="decimal" min="0" step="1000" :error="form.errors.paid_amount" />
-                                    <FormInputField id="payment-date" v-model="form.payment_date" label="Issue date" type="date" :error="form.errors.payment_date" />
-                                </div>
+                        <FormSelectField
+                            id="payment-user"
+                            :model-value="form.billable_user_id"
+                            label="Other account to bill"
+                            :options="props.users"
+                            placeholder="Only use this when the bill is not for an athlete"
+                            help="Picking a user here clears the athlete field so the bill is not duplicated."
+                            :error="form.errors.billable_user_id"
+                            @update:model-value="setUserBill"
+                        />
+                    </div>
+                    <FormSelectField v-if="form.bill_kind === 'PAYROLL'" id="payment-coach" v-model="form.payee_user_id" label="Coach receiving payout" :options="props.coaches" placeholder="Select coach" required :error="form.errors.payee_user_id" />
+                    <FormSelectField v-if="form.bill_kind === 'INVOICE'" id="payment-type" v-model="form.payment_type" label="Bill category" :options="paymentTypeOptions" required :error="form.errors.payment_type" />
+                    <FormInputField id="payment-total" v-model="form.total_amount" label="Amount to pay" type="number" inputmode="decimal" min="0" step="1000" placeholder="Example: 250000" required :error="form.errors.total_amount" />
+                    <FormInputField id="payment-notes" v-model="form.notes" label="Note for this bill" placeholder="Example: May tuition" help="Optional. Keep it short and clear for the member." :error="form.errors.notes" />
+                    <input v-model="form.payment_date" type="hidden">
+                    <input v-if="!editingPaymentId" v-model="form.paid_amount" type="hidden">
+                    <details class="rounded-lg border border-border p-3">
+                        <summary class="cursor-pointer text-sm font-medium">Admin details</summary>
+                        <div class="mt-4 grid gap-4">
+                            <FormSelectField id="payment-method" v-model="form.collection_method" label="Expected payment method" :options="collectionMethodOptions" help="Used as a note on the bill." :error="form.errors.collection_method" />
+                            <div v-if="editingPaymentId" class="grid gap-4 md:grid-cols-2">
+                                <FormInputField id="payment-paid" v-model="form.paid_amount" label="Amount already approved" type="number" inputmode="decimal" min="0" step="1000" :error="form.errors.paid_amount" />
+                                <FormInputField id="payment-date" v-model="form.payment_date" label="Issue date" type="date" :error="form.errors.payment_date" />
                             </div>
-                        </details>
-                        <div class="flex flex-wrap gap-3">
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ editingPaymentId ? 'Save changes' : 'Issue bill' }}</Button>
-                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentForm = false; editingPaymentId = null">Cancel</Button>
                         </div>
-                    </form>
-                </PageSection>
+                    </details>
+                    
+                    <div class="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
+                        <div class="flex flex-wrap gap-3">
+                            <Button type="submit" :disabled="form.processing">{{ editingPaymentId ? 'Save changes' : 'Issue bill' }}</Button>
+                            <Button type="button" variant="outline" @click="showPaymentForm = false; editingPaymentId = null">Cancel</Button>
+                        </div>
+                        
+                        <div v-if="editingPaymentId" class="flex flex-wrap gap-2">
+                            <Button type="button" variant="secondary" size="sm" @click="waFromEdit">
+                                <MessageCircleWarning class="size-4 mr-2" /> Send WA Reminder
+                            </Button>
+                            <Button type="button" variant="destructive" size="sm" @click="deleteFromEdit">
+                                <Trash2 class="size-4 mr-2" /> Delete Bill
+                            </Button>
+                        </div>
+                    </div>
+                </form>
+            </PageSection>
         </FormModal>
 
         <FormModal :open="invoiceTemplateModalOpen && props.isAdmin" max-width-class="max-w-2xl" @close="invoiceTemplateModalOpen = false">
@@ -434,6 +474,47 @@ function reviewProof(row: TableRow, decision: 'APPROVED' | 'REJECTED') {
                     <div class="flex gap-3">
                         <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file">Send receipt for review</Button>
                         <Button type="button" variant="outline" @click="showProofForm = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="showReviewForm" max-width-class="max-w-md" @close="showReviewForm = false">
+            <PageSection title="Approve Payment Proof" description="Review the receipt and confirm the amount paid in this specific transaction.">
+                <form class="grid gap-4">
+                    <div v-if="reviewPaymentRow" class="text-sm bg-muted/30 p-3 rounded-lg border border-border">
+                        <p><span class="font-medium">Member:</span> {{ reviewPaymentRow.athlete }}</p>
+                        <p><span class="font-medium">Total Bill:</span> {{ reviewPaymentRow.amount }}</p>
+                        <p><span class="font-medium">Current Balance:</span> {{ reviewPaymentRow.balance }}</p>
+                        <div class="mt-2" v-if="reviewPaymentRow.proof_url">
+                            <a :href="String(reviewPaymentRow.proof_url)" target="_blank" class="inline-flex h-8 items-center rounded-md border px-3 text-xs bg-background">View Receipt Document</a>
+                        </div>
+                    </div>
+                    
+                    <FormInputField 
+                        id="review-approved-amount" 
+                        v-model="reviewForm.approved_amount" 
+                        label="Amount paid in this receipt" 
+                        type="number" 
+                        inputmode="decimal" 
+                        min="0" 
+                        required
+                        help="If this is a partial payment, change this number. The system will calculate the remaining balance."
+                        :error="reviewForm.errors.approved_amount" 
+                    />
+                    
+                    <FormInputField 
+                        id="review-notes" 
+                        v-model="reviewForm.notes" 
+                        label="Admin notes (optional)" 
+                        placeholder="Example: First installment received" 
+                        :error="reviewForm.errors.notes" 
+                    />
+                    
+                    <div class="flex gap-3 mt-4">
+                        <Button type="button" :disabled="reviewForm.processing" @click="submitReview('APPROVED')">Approve Amount</Button>
+                        <Button type="button" variant="destructive" :disabled="reviewForm.processing" @click="submitReview('REJECTED')">Reject Proof</Button>
+                        <Button type="button" variant="outline" @click="showReviewForm = false">Cancel</Button>
                     </div>
                 </form>
             </PageSection>

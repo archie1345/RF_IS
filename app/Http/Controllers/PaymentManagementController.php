@@ -142,20 +142,51 @@ class PaymentManagementController extends Controller
         $validated = $request->validate([
             'decision' => ['required', Rule::in(['APPROVED', 'REJECTED'])],
             'notes' => ['nullable', 'string'],
+            'approved_amount' => ['nullable', 'numeric', 'min:0'], // Added to accept partial amounts
         ]);
 
-        $decision = $validated['decision'];
         if (($payment->proof_status ?? 'NONE') !== 'SUBMITTED') {
             return back()->withErrors(['proof_review' => 'A user must upload payment proof before it can be approved or rejected.']);
         }
 
-        $payment->update([
-            'proof_status' => $decision,
-            'proof_notes' => $validated['notes'] ?? null,
-            'status' => $decision === 'APPROVED' ? 'COMPLETED' : 'PENDING',
-            'paid_amount' => $decision === 'APPROVED' ? (float) ($payment->total_amount ?? $payment->amount ?? 0) : (float) ($payment->paid_amount ?? 0),
-            'remaining_amount' => $decision === 'APPROVED' ? 0 : max((float) ($payment->total_amount ?? $payment->amount ?? 0) - (float) ($payment->paid_amount ?? 0), 0),
-        ]);
+        if ($validated['decision'] === 'APPROVED') {
+            // Use the amount the admin typed in, or default to the full remaining amount
+            $amountToApprove = (float) ($validated['approved_amount'] ?? $payment->remaining_amount);
+            
+            // Calculate new totals
+            $newPaid = min((float) ($payment->paid_amount ?? 0) + $amountToApprove, (float) ($payment->total_amount ?? $payment->amount ?? 0));
+            $newRemaining = max((float) ($payment->total_amount ?? $payment->amount ?? 0) - $newPaid, 0);
+
+            // Log this specific partial payment into the Transactions table!
+            if ($amountToApprove > 0) {
+                \App\Models\Transactions::create([
+                    'payment_id' => $payment->payment_id,
+                    'verified_by' => $request->user()->id,
+                    'amount' => $amountToApprove,
+                    'transaction_date' => now(),
+                    'transaction_type' => 'CREDIT',
+                    'payment_method' => $this->extractCollectionMethod($payment->notes),
+                    'notes' => 'Proof approved: ' . ($validated['notes'] ?? ''),
+                ]);
+            }
+
+            $payment->update([
+                'paid_amount' => $newPaid,
+                'remaining_amount' => $newRemaining,
+                'status' => $newRemaining <= 0 ? 'COMPLETED' : 'PENDING',
+                // If fully paid, lock it. If partial, set to 'NONE' so the user can upload the next receipt!
+                'proof_status' => $newRemaining <= 0 ? 'APPROVED' : 'NONE',
+                // Clear the proof image if partial, so they can upload a new one next time
+                'proof_path' => $newRemaining <= 0 ? $payment->proof_path : null, 
+                'proof_notes' => $validated['notes'] ?? null,
+            ]);
+        } else {
+            // Rejected
+            $payment->update([
+                'proof_status' => 'REJECTED',
+                'proof_notes' => $validated['notes'] ?? null,
+            ]);
+        }
 
         return redirect()->route('payments.index');
     }

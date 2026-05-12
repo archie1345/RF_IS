@@ -149,6 +149,11 @@ function openEditByRow(row: TableRow) {
     openEdit(user);
 }
 
+function viewProfile(row: TableRow) {
+    const userId = row.id;
+    router.visit(`/admin/accounts/${userId}`);
+}
+
 const resetForm = () => {
     editingId.value = null;
     form.reset();
@@ -267,9 +272,9 @@ function restoreAccount(row: TableRow) {
 
             <template #row-actions="{ row }">
                 <div class="flex gap-2 justify-end">
-                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
-                        <PencilLine class="size-4" />
-                        Edit
+                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
+                        <UserRoundCog class="size-4" />
+                        View Profile
                     </Button>
                     <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)">Delete</Button>
                     <Button v-else variant="outline" @click="restoreAccount(row)">Restore</Button>

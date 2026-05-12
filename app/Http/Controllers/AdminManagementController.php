@@ -60,8 +60,6 @@ class AdminManagementController extends Controller
                 'status' => $hasAccountStatus ? ($user->account_status ?? 'active') : 'active',
                 'createdAt' => $user->created_at?->format('d M Y') ?? '-',
                 'deletedAt' => $user->deleted_at?->format('d M Y H:i:s'),
-                'bio' => $user->profile?->bio,
-                'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
             ])->values(),
             'branches' => Branch::query()
                 ->orderBy('branch_name')
@@ -177,7 +175,7 @@ class AdminManagementController extends Controller
 
         $validated = $request->validate([
             'bio' => ['nullable', 'string'],
-            'profile_picture' => ['nullable', 'image', 'max:4096'],
+            'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
         $payload = ['bio' => $validated['bio'] ?? null];
@@ -216,6 +214,82 @@ class AdminManagementController extends Controller
         ActivityLogger::log($request, 'admin.account.restored', 'admin', 'Restored soft deleted user account', $user, ['user_id' => $user->id]);
 
         return redirect()->route('admin.index');
+    }
+
+    public function show(User $user): Response
+    {
+        abort_unless(request()->user()?->isAdmin(), 403);
+
+        $user->load([
+            'profile',
+            'athleteProfile.branch',
+            'athleteProfile.group',
+            'coachProfile',
+            'parentProfile.athletes.branch',
+            'parentProfile.athletes.group',
+            'achievements',
+            'certifications',
+            'roleAssignments',
+        ]);
+
+        return Inertia::render('AdminUserProfilePage', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $user->assignedRoles(),
+                'bio' => $user->profile?->bio,
+                'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
+                'athleteProfile' => $user->athleteProfile ? [
+                    'height_cm' => $user->athleteProfile->height_cm,
+                    'weight_kg' => $user->athleteProfile->weight_kg,
+                    'geup' => $user->athleteProfile->geup,
+                    'nik' => $user->athleteProfile->nik,
+                    'bpjs' => $user->athleteProfile->bpjs,
+                    'phone' => $user->athleteProfile->phone,
+                    'bday' => $user->athleteProfile->bday?->format('Y-m-d'),
+                    'gender' => $user->athleteProfile->gender,
+                    'alamat' => $user->athleteProfile->alamat,
+                    'branch' => $user->athleteProfile->branch,
+                    'group' => $user->athleteProfile->group,
+                ] : null,
+                'coachProfile' => $user->coachProfile ? [
+                    'specialization' => $user->coachProfile->specialization,
+                    'experience_years' => $user->coachProfile->experience_years,
+                    'certifications' => $user->coachProfile->certifications,
+                ] : null,
+                'parentProfile' => $user->parentProfile ? [
+                    'phone' => $user->parentProfile->phone,
+                    'relationship' => $user->parentProfile->relationship,
+                    'athletes' => $user->parentProfile->athletes->map(fn ($athlete) => [
+                        'id' => $athlete->athlete_id,
+                        'name' => $athlete->user->name,
+                        'branch' => $athlete->branch,
+                        'group' => $athlete->group,
+                    ]),
+                ] : null,
+                'achievements' => $user->achievements->map(fn ($achievement) => [
+                    'id' => $achievement->id,
+                    'championship_name' => $achievement->championship_name,
+                    'medal' => $achievement->medal,
+                    'location' => $achievement->location,
+                    'event_date' => $achievement->event_date?->format('Y-m-d'),
+                    'class_name' => $achievement->class_name,
+                    'division' => $achievement->division,
+                    'category' => $achievement->category,
+                    'notes' => $achievement->notes,
+                ]),
+                'certifications' => $user->certifications->map(fn ($cert) => [
+                    'id' => $cert->id,
+                    'cert_type' => $cert->cert_type,
+                    'title' => $cert->title,
+                    'issuer' => $cert->issuer,
+                    'certified_at' => $cert->certified_at?->format('Y-m-d'),
+                    'expires_at' => $cert->expires_at?->format('Y-m-d'),
+                    'notes' => $cert->notes,
+                ]),
+            ],
+        ]);
     }
 
     public function storeBranch(Request $request): RedirectResponse
@@ -310,29 +384,108 @@ class AdminManagementController extends Controller
         return redirect()->route('admin.index');
     }
 
-    public function importCsv(Request $request): RedirectResponse
+    public function importCsv(Request $request)
     {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'entity' => ['required', Rule::in(['athletes', 'payments', 'sessions', 'attendance', 'events', 'event_registrations'])],
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        $request->validate([
+            'entity' => 'required|string',
+            'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
         ]);
 
-        [$headers, $rows] = $this->readCsvRows($request->file('file')->getRealPath());
-        $result = ['entity' => $validated['entity'], 'imported' => 0, 'failed' => 0, 'errors' => []];
+        $file = $request->file('file');
+        $csvData = array_map('str_getcsv', file($file->getRealPath()));
+        
+        if (count($csvData) < 2) {
+            return back()->withErrors(['file' => 'The CSV file is empty or missing data rows.']);
+        }
+
+        $headers = array_map('strtolower', array_map('trim', $csvData[0]));
+        $rows = array_slice($csvData, 1);
+
+        $imported = 0;
+        $failed = 0;
+        $errors = [];
 
         foreach ($rows as $index => $row) {
+            if (count(array_filter($row)) === 0) continue; 
+            
+            $data = array_combine($headers, array_pad($row, count($headers), null));
+
             try {
-                $this->importRow($validated['entity'], $row);
-                $result['imported']++;
-            } catch (\Throwable $exception) {
-                $result['failed']++;
-                $result['errors'][] = 'Row '.($index + 2).': '.$exception->getMessage();
+                DB::beginTransaction();
+
+                $email = trim($data['email'] ?? '');
+                if (empty($email)) {
+                    $cleanName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $data['name']));
+                    $email = $cleanName . rand(100,999) . '@rfis.com';
+                }
+
+                $user = User::firstOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => trim($data['name']),
+                        'phone' => trim($data['phone'] ?? '') ?: null,
+                        'password' => Hash::make('password123'), // Default password
+                    ]
+                );
+
+                $role = strtolower(trim($data['role'] ?? 'athlete'));
+
+                $bday = null;
+                if (!empty($data['bday'])) {
+                    try {
+                        $bday = Carbon::parse(trim($data['bday']))->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $bday = null;
+                    }
+                }
+
+                if ($role === 'athlete') {
+                    Athlete::updateOrCreate(
+                        ['id' => $user->id],
+                        [
+                            'gender' => strtoupper(trim($data['gender'] ?? '')) === 'M' ? 'MALE' : 'FEMALE',
+                            'date_of_birth' => $bday,
+                            'height_cm' => floatval($data['height_cm'] ?? 0), 
+                            'weight_kg' => floatval($data['weight_kg'] ?? 0),
+                            'alamat' => trim($data['alamat'] ?? '') ?: null,
+                            'branch_id' => intval($data['branch_id'] ?? 0) ?: null,
+                            'group_id' => intval($data['group_id'] ?? 0) ?: null,
+                            'geup' => !empty($data['geup']) ? 'GEUP_' . trim($data['geup']) : 'GEUP_10',
+                            'nik_hash' => trim($data['nik'] ?? '') ? hash('sha256', trim($data['nik'])) : null,
+                            'bpjs_hash' => trim($data['bpjs'] ?? '') ? hash('sha256', trim($data['bpjs'])) : null,
+                            'nik_encrypted' => trim($data['nik'] ?? '') ?: null,
+                            'bpjs_encrypted' => trim($data['bpjs'] ?? '') ?: null,
+                        ]
+                    );
+                } elseif ($role === 'coach') {
+                    \App\Models\Coach::updateOrCreate(
+                        ['id' => $user->id],
+                        [
+                            'status' => 'active',
+                        ] // If your migration requires specific default fields for coaches, add them here
+                    );
+                } elseif ($role === 'admin') {
+                    // If you have a specific Admin table or Spatie Role assignment, put it here.
+                }
+
+                DB::commit();
+                $imported++;
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                $failed++;
+                $errors[] = "Row " . ($index + 2) . " (" . ($data['name'] ?? 'Unknown') . "): " . $e->getMessage();
             }
         }
 
-        return redirect()->route('admin.index')->with('importResult', $result);
+        return back()->with([
+            'importResult' => [
+                'entity' => $request->entity,
+                'imported' => $imported,
+                'failed' => $failed,
+                'errors' => $errors,
+            ]
+        ]);
     }
 
     public function exportCsv(Request $request): StreamedResponse

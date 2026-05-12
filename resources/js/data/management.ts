@@ -11,7 +11,7 @@ export const managementRoutes = {
     activityLogs: '/admin/activity-logs',
     announcements: '/announcements',
     parentChildSwitcher: '/parent/children',
-    athletes: '/athletes',
+    athletes: '/users',
     coachParentManagement: '/coach-parent-management',
     roleUsers: '/role-users',
     achievements: '/achievements',

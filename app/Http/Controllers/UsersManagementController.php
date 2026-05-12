@@ -7,6 +7,7 @@ use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\Parents;
+use App\Models\Coach;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -15,8 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Facades\Storage;
 
-class AthleteManagementController extends Controller
+class UsersManagementController extends Controller
 {
     use FormatsMvpData;
 
@@ -49,45 +52,151 @@ class AthleteManagementController extends Controller
             ->values();
 
         return Inertia::render('AthletesPage', [
-            'metrics' => [
-                ['label' => 'Active athlete records', 'value' => (string) $athletes->count(), 'detail' => $athletes->whereNull('deleted_at')->count().' active profiles in the roster', 'tone' => 'success'],
-                ['label' => 'Profiles missing parent links', 'value' => (string) $athletes->whereNull('parent_id')->count(), 'detail' => 'Records still need parent connection', 'tone' => 'warning'],
-                ['label' => 'Branches represented', 'value' => (string) $athletes->pluck('branch_id')->filter()->unique()->count(), 'detail' => 'Current roster spread across active branches', 'tone' => 'info'],
-            ],
-            'rows' => $athleteUsers->map(function (User $user) use ($canViewSensitiveIdentifiers) {
-                $athlete = $user->athleteProfile;
-                return [
-                    'id' => 'USR-'.$user->id,
-                    'user_id' => $user->id,
-                    'athlete_id' => $athlete?->athlete_id,
-                    'athlete' => $user->name ?? 'Unknown athlete',
-                    'account_email' => $user->email ?? '-',
-                    'parent' => $athlete?->parent?->user?->name ?? 'Not linked',
-                    'branch' => $athlete?->branch?->branch_name ?? 'Unassigned',
-                    'group' => $athlete?->group?->group_name ?? 'Unassigned',
-                    'height_cm' => $athlete?->height_cm !== null ? number_format((float) $athlete->height_cm, 1).' cm' : '-',
-                    'weight_kg' => $athlete?->weight_kg !== null ? number_format((float) $athlete->weight_kg, 1).' kg' : '-',
-                    'nik' => $canViewSensitiveIdentifiers ? ($athlete?->nik_encrypted ?? 'Not stored') : null,
-                    'bpjs' => $canViewSensitiveIdentifiers ? ($athlete?->bpjs_encrypted ?? 'Not stored') : null,
-                    'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
-                    'status' => $athlete
-                        ? $this->badge($athlete->parent_id ? 'Active' : 'Awaiting parent link', $athlete->parent_id ? 'success' : 'warning')
-                        : $this->badge('Profile incomplete', 'warning'),
-                ];
-            })->values(),
-            'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
-            'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
-            'athletes' => $athletes
-                ->map(fn (Athlete $athlete) => ['value' => $athlete->athlete_id, 'label' => $athlete->user?->name ?? 'Unknown athlete'])
-                ->values(),
-            'parents' => Parents::query()
-                ->with('user:id,name')
-                ->orderBy('parent_id')
-                ->get()
-                ->map(fn (Parents $parent) => ['value' => $parent->parent_id, 'label' => $parent->user?->name ?? 'Unknown parent'])
-                ->values(),
-            'canViewSensitiveIdentifiers' => $canViewSensitiveIdentifiers,
-        ]);
+    'metrics' => [
+        [
+            'label' => 'Active athlete records',
+            'value' => (string) $athletes->count(),
+            'detail' => $athletes->whereNull('deleted_at')->count().' active profiles in the roster',
+            'tone' => 'success',
+        ],
+        [
+            'label' => 'Profiles missing parent links',
+            'value' => (string) $athletes->whereNull('parent_id')->count(),
+            'detail' => 'Records still need parent connection',
+            'tone' => 'warning',
+        ],
+        [
+            'label' => 'Branches represented',
+            'value' => (string) $athletes->pluck('branch_id')->filter()->unique()->count(),
+            'detail' => 'Current roster spread across active branches',
+            'tone' => 'info',
+        ],
+    ],
+
+    'rows' => $athleteUsers->map(function (User $user) use ($canViewSensitiveIdentifiers) {
+        $athlete = $user->athleteProfile;
+
+        return [
+            'id' => 'USR-'.$user->id,
+            'user_id' => $user->id,
+            'athlete_id' => $athlete?->athlete_id,
+
+            'athlete' => $user->name ?? 'Unknown athlete',
+            'account_email' => $user->email ?? '-',
+
+            'parent' => $athlete?->parent?->user?->name ?? 'Not linked',
+
+            'branch' => $athlete?->branch?->branch_name ?? 'Unassigned',
+
+            'group' => $athlete?->group?->group_name ?? 'Unassigned',
+
+            'height_cm' => $athlete?->height_cm !== null
+                ? number_format((float) $athlete->height_cm, 1).' cm'
+                : '-',
+
+            'weight_kg' => $athlete?->weight_kg !== null
+                ? number_format((float) $athlete->weight_kg, 1).' kg'
+                : '-',
+
+            'nik' => $canViewSensitiveIdentifiers
+                ? ($athlete?->nik_encrypted ?? 'Not stored')
+                : null,
+
+            'bpjs' => $canViewSensitiveIdentifiers
+                ? ($athlete?->bpjs_encrypted ?? 'Not stored')
+                : null,
+
+            'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
+
+            'status' => $athlete
+                ? $this->badge(
+                    $athlete->parent_id ? 'Active' : 'Awaiting parent link',
+                    $athlete->parent_id ? 'success' : 'warning'
+                )
+                : $this->badge('Profile incomplete', 'warning'),
+        ];
+    })->values(),
+
+    'coachRows' => User::query()
+        ->with(['coachProfile'])
+        ->whereNull('deleted_at')
+        ->get()
+        ->filter(fn (User $user) => $user->hasRole('coach'))
+        ->map(function (User $user) {
+            $coach = $user->coachProfile;
+
+            return [
+                'id' => $coach?->coach_id ?? $user->id,
+                'name' => $user->name ?? 'Unknown coach',
+                'email' => $user->email ?? '-',
+                'role' => 'Coach',
+
+                'status' => $this->badge('Active', 'success'),
+
+                'specialization' => $coach?->specialization
+                    ?? $coach?->license_type
+                    ?? '-',
+            ];
+        })
+        ->values(),
+
+    'parentRows' => User::query()
+        ->with(['parentProfile'])
+        ->whereNull('deleted_at')
+        ->get()
+        ->filter(fn (User $user) => $user->hasRole('parent'))
+        ->map(function (User $user) {
+            $parent = $user->parentProfile;
+
+            return [
+                'id' => $parent?->parent_id ?? $user->id,
+
+                'name' => $user->name ?? 'Unknown parent',
+
+                'email' => $user->email ?? '-',
+
+                'role' => 'Parent',
+
+                'relation' => $parent?->relation ?? 'Guardian',
+
+                'occupation' => $parent?->occupation ?? '-',
+            ];
+        })
+        ->values(),
+
+    'branches' => Branch::query()
+        ->orderBy('branch_name')
+        ->get([
+            'branch_id as value',
+            'branch_name as label',
+        ]),
+
+    'groups' => Group::query()
+        ->orderBy('group_name')
+        ->get([
+            'group_id as value',
+            'group_name as label',
+        ]),
+
+    'athletes' => $athletes
+        ->map(fn (Athlete $athlete) => [
+            'value' => $athlete->athlete_id,
+            'label' => $athlete->user?->name ?? 'Unknown athlete',
+        ])
+        ->values(),
+
+    'parents' => Parents::query()
+        ->with('user:id,name')
+        ->orderBy('parent_id')
+        ->get()
+        ->map(fn (Parents $parent) => [
+            'value' => $parent->parent_id,
+            'label' => $parent->user?->name ?? 'Unknown parent',
+        ])
+        ->values(),
+
+    'canViewSensitiveIdentifiers' => $canViewSensitiveIdentifiers,
+]);
     }
 
     public function show(Request $request, Athlete $athlete): JsonResponse

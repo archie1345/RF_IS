@@ -135,9 +135,9 @@ class SessionManagementController extends Controller
     {
         $user = $request->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-        if ($user?->isCoach()) {
-            abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        }
+        // if ($user?->isCoach()) {
+        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
+        // }
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:150'],
@@ -168,9 +168,9 @@ class SessionManagementController extends Controller
     {
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-        if ($user?->isCoach()) {
-            abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        }
+        // if ($user?->isCoach()) {
+        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
+        // }
         $session->delete();
 
         return redirect()->route('sessions.index');
@@ -200,9 +200,9 @@ class SessionManagementController extends Controller
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
-        if ($user?->isCoach()) {
-            abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        }
+        // if ($user?->isCoach()) {
+        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
+        // }
 
         $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($this->hasCoachPivotTable()) {

@@ -4,11 +4,12 @@ import PageSection from '@/components/shared/PageSection.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import type { TableColumn, TableRow } from '@/types/management';
+import { useSlots } from 'vue';
 
 const props = withDefaults(defineProps<{
-    eyebrow?: string;
-    title: string;
-    description: string;
+    eyebrow?: string | null;
+    title?: string | null;
+    description?: string | null;
     createLabel?: string;
     tableTitle: string;
     tableDescription: string;
@@ -24,14 +25,17 @@ const props = withDefaults(defineProps<{
 defineEmits<{
     create: [];
 }>();
+
+const slots = useSlots();
 </script>
 
 <template>
     <div class="space-y-6 min-w-0">
         <PageSection
-            :eyebrow="props.eyebrow"
-            :title="props.title"
-            :description="props.description"
+            v-if="props.title || props.description || props.eyebrow || props.showCreate || slots.actions || slots.stats"
+            :eyebrow="props.eyebrow ?? ''"
+            :title="props.title ?? ''"
+            :description="props.description ?? ''"
         >
             <template #actions>
                 <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
@@ -60,4 +64,3 @@ defineEmits<{
         <slot name="after-table" />
     </div>
 </template>
-

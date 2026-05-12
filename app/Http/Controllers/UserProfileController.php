@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Intervention\Image\Laravel\Facades\Image;
 
 class UserProfileController extends Controller
 {
@@ -54,28 +55,58 @@ class UserProfileController extends Controller
     }
 
     public function updateProfile(Request $request): RedirectResponse
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        $validated = $request->validate([
-            'bio' => ['nullable', 'string'],
-            'profile_picture' => ['nullable', 'image', 'max:4096'],
-        ]);
+    $validated = $request->validate([
+        'bio' => ['nullable', 'string'],
 
-        $payload = ['bio' => $validated['bio'] ?? null];
+        'profile_picture' => [
+            'nullable',
+            'image',
+            'mimes:jpg,jpeg,png,webp',
+            'max:2048',
+        ],
+    ]);
 
-        if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profiles', 'public');
-            $payload['profile_picture_path'] = $path;
+    $payload = [
+        'bio' => $validated['bio'] ?? null,
+    ];
+
+    if ($request->hasFile('profile_picture')) {
+
+        if ($user->profile?->profile_picture_path) {
+
+            Storage::disk('public')->delete(
+                $user->profile->profile_picture_path
+            );
         }
 
-        UserProfile::query()->updateOrCreate(
-            ['user_id' => $user->id],
-            $payload,
+        $image = Image::read(
+            $request->file('profile_picture')
+        )
+            ->cover(512, 512)
+            ->toJpeg(85);
+
+        $filename = 'profiles/' . uniqid() . '.jpg';
+
+        Storage::disk('public')->put(
+            $filename,
+            $image->toString()
         );
 
-        return redirect()->route('profile.show');
+        $payload['profile_picture_path'] = $filename;
     }
+
+    UserProfile::query()->updateOrCreate(
+        [
+            'user_id' => $user->id,
+        ],
+        $payload,
+    );
+
+    return redirect()->route('profile.show');
+}
 
     public function storeCertification(Request $request): RedirectResponse
     {

@@ -148,9 +148,10 @@ class DashboardController extends Controller
         } elseif ($role === 'athlete') {
             $athleteId = $request->user()?->athleteProfile?->athlete_id;
             $query->when($athleteId, fn ($inner) => $inner->where('athlete_id', $athleteId));
-        } elseif ($role === 'coach' && ! $request->user()?->isAdmin()) {
-            $query->whereHas('session', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
-        }
+        } 
+        // elseif ($role === 'coach' && ! $request->user()?->isAdmin()) {
+        //     $query->whereHas('session', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
+        // }
 
         return $query->limit(8)->get()->map(fn (Attendance $record) => [
             'id' => 'DA-'.$record->atid,

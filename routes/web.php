@@ -3,7 +3,7 @@
 use App\Http\Controllers\AdminManagementController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\AthleteManagementController;
+use App\Http\Controllers\UsersManagementController;
 use App\Http\Controllers\AttendanceManagementController;
 use App\Http\Controllers\ChampionshipManagementController;
 use App\Http\Controllers\CoachParentManagementController;
@@ -31,18 +31,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('ComponentsPlaygroundPage');
     })->name('components-playground');
 
-    Route::get('athletes', [AthleteManagementController::class, 'index'])->name('athletes.index');
-    Route::get('athletes/user/{user}', [AthleteManagementController::class, 'showByUser'])->name('athletes.show-by-user');
-    Route::put('athletes/user/{user}', [AthleteManagementController::class, 'upsertByUser'])->name('athletes.upsert-by-user');
-    Route::get('athletes/{athlete}', [AthleteManagementController::class, 'show'])->name('athletes.show');
-    Route::post('athletes', [AthleteManagementController::class, 'store'])->name('athletes.store');
-    Route::put('athletes/{athlete}', [AthleteManagementController::class, 'update'])->name('athletes.update');
-    Route::delete('athletes/{athlete}', [AthleteManagementController::class, 'destroy'])->name('athletes.destroy');
-    Route::post('athletes/{athlete}/parent-link', [AthleteManagementController::class, 'linkParent'])->name('athletes.parent-link');
+    Route::get('users', [UsersManagementController::class, 'index'])->name('athletes.index');
+    Route::get('users/user/{user}', [UsersManagementController::class, 'showByUser'])->name('athletes.show-by-user');
+    Route::put('users/user/{user}', [UsersManagementController::class, 'upsertByUser'])->name('athletes.upsert-by-user');
+    Route::get('users/{user}', [UsersManagementController::class, 'show'])->name('athletes.show');
+    Route::post('users', [UsersManagementController::class, 'store'])->name('athletes.store');
+    Route::put('users/{user}', [UsersManagementController::class, 'update'])->name('athletes.update');
+    Route::delete('users/{user}', [UsersManagementController::class, 'destroy'])->name('athletes.destroy');
+    Route::post('users/{user}/parent-link', [UsersManagementController::class, 'linkParent'])->name('athletes.parent-link');
 
     Route::get('admin', [AdminManagementController::class, 'index'])->name('admin.index');
     Route::get('admin/activity-logs', [ActivityLogController::class, 'index'])->name('admin.activity-logs.index');
     Route::post('admin/accounts', [AdminManagementController::class, 'store'])->name('admin.accounts.store');
+    Route::get('admin/accounts/{user}', [AdminManagementController::class, 'show'])->name('admin.accounts.show');
     Route::put('admin/accounts/{user}', [AdminManagementController::class, 'update'])->name('admin.accounts.update');
     Route::post('admin/accounts/{user}/profile', [AdminManagementController::class, 'updateAccountProfile'])->name('admin.accounts.profile.update');
     Route::delete('admin/accounts/{user}', [AdminManagementController::class, 'destroyAccount'])->name('admin.accounts.destroy');
@@ -62,10 +63,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('coach-parent-management/coaches/{coach}', [CoachParentManagementController::class, 'updateCoach'])->name('coach-parent.coaches.update');
     Route::post('coach-parent-management/parents', [CoachParentManagementController::class, 'storeParent'])->name('coach-parent.parents.store');
     Route::put('coach-parent-management/parents/{parent}', [CoachParentManagementController::class, 'updateParent'])->name('coach-parent.parents.update');
-    Route::get('role-users', [RoleUserManagementController::class, 'index'])->name('role-users.index');
-    Route::post('role-users/{user}/profile', [RoleUserManagementController::class, 'upsertProfile'])->name('role-users.profile.upsert');
-    Route::post('role-users/{user}/certifications', [RoleUserManagementController::class, 'storeCertification'])->name('role-users.certifications.store');
-    Route::post('role-users/{user}/achievements', [RoleUserManagementController::class, 'storeAchievement'])->name('role-users.achievements.store');
 
     Route::get('payments', [PaymentManagementController::class, 'index'])->name('payments.index');
     Route::post('payments', [PaymentManagementController::class, 'store'])->name('payments.store');
