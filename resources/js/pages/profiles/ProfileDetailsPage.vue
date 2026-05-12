@@ -6,9 +6,10 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SettingsLayout from '@/layouts/settings/Layout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/management';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { FileText, PencilLine, ShieldCheck } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { Cropper } from 'vue-advanced-cropper';
@@ -127,9 +128,10 @@ const props = withDefaults(defineProps<{
     groups: () => [],
 });
 
-const breadcrumbs = computed<BreadcrumbItem[]>(() => props.context === 'settings'
+const isSettingsContext = computed(() => props.context === 'settings');
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => isSettingsContext.value
     ? [
-        { title: 'Dashboard', href: '/dashboard' },
         { title: 'Profile settings', href: '/settings/profile' },
     ]
     : [
@@ -138,19 +140,27 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => props.context === 'settings
         { title: props.user.name, href: `/users/${props.user.id}` },
     ]);
 
-const settingsNavItems = [
-    { title: 'Profile', href: '/settings/profile' },
-    { title: 'Password', href: '/settings/password' },
-    { title: 'Two-Factor Auth', href: '/settings/two-factor' },
-    { title: 'Appearance', href: '/settings/appearance' },
-];
+const pageShell = computed(() => isSettingsContext.value ? SettingsLayout : 'div');
+
+const pageShellClass = computed(() => isSettingsContext.value
+    ? ''
+    : 'flex flex-1 flex-col gap-6 p-4 md:p-6');
+
+const pageContentClass = computed(() => isSettingsContext.value
+    ? 'flex flex-1 flex-col gap-6'
+    : 'contents');
 
 const profileUpdateUrl = computed(() => props.profileUpdateUrl ?? `/users/${props.user.id}/profile`);
 const certificationStoreUrl = computed(() => props.certificationStoreUrl ?? `/users/${props.user.id}/certifications`);
 const achievementStoreUrl = computed(() => props.achievementStoreUrl ?? `/users/${props.user.id}/achievements`);
 const accountUpdateUrl = computed(() => props.accountUpdateUrl ?? '/settings/profile');
 const canEditRoleProfiles = computed(() => props.canEditRoleProfiles);
-const canManageMilestones = computed(() => props.user.roles.includes('athlete') || props.user.roles.includes('coach'));
+const shouldShowMilestones = computed(() =>
+    props.user.roles.includes('athlete') ||
+    props.user.roles.includes('coach')
+);
+
+const canManageMilestones = computed(() => shouldShowMilestones.value);
 
 const certificationUpdateUrl = (id: number | string) => props.context === 'settings'
     ? `/settings/profile/certifications/${id}`
@@ -354,8 +364,8 @@ function saveAccountChanges() {
             window.location.reload();
         },
         onError: (errors) => {
-            console.error("Account Form Errors:", errors);
-            alert("Save failed! Check the console or the red text below inputs.");
+            console.error('Account Form Errors:', errors);
+            alert('Save failed! Check the console or the red text below inputs.');
         },
     });
 }
@@ -363,6 +373,7 @@ function saveAccountChanges() {
 async function saveProfileChanges() {
     if (selectedImage.value && !profileForm.profile_picture) {
         await applyCrop();
+
         if (!profileForm.profile_picture) {
             return;
         }
@@ -378,9 +389,9 @@ async function saveProfileChanges() {
             window.location.reload();
         },
         onError: (errors) => {
-            console.error("Profile Form Errors:", errors);
-            alert("Save failed! Check the console or the red text below inputs.");
-        }
+            console.error('Profile Form Errors:', errors);
+            alert('Save failed! Check the console or the red text below inputs.');
+        },
     });
 }
 
@@ -394,9 +405,9 @@ function saveAthleteChanges() {
             window.location.reload();
         },
         onError: (errors) => {
-            console.error("Athlete Form Errors:", errors);
-            alert("Save failed! Check the console or the red text below inputs.");
-        }
+            console.error('Athlete Form Errors:', errors);
+            alert('Save failed! Check the console or the red text below inputs.');
+        },
     });
 }
 
@@ -410,9 +421,9 @@ function saveCoachChanges() {
             window.location.reload();
         },
         onError: (errors) => {
-            console.error("Coach Form Errors:", errors);
-            alert("Save failed! Check the console or the red text below inputs.");
-        }
+            console.error('Coach Form Errors:', errors);
+            alert('Save failed! Check the console or the red text below inputs.');
+        },
     });
 }
 
@@ -426,9 +437,9 @@ function saveParentChanges() {
             window.location.reload();
         },
         onError: (errors) => {
-            console.error("Parent Form Errors:", errors);
-            alert("Save failed! Check the console or the red text below inputs.");
-        }
+            console.error('Parent Form Errors:', errors);
+            alert('Save failed! Check the console or the red text below inputs.');
+        },
     });
 }
 
@@ -441,7 +452,7 @@ function addCertification() {
             certForm.cert_type = 'BELT';
             window.location.reload();
         },
-        onError: (errors) => console.error("Cert Errors:", errors)
+        onError: (errors) => console.error('Cert Errors:', errors),
     });
 }
 
@@ -514,7 +525,7 @@ function addAchievement() {
             achievementForm.medal = 'NONE';
             window.location.reload();
         },
-        onError: (errors) => console.error("Achievement Errors:", errors)
+        onError: (errors) => console.error('Achievement Errors:', errors),
     });
 }
 
@@ -569,7 +580,6 @@ function shortHash(value?: string | null) {
 
 async function onProfilePictureChange(event: Event) {
     const target = event.target as HTMLInputElement;
-
     const file = target.files?.[0];
 
     if (!file) return;
@@ -577,15 +587,13 @@ async function onProfilePictureChange(event: Event) {
     const maxSize = 2 * 1024 * 1024;
 
     if (file.size > maxSize) {
-        profilePictureError.value =
-            'Profile picture must be smaller than 2MB.';
+        profilePictureError.value = 'Profile picture must be smaller than 2MB.';
         target.value = '';
         return;
     }
 
     if (!file.type.startsWith('image/')) {
-        profilePictureError.value =
-            'Selected file must be an image.';
+        profilePictureError.value = 'Selected file must be an image.';
         target.value = '';
         return;
     }
@@ -622,6 +630,7 @@ async function applyCrop() {
     outputCanvas.height = profilePictureHeight;
 
     const context = outputCanvas.getContext('2d');
+
     if (!context) {
         profilePictureError.value = 'Could not prepare the cropped image.';
         return;
@@ -684,474 +693,449 @@ onBeforeUnmount(() => {
 
 <template>
     <Head :title="`${user.name} - Profile`" />
+
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div :key="$page.url" class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection :title="`${user.name}'s Profile`" :description="`View detailed information for ${user.email}`" />
+        <component :is="pageShell" :class="pageShellClass">
+            <div :key="$page.url" :class="pageContentClass">
+                <PageSection :title="`${user.name}'s Profile`" :description="`View detailed information for ${user.email}`" />
 
-            <nav
-                v-if="props.context === 'settings'"
-                class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:rounded-xl sm:border sm:border-border/70 sm:bg-card sm:p-2 sm:shadow-sm"
-                aria-label="Settings"
-            >
-                <Button
-                    v-for="item in settingsNavItems"
-                    :key="item.href"
-                    variant="ghost"
-                    size="sm"
-                    :class="[
-                        'min-w-max rounded-lg border border-transparent px-3 text-muted-foreground sm:min-w-0',
-                        {
-                            'border-border bg-muted text-foreground shadow-sm': $page.url.startsWith(item.href),
-                        },
-                    ]"
-                    as-child
-                >
-                    <Link :href="item.href">{{ item.title }}</Link>
-                </Button>
-            </nav>
-
-            <div class="grid gap-6">
-                <div v-if="props.canEditAccount" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h3 class="text-lg font-semibold">Account Details</h3>
-                            <p class="text-sm text-muted-foreground">Update your basic account information.</p>
+                <div class="grid gap-6">
+                    <div v-if="props.canEditAccount" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold">Account Details</h3>
+                                <p class="text-sm text-muted-foreground">Update your basic account information.</p>
+                            </div>
+                            <Button v-if="!isEditingAccount" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingAccount = true">Edit</Button>
                         </div>
-                        <Button v-if="!isEditingAccount" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingAccount = true">Edit</Button>
+
+                        <form class="space-y-3" @submit.prevent="saveAccountChanges">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FormInputField id="account-name" v-model="accountForm.name" label="Name" :disabled="!isEditingAccount" :error="accountForm.errors.name" />
+                                <FormInputField id="account-email" v-model="accountForm.email" label="Email" type="email" :disabled="!isEditingAccount" :error="accountForm.errors.email" />
+                            </div>
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <FormSelectField id="account-gender" v-model="accountForm.gender" label="Gender" :disabled="!isEditingAccount" :options="[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }]" :error="accountForm.errors.gender" />
+                                <FormInputField id="account-bday" v-model="accountForm.bday" label="Birth date" type="date" :disabled="!isEditingAccount" :error="accountForm.errors.bday" />
+                                <FormInputField id="account-phone" v-model="accountForm.phone" label="Phone" :disabled="!isEditingAccount" :error="accountForm.errors.phone" />
+                            </div>
+
+                            <div v-if="isEditingAccount" class="mt-4 flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" :disabled="accountForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelAccountEdit">Cancel</Button>
+                            </div>
+                        </form>
                     </div>
 
-                    <form class="space-y-3" @submit.prevent="saveAccountChanges">
+                    <div v-if="shouldShowMilestones"class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                        <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 items-center gap-4">
+                                <div class="flex-shrink-0">
+                                    <img
+                                        v-if="user.profilePictureUrl"
+                                        :src="user.profilePictureUrl"
+                                        :alt="user.name"
+                                        class="aspect-[3/4] w-20 rounded-md border border-border object-cover"
+                                    />
+                                    <div v-else class="flex aspect-[3/4] w-20 items-center justify-center rounded-md border border-border bg-muted text-2xl font-semibold text-muted-foreground">
+                                        {{ user.name.charAt(0).toUpperCase() }}
+                                    </div>
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 class="text-lg font-semibold">{{ user.name }}</h3>
+                                    <p class="truncate text-sm text-muted-foreground">{{ user.email }}</p>
+                                    <p class="text-sm text-muted-foreground">Roles: {{ user.roles.join(', ') }}</p>
+                                </div>
+                            </div>
+                            <Button v-if="!isEditingProfile" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingProfile = true">Edit</Button>
+                        </div>
+
+                        <form class="space-y-4" @submit.prevent="saveProfileChanges">
+                            <div class="grid gap-2">
+                                <label for="bio" class="text-sm font-medium">Bio</label>
+                                <textarea id="bio" v-model="profileForm.bio" :disabled="!isEditingProfile" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
+                                <p v-if="profileForm.errors.bio" class="text-sm text-red-500">{{ profileForm.errors.bio }}</p>
+                            </div>
+                            <div v-if="isEditingProfile" class="grid gap-2">
+                                <label for="profile-picture" class="text-sm font-medium">Profile Picture</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <input
+                                        id="profile-picture"
+                                        ref="profilePictureFileInput"
+                                        type="file"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm sm:w-auto"
+                                        @change="onProfilePictureChange"
+                                    />
+                                    <Button v-if="user.profilePictureUrl" type="button" variant="outline" size="sm" @click="editCurrentProfilePicture">
+                                        Edit current picture
+                                    </Button>
+                                </div>
+
+                                <p v-if="profilePictureError" class="text-sm text-destructive">
+                                    {{ profilePictureError }}
+                                </p>
+
+                                <div v-if="selectedImage" class="mt-4 grid gap-3">
+                                    <div class="overflow-hidden rounded-lg border border-border bg-muted">
+                                        <Cropper
+                                            ref="cropperRef"
+                                            :src="selectedImage"
+                                            :stencil-props="{
+                                                aspectRatio: 3 / 4
+                                            }"
+                                            :canvas="{
+                                                width: profilePictureWidth,
+                                                height: profilePictureHeight
+                                            }"
+                                            class="h-72 w-full sm:h-96"
+                                            image-restriction="stencil"
+                                            @change="markCropDirty"
+                                        />
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-2">
+                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(1.1)">Zoom in</Button>
+                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(0.9)">Zoom out</Button>
+                                        <Button type="button" variant="outline" size="sm" @click="rotateCrop">Rotate</Button>
+                                        <Button type="button" variant="outline" size="sm" @click="resetCrop">Reset</Button>
+                                        <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
+                                    </div>
+
+                                    <p v-if="profilePictureReady" class="text-sm text-green-600">
+                                        3x4 profile picture is ready to save.
+                                    </p>
+                                </div>
+                            </div>
+                            <div v-if="isEditingProfile" class="flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" :disabled="profileForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelProfileEdit">Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="user.roles.includes('athlete')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h4 class="flex items-center gap-2 font-semibold">
+                                <ShieldCheck class="h-4 w-4 text-muted-foreground" />
+                                Athlete Details
+                            </h4>
+                            <Button v-if="canEditRoleProfiles && !isEditingAthlete" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingAthlete = true">Edit</Button>
+                        </div>
+
+                        <form class="space-y-3" @submit.prevent="saveAthleteChanges">
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="height" v-model="athleteForm.height_cm" label="Height (cm)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.height_cm" />
+                                <FormInputField id="weight" v-model="athleteForm.weight_kg" label="Weight (kg)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.weight_kg" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormSelectField id="geup" v-model="athleteForm.geup" label="Geup" :disabled="!isEditingAthlete" :options="[{ value: 'GEUP_10', label: 'GEUP 10' }, { value: 'GEUP_9', label: 'GEUP 9' }, { value: 'GEUP_8', label: 'GEUP 8' }, { value: 'GEUP_7', label: 'GEUP 7' }, { value: 'GEUP_6', label: 'GEUP 6' }, { value: 'GEUP_5', label: 'GEUP 5' }, { value: 'GEUP_4', label: 'GEUP 4' }, { value: 'GEUP_3', label: 'GEUP 3' }, { value: 'GEUP_2', label: 'GEUP 2' }, { value: 'GEUP_1', label: 'GEUP 1' }, { value: 'DAN', label: 'DAN' }]" />
+                                <FormSelectField id="gender" v-model="athleteForm.gender" label="Gender" :disabled="!isEditingAthlete" :options="[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }]" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormSelectField id="athlete-branch" v-model="athleteForm.branch_id" label="Branch" :disabled="!isEditingAthlete" :options="props.branches" :error="athleteForm.errors.branch_id" />
+                                <FormSelectField id="athlete-group" v-model="athleteForm.group_id" label="Group" :disabled="!isEditingAthlete" :options="props.groups" :error="athleteForm.errors.group_id" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="bday" v-model="athleteForm.bday" label="Birthday" type="date" :disabled="!isEditingAthlete" :error="athleteForm.errors.bday" />
+                                <FormInputField id="phone" v-model="athleteForm.phone" label="Phone" :disabled="!isEditingAthlete" :error="athleteForm.errors.phone" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField
+                                    id="nik"
+                                    v-model="athleteForm.nik"
+                                    label="NIK"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.nik"
+                                    :help="!athleteForm.nik && user.athleteProfile?.nikHash ? `Stored as hash only (${shortHash(user.athleteProfile?.nikHash)}). Re-enter once to display the real NIK here.` : undefined"
+                                />
+                                <FormInputField
+                                    id="bpjs"
+                                    v-model="athleteForm.bpjs"
+                                    label="BPJS"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.bpjs"
+                                    :help="!athleteForm.bpjs && user.athleteProfile?.bpjsHash ? `Stored as hash only (${shortHash(user.athleteProfile?.bpjsHash)}). Re-enter once to display the real BPJS here.` : undefined"
+                                />
+                            </div>
+                            <FormInputField id="alamat" v-model="athleteForm.alamat" label="Address" :disabled="!isEditingAthlete" :error="athleteForm.errors.alamat" />
+
+                            <div v-if="isEditingAthlete" class="mt-4 flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" :disabled="athleteForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelAthleteEdit">Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="user.roles.includes('coach')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h4 class="font-semibold">Coach Details</h4>
+                            <Button v-if="canEditRoleProfiles && !isEditingCoach" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingCoach = true">Edit</Button>
+                        </div>
+
+                        <form class="space-y-3" @submit.prevent="saveCoachChanges">
+                            <FormSelectField id="coach-status" v-model="coachForm.status" label="Status" :disabled="!isEditingCoach" :options="[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]" />
+                            <FormInputField id="specialization" v-model="coachForm.specialization" label="Specialization" :disabled="!isEditingCoach" :error="coachForm.errors.specialization" />
+                            <div class="grid gap-2">
+                                <label for="coach-bio" class="text-sm font-medium">Coach Bio</label>
+                                <textarea id="coach-bio" v-model="coachForm.bio" :disabled="!isEditingCoach" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
+                                <p v-if="coachForm.errors.bio" class="text-sm text-red-500">{{ coachForm.errors.bio }}</p>
+                            </div>
+
+                            <div v-if="isEditingCoach" class="mt-4 flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" :disabled="coachForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelCoachEdit">Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="user.roles.includes('parent')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5 lg:col-span-2">
+                        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <h4 class="font-semibold">Parent Details</h4>
+                            <Button v-if="canEditRoleProfiles && !isEditingParent" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingParent = true">Edit</Button>
+                        </div>
+
+                        <form class="space-y-3" @submit.prevent="saveParentChanges">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FormInputField id="parent-phone" v-model="parentForm.phone" label="Phone" :disabled="!isEditingParent" :error="parentForm.errors.phone" />
+                                <FormSelectField id="parent-relation" v-model="parentForm.relation" label="Relation" :disabled="!isEditingParent" :options="[{ value: 'father', label: 'Father' }, { value: 'mother', label: 'Mother' }, { value: 'guardian', label: 'Guardian' }]" />
+                            </div>
+                            <FormInputField id="parent-occupation" v-model="parentForm.occupation" label="Occupation" :disabled="!isEditingParent" :error="parentForm.errors.occupation" />
+                            <div class="grid gap-2">
+                                <label for="parent-notes" class="text-sm font-medium">Notes</label>
+                                <textarea id="parent-notes" v-model="parentForm.notes" :disabled="!isEditingParent" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
+                            </div>
+
+                            <div class="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                                <span class="font-medium">Linked Athletes (Children):</span>
+                                <ul v-if="user.parentProfile?.athletes?.length" class="ml-4 mt-1 list-disc text-muted-foreground">
+                                    <li v-for="athlete in user.parentProfile?.athletes" :key="athlete.id">
+                                        {{ athlete.name }} ({{ athlete.branch?.branch_name }} - {{ athlete.group?.group_name }})
+                                    </li>
+                                </ul>
+                                <p v-else class="mt-1 text-muted-foreground italic">No children linked to this account yet.</p>
+                            </div>
+
+                            <div v-if="isEditingParent" class="mt-4 flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" :disabled="parentForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelParentEdit">Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div v-if="shouldShowMilestones" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                    <h4 class="mb-3 flex items-center gap-2 font-semibold">
+                        <FileText class="h-4 w-4 text-muted-foreground" />
+                        Certifications
+                    </h4>
+                    <DataTable
+                        title="Certifications"
+                        description="View all certifications for this user."
+                        :columns="certColumns"
+                        :rows="certRows"
+                        action-label="Manage"
+                        empty-text="No certifications found."
+                    >
+                        <template #cell="{ row, column, value }">
+                            <a
+                                v-if="column.key === 'file_name' && row.file_url"
+                                :href="String(row.file_url)"
+                                target="_blank"
+                                class="text-sm font-medium underline underline-offset-4"
+                            >
+                                {{ value }}
+                            </a>
+                            <span v-else>{{ value ?? '-' }}</span>
+                        </template>
+                        <template v-if="canManageMilestones" #row-actions="{ row }">
+                            <Button type="button" variant="outline" size="sm" class="gap-2" @click="openCertificationEdit(row)">
+                                <PencilLine class="h-3.5 w-3.5" />
+                                Edit
+                            </Button>
+                        </template>
+                    </DataTable>
+                    <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
+                        <h5 class="mb-2 font-medium">Add Certification</h5>
+                        <form class="grid gap-3" @submit.prevent="addCertification">
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormSelectField id="cert-type" v-model="certForm.cert_type" label="Type" :options="[{ value: 'BELT', label: 'Belt' }, { value: 'REFEREE', label: 'Referee' }, { value: 'TRAINER', label: 'Trainer' }]" />
+                                <FormInputField id="cert-title" v-model="certForm.title" label="Title" required :error="certForm.errors.title" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="cert-issuer" v-model="certForm.issuer" label="Issuer" :error="certForm.errors.issuer" />
+                                <FormInputField id="cert-date" v-model="certForm.certified_at" label="Certified at" type="date" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="cert-expires" v-model="certForm.expires_at" label="Expires at" type="date" />
+                                <FormInputField id="cert-notes" v-model="certForm.notes" label="Notes" :error="certForm.errors.notes" />
+                            </div>
+                            <div class="grid gap-2">
+                                <label for="cert-file" class="text-sm font-medium">Certificate File</label>
+                                <input
+                                    id="cert-file"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                    @change="onCertificationFileChange"
+                                />
+                            </div>
+                            <div>
+                                <Button type="submit" :disabled="certForm.processing">Add Certification</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div v-if="shouldShowMilestones" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                    <h4 class="mb-3 flex items-center gap-2 font-semibold">
+                        <FileText class="h-4 w-4 text-muted-foreground" />
+                        Achievements
+                    </h4>
+                    <DataTable
+                        title="Achievements"
+                        description="View all achievements for this user."
+                        :columns="achColumns"
+                        :rows="achRows"
+                        action-label="Manage"
+                        empty-text="No achievements found."
+                    >
+                        <template #cell="{ row, column, value }">
+                            <a
+                                v-if="column.key === 'file_name' && row.file_url"
+                                :href="String(row.file_url)"
+                                target="_blank"
+                                class="text-sm font-medium underline underline-offset-4"
+                            >
+                                {{ value }}
+                            </a>
+                            <span v-else>{{ value ?? '-' }}</span>
+                        </template>
+                        <template v-if="canManageMilestones" #row-actions="{ row }">
+                            <Button type="button" variant="outline" size="sm" class="gap-2" @click="openAchievementEdit(row)">
+                                <PencilLine class="h-3.5 w-3.5" />
+                                Edit
+                            </Button>
+                        </template>
+                    </DataTable>
+                    <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
+                        <h5 class="mb-2 font-medium">Add Achievement</h5>
+                        <form class="grid gap-3" @submit.prevent="addAchievement">
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="ach-name" v-model="achievementForm.championship_name" label="Championship name" required :error="achievementForm.errors.championship_name" />
+                                <FormSelectField id="ach-medal" v-model="achievementForm.medal" label="Medal" :options="[{ value: 'GOLD', label: 'Gold' }, { value: 'SILVER', label: 'Silver' }, { value: 'BRONZE', label: 'Bronze' }, { value: 'NONE', label: 'None' }]" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField id="ach-location" v-model="achievementForm.location" label="Location" :error="achievementForm.errors.location" />
+                                <FormInputField id="ach-date" v-model="achievementForm.event_date" label="Date" type="date" :error="achievementForm.errors.event_date" />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-3">
+                                <FormInputField id="ach-class" v-model="achievementForm.class_name" label="Class name" />
+                                <FormInputField id="ach-division" v-model="achievementForm.division" label="Division" />
+                                <FormInputField id="ach-category" v-model="achievementForm.category" label="Category" />
+                            </div>
+                            <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Notes" />
+                            <div class="grid gap-2">
+                                <label for="achievement-file" class="text-sm font-medium">Supporting File</label>
+                                <input
+                                    id="achievement-file"
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                    @change="onAchievementFileChange"
+                                />
+                            </div>
+                            <div>
+                                <Button type="submit" :disabled="achievementForm.processing">Add Achievement</Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <FormModal :open="Boolean(editingCertification)" max-width-class="max-w-4xl" @close="closeCertificationEdit">
+                    <form class="grid gap-4" @submit.prevent="saveCertificationEdit">
+                        <div>
+                            <h3 class="text-lg font-semibold">Edit Certification</h3>
+                            <p class="text-sm text-muted-foreground">Update the record details or replace the attached file.</p>
+                        </div>
+
                         <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField id="account-name" v-model="accountForm.name" label="Name" :disabled="!isEditingAccount" :error="accountForm.errors.name" />
-                            <FormInputField id="account-email" v-model="accountForm.email" label="Email" type="email" :disabled="!isEditingAccount" :error="accountForm.errors.email" />
+                            <FormSelectField id="cert-edit-type" v-model="certificationEditForm.cert_type" label="Type" :options="[{ value: 'BELT', label: 'Belt' }, { value: 'REFEREE', label: 'Referee' }, { value: 'TRAINER', label: 'Trainer' }]" :error="certificationEditForm.errors.cert_type" />
+                            <FormInputField id="cert-edit-title" v-model="certificationEditForm.title" label="Title" required :error="certificationEditForm.errors.title" />
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <FormInputField id="cert-edit-issuer" v-model="certificationEditForm.issuer" label="Issuer" :error="certificationEditForm.errors.issuer" />
+                            <FormInputField id="cert-edit-date" v-model="certificationEditForm.certified_at" label="Certified at" type="date" :error="certificationEditForm.errors.certified_at" />
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <FormInputField id="cert-edit-expires" v-model="certificationEditForm.expires_at" label="Expires at" type="date" :error="certificationEditForm.errors.expires_at" />
+                            <FormInputField id="cert-edit-notes" v-model="certificationEditForm.notes" label="Notes" :error="certificationEditForm.errors.notes" />
+                        </div>
+                        <div class="grid gap-2">
+                            <label for="cert-edit-file" class="text-sm font-medium">Replace Certificate File</label>
+                            <a v-if="editingCertification?.fileUrl" :href="editingCertification.fileUrl" target="_blank" class="text-sm font-medium underline underline-offset-4">
+                                Current file: {{ editingCertification.fileName ?? 'Open file' }}
+                            </a>
+                            <input
+                                id="cert-edit-file"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                                @change="onCertificationEditFileChange"
+                            />
+                            <p v-if="certificationEditForm.errors.file" class="text-sm text-destructive">{{ certificationEditForm.errors.file }}</p>
+                        </div>
+
+                        <div class="flex flex-col justify-end gap-2 sm:flex-row">
+                            <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeCertificationEdit">Cancel</Button>
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="certificationEditForm.processing">Save Certification</Button>
+                        </div>
+                    </form>
+                </FormModal>
+
+                <FormModal :open="Boolean(editingAchievement)" max-width-class="max-w-4xl" @close="closeAchievementEdit">
+                    <form class="grid gap-4" @submit.prevent="saveAchievementEdit">
+                        <div>
+                            <h3 class="text-lg font-semibold">Edit Achievement</h3>
+                            <p class="text-sm text-muted-foreground">Update the achievement details or replace the supporting file.</p>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <FormInputField id="ach-edit-name" v-model="achievementEditForm.championship_name" label="Championship name" required :error="achievementEditForm.errors.championship_name" />
+                            <FormSelectField id="ach-edit-medal" v-model="achievementEditForm.medal" label="Medal" :options="[{ value: 'GOLD', label: 'Gold' }, { value: 'SILVER', label: 'Silver' }, { value: 'BRONZE', label: 'Bronze' }, { value: 'NONE', label: 'None' }]" :error="achievementEditForm.errors.medal" />
+                        </div>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <FormInputField id="ach-edit-location" v-model="achievementEditForm.location" label="Location" :error="achievementEditForm.errors.location" />
+                            <FormInputField id="ach-edit-date" v-model="achievementEditForm.event_date" label="Date" type="date" :error="achievementEditForm.errors.event_date" />
                         </div>
                         <div class="grid gap-3 md:grid-cols-3">
-                            <FormSelectField id="account-gender" v-model="accountForm.gender" label="Gender" :disabled="!isEditingAccount" :options="[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }]" :error="accountForm.errors.gender" />
-                            <FormInputField id="account-bday" v-model="accountForm.bday" label="Birth date" type="date" :disabled="!isEditingAccount" :error="accountForm.errors.bday" />
-                            <FormInputField id="account-phone" v-model="accountForm.phone" label="Phone" :disabled="!isEditingAccount" :error="accountForm.errors.phone" />
+                            <FormInputField id="ach-edit-class" v-model="achievementEditForm.class_name" label="Class name" :error="achievementEditForm.errors.class_name" />
+                            <FormInputField id="ach-edit-division" v-model="achievementEditForm.division" label="Division" :error="achievementEditForm.errors.division" />
+                            <FormInputField id="ach-edit-category" v-model="achievementEditForm.category" label="Category" :error="achievementEditForm.errors.category" />
                         </div>
-
-                        <div v-if="isEditingAccount" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                            <Button type="submit" :disabled="accountForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
-                            <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelAccountEdit">Cancel</Button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                    <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex min-w-0 items-center gap-4">
-                            <div class="flex-shrink-0">
-                                <img
-                                    v-if="user.profilePictureUrl"
-                                    :src="user.profilePictureUrl"
-                                    :alt="user.name"
-                                    class="aspect-[3/4] w-20 rounded-md border border-border object-cover"
-                                />
-                                <div v-else class="flex aspect-[3/4] w-20 items-center justify-center rounded-md border border-border bg-muted text-2xl font-semibold text-muted-foreground">
-                                    {{ user.name.charAt(0).toUpperCase() }}
-                                </div>
-                            </div>
-                            <div class="min-w-0">
-                                <h3 class="text-lg font-semibold">{{ user.name }}</h3>
-                                <p class="truncate text-sm text-muted-foreground">{{ user.email }}</p>
-                                <p class="text-sm text-muted-foreground">Roles: {{ user.roles.join(', ') }}</p>
-                            </div>
-                        </div>
-                        <Button v-if="!isEditingProfile" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingProfile = true">Edit</Button>
-                    </div>
-
-                    <form class="space-y-4" @submit.prevent="saveProfileChanges">
+                        <FormInputField id="ach-edit-notes" v-model="achievementEditForm.notes" label="Notes" :error="achievementEditForm.errors.notes" />
                         <div class="grid gap-2">
-                            <label for="bio" class="text-sm font-medium">Bio</label>
-                            <textarea id="bio" v-model="profileForm.bio" :disabled="!isEditingProfile" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
-                            <p v-if="profileForm.errors.bio" class="text-sm text-red-500">{{ profileForm.errors.bio }}</p>
-                        </div>
-                        <div v-if="isEditingProfile" class="grid gap-2">
-                            <label for="profile-picture" class="text-sm font-medium">Profile Picture</label>
-                            <div class="flex flex-wrap gap-2">
-                                <input
-                                    id="profile-picture"
-                                    ref="profilePictureFileInput"
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp"
-                                    @change="onProfilePictureChange"
-                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm sm:w-auto"
-                                />
-                                <Button v-if="user.profilePictureUrl" type="button" variant="outline" size="sm" @click="editCurrentProfilePicture">
-                                    Edit current picture
-                                </Button>
-                            </div>
-
-                            <p
-                                v-if="profilePictureError"
-                                class="text-sm text-destructive"
-                            >
-                                {{ profilePictureError }}
-                            </p>
-
-                            <div
-                                v-if="selectedImage"
-                                class="mt-4 grid gap-3"
-                            >
-                                <div class="overflow-hidden rounded-lg border border-border bg-muted">
-                                    <Cropper
-                                        ref="cropperRef"
-                                        :src="selectedImage"
-                                        :stencil-props="{
-                                            aspectRatio: 3 / 4
-                                        }"
-                                        :canvas="{
-                                            width: profilePictureWidth,
-                                            height: profilePictureHeight
-                                        }"
-                                        class="h-72 w-full sm:h-96"
-                                        image-restriction="stencil"
-                                        @change="markCropDirty"
-                                    />
-                                </div>
-
-                                <div class="flex flex-wrap gap-2">
-                                    <Button type="button" variant="outline" size="sm" @click="zoomCrop(1.1)">Zoom in</Button>
-                                    <Button type="button" variant="outline" size="sm" @click="zoomCrop(0.9)">Zoom out</Button>
-                                    <Button type="button" variant="outline" size="sm" @click="rotateCrop">Rotate</Button>
-                                    <Button type="button" variant="outline" size="sm" @click="resetCrop">Reset</Button>
-                                    <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
-                                </div>
-
-                                <p v-if="profilePictureReady" class="text-sm text-green-600">
-                                    3x4 profile picture is ready to save.
-                                </p>
-                            </div>
-                        </div>
-                        <div v-if="isEditingProfile" class="flex flex-col gap-2 sm:flex-row">
-                            <Button type="submit" :disabled="profileForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
-                            <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelProfileEdit">Cancel</Button>
-                        </div>
-                    </form>
-                </div>
-
-                <div v-if="user.roles.includes('athlete')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <h4 class="flex items-center gap-2 font-semibold">
-                            <ShieldCheck class="h-4 w-4 text-muted-foreground" />
-                            Athlete Details
-                        </h4>
-                        <Button v-if="canEditRoleProfiles && !isEditingAthlete" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingAthlete = true">Edit</Button>
-                    </div>
-
-                    <form class="space-y-3" @submit.prevent="saveAthleteChanges">
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="height" v-model="athleteForm.height_cm" label="Height (cm)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.height_cm" />
-                            <FormInputField id="weight" v-model="athleteForm.weight_kg" label="Weight (kg)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.weight_kg" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormSelectField id="geup" v-model="athleteForm.geup" label="Geup" :disabled="!isEditingAthlete" :options="[{ value: 'GEUP_10', label: 'GEUP 10' }, { value: 'GEUP_9', label: 'GEUP 9' }, { value: 'GEUP_8', label: 'GEUP 8' }, { value: 'GEUP_7', label: 'GEUP 7' }, { value: 'GEUP_6', label: 'GEUP 6' }, { value: 'GEUP_5', label: 'GEUP 5' }, { value: 'GEUP_4', label: 'GEUP 4' }, { value: 'GEUP_3', label: 'GEUP 3' }, { value: 'GEUP_2', label: 'GEUP 2' }, { value: 'GEUP_1', label: 'GEUP 1' }, { value: 'DAN', label: 'DAN' }]" />
-                            <FormSelectField id="gender" v-model="athleteForm.gender" label="Gender" :disabled="!isEditingAthlete" :options="[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }]" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormSelectField id="athlete-branch" v-model="athleteForm.branch_id" label="Branch" :disabled="!isEditingAthlete" :options="props.branches" :error="athleteForm.errors.branch_id" />
-                            <FormSelectField id="athlete-group" v-model="athleteForm.group_id" label="Group" :disabled="!isEditingAthlete" :options="props.groups" :error="athleteForm.errors.group_id" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="bday" v-model="athleteForm.bday" label="Birthday" type="date" :disabled="!isEditingAthlete" :error="athleteForm.errors.bday" />
-                            <FormInputField id="phone" v-model="athleteForm.phone" label="Phone" :disabled="!isEditingAthlete" :error="athleteForm.errors.phone" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField
-                                id="nik"
-                                v-model="athleteForm.nik"
-                                label="NIK"
-                                :disabled="!isEditingAthlete"
-                                :error="athleteForm.errors.nik"
-                                :help="!athleteForm.nik && user.athleteProfile?.nikHash ? `Stored as hash only (${shortHash(user.athleteProfile?.nikHash)}). Re-enter once to display the real NIK here.` : undefined"
-                            />
-                            <FormInputField
-                                id="bpjs"
-                                v-model="athleteForm.bpjs"
-                                label="BPJS"
-                                :disabled="!isEditingAthlete"
-                                :error="athleteForm.errors.bpjs"
-                                :help="!athleteForm.bpjs && user.athleteProfile?.bpjsHash ? `Stored as hash only (${shortHash(user.athleteProfile?.bpjsHash)}). Re-enter once to display the real BPJS here.` : undefined"
-                            />
-                        </div>
-                        <FormInputField id="alamat" v-model="athleteForm.alamat" label="Address" :disabled="!isEditingAthlete" :error="athleteForm.errors.alamat" />
-
-                        <div v-if="isEditingAthlete" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                            <Button type="submit" :disabled="athleteForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
-                            <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelAthleteEdit">Cancel</Button>
-                        </div>
-                    </form>
-                </div>
-
-                <div v-if="user.roles.includes('coach')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <h4 class="font-semibold">Coach Details</h4>
-                        <Button v-if="canEditRoleProfiles && !isEditingCoach" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingCoach = true">Edit</Button>
-                    </div>
-
-                    <form class="space-y-3" @submit.prevent="saveCoachChanges">
-                        <FormSelectField id="coach-status" v-model="coachForm.status" label="Status" :disabled="!isEditingCoach" :options="[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]" />
-                        <FormInputField id="specialization" v-model="coachForm.specialization" label="Specialization" :disabled="!isEditingCoach" :error="coachForm.errors.specialization" />
-                        <div class="grid gap-2">
-                            <label for="coach-bio" class="text-sm font-medium">Coach Bio</label>
-                            <textarea id="coach-bio" v-model="coachForm.bio" :disabled="!isEditingCoach" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
-                            <p v-if="coachForm.errors.bio" class="text-sm text-red-500">{{ coachForm.errors.bio }}</p>
-                        </div>
-                        
-                        <div v-if="isEditingCoach" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                            <Button type="submit" :disabled="coachForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
-                            <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelCoachEdit">Cancel</Button>
-                        </div>
-                    </form>
-                </div>
-
-                <div v-if="user.roles.includes('parent')" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5 lg:col-span-2">
-                    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <h4 class="font-semibold">Parent Details</h4>
-                        <Button v-if="canEditRoleProfiles && !isEditingParent" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingParent = true">Edit</Button>
-                    </div>
-
-                    <form class="space-y-3" @submit.prevent="saveParentChanges">
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField id="parent-phone" v-model="parentForm.phone" label="Phone" :disabled="!isEditingParent" :error="parentForm.errors.phone" />
-                            <FormSelectField id="parent-relation" v-model="parentForm.relation" label="Relation" :disabled="!isEditingParent" :options="[{ value: 'father', label: 'Father' }, { value: 'mother', label: 'Mother' }, { value: 'guardian', label: 'Guardian' }]" />
-                        </div>
-                        <FormInputField id="parent-occupation" v-model="parentForm.occupation" label="Occupation" :disabled="!isEditingParent" :error="parentForm.errors.occupation" />
-                        <div class="grid gap-2">
-                            <label for="parent-notes" class="text-sm font-medium">Notes</label>
-                            <textarea id="parent-notes" v-model="parentForm.notes" :disabled="!isEditingParent" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" />
-                        </div>
-                        
-                        <div class="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                            <span class="font-medium">Linked Athletes (Children):</span>
-                            <ul v-if="user.parentProfile?.athletes?.length" class="ml-4 mt-1 list-disc text-muted-foreground">
-                                <li v-for="athlete in user.parentProfile?.athletes" :key="athlete.id">
-                                    {{ athlete.name }} ({{ athlete.branch?.branch_name }} - {{ athlete.group?.group_name }})
-                                </li>
-                            </ul>
-                            <p v-else class="mt-1 text-muted-foreground italic">No children linked to this account yet.</p>
-                        </div>
-
-                        <div v-if="isEditingParent" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                            <Button type="submit" :disabled="parentForm.processing" size="sm" class="w-full sm:w-auto">Save Changes</Button>
-                            <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelParentEdit">Cancel</Button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                <h4 class="mb-3 flex items-center gap-2 font-semibold">
-                    <FileText class="h-4 w-4 text-muted-foreground" />
-                    Certifications
-                </h4>
-                <DataTable
-                    title="Certifications"
-                    description="View all certifications for this user."
-                    :columns="certColumns"
-                    :rows="certRows"
-                    action-label="Manage"
-                    empty-text="No certifications found."
-                >
-                    <template #cell="{ row, column, value }">
-                        <a
-                            v-if="column.key === 'file_name' && row.file_url"
-                            :href="String(row.file_url)"
-                            target="_blank"
-                            class="text-sm font-medium underline underline-offset-4"
-                        >
-                            {{ value }}
-                        </a>
-                        <span v-else>{{ value ?? '-' }}</span>
-                    </template>
-                    <template v-if="canManageMilestones" #row-actions="{ row }">
-                        <Button type="button" variant="outline" size="sm" class="gap-2" @click="openCertificationEdit(row)">
-                            <PencilLine class="h-3.5 w-3.5" />
-                            Edit
-                        </Button>
-                    </template>
-                </DataTable>
-                <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
-                    <h5 class="mb-2 font-medium">Add Certification</h5>
-                    <form class="grid gap-3" @submit.prevent="addCertification">
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormSelectField id="cert-type" v-model="certForm.cert_type" label="Type" :options="[{ value: 'BELT', label: 'Belt' }, { value: 'REFEREE', label: 'Referee' }, { value: 'TRAINER', label: 'Trainer' }]" />
-                            <FormInputField id="cert-title" v-model="certForm.title" label="Title" required :error="certForm.errors.title" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="cert-issuer" v-model="certForm.issuer" label="Issuer" :error="certForm.errors.issuer" />
-                            <FormInputField id="cert-date" v-model="certForm.certified_at" label="Certified at" type="date" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="cert-expires" v-model="certForm.expires_at" label="Expires at" type="date" />
-                            <FormInputField id="cert-notes" v-model="certForm.notes" label="Notes" :error="certForm.errors.notes" />
-                        </div>
-                        <div class="grid gap-2">
-                            <label for="cert-file" class="text-sm font-medium">Certificate File</label>
+                            <label for="achievement-edit-file" class="text-sm font-medium">Replace Supporting File</label>
+                            <a v-if="editingAchievement?.fileUrl" :href="editingAchievement.fileUrl" target="_blank" class="text-sm font-medium underline underline-offset-4">
+                                Current file: {{ editingAchievement.fileName ?? 'Open file' }}
+                            </a>
                             <input
-                                id="cert-file"
+                                id="achievement-edit-file"
                                 type="file"
                                 accept=".pdf,.jpg,.jpeg,.png"
                                 class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                @change="onCertificationFileChange"
+                                @change="onAchievementEditFileChange"
                             />
+                            <p v-if="achievementEditForm.errors.file" class="text-sm text-destructive">{{ achievementEditForm.errors.file }}</p>
                         </div>
-                        <div>
-                            <Button type="submit" :disabled="certForm.processing">Add Certification</Button>
+
+                        <div class="flex flex-col justify-end gap-2 sm:flex-row">
+                            <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeAchievementEdit">Cancel</Button>
+                            <Button type="submit" class="w-full sm:w-auto" :disabled="achievementEditForm.processing">Save Achievement</Button>
                         </div>
                     </form>
-                </div>
+                </FormModal>
             </div>
-
-            <div class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-                <h4 class="mb-3 flex items-center gap-2 font-semibold">
-                    <FileText class="h-4 w-4 text-muted-foreground" />
-                    Achievements
-                </h4>
-                <DataTable
-                    title="Achievements"
-                    description="View all achievements for this user."
-                    :columns="achColumns"
-                    :rows="achRows"
-                    action-label="Manage"
-                    empty-text="No achievements found."
-                >
-                    <template #cell="{ row, column, value }">
-                        <a
-                            v-if="column.key === 'file_name' && row.file_url"
-                            :href="String(row.file_url)"
-                            target="_blank"
-                            class="text-sm font-medium underline underline-offset-4"
-                        >
-                            {{ value }}
-                        </a>
-                        <span v-else>{{ value ?? '-' }}</span>
-                    </template>
-                    <template v-if="canManageMilestones" #row-actions="{ row }">
-                        <Button type="button" variant="outline" size="sm" class="gap-2" @click="openAchievementEdit(row)">
-                            <PencilLine class="h-3.5 w-3.5" />
-                            Edit
-                        </Button>
-                    </template>
-                </DataTable>
-                <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
-                    <h5 class="mb-2 font-medium">Add Achievement</h5>
-                    <form class="grid gap-3" @submit.prevent="addAchievement">
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="ach-name" v-model="achievementForm.championship_name" label="Championship name" required :error="achievementForm.errors.championship_name" />
-                            <FormSelectField id="ach-medal" v-model="achievementForm.medal" label="Medal" :options="[{ value: 'GOLD', label: 'Gold' }, { value: 'SILVER', label: 'Silver' }, { value: 'BRONZE', label: 'Bronze' }, { value: 'NONE', label: 'None' }]" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-2">
-                            <FormInputField id="ach-location" v-model="achievementForm.location" label="Location" :error="achievementForm.errors.location" />
-                            <FormInputField id="ach-date" v-model="achievementForm.event_date" label="Date" type="date" :error="achievementForm.errors.event_date" />
-                        </div>
-                        <div class="grid gap-2 md:grid-cols-3">
-                            <FormInputField id="ach-class" v-model="achievementForm.class_name" label="Class name" />
-                            <FormInputField id="ach-division" v-model="achievementForm.division" label="Division" />
-                            <FormInputField id="ach-category" v-model="achievementForm.category" label="Category" />
-                        </div>
-                        <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Notes" />
-                        <div class="grid gap-2">
-                            <label for="achievement-file" class="text-sm font-medium">Supporting File</label>
-                            <input
-                                id="achievement-file"
-                                type="file"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                @change="onAchievementFileChange"
-                            />
-                        </div>
-                        <div>
-                            <Button type="submit" :disabled="achievementForm.processing">Add Achievement</Button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <FormModal :open="Boolean(editingCertification)" max-width-class="max-w-4xl" @close="closeCertificationEdit">
-                <form class="grid gap-4" @submit.prevent="saveCertificationEdit">
-                    <div>
-                        <h3 class="text-lg font-semibold">Edit Certification</h3>
-                        <p class="text-sm text-muted-foreground">Update the record details or replace the attached file.</p>
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FormSelectField id="cert-edit-type" v-model="certificationEditForm.cert_type" label="Type" :options="[{ value: 'BELT', label: 'Belt' }, { value: 'REFEREE', label: 'Referee' }, { value: 'TRAINER', label: 'Trainer' }]" :error="certificationEditForm.errors.cert_type" />
-                        <FormInputField id="cert-edit-title" v-model="certificationEditForm.title" label="Title" required :error="certificationEditForm.errors.title" />
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FormInputField id="cert-edit-issuer" v-model="certificationEditForm.issuer" label="Issuer" :error="certificationEditForm.errors.issuer" />
-                        <FormInputField id="cert-edit-date" v-model="certificationEditForm.certified_at" label="Certified at" type="date" :error="certificationEditForm.errors.certified_at" />
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FormInputField id="cert-edit-expires" v-model="certificationEditForm.expires_at" label="Expires at" type="date" :error="certificationEditForm.errors.expires_at" />
-                        <FormInputField id="cert-edit-notes" v-model="certificationEditForm.notes" label="Notes" :error="certificationEditForm.errors.notes" />
-                    </div>
-                    <div class="grid gap-2">
-                        <label for="cert-edit-file" class="text-sm font-medium">Replace Certificate File</label>
-                        <a v-if="editingCertification?.fileUrl" :href="editingCertification.fileUrl" target="_blank" class="text-sm font-medium underline underline-offset-4">
-                            Current file: {{ editingCertification.fileName ?? 'Open file' }}
-                        </a>
-                        <input
-                            id="cert-edit-file"
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                            @change="onCertificationEditFileChange"
-                        />
-                        <p v-if="certificationEditForm.errors.file" class="text-sm text-destructive">{{ certificationEditForm.errors.file }}</p>
-                    </div>
-
-                    <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeCertificationEdit">Cancel</Button>
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="certificationEditForm.processing">Save Certification</Button>
-                    </div>
-                </form>
-            </FormModal>
-
-            <FormModal :open="Boolean(editingAchievement)" max-width-class="max-w-4xl" @close="closeAchievementEdit">
-                <form class="grid gap-4" @submit.prevent="saveAchievementEdit">
-                    <div>
-                        <h3 class="text-lg font-semibold">Edit Achievement</h3>
-                        <p class="text-sm text-muted-foreground">Update the achievement details or replace the supporting file.</p>
-                    </div>
-
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FormInputField id="ach-edit-name" v-model="achievementEditForm.championship_name" label="Championship name" required :error="achievementEditForm.errors.championship_name" />
-                        <FormSelectField id="ach-edit-medal" v-model="achievementEditForm.medal" label="Medal" :options="[{ value: 'GOLD', label: 'Gold' }, { value: 'SILVER', label: 'Silver' }, { value: 'BRONZE', label: 'Bronze' }, { value: 'NONE', label: 'None' }]" :error="achievementEditForm.errors.medal" />
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <FormInputField id="ach-edit-location" v-model="achievementEditForm.location" label="Location" :error="achievementEditForm.errors.location" />
-                        <FormInputField id="ach-edit-date" v-model="achievementEditForm.event_date" label="Date" type="date" :error="achievementEditForm.errors.event_date" />
-                    </div>
-                    <div class="grid gap-3 md:grid-cols-3">
-                        <FormInputField id="ach-edit-class" v-model="achievementEditForm.class_name" label="Class name" :error="achievementEditForm.errors.class_name" />
-                        <FormInputField id="ach-edit-division" v-model="achievementEditForm.division" label="Division" :error="achievementEditForm.errors.division" />
-                        <FormInputField id="ach-edit-category" v-model="achievementEditForm.category" label="Category" :error="achievementEditForm.errors.category" />
-                    </div>
-                    <FormInputField id="ach-edit-notes" v-model="achievementEditForm.notes" label="Notes" :error="achievementEditForm.errors.notes" />
-                    <div class="grid gap-2">
-                        <label for="achievement-edit-file" class="text-sm font-medium">Replace Supporting File</label>
-                        <a v-if="editingAchievement?.fileUrl" :href="editingAchievement.fileUrl" target="_blank" class="text-sm font-medium underline underline-offset-4">
-                            Current file: {{ editingAchievement.fileName ?? 'Open file' }}
-                        </a>
-                        <input
-                            id="achievement-edit-file"
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                            @change="onAchievementEditFileChange"
-                        />
-                        <p v-if="achievementEditForm.errors.file" class="text-sm text-destructive">{{ achievementEditForm.errors.file }}</p>
-                    </div>
-
-                    <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeAchievementEdit">Cancel</Button>
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="achievementEditForm.processing">Save Achievement</Button>
-                    </div>
-                </form>
-            </FormModal>
-        </div>
+        </component>
     </AppLayout>
 </template>
