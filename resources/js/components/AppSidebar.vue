@@ -66,7 +66,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     ],
     parent: [
         { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Switch Child', href: managementRoutes.parentChildSwitcher, icon: Users },
+        { title: 'Child Profiles', href: managementRoutes.parentChildSwitcher, icon: Users },
         { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
         { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
@@ -126,4 +126,3 @@ const footerNavItems: NavItem[] = [];
     </Sidebar>
     <slot />
 </template>
-

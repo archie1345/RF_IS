@@ -5,9 +5,9 @@ import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <PageSection title="Child account settings" description="Parents can manage child context here and update password from settings.">
+    <PageSection title="Child account settings" description="Open a linked child profile to update account details, athlete data, achievements, certifications, and password.">
         <Button as-child variant="outline">
-            <Link href="/settings/password">Edit password</Link>
+            <Link href="/parent/children">Manage Child Profiles</Link>
         </Button>
     </PageSection>
 </template>

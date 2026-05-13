@@ -118,6 +118,7 @@ const props = withDefaults(defineProps<{
     profileUpdateUrl?: string;
     certificationStoreUrl?: string;
     achievementStoreUrl?: string;
+    passwordUpdateUrl?: string | null;
     branches?: SelectOption[];
     groups?: SelectOption[];
 }>(), {
@@ -270,6 +271,7 @@ const isEditingAccount = ref(false);
 const isEditingAthlete = ref(false);
 const isEditingCoach = ref(false);
 const isEditingParent = ref(false);
+const isEditingPassword = ref(false);
 
 const accountForm = useForm({
     name: props.user.name ?? '',
@@ -309,6 +311,11 @@ const parentForm = useForm({
     relation: props.user.parentProfile?.relation ?? 'guardian',
     occupation: props.user.parentProfile?.occupation ?? '',
     notes: props.user.parentProfile?.notes ?? '',
+});
+
+const passwordForm = useForm({
+    password: '',
+    password_confirmation: '',
 });
 
 function revokeSelectedImageObjectUrl() {
@@ -356,6 +363,12 @@ function cancelParentEdit() {
     parentForm.reset();
 }
 
+function cancelPasswordEdit() {
+    isEditingPassword.value = false;
+    passwordForm.reset();
+    passwordForm.clearErrors();
+}
+
 function saveAccountChanges() {
     accountForm.patch(accountUpdateUrl.value, {
         preserveScroll: true,
@@ -366,6 +379,21 @@ function saveAccountChanges() {
         onError: (errors) => {
             console.error('Account Form Errors:', errors);
             alert('Save failed! Check the console or the red text below inputs.');
+        },
+    });
+}
+
+function savePasswordChanges() {
+    if (!props.passwordUpdateUrl) return;
+
+    passwordForm.put(props.passwordUpdateUrl, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isEditingPassword.value = false;
+            passwordForm.reset();
+        },
+        onError: (errors) => {
+            console.error('Password Form Errors:', errors);
         },
     });
 }
@@ -727,7 +755,28 @@ onBeforeUnmount(() => {
                         </form>
                     </div>
 
-                    <div v-if="shouldShowMilestones"class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                    <div v-if="props.passwordUpdateUrl" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold">Child Password</h3>
+                                <p class="text-sm text-muted-foreground">Set a new login password for this child account.</p>
+                            </div>
+                            <Button v-if="!isEditingPassword" variant="outline" size="sm" class="w-full sm:w-auto" @click="isEditingPassword = true">Change Password</Button>
+                        </div>
+
+                        <form v-if="isEditingPassword" class="space-y-3" @submit.prevent="savePasswordChanges">
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <FormInputField id="child-password" v-model="passwordForm.password" label="New child password" type="password" :error="passwordForm.errors.password" />
+                                <FormInputField id="child-password-confirmation" v-model="passwordForm.password_confirmation" label="Confirm new password" type="password" :error="passwordForm.errors.password_confirmation" />
+                            </div>
+                            <div class="flex flex-col gap-2 sm:flex-row">
+                                <Button type="submit" size="sm" class="w-full sm:w-auto" :disabled="passwordForm.processing">Save Password</Button>
+                                <Button type="button" variant="outline" size="sm" class="w-full sm:w-auto" @click="cancelPasswordEdit">Cancel</Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="shouldShowMilestones" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
                         <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div class="flex min-w-0 items-center gap-4">
                                 <div class="flex-shrink-0">

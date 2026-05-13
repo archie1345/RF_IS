@@ -125,6 +125,10 @@ function clearChildContext() {
     router.delete('/parent/children/switch', { preserveScroll: true });
 }
 
+function profileUrl(userId: number | string) {
+    return `/users/${userId}`;
+}
+
 function showMoreChildren() {
     visibleChildrenCount.value += 12;
 }
@@ -267,6 +271,9 @@ function showMoreChildren() {
                         <Button v-if="activeChild" type="button" variant="outline" size="sm" @click="clearChildContext">
                             Exit view
                         </Button>
+                        <Button v-if="activeChild?.user_id" as-child variant="outline" size="sm" class="hidden lg:inline-flex">
+                            <Link :href="profileUrl(activeChild.user_id)">Profile</Link>
+                        </Button>
                     </div>
 
                     <div class="relative flex items-center space-x-1">
@@ -383,22 +390,29 @@ function showMoreChildren() {
                             v-if="visibleChildren.length > 0"
                             class="max-h-80 space-y-1 overflow-y-auto p-2"
                         >
-                            <button
+                            <div
                                 v-for="child in visibleChildren"
                                 :key="child.athlete_id"
-                                type="button"
-                                class="flex w-full items-center justify-between rounded-lg px-3 py-3 text-left text-sm transition hover:bg-muted"
+                                class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-muted"
                                 :class="child.athlete_id === activeChild?.athlete_id ? 'bg-muted' : ''"
-                                @click="switchChild(child.athlete_id)"
                             >
-                                <span class="font-medium text-foreground">{{ child.name }}</span>
-                                <span
-                                    v-if="child.athlete_id === activeChild?.athlete_id"
-                                    class="text-xs uppercase tracking-[0.16em] text-muted-foreground"
+                                <button
+                                    type="button"
+                                    class="min-w-0 flex-1 py-1 text-left"
+                                    @click="switchChild(child.athlete_id)"
                                 >
-                                    Active
-                                </span>
-                            </button>
+                                    <span class="block truncate font-medium text-foreground">{{ child.name }}</span>
+                                    <span
+                                        v-if="child.athlete_id === activeChild?.athlete_id"
+                                        class="text-xs uppercase tracking-[0.16em] text-muted-foreground"
+                                    >
+                                        Active
+                                    </span>
+                                </button>
+                                <Button as-child variant="outline" size="sm" class="shrink-0" @click="isChildPickerOpen = false">
+                                    <Link :href="profileUrl(child.user_id)">Profile</Link>
+                                </Button>
+                            </div>
                         </div>
 
                         <div v-else class="px-4 py-8 text-center text-sm text-muted-foreground">

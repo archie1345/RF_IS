@@ -5,6 +5,7 @@ use App\Models\Branch;
 use App\Models\Group;
 use App\Models\Parents;
 use App\Models\User;
+use Inertia\Testing\AssertableInertia as Assert;
 
 it('allows a parent to switch to their own child context', function () {
     $parentUser = User::create([
@@ -43,6 +44,14 @@ it('allows a parent to switch to their own child context', function () {
         'alamat' => null,
         'geup' => 'GEUP_1',
     ]);
+
+    $this->actingAs($parentUser)
+        ->get(route('parent.children.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ParentChildSwitcherPage')
+            ->where('children.0.athlete_id', $childAthlete->athlete_id)
+            ->where('children.0.user_id', $childUser->id));
 
     $this->actingAs($parentUser)
         ->post(route('parent.children.switch', $childAthlete))
@@ -106,4 +115,3 @@ it('prevents a parent from switching to another parent child context', function 
         ->post(route('parent.children.switch', $otherChildAthlete))
         ->assertForbidden();
 });
-

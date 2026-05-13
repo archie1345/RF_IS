@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { managementRoutes } from '@/data/management';
 import type { BreadcrumbItem } from '@/types';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 const props = defineProps<{
     children: Array<{
         athlete_id: number;
+        user_id: number;
         name: string;
         email: string;
         branch: string;
@@ -29,6 +30,10 @@ function switchChild(athleteId: number) {
 
 function clearChild() {
     router.delete('/parent/children/switch', { preserveScroll: true });
+}
+
+function profileUrl(userId: number) {
+    return `/users/${userId}`;
 }
 </script>
 
@@ -57,9 +62,12 @@ function clearChild() {
                         <p class="text-sm text-muted-foreground">Branch: {{ child.branch }}</p>
                         <p class="text-sm text-muted-foreground">Group: {{ child.group }}</p>
                     </div>
-                    <div class="mt-4">
+                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
                         <Button type="button" class="w-full" :variant="child.is_active ? 'outline' : 'default'" @click="switchChild(child.athlete_id)">
                             {{ child.is_active ? 'Currently active' : 'Switch to this child' }}
+                        </Button>
+                        <Button as-child variant="outline" class="w-full">
+                            <Link :href="profileUrl(child.user_id)">View Profile</Link>
                         </Button>
                     </div>
                 </div>

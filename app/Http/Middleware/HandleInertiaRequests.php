@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Athlete;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -49,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 ->get()
                 ->map(fn (Athlete $athlete) => [
                     'athlete_id' => $athlete->athlete_id,
+                    'user_id' => $athlete->id,
                     'name' => $athlete->user?->name ?? 'Unknown athlete',
                 ])
                 ->values();

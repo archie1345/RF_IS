@@ -22,6 +22,7 @@ class ParentChildContextController extends Controller
             ->get()
             ->map(fn (Athlete $athlete) => [
                 'athlete_id' => $athlete->athlete_id,
+                'user_id' => $athlete->id,
                 'name' => $athlete->user?->name ?? 'Unknown athlete',
                 'email' => $athlete->user?->email ?? '-',
                 'branch' => $athlete->branch?->branch_name ?? 'Unassigned',

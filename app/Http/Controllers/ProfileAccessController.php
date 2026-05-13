@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\FormatsMvpData;
 use App\Models\Athlete;
 use App\Models\Branch;
-use App\Models\Coach;
 use App\Models\Group;
 use App\Models\Parents;
 use App\Models\User;
@@ -169,6 +168,9 @@ class ProfileAccessController extends Controller
     {
         $this->authorizeProfileAccess($request, $user);
 
+        $viewer = $request->user();
+        $isLinkedParent = (bool) ($viewer?->isParent() && $this->parentOwnsAthleteUser($viewer, $user));
+
         $user->load([
             'profile',
             'athleteProfile.branch',
@@ -185,12 +187,13 @@ class ProfileAccessController extends Controller
         return Inertia::render('profiles/ProfileDetailsPage', [
             'user' => $this->profilePageUser($user),
             'context' => 'admin',
-            'canEditAccount' => (bool) $request->user()?->isParent(),
+            'canEditAccount' => true,
             'canEditRoleProfiles' => true,
             'accountUpdateUrl' => '/users/'.$user->id.'/account',
             'profileUpdateUrl' => '/users/'.$user->id.'/profile',
             'certificationStoreUrl' => '/users/'.$user->id.'/certifications',
             'achievementStoreUrl' => '/users/'.$user->id.'/achievements',
+            'passwordUpdateUrl' => $isLinkedParent ? '/users/'.$user->id.'/password' : null,
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
         ]);
