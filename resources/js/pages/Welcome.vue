@@ -7,7 +7,7 @@ withDefaults(
         canRegister: boolean;
     }>(),
     {
-        canRegister: true,
+        canRegister: false,
     },
 );
 
@@ -53,13 +53,13 @@ const highlights = [
                             >
                                 Log in
                             </Link>
-                            <Link
+                            <!-- <Link
                                 v-if="canRegister"
                                 :href="register()"
                                 class="hidden h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-cyan-100 sm:inline-flex"
                             >
                                 Register
-                            </Link>
+                            </Link> -->
                         </template>
                     </nav>
                 </header>
