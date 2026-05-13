@@ -9,12 +9,18 @@ class Transactions extends Model
 {
     use SoftDeletes;
 
+    public const TYPE_PAYMENT = 'PAYMENT';
+
+    public const TYPE_REFUND = 'REFUND';
+
     protected $table = 'payment_transactions';
 
     public $timestamps = true;
 
     protected $primaryKey = 'ptid';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [

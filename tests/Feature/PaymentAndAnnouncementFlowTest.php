@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Payment;
+use App\Models\Transactions;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -78,4 +79,47 @@ test('admin issues a bill, user uploads proof, and admin approves it', function 
         ->and($payment->status)->toBe('COMPLETED')
         ->and((float) $payment->paid_amount)->toBe(250000.0)
         ->and((float) $payment->remaining_amount)->toBe(0.0);
+
+    $this->assertDatabaseHas('payment_transactions', [
+        'payment_id' => $payment->payment_id,
+        'verified_by' => $admin->id,
+        'transaction_type' => Transactions::TYPE_PAYMENT,
+        'payment_method' => 'TRANSFER',
+    ]);
+});
+
+test('admin can change the person receiving an invoice', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $firstMember = User::factory()->create(['role' => 'athlete']);
+    $secondMember = User::factory()->create(['role' => 'coach']);
+
+    $this->actingAs($admin)
+        ->post(route('payments.store'), [
+            'bill_kind' => 'INVOICE',
+            'billable_user_id' => $firstMember->id,
+            'payment_type' => 'TUITION',
+            'total_amount' => 250000,
+            'collection_method' => 'TRANSFER',
+            'notes' => 'May tuition',
+        ])
+        ->assertRedirect(route('payments.index'));
+
+    $payment = Payment::query()->firstOrFail();
+
+    $this->actingAs($admin)
+        ->put(route('payments.update', $payment), [
+            'bill_kind' => 'INVOICE',
+            'billable_user_id' => $secondMember->id,
+            'payment_type' => 'TUITION',
+            'total_amount' => 250000,
+            'paid_amount' => 0,
+            'payment_date' => now()->toDateString(),
+            'collection_method' => 'TRANSFER',
+            'notes' => 'May tuition reassigned',
+        ])
+        ->assertRedirect(route('payments.index'));
+
+    $payment->refresh();
+    expect($payment->billable_user_id)->toBe($secondMember->id)
+        ->and($payment->athlete_id)->toBeNull();
 });

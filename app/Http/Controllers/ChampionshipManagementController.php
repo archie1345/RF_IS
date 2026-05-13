@@ -89,18 +89,20 @@ class ChampionshipManagementController extends Controller
         ]);
     }
 
-    public function show(Event $event): Response
+    public function show(Request $request, Event $event): Response
     {
+        $user = $request->user();
+
         $event->load([
             'registrations.athlete.user:id,name,email',
             'coachRegistrations.coach.user:id,name,email',
         ]);
 
         return Inertia::render('ChampionshipDetailPage', [
-            'isAdmin' => request()->user()?->isAdmin() ?? false,
-            'isAthlete' => $request->user()?->hasRole('athlete'),
-            'canManageCoaches' => request()->user()?->isAdmin() || request()->user()?->isCoach(),
-            'canRecordResult' => request()->user()?->isAdmin() || request()->user()?->isCoach(),
+            'isAdmin' => $user?->isAdmin() ?? false,
+            'isAthlete' => $user?->isAthlete() ?? false,
+            'canManageCoaches' => $user?->isAdmin() || $user?->isCoach(),
+            'canRecordResult' => $user?->isAdmin() || $user?->isCoach(),
             'event' => [
                 'id' => $event->event_id,
                 'name' => $event->e_name,

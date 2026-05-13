@@ -6,11 +6,12 @@ use App\Http\Controllers\Concerns\FormatsMvpData;
 use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
+use App\Models\Transactions;
 use App\Models\User;
 use App\Support\ActivityLogger;
-use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -63,6 +64,7 @@ class PaymentManagementController extends Controller
                 'id' => 'PAY-'.$payment->payment_id,
                 'payment_id' => $payment->payment_id,
                 'athlete_id' => $payment->athlete_id,
+                'athlete_user_id' => $payment->athlete?->id,
                 'billable_user_id' => $payment->billable_user_id,
                 'payee_user_id' => $payment->payee_user_id,
                 'bill_kind' => $payment->bill_kind ?? 'INVOICE',
@@ -152,21 +154,21 @@ class PaymentManagementController extends Controller
         if ($validated['decision'] === 'APPROVED') {
             // Use the amount the admin typed in, or default to the full remaining amount
             $amountToApprove = (float) ($validated['approved_amount'] ?? $payment->remaining_amount);
-            
+
             // Calculate new totals
             $newPaid = min((float) ($payment->paid_amount ?? 0) + $amountToApprove, (float) ($payment->total_amount ?? $payment->amount ?? 0));
             $newRemaining = max((float) ($payment->total_amount ?? $payment->amount ?? 0) - $newPaid, 0);
 
             // Log this specific partial payment into the Transactions table!
             if ($amountToApprove > 0) {
-                \App\Models\Transactions::create([
+                Transactions::create([
                     'payment_id' => $payment->payment_id,
                     'verified_by' => $request->user()->id,
                     'amount' => $amountToApprove,
                     'transaction_date' => now(),
-                    'transaction_type' => 'CREDIT',
+                    'transaction_type' => Transactions::TYPE_PAYMENT,
                     'payment_method' => $this->extractCollectionMethod($payment->notes),
-                    'notes' => 'Proof approved: ' . ($validated['notes'] ?? ''),
+                    'notes' => 'Proof approved: '.($validated['notes'] ?? ''),
                 ]);
             }
 
@@ -177,7 +179,7 @@ class PaymentManagementController extends Controller
                 // If fully paid, lock it. If partial, set to 'NONE' so the user can upload the next receipt!
                 'proof_status' => $newRemaining <= 0 ? 'APPROVED' : 'NONE',
                 // Clear the proof image if partial, so they can upload a new one next time
-                'proof_path' => $newRemaining <= 0 ? $payment->proof_path : null, 
+                'proof_path' => $newRemaining <= 0 ? $payment->proof_path : null,
                 'proof_notes' => $validated['notes'] ?? null,
             ]);
         } else {
@@ -219,6 +221,7 @@ class PaymentManagementController extends Controller
         } else {
             $validated['payee_user_id'] = null;
             $request->validate(['athlete_id' => ['nullable', 'exists:athletes,athlete_id']]);
+            $validated = $this->normalizeInvoiceRecipient($validated);
             if (empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
                 return back()->withErrors([
                     'athlete_id' => 'Choose an athlete or another account for this bill.',
@@ -326,6 +329,7 @@ class PaymentManagementController extends Controller
             $validated['billable_user_id'] = null;
         } else {
             $validated['payee_user_id'] = null;
+            $validated = $this->normalizeInvoiceRecipient($validated);
         }
 
         if ($validated['bill_kind'] !== 'PAYROLL' && empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
@@ -403,6 +407,26 @@ class PaymentManagementController extends Controller
         }
 
         return $existing.' | '.$incoming;
+    }
+
+    private function normalizeInvoiceRecipient(array $validated): array
+    {
+        $athleteId = $validated['athlete_id'] ?? null;
+        $billableUserId = $validated['billable_user_id'] ?? null;
+
+        if (! empty($billableUserId)) {
+            $athlete = Athlete::query()->where('id', $billableUserId)->first();
+            $validated['athlete_id'] = $athlete?->athlete_id;
+
+            return $validated;
+        }
+
+        if (! empty($athleteId)) {
+            $athlete = Athlete::query()->find($athleteId);
+            $validated['billable_user_id'] = $athlete?->id;
+        }
+
+        return $validated;
     }
 
     public function exportInvoice(Request $request, Payment $payment)
@@ -578,6 +602,7 @@ class PaymentManagementController extends Controller
     private function extractCollectionMethod(?string $notes): string
     {
         $first = trim(explode('|', (string) $notes)[0] ?? '');
+
         return in_array($first, ['CASH', 'TRANSFER', 'OTHER'], true) ? $first : 'CASH';
     }
 
@@ -592,4 +617,3 @@ class PaymentManagementController extends Controller
             ?? 'Unknown user';
     }
 }
-

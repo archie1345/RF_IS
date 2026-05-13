@@ -127,16 +127,6 @@ function canReviewProof(row: TableRow) {
     return props.isAdmin && row.proof_status === 'SUBMITTED';
 }
 
-function setAthleteBill(value: string) {
-    form.athlete_id = value;
-    if (value) form.billable_user_id = '';
-}
-
-function setUserBill(value: string) {
-    form.billable_user_id = value;
-    if (value) form.athlete_id = '';
-}
-
 function submit() {
     if (form.bill_kind === 'PAYROLL') {
         form.payment_type = 'OTHER';
@@ -144,6 +134,7 @@ function submit() {
         form.billable_user_id = '';
     } else {
         form.payee_user_id = '';
+        form.athlete_id = '';
     }
 
     if (!form.payment_date) {
@@ -208,7 +199,7 @@ function editPayment(row: TableRow) {
     editingPaymentId.value = Number(row.payment_id);
     editingPaymentRow.value = row;
     form.athlete_id = String(row.athlete_id ?? '');
-    form.billable_user_id = String(row.billable_user_id ?? '');
+    form.billable_user_id = String(row.billable_user_id ?? row.athlete_user_id ?? '');
     form.payee_user_id = String(row.payee_user_id ?? '');
     form.bill_kind = String(row.bill_kind ?? 'INVOICE');
     form.payment_type = String(row.payment_type_raw ?? 'TUITION');
@@ -357,28 +348,16 @@ function reviewProofReject(row: TableRow) {
                         help="Most payments should stay as Bill for a member."
                         :error="form.errors.bill_kind"
                     />
-                    <div v-if="form.bill_kind === 'INVOICE'" class="grid gap-4">
-                        <FormSelectField
-                            id="payment-athlete"
-                            :model-value="form.athlete_id"
-                            label="Athlete receiving this bill"
-                            :options="props.athletes"
-                            placeholder="Select athlete"
-                            help="Use this for tuition, uniform, license, and championship bills."
-                            :error="form.errors.athlete_id"
-                            @update:model-value="setAthleteBill"
-                        />
-                        <FormSelectField
-                            id="payment-user"
-                            :model-value="form.billable_user_id"
-                            label="Other account to bill"
-                            :options="props.users"
-                            placeholder="Only use this when the bill is not for an athlete"
-                            help="Picking a user here clears the athlete field so the bill is not duplicated."
-                            :error="form.errors.billable_user_id"
-                            @update:model-value="setUserBill"
-                        />
-                    </div>
+                    <FormSelectField
+                        v-if="form.bill_kind === 'INVOICE'"
+                        id="payment-recipient"
+                        v-model="form.billable_user_id"
+                        label="Person receiving this bill"
+                        :options="props.users"
+                        placeholder="Select athlete, coach, parent, or member"
+                        help="Admins can change this when editing. If the person has an athlete profile, the bill is linked to that athlete automatically."
+                        :error="form.errors.billable_user_id || form.errors.athlete_id"
+                    />
                     <FormSelectField v-if="form.bill_kind === 'PAYROLL'" id="payment-coach" v-model="form.payee_user_id" label="Coach receiving payout" :options="props.coaches" placeholder="Select coach" required :error="form.errors.payee_user_id" />
                     <FormSelectField v-if="form.bill_kind === 'INVOICE'" id="payment-type" v-model="form.payment_type" label="Bill category" :options="paymentTypeOptions" required :error="form.errors.payment_type" />
                     <FormInputField id="payment-total" v-model="form.total_amount" label="Amount to pay" type="number" inputmode="decimal" min="0" step="1000" placeholder="Example: 250000" required :error="form.errors.total_amount" />
