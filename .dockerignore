@@ -38,6 +38,7 @@ README.md
 node_modules
 vendor
 storage/logs
+public/storage
 .env
 Dockerfile
 docker-compose.yml

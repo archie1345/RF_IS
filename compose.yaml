@@ -27,6 +27,7 @@ services:
       sh -c "
       composer install --ignore-platform-req=php &&
       php artisan key:generate --force &&
+      php artisan storage:link &&
       php artisan migrate --force &&
       apache2-foreground
       "
@@ -47,6 +48,7 @@ services:
       - "9201:9201"
     volumes:
       - .:/var/www/html
+      - /var/www/html/node_modules
     command: >
       sh -c "
       npm install &&
