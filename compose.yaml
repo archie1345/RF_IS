@@ -1,129 +1,99 @@
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Docker Compose reference guide at
-# https://docs.docker.com/go/compose-spec-reference/
-
-# Here the instructions define your application as a service called "server".
-# This service is built from the Dockerfile in the current directory.
-# You can add other services your application may depend on here, such as a
-# database or a cache. For examples, see the Awesome Compose repository:
-# https://github.com/docker/awesome-compose
 services:
   server:
     build:
       context: .
+      dockerfile: Dockerfile
     container_name: rf-server
+    restart: unless-stopped
     ports:
       - "9200:80"
     volumes:
       - .:/var/www/html
-      - /var/www/html/node_modules
     depends_on:
       db:
         condition: service_healthy
-    secrets:
-      - db-password 
     environment:
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=laravel
-      - DB_USERNAME=laravel
-      - DB_PASSWORD_FILE=/run/secrets/db-password
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://127.0.0.1:9200
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: rf_is
+      DB_USERNAME: rf_user
+      DB_PASSWORD: rf_password
+      VITE_DEV_SERVER_URL: http://127.0.0.1:9201
     command: >
       sh -c "
-      git config --global --add safe.directory /var/www/html &&
-      /usr/local/bin/composer install --no-interaction --prefer-dist &&
+      composer install --ignore-platform-req=php &&
+      php artisan key:generate --force &&
+      php artisan storage:link &&
       php artisan migrate --force &&
-      chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
-      chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
       apache2-foreground
       "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   vite:
     build:
       context: .
+      dockerfile: Dockerfile
     container_name: rf-vite
+    restart: unless-stopped
     working_dir: /var/www/html
     ports:
       - "9201:9201"
     volumes:
       - .:/var/www/html
       - /var/www/html/node_modules
-    command: sh -c "npm install && npm run dev -- --host"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
+    command: >
+      sh -c "
+      npm install &&
+      npm run dev -- --host 0.0.0.0 --port 9201
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9201' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
   db:
     image: mysql:8.4
-    restart: always
     container_name: rf-db
-    secrets:
-      - db-password
-    volumes:
-      - db-data:/var/lib/mysql
+    restart: unless-stopped
+    ports:
+      - "9203:3306"
     environment:
-      - MYSQL_DATABASE=laravel
-      - MYSQL_USER=laravel
-      - MYSQL_PASSWORD_FILE=/run/secrets/db-password
-      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/db-password
-    expose:
-      - 3306
+      MYSQL_DATABASE: rf_is
+      MYSQL_USER: rf_user
+      MYSQL_PASSWORD: rf_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - rf_is_db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   phpmyadmin:
     image: phpmyadmin:latest
-    restart: always
     container_name: rf-phpmyadmin
+    restart: unless-stopped
     ports:
       - "9202:80"
-    depends_on:
-      - db
     environment:
-      - PMA_HOST=db
-      - PMA_USER=laravel
-      - PMA_PASSWORD_FILE=/run/secrets/db-password
-      - PMA_ROOT_PASSWORD_FILE=/run/secrets/db-password
-    secrets:
-      - db-password
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: rf_user
+      PMA_PASSWORD: rf_password
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
-  db-data:
-
-secrets:
-  db-password:
-    file: db/password.txt
-
-# The commented out section below is an example of how to define a PostgreSQL
-# database that your application can use. `depends_on` tells Docker Compose to
-# start the database before your application. The `db-data` volume persists the
-# database data between container restarts. The `db-password` secret is used
-# to set the database password. You must create `db/password.txt` and add
-# a password of your choosing to it before running `docker-compose up`.
-#     depends_on:
-#       db:
-#         condition: service_healthy
-#   db:
-#     image: postgres
-#     restart: always
-#     user: postgres
-#     secrets:
-#       - db-password
-#     volumes:
-#       - db-data:/var/lib/postgresql/data
-#     environment:
-#       - POSTGRES_DB=example
-#       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
-#     expose:
-#       - 5432
-#     healthcheck:
-#       test: [ "CMD", "pg_isready" ]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 5
-# volumes:
-#   db-data:
-# secrets:
-#   db-password:
-#     file: db/password.txt
+  rf_is_db-data:
