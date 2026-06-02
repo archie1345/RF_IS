@@ -102,6 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
             Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy');
             Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore');
+            Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete');
 
             Route::post('branches', 'storeBranch')->name('branches.store');
             Route::put('branches/{branch}', 'updateBranch')->name('branches.update');

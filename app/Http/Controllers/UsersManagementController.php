@@ -99,11 +99,11 @@ class UsersManagementController extends Controller
                 : '-',
 
             'nik' => $canViewSensitiveIdentifiers
-                ? ($athlete?->nik_ciphertext ?? ($athlete?->nik_hash ? 'Stored as hash only' : 'Not stored'))
+                ? ($athlete?->displayValue('nik') ?? 'Not stored')
                 : null,
 
             'bpjs' => $canViewSensitiveIdentifiers
-                ? ($athlete?->bpjs_ciphertext ?? ($athlete?->bpjs_hash ? 'Stored as hash only' : 'Not stored'))
+                ? ($athlete?->displayValue('bpjs') ?? 'Not stored')
                 : null,
 
             'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
@@ -230,8 +230,8 @@ class UsersManagementController extends Controller
             'group_id' => (string) ($athlete->group_id ?? ''),
             'geup' => $athlete->geup ?? 'GEUP_10',
             'parent_id' => (string) ($athlete->parent_id ?? ''),
-            'nik' => (string) ($athlete->nik_ciphertext ?? ''),
-            'bpjs' => (string) ($athlete->bpjs_ciphertext ?? ''),
+            'nik' => $athlete->displayValue('nik'),
+            'bpjs' => $athlete->displayValue('bpjs'),
         ]);
     }
 
@@ -374,8 +374,8 @@ class UsersManagementController extends Controller
             'group_id' => (string) ($athlete?->group_id ?? ''),
             'geup' => $athlete?->geup ?? 'GEUP_10',
             'parent_id' => (string) ($athlete?->parent_id ?? ''),
-            'nik' => (string) ($athlete?->nik_ciphertext ?? ''),
-            'bpjs' => (string) ($athlete?->bpjs_ciphertext ?? ''),
+            'nik' => $athlete?->displayValue('nik') ?? '',
+            'bpjs' => $athlete?->displayValue('bpjs') ?? '',
         ]);
     }
 
