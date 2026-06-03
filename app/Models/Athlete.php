@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -42,6 +43,24 @@ class Athlete extends Model{
             'nik_ciphertext' => 'encrypted',
             'bpjs_ciphertext' => 'encrypted',
         ];
+    }
+
+    public function displayValue(string $column): string
+    {
+        return $this->sensitiveIdentifier($column, $column . '_hash');
+    }
+
+    private function sensitiveIdentifier(string $ciphertextColumn, string $hashColumn): string
+    {
+        if (blank($this->getRawOriginal($ciphertextColumn))) {
+            return filled($this->getRawOriginal($hashColumn)) ? 'Stored as hash only' : 'Not stored';
+        }
+
+        try {
+            return (string) $this->getAttribute($ciphertextColumn);
+        } catch (DecryptException) {
+            return 'Stored, cannot decrypt';
+        }
     }
 
     public function group()

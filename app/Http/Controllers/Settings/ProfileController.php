@@ -138,7 +138,7 @@ class ProfileController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $user = $request->user();
@@ -180,7 +180,7 @@ class ProfileController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -217,7 +217,7 @@ class ProfileController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $user = $request->user();
@@ -261,7 +261,7 @@ class ProfileController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -303,8 +303,8 @@ class ProfileController extends Controller
                 'height_cm' => $user->athleteProfile->height_cm,
                 'weight_kg' => $user->athleteProfile->weight_kg,
                 'geup' => $user->athleteProfile->geup,
-                'nik' => $user->athleteProfile->nik_ciphertext,
-                'bpjs' => $user->athleteProfile->bpjs_ciphertext,
+                'nik' => $user->athleteProfile->displayValue('nik'),
+                'bpjs' => $user->athleteProfile->displayValue('bpjs'),
                 'nikHash' => $user->athleteProfile->nik_hash,
                 'bpjsHash' => $user->athleteProfile->bpjs_hash,
                 'phone' => $user->phone,

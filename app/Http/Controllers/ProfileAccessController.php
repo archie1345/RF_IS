@@ -95,8 +95,8 @@ class ProfileAccessController extends Controller
                     'group' => $athlete?->group?->group_name ?? 'Unassigned',
                     'height_cm' => $athlete?->height_cm !== null ? number_format((float) $athlete->height_cm, 1).' cm' : '-',
                     'weight_kg' => $athlete?->weight_kg !== null ? number_format((float) $athlete->weight_kg, 1).' kg' : '-',
-                    'nik' => $canViewSensitiveIdentifiers ? ($athlete?->nik_ciphertext ?? ($athlete?->nik_hash ? 'Stored as hash only' : 'Not stored')) : null,
-                    'bpjs' => $canViewSensitiveIdentifiers ? ($athlete?->bpjs_ciphertext ?? ($athlete?->bpjs_hash ? 'Stored as hash only' : 'Not stored')) : null,
+                    'nik' => $canViewSensitiveIdentifiers ? ($athlete?->displayValue('nik') ?? 'Not stored') : null,
+                    'bpjs' => $canViewSensitiveIdentifiers ? ($athlete?->displayValue('bpjs') ?? 'Not stored') : null,
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
                     'status' => $athlete ? $this->badge('Active', 'success') : $this->badge('Profile incomplete', 'warning'),
                 ];
@@ -163,6 +163,11 @@ class ProfileAccessController extends Controller
             'canViewSensitiveIdentifiers' => $canViewSensitiveIdentifiers,
         ]);
     }
+
+    private function documentFileRules(): array
+        {
+            return ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'];
+        }
 
     public function show(Request $request, User $user): Response
     {
@@ -328,7 +333,7 @@ class ProfileAccessController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = $this->storeUserFileFromRequest($request, $user, 'CERTIFICATE');
@@ -355,7 +360,7 @@ class ProfileAccessController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -382,7 +387,7 @@ class ProfileAccessController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = $this->storeUserFileFromRequest($request, $user, 'EVENT_DOCUMENT');
@@ -411,7 +416,7 @@ class ProfileAccessController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -495,8 +500,8 @@ class ProfileAccessController extends Controller
                 'height_cm' => $user->athleteProfile->height_cm,
                 'weight_kg' => $user->athleteProfile->weight_kg,
                 'geup' => $user->athleteProfile->geup,
-                'nik' => $user->athleteProfile->nik_ciphertext,
-                'bpjs' => $user->athleteProfile->bpjs_ciphertext,
+                'nik' => $user->athleteProfile->displayValue('nik'),
+                'bpjs' => $user->athleteProfile->displayValue('bpjs'),
                 'nikHash' => $user->athleteProfile->nik_hash,
                 'bpjsHash' => $user->athleteProfile->bpjs_hash,
                 'phone' => $user->phone,

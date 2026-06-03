@@ -17,29 +17,32 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
-import { computed, ref, } from 'vue';
+import { computed, ref } from 'vue';
 
-const props = withDefaults(defineProps<{
-    metrics?: Metric[];
-    rows?: TableRow[];
-    branches?: SelectOption[];
-    groups?: SelectOption[];
-    athletes?: SelectOption[];
-    parents?: SelectOption[];
-    coachRows?: TableRow[];
-    parentRows?: TableRow[];
-    canViewSensitiveIdentifiers?: boolean;
-}>(), {
-    metrics: () => [],
-    rows: () => [],
-    branches: () => [],
-    groups: () => [],
-    athletes: () => [],
-    parents: () => [],
-    coachRows: () => [],
-    parentRows: () => [],
-    canViewSensitiveIdentifiers: false,
-});
+const props = withDefaults(
+    defineProps<{
+        metrics?: Metric[];
+        rows?: TableRow[];
+        branches?: SelectOption[];
+        groups?: SelectOption[];
+        athletes?: SelectOption[];
+        parents?: SelectOption[];
+        coachRows?: TableRow[];
+        parentRows?: TableRow[];
+        canViewSensitiveIdentifiers?: boolean;
+    }>(),
+    {
+        metrics: () => [],
+        rows: () => [],
+        branches: () => [],
+        groups: () => [],
+        athletes: () => [],
+        parents: () => [],
+        coachRows: () => [],
+        parentRows: () => [],
+        canViewSensitiveIdentifiers: false,
+    },
+);
 
 const showNewAthleteForm = ref(false);
 const showCoachModal = ref(false);
@@ -66,7 +69,12 @@ const columns: TableColumn[] = [
     { key: 'group', label: 'Group' },
     { key: 'height_cm', label: 'Height' },
     { key: 'weight_kg', label: 'Weight' },
-    ...(props.canViewSensitiveIdentifiers ? [{ key: 'nik', label: 'NIK' }, { key: 'bpjs', label: 'BPJS' }] : []),
+    ...(props.canViewSensitiveIdentifiers
+        ? [
+              { key: 'nik', label: 'NIK' },
+              { key: 'bpjs', label: 'BPJS' },
+          ]
+        : []),
     { key: 'geup', label: 'Geup' },
     { key: 'status', label: 'Status' },
 ];
@@ -88,15 +96,29 @@ const parentColumns: TableColumn[] = [
     { key: 'children', label: 'Children' },
 ];
 
-const geupOptions = ['GEUP_10', 'GEUP_9', 'GEUP_8', 'GEUP_7', 'GEUP_6', 'GEUP_5', 'GEUP_4', 'GEUP_3', 'GEUP_2', 'GEUP_1', 'DAN'];
+const geupOptions = [
+    'GEUP_10',
+    'GEUP_9',
+    'GEUP_8',
+    'GEUP_7',
+    'GEUP_6',
+    'GEUP_5',
+    'GEUP_4',
+    'GEUP_3',
+    'GEUP_2',
+    'GEUP_1',
+    'DAN',
+];
 const genderOptions = [
     { value: 'MALE', label: 'Male' },
     { value: 'FEMALE', label: 'Female' },
 ];
-const geupSelectOptions = computed(() => geupOptions.map((option) => ({
-    value: option,
-    label: option.replace('_', ' '),
-})));
+const geupSelectOptions = computed(() =>
+    geupOptions.map((option) => ({
+        value: option,
+        label: option.replace('_', ' '),
+    })),
+);
 
 const form = useForm({
     name: '',
@@ -151,7 +173,7 @@ function submit() {
     };
 
     if (editingAthleteId.value) {
-        form.put(`/users/user/${editingAthleteId.value}`, options);
+        form.put(`/athlete/user/${editingAthleteId.value}`, options);
         return;
     }
 }
@@ -170,10 +192,7 @@ function toNumericString(value: unknown) {
 }
 
 function getUserId(row: TableRow) {
-    const rawValue =
-        row.user_id ??
-        row.id ??
-        row.athlete_id;
+    const rawValue = row.user_id ?? row.id ?? row.athlete_id;
 
     return Number(toNumericString(rawValue));
 }
@@ -279,7 +298,7 @@ function toggleChild(value: string | number) {
 function saveParentChildren() {
     if (!editingParentChildrenId.value) return;
 
-    parentChildrenForm.put(`/users/parents/${editingParentChildrenId.value}/children`, {
+    parentChildrenForm.put(`/parents/${editingParentChildrenId.value}/children`, {
         preserveScroll: true,
         onSuccess: closeParentChildrenModal,
     });
@@ -333,10 +352,12 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
-                        <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)">Link Children</Button>
+                        <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)"
+                            >Link Children</Button
+                        >
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel> 
+            </ManagementTablePanel>
         </div>
 
         <FormModal :open="showNewAthleteForm" max-width-class="max-w-4xl" @close="closeAthleteForm">
@@ -352,8 +373,20 @@ function saveParentChildren() {
                     <InputError :message="form.errors.email" />
                 </div>
                 <div class="grid gap-4 md:grid-cols-2">
-                    <FormSelectField id="athlete-gender" v-model="form.gender" label="Gender" :options="genderOptions" :error="form.errors.gender" />
-                    <FormInputField id="athlete-bday" v-model="form.bday" label="Birth date" type="date" :error="form.errors.bday" />
+                    <FormSelectField
+                        id="athlete-gender"
+                        v-model="form.gender"
+                        label="Gender"
+                        :options="genderOptions"
+                        :error="form.errors.gender"
+                    />
+                    <FormInputField
+                        id="athlete-bday"
+                        v-model="form.bday"
+                        label="Birth date"
+                        type="date"
+                        :error="form.errors.bday"
+                    />
                 </div>
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="grid gap-2">
@@ -361,7 +394,13 @@ function saveParentChildren() {
                         <Input id="athlete-phone" v-model="form.phone" placeholder="0812..." />
                         <InputError :message="form.errors.phone" />
                     </div>
-                    <FormSelectField id="athlete-geup" v-model="form.geup" label="Geup" :options="geupSelectOptions" :error="form.errors.geup" />
+                    <FormSelectField
+                        id="athlete-geup"
+                        v-model="form.geup"
+                        label="Geup"
+                        :options="geupSelectOptions"
+                        :error="form.errors.geup"
+                    />
                 </div>
                 <div class="grid gap-4 md:grid-cols-2">
                     <FormNumberStepperField
@@ -443,12 +482,7 @@ function saveParentChildren() {
                     <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">
                         {{ editingAthleteId ? 'Update athlete' : 'Save athlete' }}
                     </Button>
-                    <Button
-                        type="button"
-                        class="w-full sm:w-auto"
-                        variant="outline"
-                        @click="closeAthleteForm"
-                    >
+                    <Button type="button" class="w-full sm:w-auto" variant="outline" @click="closeAthleteForm">
                         Cancel
                     </Button>
                 </div>
@@ -459,16 +493,38 @@ function saveParentChildren() {
         <FormModal :open="showCoachModal" max-width-class="max-w-2xl" @close="showCoachModal = false">
             <PageSection title="Edit coach profile" description="Update coach details only.">
                 <form class="grid gap-4" @submit.prevent="saveCoach">
-                    <FormSelectField id="coach-status" v-model="coachForm.status" label="Status" :options="[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]" :error="coachForm.errors.status" />
-                    <FormInputField id="coach-specialization" v-model="coachForm.specialization" label="Specialization" placeholder="Sparring, Poomsae, Conditioning" :error="coachForm.errors.specialization" />
+                    <FormSelectField
+                        id="coach-status"
+                        v-model="coachForm.status"
+                        label="Status"
+                        :options="[
+                            { value: 'active', label: 'Active' },
+                            { value: 'inactive', label: 'Inactive' },
+                        ]"
+                        :error="coachForm.errors.status"
+                    />
+                    <FormInputField
+                        id="coach-specialization"
+                        v-model="coachForm.specialization"
+                        label="Specialization"
+                        placeholder="Sparring, Poomsae, Conditioning"
+                        :error="coachForm.errors.specialization"
+                    />
                     <div class="grid gap-2">
                         <label for="coach-bio" class="text-sm font-medium">Bio</label>
-                        <textarea id="coach-bio" v-model="coachForm.bio" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea
+                            id="coach-bio"
+                            v-model="coachForm.bio"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
                         <p v-if="coachForm.errors.bio" class="text-sm text-destructive">{{ coachForm.errors.bio }}</p>
                     </div>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <Button type="submit" class="w-full sm:w-auto" :disabled="coachForm.processing">Update</Button>
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showCoachModal = false">Cancel</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showCoachModal = false"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>
@@ -477,16 +533,45 @@ function saveParentChildren() {
         <FormModal :open="showParentModal" max-width-class="max-w-2xl" @close="showParentModal = false">
             <PageSection title="Edit parent profile" description="Update parent details only.">
                 <form class="grid gap-4" @submit.prevent="saveParent">
-                    <FormSelectField id="parent-relation" v-model="parentForm.relation" label="Relation" :options="[{ value: 'father', label: 'Father' }, { value: 'mother', label: 'Mother' }, { value: 'guardian', label: 'Guardian' }]" :error="parentForm.errors.relation" />
-                    <FormInputField id="parent-occupation" v-model="parentForm.occupation" label="Occupation" placeholder="Occupation" :error="parentForm.errors.occupation" />
+                    <FormSelectField
+                        id="parent-relation"
+                        v-model="parentForm.relation"
+                        label="Relation"
+                        :options="[
+                            { value: 'father', label: 'Father' },
+                            { value: 'mother', label: 'Mother' },
+                            { value: 'guardian', label: 'Guardian' },
+                        ]"
+                        :error="parentForm.errors.relation"
+                    />
+                    <FormInputField
+                        id="parent-occupation"
+                        v-model="parentForm.occupation"
+                        label="Occupation"
+                        placeholder="Occupation"
+                        :error="parentForm.errors.occupation"
+                    />
                     <div class="grid gap-2">
                         <label for="parent-notes" class="text-sm font-medium">Notes</label>
-                        <textarea id="parent-notes" v-model="parentForm.notes" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
-                        <p v-if="parentForm.errors.notes" class="text-sm text-destructive">{{ parentForm.errors.notes }}</p>
+                        <textarea
+                            id="parent-notes"
+                            v-model="parentForm.notes"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
+                        <p v-if="parentForm.errors.notes" class="text-sm text-destructive">
+                            {{ parentForm.errors.notes }}
+                        </p>
                     </div>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <Button type="submit" class="w-full sm:w-auto" :disabled="parentForm.processing">Update</Button>
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showParentModal = false">Cancel</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="showParentModal = false"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>
@@ -518,19 +603,33 @@ function saveParentChildren() {
                             <span class="min-w-0 flex-1 truncate">{{ athlete.label }}</span>
                         </label>
 
-                        <div v-if="filteredChildOptions.length === 0" class="px-3 py-8 text-center text-sm text-muted-foreground">
+                        <div
+                            v-if="filteredChildOptions.length === 0"
+                            class="px-3 py-8 text-center text-sm text-muted-foreground"
+                        >
                             No athletes match that search.
                         </div>
                     </div>
 
                     <p class="text-sm text-muted-foreground">
-                        {{ parentChildrenForm.athlete_ids.length }} child{{ parentChildrenForm.athlete_ids.length === 1 ? '' : 'ren' }} selected.
+                        {{ parentChildrenForm.athlete_ids.length }} child{{
+                            parentChildrenForm.athlete_ids.length === 1 ? '' : 'ren'
+                        }}
+                        selected.
                     </p>
                     <InputError :message="parentChildrenForm.errors.athlete_ids" />
 
                     <div class="flex flex-col gap-3 sm:flex-row">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentChildrenForm.processing">Save children</Button>
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeParentChildrenModal">Cancel</Button>
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentChildrenForm.processing"
+                            >Save children</Button
+                        >
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="closeParentChildrenModal"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>
