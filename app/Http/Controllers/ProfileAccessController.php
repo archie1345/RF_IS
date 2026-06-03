@@ -164,6 +164,11 @@ class ProfileAccessController extends Controller
         ]);
     }
 
+    private function documentFileRules(): array
+        {
+            return ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'];
+        }
+
     public function show(Request $request, User $user): Response
     {
         $this->authorizeProfileAccess($request, $user);
@@ -328,7 +333,7 @@ class ProfileAccessController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = $this->storeUserFileFromRequest($request, $user, 'CERTIFICATE');
@@ -355,7 +360,7 @@ class ProfileAccessController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -382,7 +387,7 @@ class ProfileAccessController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = $this->storeUserFileFromRequest($request, $user, 'EVENT_DOCUMENT');
@@ -411,7 +416,7 @@ class ProfileAccessController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();

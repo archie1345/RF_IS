@@ -46,7 +46,7 @@ class UserAchievementController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $user = $request->user();

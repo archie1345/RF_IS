@@ -109,6 +109,7 @@ const profilePictureReady = ref(false);
 const profilePictureFileInput = ref<HTMLInputElement | null>(null);
 const profilePictureWidth = 600;
 const profilePictureHeight = 800;
+const documentFileAccept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 const props = withDefaults(
     defineProps<{
@@ -1483,7 +1484,7 @@ onBeforeUnmount(() => {
                                 <input
                                     id="cert-file"
                                     type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    accept="documentFileAccept"
                                     class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                                     @change="onCertificationFileChange"
                                 />
@@ -1588,7 +1589,7 @@ onBeforeUnmount(() => {
                                 <input
                                     id="achievement-file"
                                     type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    accept="documentFileAccept"
                                     class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                                     @change="onAchievementFileChange"
                                 />
@@ -1677,7 +1678,7 @@ onBeforeUnmount(() => {
                             <input
                                 id="cert-edit-file"
                                 type="file"
-                                accept=".pdf,.jpg,.jpeg,.png"
+                                accept="documentFileAccept"
                                 class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                                 @change="onCertificationEditFileChange"
                             />
@@ -1792,7 +1793,7 @@ onBeforeUnmount(() => {
                             <input
                                 id="achievement-edit-file"
                                 type="file"
-                                accept=".pdf,.jpg,.jpeg,.png"
+                                accept="documentFileAccept"
                                 class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
                                 @change="onAchievementEditFileChange"
                             />
