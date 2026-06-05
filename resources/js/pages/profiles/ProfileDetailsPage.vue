@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useProfilePictureCropper } from '@/composables/useProfilePictureCropper';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
@@ -14,6 +14,7 @@ import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCer
 import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import type { BreadcrumbItem } from '@/types';
+import type { TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
 import { AlertCircle, FileText, PencilLine, ShieldCheck } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -174,26 +175,10 @@ const pageShellClass = computed(() => (isSettingsContext.value ? '' : 'flex flex
 
 const pageContentClass = computed(() => (isSettingsContext.value ? 'flex flex-1 flex-col gap-6' : 'contents'));
 
-const accountUpdateUrl = computed(
-    () => props.accountUpdateUrl ?? (isSettingsContext.value ? '/settings/profile' : `/users/${props.user.id}/account`),
-);
-const profileUpdateUrl = computed(() => props.profileUpdateUrl ?? `/users/${props.user.id}/profile`);
-const certificationStoreUrl = computed(() => props.certificationStoreUrl ?? `/users/${props.user.id}/certifications`);
-const achievementStoreUrl = computed(() => props.achievementStoreUrl ?? `/users/${props.user.id}/achievements`);
 const canEditRoleProfiles = computed(() => props.canEditRoleProfiles);
 const shouldShowMilestones = computed(() => props.user.roles.includes('athlete') || props.user.roles.includes('coach'));
 
 const canManageMilestones = computed(() => shouldShowMilestones.value);
-
-const certificationUpdateUrl = (id: number | string) =>
-    props.context === 'settings'
-        ? `/settings/profile/certifications/${id}`
-        : `/users/${props.user.id}/certifications/${id}`;
-
-const achievementUpdateUrl = (id: number | string) =>
-    props.context === 'settings'
-        ? `/settings/profile/achievements/${id}`
-        : `/users/${props.user.id}/achievements/${id}`;
 
 const certColumns: TableColumn[] = [
     { key: 'cert_type', label: 'Type' },
@@ -315,27 +300,58 @@ const profileForm = useForm({
     profile_picture: null as File | null,
 });
 
-const {
-    selectedImage,
-    cropperRef,
-    profilePictureError,
-    profilePictureReady,
-    profilePictureFileInput,
-    profilePictureWidth,
-    profilePictureHeight,
-    clearSelectedImage,
-    onProfilePictureChange,
-    editCurrentProfilePicture: editProfilePictureFromUrl,
-    applyCrop,
-    zoomCrop,
-    rotateCrop,
-    resetCrop,
-    markCropDirty,
-} = useProfilePictureCropper({
-    onCroppedFileChange: (file) => {
-        profileForm.profile_picture = file;
-    },
-});
+function revokeSelectedImageObjectUrl() {
+    if (selectedImageObjectUrl.value) {
+        URL.revokeObjectURL(selectedImageObjectUrl.value);
+        selectedImageObjectUrl.value = null;
+    }
+}
+
+function clearSelectedImage() {
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = null;
+    profilePictureError.value = '';
+    markCropDirty();
+
+    if (profilePictureFileInput.value) {
+        profilePictureFileInput.value.value = '';
+    }
+}
+
+function onProfilePictureChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        profilePictureError.value = 'Profile picture must be smaller than 2MB.';
+        target.value = '';
+        return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+        profilePictureError.value = 'Selected file must be an image.';
+        target.value = '';
+        return;
+    }
+
+    profilePictureError.value = '';
+    markCropDirty();
+
+    revokeSelectedImageObjectUrl();
+    selectedImageObjectUrl.value = URL.createObjectURL(file);
+    selectedImage.value = selectedImageObjectUrl.value;
+}
+
+function editProfilePictureFromUrl(profilePictureUrl?: string | null) {
+    if (!profilePictureUrl) return;
+
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = profilePictureUrl;
+    profilePictureError.value = '';
+    markCropDirty();
+}
 
 const athleteForm = useForm({
     height_cm: String(props.user.athleteProfile?.height_cm ?? ''),

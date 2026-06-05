@@ -99,23 +99,6 @@ const parentColumns: TableColumn[] = [
     { key: 'children', label: 'Children' },
 ];
 
-const geupOptions = [
-    'GEUP_10',
-    'GEUP_9',
-    'GEUP_8',
-    'GEUP_7',
-    'GEUP_6',
-    'GEUP_5',
-    'GEUP_4',
-    'GEUP_3',
-    'GEUP_2',
-    'GEUP_1',
-    'DAN',
-];
-const genderOptions = [
-    { value: 'MALE', label: 'Male' },
-    { value: 'FEMALE', label: 'Female' },
-];
 const geupSelectOptions = computed(() =>
     geupOptions.map((option) => ({
         value: option,
