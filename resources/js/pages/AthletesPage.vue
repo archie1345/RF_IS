@@ -71,14 +71,51 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const columns: TableColumn[] = [
-    ...athleteRosterBaseColumns,
-    ...(props.canViewSensitiveIdentifiers ? sensitiveIdentifierColumns : []),
-    ...athleteRosterTrailingColumns,
+    { key: 'athlete', label: 'Athlete' },
+    { key: 'account_email', label: 'Account Email' },
+    { key: 'parent', label: 'Parent' },
+    { key: 'branch', label: 'Branch' },
+    { key: 'group', label: 'Group' },
+    { key: 'height_cm', label: 'Height' },
+    { key: 'weight_kg', label: 'Weight' },
+    ...(props.canViewSensitiveIdentifiers
+        ? [
+              { key: 'nik', label: 'NIK' },
+              { key: 'bpjs', label: 'BPJS' },
+          ]
+        : []),
+    { key: 'geup', label: 'Geup' },
+    { key: 'status', label: 'Status' },
 ];
 
 const coachColumns: TableColumn[] = coachRosterColumns;
 
-const parentColumns: TableColumn[] = parentRosterColumns;
+const parentColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'email', label: 'Email' },
+    { key: 'role', label: 'Account role' },
+    { key: 'relation', label: 'Relation' },
+    { key: 'occupation', label: 'Occupation' },
+    { key: 'children', label: 'Children' },
+];
+
+const geupOptions = [
+    'GEUP_10',
+    'GEUP_9',
+    'GEUP_8',
+    'GEUP_7',
+    'GEUP_6',
+    'GEUP_5',
+    'GEUP_4',
+    'GEUP_3',
+    'GEUP_2',
+    'GEUP_1',
+    'DAN',
+];
+const genderOptions = [
+    { value: 'MALE', label: 'Male' },
+    { value: 'FEMALE', label: 'Female' },
+];
 const geupSelectOptions = computed(() =>
     geupOptions.map((option) => ({
         value: option,
