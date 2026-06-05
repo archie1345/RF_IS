@@ -3,6 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Actions\Profiles\SaveUserAchievement;
+use App\Actions\Profiles\SaveUserCertification;
+use App\Actions\Profiles\UpdateAccountProfile;
+use App\Actions\Profiles\UpdateAthleteProfile;
+use App\Actions\Profiles\UpdateUserAccount;
+use App\Http\Requests\Profiles\SaveUserAchievementRequest;
+use App\Http\Requests\Profiles\SaveUserCertificationRequest;
+use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
+use App\Http\Requests\Profiles\UpdateAthleteProfileRequest;
+use App\Http\Requests\Profiles\UpdateUserAccountRequest;
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
@@ -10,22 +20,21 @@ use App\Models\Parents;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
-use App\Models\UserFile;
-use App\Models\UserProfile;
 use App\Support\ActivityLogger;
+use App\Support\Profile\ProfilePageData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Intervention\Image\Laravel\Facades\Image;
 
 class ProfileAccessController extends Controller
 {
     use FormatsMvpData;
+
+    public function __construct(
+        private readonly ProfilePageData $profilePageData,
+    ) {
+    }
 
     public function usersIndex(Request $request): Response
     {
@@ -60,7 +69,7 @@ class ProfileAccessController extends Controller
             }))
             ->values();
 
-        return Inertia::render('AthletesPage', [
+        return Inertia::render('profiles/ProfileRosterPage', [
             'metrics' => [
                 [
                     'label' => $isParent ? 'Linked child records' : 'Active athlete records',
@@ -176,21 +185,10 @@ class ProfileAccessController extends Controller
         $viewer = $request->user();
         $isLinkedParent = (bool) ($viewer?->isParent() && $this->parentOwnsAthleteUser($viewer, $user));
 
-        $user->load([
-            'profile',
-            'athleteProfile.branch',
-            'athleteProfile.group',
-            'coachProfile',
-            'parentProfile.athletes.branch',
-            'parentProfile.athletes.group',
-            'parentProfile.athletes.user',
-            'achievements.file',
-            'certifications.file',
-            'roleAssignments',
-        ]);
+        $this->profilePageData->loadUser($user);
 
         return Inertia::render('profiles/ProfileDetailsPage', [
-            'user' => $this->profilePageUser($user),
+            'user' => $this->profilePageData->user($user),
             'context' => 'admin',
             'canEditAccount' => true,
             'canEditRoleProfiles' => true,
@@ -199,130 +197,46 @@ class ProfileAccessController extends Controller
             'certificationStoreUrl' => '/users/'.$user->id.'/certifications',
             'achievementStoreUrl' => '/users/'.$user->id.'/achievements',
             'passwordUpdateUrl' => $isLinkedParent ? '/users/'.$user->id.'/password' : null,
-            'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
-            'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
+            'branches' => $this->profilePageData->branchOptions(),
+            'groups' => $this->profilePageData->groupOptions(),
         ]);
     }
 
-    public function updateAccount(Request $request, User $user): RedirectResponse
+    public function updateAccount(UpdateUserAccountRequest $request, User $user, UpdateUserAccount $updateUserAccount): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id, 'id')],
-            'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
-            'bday' => ['nullable', 'date'],
-            'phone' => ['nullable', 'string', 'max:20'],
-        ]);
-
-        $user->update($validated);
+        $updateUserAccount->handle($user, $request->validated());
 
         ActivityLogger::log($request, 'profile.account.updated', 'profile', 'Updated accessible user account', $user, ['user_id' => $user->id]);
 
         return back();
     }
 
-    public function updateAccountProfile(Request $request, User $user): RedirectResponse
+    public function updateAccountProfile(UpdateAccountProfileRequest $request, User $user, UpdateAccountProfile $updateAccountProfile): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
 
-        $validated = $request->validate([
-            'bio' => ['nullable', 'string'],
-            'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-        ]);
-
-        $payload = ['bio' => $validated['bio'] ?? null];
-
-        if ($request->hasFile('profile_picture')) {
-            if ($user->profile?->profile_picture_path) {
-                Storage::disk('public')->delete($user->profile->profile_picture_path);
-            }
-
-            $image = Image::decodePath($request->file('profile_picture')->getRealPath())
-                ->cover(600, 800)
-                ->encodeUsingMediaType('image/jpeg', quality: 90);
-
-            $path = 'profiles/'.uniqid('profile_', true).'.jpg';
-            Storage::disk('public')->put($path, (string) $image);
-
-            $payload['profile_picture_path'] = $path;
-        }
-
-        UserProfile::query()->updateOrCreate(['user_id' => $user->id], $payload);
+        $updateAccountProfile->handle($user, $request->validated(), $request);
 
         ActivityLogger::log($request, 'profile.details.updated', 'profile', 'Updated accessible user profile details', $user, ['user_id' => $user->id]);
 
         return back();
     }
 
-    public function updateAthleteProfile(Request $request, User $user): RedirectResponse
+    public function updateAthleteProfile(UpdateAthleteProfileRequest $request, User $user, UpdateAthleteProfile $updateAthleteProfile): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
         abort_unless($user->hasRole('athlete'), 404);
 
-        $validated = $request->validate([
-            'height_cm' => ['nullable', 'numeric', 'min:0'],
-            'weight_kg' => ['nullable', 'numeric', 'min:0'],
-            'geup' => ['required', Rule::in(['GEUP_1', 'GEUP_2', 'GEUP_3', 'GEUP_4', 'GEUP_5', 'GEUP_6', 'GEUP_7', 'GEUP_8', 'GEUP_9', 'GEUP_10', 'DAN'])],
-            'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
-            'bday' => ['nullable', 'date'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'nik' => ['nullable', 'string', 'max:50'],
-            'bpjs' => ['nullable', 'string', 'max:50'],
-            'alamat' => ['nullable', 'string'],
-            'branch_id' => ['nullable', 'exists:branches,branch_id'],
-            'group_id' => ['nullable', 'exists:class_groups,group_id'],
-        ]);
-
-        DB::transaction(function () use ($user, $validated): void {
-            $athlete = $user->athleteProfile()->first();
-            $branchId = $validated['branch_id'] ?? $athlete?->branch_id ?? Branch::query()->value('branch_id');
-            $groupId = $validated['group_id'] ?? $athlete?->group_id ?? Group::query()->value('group_id');
-
-            if (! $branchId || ! $groupId) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'branch_id' => 'Create at least one branch and one group before saving an athlete profile.',
-                    'group_id' => 'Create at least one branch and one group before saving an athlete profile.',
-                ]);
-            }
-
-            $user->update([
-                'gender' => $validated['gender'],
-                'bday' => $validated['bday'] ?? null,
-                'phone' => $validated['phone'] ?? null,
-            ]);
-
-            $payload = [
-                'height_cm' => $validated['height_cm'] ?? 0,
-                'weight_kg' => $validated['weight_kg'] ?? 0,
-                'geup' => $validated['geup'],
-                'alamat' => $validated['alamat'] ?? null,
-                'branch_id' => $branchId,
-                'group_id' => $groupId,
-            ];
-
-            if (array_key_exists('nik', $validated)) {
-                $nik = $this->nullableString($validated['nik'] ?? null);
-                $payload['nik_hash'] = $nik ? hash('sha256', preg_replace('/\s+/', '', $nik)) : null;
-                $payload['nik_ciphertext'] = $nik;
-            }
-
-            if (array_key_exists('bpjs', $validated)) {
-                $bpjs = $this->nullableString($validated['bpjs'] ?? null);
-                $payload['bpjs_hash'] = $bpjs ? hash('sha256', preg_replace('/\s+/', '', $bpjs)) : null;
-                $payload['bpjs_ciphertext'] = $bpjs;
-            }
-
-            Athlete::query()->updateOrCreate(['id' => $user->id], $payload);
-        });
+        $updateAthleteProfile->handle($user, $request->validated());
 
         ActivityLogger::log($request, 'profile.athlete.updated', 'profile', 'Updated accessible athlete profile', $user, ['user_id' => $user->id]);
 
         return back();
     }
 
-    public function storeUserCertification(Request $request, User $user): RedirectResponse
+    public function storeUserCertification(SaveUserCertificationRequest $request, User $user, SaveUserCertification $saveUserCertification): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
 
@@ -348,7 +262,7 @@ class ProfileAccessController extends Controller
         return back();
     }
 
-    public function updateUserCertification(Request $request, User $user, UserCertification $certification): RedirectResponse
+    public function updateUserCertification(SaveUserCertificationRequest $request, User $user, UserCertification $certification, SaveUserCertification $saveUserCertification): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
         abort_unless((int) $certification->user_id === (int) $user->id, 404);
@@ -374,7 +288,7 @@ class ProfileAccessController extends Controller
         return back();
     }
 
-    public function storeUserAchievement(Request $request, User $user): RedirectResponse
+    public function storeUserAchievement(SaveUserAchievementRequest $request, User $user, SaveUserAchievement $saveUserAchievement): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
 
@@ -402,7 +316,7 @@ class ProfileAccessController extends Controller
         return back();
     }
 
-    public function updateUserAchievement(Request $request, User $user, UserAchievement $achievement): RedirectResponse
+    public function updateUserAchievement(SaveUserAchievementRequest $request, User $user, UserAchievement $achievement, SaveUserAchievement $saveUserAchievement): RedirectResponse
     {
         $this->authorizeProfileAccess($request, $user);
         abort_unless((int) $achievement->user_id === (int) $user->id, 404);

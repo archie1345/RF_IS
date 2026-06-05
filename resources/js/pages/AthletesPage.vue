@@ -13,6 +13,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    athleteRosterBaseColumns,
+    athleteRosterTrailingColumns,
+    coachRosterColumns,
+    genderOptions,
+    geupOptions,
+    parentRosterColumns,
+    sensitiveIdentifierColumns,
+} from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -79,13 +88,7 @@ const columns: TableColumn[] = [
     { key: 'status', label: 'Status' },
 ];
 
-const coachColumns: TableColumn[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Account role' },
-    { key: 'status', label: 'Status' },
-    { key: 'specialization', label: 'Specialization' },
-];
+const coachColumns: TableColumn[] = coachRosterColumns;
 
 const parentColumns: TableColumn[] = [
     { key: 'name', label: 'Name' },

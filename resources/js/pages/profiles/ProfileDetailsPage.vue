@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
-import DataTable from '@/components/shared/DataTable.vue';
-import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useProfilePictureCropper } from '@/composables/useProfilePictureCropper';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
+import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
+import ProfileAchievementsSection from '@/pages/profiles/components/ProfileAchievementsSection.vue';
+import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCertificationsSection.vue';
+import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
+import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableRow } from '@/types/management';
 import { Head, useForm } from '@inertiajs/vue3';
 import { AlertCircle, FileText, PencilLine, ShieldCheck } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref } from 'vue';
@@ -134,7 +138,25 @@ const props = withDefaults(
     },
 );
 
-const isSettingsContext = computed(() => props.context === 'settings');
+const {
+    isSettingsContext,
+    accountUpdateUrl,
+    profileUpdateUrl,
+    certificationStoreUrl,
+    achievementStoreUrl,
+    certificationUpdateUrl,
+    achievementUpdateUrl,
+    athleteProfileUpdateUrl,
+    coachProfileUpdateUrl,
+    parentProfileUpdateUrl,
+} = useProfileRoutes({
+    user: props.user,
+    context: props.context,
+    accountUpdateUrl: props.accountUpdateUrl,
+    profileUpdateUrl: props.profileUpdateUrl,
+    certificationStoreUrl: props.certificationStoreUrl,
+    achievementStoreUrl: props.achievementStoreUrl,
+});
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() =>
     isSettingsContext.value
@@ -293,6 +315,28 @@ const profileForm = useForm({
     profile_picture: null as File | null,
 });
 
+const {
+    selectedImage,
+    cropperRef,
+    profilePictureError,
+    profilePictureReady,
+    profilePictureFileInput,
+    profilePictureWidth,
+    profilePictureHeight,
+    clearSelectedImage,
+    onProfilePictureChange,
+    editCurrentProfilePicture: editProfilePictureFromUrl,
+    applyCrop,
+    zoomCrop,
+    rotateCrop,
+    resetCrop,
+    markCropDirty,
+} = useProfilePictureCropper({
+    onCroppedFileChange: (file) => {
+        profileForm.profile_picture = file;
+    },
+});
+
 const athleteForm = useForm({
     height_cm: String(props.user.athleteProfile?.height_cm ?? ''),
     weight_kg: String(props.user.athleteProfile?.weight_kg ?? ''),
@@ -324,25 +368,6 @@ const passwordForm = useForm({
     password: '',
     password_confirmation: '',
 });
-
-function revokeSelectedImageObjectUrl() {
-    if (selectedImageObjectUrl.value) {
-        URL.revokeObjectURL(selectedImageObjectUrl.value);
-        selectedImageObjectUrl.value = null;
-    }
-}
-
-function clearSelectedImage() {
-    revokeSelectedImageObjectUrl();
-    selectedImage.value = null;
-    profilePictureReady.value = false;
-    profilePictureError.value = '';
-    profileForm.profile_picture = null;
-
-    if (profilePictureFileInput.value) {
-        profilePictureFileInput.value.value = '';
-    }
-}
 
 function cancelAccountEdit() {
     isEditingAccount.value = false;
@@ -466,7 +491,7 @@ async function saveProfileChanges() {
 function saveAthleteChanges() {
     if (!canEditRoleProfiles.value) return;
 
-    athleteForm.put(`/users/${props.user.id}/athlete-profile`, {
+    athleteForm.put(athleteProfileUpdateUrl.value, {
         preserveScroll: true,
         onSuccess: () => {
             isEditingAthlete.value = false;
@@ -482,7 +507,7 @@ function saveAthleteChanges() {
 function saveCoachChanges() {
     if (!canEditRoleProfiles.value) return;
 
-    coachForm.put(`/users/${props.user.id}/coach-profile`, {
+    coachForm.put(coachProfileUpdateUrl.value, {
         preserveScroll: true,
         onSuccess: () => {
             isEditingCoach.value = false;
@@ -498,7 +523,7 @@ function saveCoachChanges() {
 function saveParentChanges() {
     if (!canEditRoleProfiles.value) return;
 
-    parentForm.put(`/users/${props.user.id}/parent-profile`, {
+    parentForm.put(parentProfileUpdateUrl.value, {
         preserveScroll: true,
         onSuccess: () => {
             isEditingParent.value = false;
@@ -519,7 +544,6 @@ function addCertification() {
             certForm.reset();
             certForm.cert_type = 'BELT';
         },
-        onError: (errors) => console.error('Cert Errors:', errors),
     });
 }
 
@@ -642,43 +666,8 @@ function shortHash(value?: string | null) {
     return `${value.slice(0, 12)}...${value.slice(-8)}`;
 }
 
-async function onProfilePictureChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-
-    if (!file) return;
-
-    const maxSize = 2 * 1024 * 1024;
-
-    if (file.size > maxSize) {
-        profilePictureError.value = 'Profile picture must be smaller than 2MB.';
-        target.value = '';
-        return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-        profilePictureError.value = 'Selected file must be an image.';
-        target.value = '';
-        return;
-    }
-
-    profilePictureError.value = '';
-    profilePictureReady.value = false;
-    profileForm.profile_picture = null;
-
-    revokeSelectedImageObjectUrl();
-    selectedImageObjectUrl.value = URL.createObjectURL(file);
-    selectedImage.value = selectedImageObjectUrl.value;
-}
-
 function editCurrentProfilePicture() {
-    if (!props.user.profilePictureUrl) return;
-
-    revokeSelectedImageObjectUrl();
-    selectedImage.value = props.user.profilePictureUrl;
-    profilePictureReady.value = false;
-    profilePictureError.value = '';
-    profileForm.profile_picture = null;
+    editProfilePictureFromUrl(props.user.profilePictureUrl);
 }
 
 async function applyCrop() {

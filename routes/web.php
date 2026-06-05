@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\Admin\BranchController;
+use App\Http\Controllers\Admin\GroupController;
+use App\Http\Controllers\Admin\InvoiceTemplateController;
 use App\Http\Controllers\AdminManagementController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AttendanceManagementController;
@@ -10,6 +13,12 @@ use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentManagementController;
 use App\Http\Controllers\ProfileAccessController;
+use App\Http\Controllers\Profiles\AthleteProfileController;
+use App\Http\Controllers\Profiles\CoachProfileController;
+use App\Http\Controllers\Profiles\ParentProfileController;
+use App\Http\Controllers\Profiles\UserAccountController;
+use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
+use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\SessionManagementController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UsersManagementController;
@@ -58,10 +67,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('users')->group(function () {
+        Route::get('/', [ProfileAccessController::class, 'usersIndex'])->name('users.index');
         Route::get('/', [ProfileAccessController::class, 'usersIndex'])->name('athletes.index');
         Route::get('{user}', [ParentChildProfileController::class, 'show'])->name('athletes.show');
-        Route::patch('{user}/account', [ProfileAccessController::class, 'updateAccount'])->name('users.account.update');
-        Route::post('{user}/profile', [ProfileAccessController::class, 'updateAccountProfile'])->name('users.profile.update');
         Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update');
         Route::put('{user}/athlete-profile', [ProfileAccessController::class, 'updateAthleteProfile'])->name('users.athlete-profile.update');
         Route::put('{user}/coach-profile', [AdminManagementController::class, 'updateCoachProfile'])->name('users.coach-profile.update');
@@ -94,7 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminManagementController::class, 'index'])->name('index');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-        Route::post('invoice-template', [AdminManagementController::class, 'updateInvoiceTemplate'])->name('invoice-template.update');
+        Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
 
         Route::controller(AdminManagementController::class)->group(function () {
             Route::post('accounts', 'store')->name('accounts.store');
@@ -116,6 +124,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import');
             Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export');
             Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template');
+        });
+
+        Route::controller(BranchController::class)->group(function () {
+            Route::post('branches', 'store')->name('branches.store');
+            Route::put('branches/{branch}', 'update')->name('branches.update');
+            Route::delete('branches/{branch}', 'destroy')->name('branches.destroy');
+        });
+
+        Route::controller(GroupController::class)->group(function () {
+            Route::post('groups', 'store')->name('groups.store');
+            Route::put('groups/{group}', 'update')->name('groups.update');
+            Route::delete('groups/{group}', 'destroy')->name('groups.destroy');
         });
     });
 
