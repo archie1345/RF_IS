@@ -334,7 +334,7 @@ class AdminManagementController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = null;
@@ -376,7 +376,7 @@ class AdminManagementController extends Controller
             'certified_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -415,7 +415,7 @@ class AdminManagementController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $userFile = null;
@@ -459,7 +459,7 @@ class AdminManagementController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:10240'],
+            'file' => $this->documentFileRules(),
         ]);
 
         $payload = collect($validated)->except('file')->all();
@@ -511,6 +511,24 @@ class AdminManagementController extends Controller
         return redirect()->route('admin.index');
     }
 
+    public function hardDelete(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $user = User::withTrashed()->findOrFail($id);
+
+        if ((int) $request->user()?->id === (int) $user->id) {
+            return back()->withErrors(['account' => 'You cannot delete your own account.']);
+        }
+        if (! $user->trashed()) {
+            return back()->withErrors(['account' => 'You can only hard delete an account that has been soft deleted.']);
+        }
+        $user->forceDelete();
+        ActivityLogger::log($request, 'admin.account.force_deleted', 'admin', 'Permanently deleted user account', null, ['user_id' => $id]);
+
+        return redirect()->route('admin.index');
+    }
+
     public function show(User $user): Response
     {
         abort_unless(request()->user()?->isAdmin(), 403);
@@ -543,8 +561,8 @@ class AdminManagementController extends Controller
                     'height_cm' => $user->athleteProfile->height_cm,
                     'weight_kg' => $user->athleteProfile->weight_kg,
                     'geup' => $user->athleteProfile->geup,
-                    'nik' => $user->athleteProfile->nik_ciphertext,
-                    'bpjs' => $user->athleteProfile->bpjs_ciphertext,
+                    'nik' => $user->athleteProfile->displayValue('nik'),
+                    'bpjs' => $user->athleteProfile->displayValue('bpjs'),
                     'nikHash' => $user->athleteProfile->nik_hash,
                     'bpjsHash' => $user->athleteProfile->bpjs_hash,
                     'phone' => $user->phone,
@@ -1109,7 +1127,7 @@ class AdminManagementController extends Controller
             'athletes' => $this->templateRows('athletes', Athlete::query()->with('user')->get()->map(fn ($item) => [
                 $item->user?->name, $item->user?->email, $item->user?->gender, optional($item->user?->bday)->format('Y-m-d'),
                 $item->user?->phone, $item->height_cm, $item->weight_kg, $item->alamat, $item->branch_id, $item->group_id,
-                $item->geup, $item->parent_id, $item->nik_ciphertext, $item->bpjs_ciphertext,
+                $item->geup, $item->parent_id, $item->nikdisplayValue(), $item->bpjsdisplayValue(),
             ])->all()),
             'payments' => $this->templateRows('payments', Payment::query()->get()->map(fn ($item) => [
                 $item->athlete_id, $item->payment_type, $item->total_amount, $item->paid_amount, optional($item->payment_date)->format('Y-m-d'),

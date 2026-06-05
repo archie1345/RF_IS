@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
-import { PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import StatCard from '@/components/shared/StatCard.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -19,12 +20,42 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { Metric, TableColumn, TableRow } from '@/types/management';
 
+interface PendingConfirmation {
+    id: number;
+    kind: 'soft-delete' | 'hard-delete';
+    title: string;
+    message: string;
+    confirmLabel: string;
+}
+
+interface SelectOption<T extends string = string> {
+    value: T;
+    label: string;
+}
+
+interface AdminAccountFormData {
+    name: string;
+    email: string;
+    roles: AdminAccountRole[];
+    branch: string;
+    status: AdminAccountRow['status'];
+    password: string;
+    password_confirmation: string;
+}
+
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
 }>();
 
 const isFormOpen = ref(false);
 const editingId = ref<number | null>(null);
+const pendingConfirmation = ref<{
+    id: number;
+    kind: 'soft-delete' | 'hard-delete';
+    title: string;
+    message: string;
+    confirmLabel: string;
+} | null>(null);
 
 const users = computed(() => props.initialUsers);
 
@@ -37,6 +68,8 @@ const form = useForm({
     password: '',
     password_confirmation: '',
 });
+
+const rolesError = computed(() => (form.errors as Record<string, string>).roles);
 
 // const profileForm = useForm({
 //     bio: '',
@@ -125,7 +158,9 @@ const rows = computed<TableRow[]>(() =>
         email: user.email,
         roleLabel: {
             kind: 'badge',
-            text: (user.roles && user.roles.length > 0 ? user.roles : [user.role]).map((role) => roleLabel[role]).join(', '),
+            text: (user.roles && user.roles.length > 0 ? user.roles : [user.role])
+                .map((role) => roleLabel[role])
+                .join(', '),
             tone: roleTone[user.role],
         },
         branch: user.branch,
@@ -238,8 +273,13 @@ const submit = () => {
 function deleteAccount(row: TableRow) {
     const id = Number(row.id);
     if (!id) return;
-    if (!confirm('Soft delete this account?')) return;
-    router.delete(`/admin/accounts/${id}`, { preserveScroll: true });
+    pendingConfirmation.value = {
+        id,
+        kind: 'soft-delete',
+        title: 'Delete this account?',
+        message: 'The account will be soft deleted and can still be restored later.',
+        confirmLabel: 'Delete account',
+    };
 }
 
 function restoreAccount(row: TableRow) {
@@ -247,10 +287,86 @@ function restoreAccount(row: TableRow) {
     if (!id) return;
     router.put(`/admin/accounts/${id}/restore`, {}, { preserveScroll: true });
 }
+
+function hardDeleteAccount(row: TableRow) {
+    const id = Number(row.id);
+    if (!id) return;
+    pendingConfirmation.value = {
+        id,
+        kind: 'hard-delete',
+        title: 'Permanently delete this account?',
+        message: 'This removes the account for good. This action cannot be undone.',
+        confirmLabel: 'Permanently delete',
+    };
+}
+
+function cancelPendingConfirmation() {
+    pendingConfirmation.value = null;
+}
+
+function handleConfirmationOpenChange(open: boolean) {
+    if (!open) {
+        cancelPendingConfirmation();
+    }
+}
+
+function confirmPendingAction() {
+    const confirmation = pendingConfirmation.value;
+    if (!confirmation) return;
+
+    pendingConfirmation.value = null;
+
+    if (confirmation.kind === 'hard-delete') {
+        router.delete(`/admin/accounts/${confirmation.id}/hard-delete`, {
+            preserveScroll: true,
+        });
+        return;
+    }
+
+    router.delete(`/admin/accounts/${confirmation.id}`, {
+        preserveScroll: true,
+    });
+}
 </script>
 
 <template>
     <div class="space-y-6">
+        <Dialog :open="Boolean(pendingConfirmation)" @update:open="handleConfirmationOpenChange">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{{ pendingConfirmation?.title }}</DialogTitle>
+                    <DialogDescription>Review this action before continuing.</DialogDescription>
+                </DialogHeader>
+
+                <Alert
+                    v-if="pendingConfirmation"
+                    :variant="pendingConfirmation.kind === 'hard-delete' ? 'destructive' : 'default'"
+                >
+                    <AlertTriangle class="size-4" />
+                    <AlertTitle>
+                        {{ pendingConfirmation.kind === 'hard-delete' ? 'Permanent action' : 'Restore is available' }}
+                    </AlertTitle>
+                    <AlertDescription>{{ pendingConfirmation.message }}</AlertDescription>
+                </Alert>
+
+                <DialogFooter class="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" @click="cancelPendingConfirmation"> Cancel </Button>
+                    <Button
+                        v-if="pendingConfirmation"
+                        type="button"
+                        :variant="pendingConfirmation.kind === 'hard-delete' ? 'destructive' : 'default'"
+                        @click="confirmPendingAction"
+                    >
+                        {{ pendingConfirmation.confirmLabel }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
+        </div>
+        
         <ManagementTablePanel
             eyebrow="Admin panel"
             title="Account Management"
@@ -264,14 +380,9 @@ function restoreAccount(row: TableRow) {
             action-label="Action"
             @create="openCreate"
         >
-            <template #stats>
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
-                </div>
-            </template>
 
             <template #row-actions="{ row }">
-                <div class="flex gap-2 justify-end">
+                <div class="flex justify-end gap-2">
                     <!-- <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
                         <UserRoundCog class="size-4" />
                         View Profile -->
@@ -279,8 +390,13 @@ function restoreAccount(row: TableRow) {
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
-                    <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)">Delete</Button>
+                    <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)"
+                        >Delete</Button
+                    >
                     <Button v-else variant="outline" @click="restoreAccount(row)">Restore</Button>
+                    <Button v-if="row.deletedAt !== '-'" variant="destructive" @click="hardDeleteAccount(row)"
+                        >Delete</Button
+                    >
                 </div>
             </template>
         </ManagementTablePanel>
@@ -294,7 +410,8 @@ function restoreAccount(row: TableRow) {
                     {{ editingId !== null ? 'Edit account' : 'Create account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    The form layout follows your JTE admin panel pattern and is ready to connect to Laravel actions later.
+                    The form layout follows your JTE admin panel pattern and is ready to connect to Laravel actions
+                    later.
                 </DialogDescription>
             </DialogHeader>
 
@@ -302,17 +419,25 @@ function restoreAccount(row: TableRow) {
                 <div class="grid gap-2">
                     <Label for="admin-name">Full name</Label>
                     <Input id="admin-name" v-model="form.name" placeholder="Enter full name" />
-                    <p v-if="form.errors.name" class="text-sm text-destructive">{{ form.errors.name }}</p>
+                    <p v-if="form.errors.name" class="text-sm text-destructive">
+                        {{ form.errors.name }}
+                    </p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-email">Email</Label>
                     <Input id="admin-email" v-model="form.email" placeholder="name@example.com" />
-                    <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
+                    <p v-if="form.errors.email" class="text-sm text-destructive">
+                        {{ form.errors.email }}
+                    </p>
                 </div>
                 <div class="grid gap-2 md:col-span-2">
                     <Label>Roles</Label>
                     <div class="grid gap-2 rounded-md border border-input p-3">
-                        <label v-for="option in roleOptions" :key="option.value" class="flex items-center gap-2 text-sm">
+                        <label
+                            v-for="option in roleOptions"
+                            :key="option.value"
+                            class="flex items-center gap-2 text-sm"
+                        >
                             <input
                                 type="checkbox"
                                 :checked="form.roles.includes(option.value as AdminAccountRole)"
@@ -326,27 +451,37 @@ function restoreAccount(row: TableRow) {
                                         }
                                     }
                                 "
-                            >
+                            />
                             <span>{{ option.label }}</span>
                         </label>
                     </div>
-                    <p v-if="(form.errors as Record<string, string>)['roles']" class="text-sm text-destructive">{{ (form.errors as Record<string, string>)['roles'] }}</p>
+                    <p v-if="rolesError" class="text-sm text-destructive">
+                        {{ rolesError }}
+                    </p>
                 </div>
-                <FormSelectField id="admin-status" v-model="form.status" label="Status" :options="statusOptions" :error="form.errors.status" />
+                <FormSelectField
+                    id="admin-status"
+                    v-model="form.status"
+                    label="Status"
+                    :options="statusOptions"
+                    :error="form.errors.status"
+                />
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between gap-3">
                         <Label for="admin-password">Password</Label>
-                        <Button type="button" variant="outline" size="sm" @click="generatePassword">
-                            Generate
-                        </Button>
+                        <Button type="button" variant="outline" size="sm" @click="generatePassword"> Generate </Button>
                     </div>
                     <Input
                         id="admin-password"
                         v-model="form.password"
                         type="text"
-                        :placeholder="editingId !== null ? 'Leave blank to keep current password' : 'Set initial password'"
+                        :placeholder="
+                            editingId !== null ? 'Leave blank to keep current password' : 'Set initial password'
+                        "
                     />
-                    <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
+                    <p v-if="form.errors.password" class="text-sm text-destructive">
+                        {{ form.errors.password }}
+                    </p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-password-confirmation">Confirm password</Label>
@@ -388,4 +523,3 @@ function restoreAccount(row: TableRow) {
         </DialogContent>
     </Dialog>
 </template>
-
