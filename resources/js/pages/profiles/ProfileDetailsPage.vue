@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import { Cropper } from 'vue-advanced-cropper';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { useProfilePictureCropper } from '@/composables/useProfilePictureCropper';
@@ -108,27 +109,58 @@ const profileForm = useForm({
     profile_picture: null as File | null,
 });
 
-const {
-    selectedImage,
-    cropperRef,
-    profilePictureError,
-    profilePictureReady,
-    profilePictureFileInput,
-    profilePictureWidth,
-    profilePictureHeight,
-    clearSelectedImage,
-    onProfilePictureChange,
-    editCurrentProfilePicture: editProfilePictureFromUrl,
-    applyCrop,
-    zoomCrop,
-    rotateCrop,
-    resetCrop,
-    markCropDirty,
-} = useProfilePictureCropper({
-    onCroppedFileChange: (file) => {
-        profileForm.profile_picture = file;
-    },
-});
+function revokeSelectedImageObjectUrl() {
+    if (selectedImageObjectUrl.value) {
+        URL.revokeObjectURL(selectedImageObjectUrl.value);
+        selectedImageObjectUrl.value = null;
+    }
+}
+
+function clearSelectedImage() {
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = null;
+    profilePictureError.value = '';
+    markCropDirty();
+
+    if (profilePictureFileInput.value) {
+        profilePictureFileInput.value.value = '';
+    }
+}
+
+function onProfilePictureChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        profilePictureError.value = 'Profile picture must be smaller than 2MB.';
+        target.value = '';
+        return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+        profilePictureError.value = 'Selected file must be an image.';
+        target.value = '';
+        return;
+    }
+
+    profilePictureError.value = '';
+    markCropDirty();
+
+    revokeSelectedImageObjectUrl();
+    selectedImageObjectUrl.value = URL.createObjectURL(file);
+    selectedImage.value = selectedImageObjectUrl.value;
+}
+
+function editProfilePictureFromUrl(profilePictureUrl?: string | null) {
+    if (!profilePictureUrl) return;
+
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = profilePictureUrl;
+    profilePictureError.value = '';
+    markCropDirty();
+}
 
 const athleteForm = useForm({
     height_cm: String(props.user.athleteProfile?.height_cm ?? ''),
@@ -329,6 +361,129 @@ function saveParentChanges() {
     });
 }
 
+function addCertification() {
+    certForm.post(certificationStoreUrl.value, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            certForm.reset();
+            certForm.cert_type = 'BELT';
+        },
+    });
+}
+
+function fileFromEvent(event: Event): File | null {
+    return (event.target as HTMLInputElement).files?.[0] ?? null;
+}
+
+function onCertificationFileChange(event: Event) {
+    certForm.file = fileFromEvent(event);
+}
+
+function onAchievementFileChange(event: Event) {
+    achievementForm.file = fileFromEvent(event);
+}
+
+function onCertificationEditFileChange(event: Event) {
+    certificationEditForm.file = fileFromEvent(event);
+}
+
+function onAchievementEditFileChange(event: Event) {
+    achievementEditForm.file = fileFromEvent(event);
+}
+
+function openCertificationEdit(row: TableRow) {
+    const certification = props.user.certifications.find((item) => String(item.id) === String(row.id));
+
+    if (!certification) return;
+
+    editingCertification.value = certification;
+    certificationEditForm.cert_type = certification.cert_type ?? 'BELT';
+    certificationEditForm.title = certification.title ?? '';
+    certificationEditForm.issuer = certification.issuer ?? '';
+    certificationEditForm.certified_at = certification.certified_at ?? '';
+    certificationEditForm.expires_at = certification.expires_at ?? '';
+    certificationEditForm.notes = certification.notes ?? '';
+    certificationEditForm.file = null;
+    certificationEditForm.clearErrors();
+}
+
+function closeCertificationEdit() {
+    editingCertification.value = null;
+    certificationEditForm.reset();
+    certificationEditForm.clearErrors();
+}
+
+function saveCertificationEdit() {
+    if (!editingCertification.value) return;
+
+    certificationEditForm
+        .transform((data) => ({ ...data, _method: 'put' }))
+        .post(certificationUpdateUrl(editingCertification.value.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                closeCertificationEdit();
+            },
+            onFinish: () => {
+                certificationEditForm.transform((data) => data);
+            },
+        });
+}
+
+function addAchievement() {
+    achievementForm.post(achievementStoreUrl.value, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            achievementForm.reset();
+            achievementForm.medal = 'NONE';
+        },
+        onError: (errors) => console.error('Achievement Errors:', errors),
+    });
+}
+
+function openAchievementEdit(row: TableRow) {
+    const achievement = props.user.achievements.find((item) => String(item.id) === String(row.id));
+
+    if (!achievement) return;
+
+    editingAchievement.value = achievement;
+    achievementEditForm.championship_name = achievement.championship_name ?? '';
+    achievementEditForm.medal = achievement.medal ?? 'NONE';
+    achievementEditForm.location = achievement.location ?? '';
+    achievementEditForm.event_date = achievement.event_date ?? '';
+    achievementEditForm.class_name = achievement.class_name ?? '';
+    achievementEditForm.division = achievement.division ?? '';
+    achievementEditForm.category = achievement.category ?? '';
+    achievementEditForm.notes = achievement.notes ?? '';
+    achievementEditForm.file = null;
+    achievementEditForm.clearErrors();
+}
+
+function closeAchievementEdit() {
+    editingAchievement.value = null;
+    achievementEditForm.reset();
+    achievementEditForm.clearErrors();
+}
+
+function saveAchievementEdit() {
+    if (!editingAchievement.value) return;
+
+    achievementEditForm
+        .transform((data) => ({ ...data, _method: 'put' }))
+        .post(achievementUpdateUrl(editingAchievement.value.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                closeAchievementEdit();
+            },
+            onFinish: () => {
+                achievementEditForm.transform((data) => data);
+            },
+        });
+}
+
 function shortHash(value?: string | null) {
     if (!value) return 'Not stored';
     if (value.length <= 20) return value;
@@ -338,6 +493,74 @@ function shortHash(value?: string | null) {
 
 function editCurrentProfilePicture() {
     editProfilePictureFromUrl(props.user.profilePictureUrl);
+}
+
+async function applyCrop() {
+    const canvas = cropperRef.value?.getResult()?.canvas;
+
+    if (!canvas) {
+        profilePictureError.value = 'Move or zoom the image, then apply the 3x4 crop.';
+        return;
+    }
+
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = profilePictureWidth;
+    outputCanvas.height = profilePictureHeight;
+
+    const context = outputCanvas.getContext('2d');
+
+    if (!context) {
+        profilePictureError.value = 'Could not prepare the cropped image.';
+        return;
+    }
+
+    context.drawImage(canvas, 0, 0, profilePictureWidth, profilePictureHeight);
+
+    const croppedFile = await new Promise<File | null>((resolve) => {
+        outputCanvas.toBlob(
+            (blob: Blob | null) => {
+                if (!blob) {
+                    resolve(null);
+                    return;
+                }
+
+                resolve(
+                    new File([blob], 'profile-picture-3x4.jpg', {
+                        type: 'image/jpeg',
+                    }),
+                );
+            },
+            'image/jpeg',
+            0.9,
+        );
+    });
+
+    if (!croppedFile) {
+        profilePictureError.value = 'Could not prepare the cropped image.';
+        return;
+    }
+
+    profileForm.profile_picture = croppedFile;
+    profilePictureReady.value = true;
+    profilePictureError.value = '';
+}
+
+function zoomCrop(factor: number) {
+    cropperRef.value?.zoom?.(factor);
+    profilePictureReady.value = false;
+    profileForm.profile_picture = null;
+}
+
+function rotateCrop() {
+    cropperRef.value?.rotate?.(90);
+    profilePictureReady.value = false;
+    profileForm.profile_picture = null;
+}
+
+function resetCrop() {
+    cropperRef.value?.reset?.();
+    profilePictureReady.value = false;
+    profileForm.profile_picture = null;
 }
 </script>
 
