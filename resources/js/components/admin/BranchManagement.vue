@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { MapPin, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import { Button } from '@/components/ui/button';

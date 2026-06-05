@@ -1,9 +1,8 @@
 <script setup lang="ts">
+import { Head } from '@inertiajs/vue3';
+import { AlertCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, Home, RefreshCw } from 'lucide-vue-next';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 
 const props = defineProps<{
     status: number;
@@ -66,13 +65,6 @@ const title = computed(() => props.title ?? error.value.title);
 const message = computed(() => props.message ?? error.value.message);
 const diagnosis = computed(() => props.diagnosis ?? error.value.diagnosis);
 
-function reloadPage() {
-    window.location.reload();
-}
-
-function goBack() {
-    window.history.back();
-}
 </script>
 
 <template>

@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\UserAchievement;
 use App\Models\UserFile;
+use App\Support\Profile\ProfileFormRules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,19 +35,9 @@ class UserAchievementController extends Controller
         ]);
     }
 
-    public function storeAchievement(Request $request): RedirectResponse
+    public function storeAchievement(Request $request, ProfileFormRules $profileFormRules): RedirectResponse
     {
-        $validated = $request->validate([
-            'championship_name' => ['required', 'string', 'max:120'],
-            'medal' => ['required', Rule::in(['GOLD', 'SILVER', 'BRONZE', 'NONE'])],
-            'location' => ['nullable', 'string', 'max:160'],
-            'event_date' => ['nullable', 'date'],
-            'class_name' => ['nullable', 'string', 'max:120'],
-            'division' => ['nullable', 'string', 'max:120'],
-            'category' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string'],
-            'file' => $this->documentFileRules(),
-        ]);
+        $validated = $request->validate($profileFormRules->achievement());
 
         $user = $request->user();
         $userFile = null;

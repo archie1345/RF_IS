@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,32 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import FormSelectField from '@/components/forms/FormSelectField.vue';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { Metric, TableColumn, TableRow } from '@/types/management';
-
-interface PendingConfirmation {
-    id: number;
-    kind: 'soft-delete' | 'hard-delete';
-    title: string;
-    message: string;
-    confirmLabel: string;
-}
-
-interface SelectOption<T extends string = string> {
-    value: T;
-    label: string;
-}
-
-interface AdminAccountFormData {
-    name: string;
-    email: string;
-    roles: AdminAccountRole[];
-    branch: string;
-    status: AdminAccountRow['status'];
-    password: string;
-    password_confirmation: string;
-}
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];

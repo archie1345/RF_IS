@@ -3,7 +3,6 @@ import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 import {
     BadgeCheck,
-    Blocks,
     CalendarCheck2,
     CreditCard,
     FileClock,
@@ -25,8 +24,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { managementRoutes } from '@/data/management';
-import type { Auth } from '@/types/auth';
 import { type NavItem } from '@/types';
+import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/management';
 import AppLogo from './AppLogo.vue';
 

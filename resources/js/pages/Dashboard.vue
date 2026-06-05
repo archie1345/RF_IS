@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed, type PropType } from 'vue';
 import DashboardDataSections from '@/components/dashboard/DashboardDataSections.vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
 import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole, Metric, TableRow } from '@/types/management';
-import { type BreadcrumbItem } from '@/types';
-import { computed, type PropType } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

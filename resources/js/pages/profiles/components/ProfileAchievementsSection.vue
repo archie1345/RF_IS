@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useForm } from '@inertiajs/vue3';
+import { FileText, PencilLine } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import FileUploadField from '@/components/forms/FileUploadField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -9,9 +12,6 @@ import { documentFileAccept, medalOptions } from '@/pages/profiles/profileOption
 import { achievementColumns, achievementRows } from '@/pages/profiles/profileTables';
 import type { ProfileAchievement } from '@/pages/profiles/types';
 import type { TableRow } from '@/types/management';
-import { useForm } from '@inertiajs/vue3';
-import { FileText, PencilLine } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
 
 const props = defineProps<{
     achievements: ProfileAchievement[];

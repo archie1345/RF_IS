@@ -173,11 +173,6 @@ class ProfileAccessController extends Controller
         ]);
     }
 
-    private function documentFileRules(): array
-        {
-            return ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:10240'];
-        }
-
     public function show(Request $request, User $user): Response
     {
         $this->authorizeProfileAccess($request, $user);
@@ -240,24 +235,7 @@ class ProfileAccessController extends Controller
     {
         $this->authorizeProfileAccess($request, $user);
 
-        $validated = $request->validate([
-            'cert_type' => ['required', Rule::in(['BELT', 'REFEREE', 'TRAINER'])],
-            'title' => ['required', 'string', 'max:120'],
-            'issuer' => ['nullable', 'string', 'max:120'],
-            'certified_at' => ['nullable', 'date'],
-            'expires_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'file' => $this->documentFileRules(),
-        ]);
-
-        $userFile = $this->storeUserFileFromRequest($request, $user, 'CERTIFICATE');
-        $payload = collect($validated)->except('file')->all();
-
-        if (Schema::hasColumn('user_certifications', 'user_file_id')) {
-            $payload['user_file_id'] = $userFile?->id;
-        }
-
-        $user->certifications()->create($payload);
+        $saveUserCertification->store($user, $request->validated(), $request);
 
         return back();
     }
@@ -267,23 +245,7 @@ class ProfileAccessController extends Controller
         $this->authorizeProfileAccess($request, $user);
         abort_unless((int) $certification->user_id === (int) $user->id, 404);
 
-        $validated = $request->validate([
-            'cert_type' => ['required', Rule::in(['BELT', 'REFEREE', 'TRAINER'])],
-            'title' => ['required', 'string', 'max:120'],
-            'issuer' => ['nullable', 'string', 'max:120'],
-            'certified_at' => ['nullable', 'date'],
-            'expires_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'file' => $this->documentFileRules(),
-        ]);
-
-        $payload = collect($validated)->except('file')->all();
-
-        if ($request->hasFile('file') && Schema::hasColumn('user_certifications', 'user_file_id')) {
-            $payload['user_file_id'] = $this->storeUserFileFromRequest($request, $user, 'CERTIFICATE')?->id;
-        }
-
-        $certification->update($payload);
+        $saveUserCertification->update($user, $certification, $request->validated(), $request);
 
         return back();
     }
@@ -292,26 +254,7 @@ class ProfileAccessController extends Controller
     {
         $this->authorizeProfileAccess($request, $user);
 
-        $validated = $request->validate([
-            'championship_name' => ['required', 'string', 'max:120'],
-            'medal' => ['required', Rule::in(['GOLD', 'SILVER', 'BRONZE', 'NONE'])],
-            'location' => ['nullable', 'string', 'max:160'],
-            'event_date' => ['nullable', 'date'],
-            'class_name' => ['nullable', 'string', 'max:120'],
-            'division' => ['nullable', 'string', 'max:120'],
-            'category' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string'],
-            'file' => $this->documentFileRules(),
-        ]);
-
-        $userFile = $this->storeUserFileFromRequest($request, $user, 'EVENT_DOCUMENT');
-        $payload = collect($validated)->except('file')->all() + ['is_auto_recorded' => false];
-
-        if (Schema::hasColumn('user_achievements', 'user_file_id')) {
-            $payload['user_file_id'] = $userFile?->id;
-        }
-
-        $user->achievements()->create($payload);
+        $saveUserAchievement->store($user, $request->validated(), $request);
 
         return back();
     }
@@ -321,25 +264,7 @@ class ProfileAccessController extends Controller
         $this->authorizeProfileAccess($request, $user);
         abort_unless((int) $achievement->user_id === (int) $user->id, 404);
 
-        $validated = $request->validate([
-            'championship_name' => ['required', 'string', 'max:120'],
-            'medal' => ['required', Rule::in(['GOLD', 'SILVER', 'BRONZE', 'NONE'])],
-            'location' => ['nullable', 'string', 'max:160'],
-            'event_date' => ['nullable', 'date'],
-            'class_name' => ['nullable', 'string', 'max:120'],
-            'division' => ['nullable', 'string', 'max:120'],
-            'category' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string'],
-            'file' => $this->documentFileRules(),
-        ]);
-
-        $payload = collect($validated)->except('file')->all();
-
-        if ($request->hasFile('file') && Schema::hasColumn('user_achievements', 'user_file_id')) {
-            $payload['user_file_id'] = $this->storeUserFileFromRequest($request, $user, 'EVENT_DOCUMENT')?->id;
-        }
-
-        $achievement->update($payload);
+        $saveUserAchievement->update($user, $achievement, $request->validated(), $request);
 
         return back();
     }
@@ -372,102 +297,4 @@ class ProfileAccessController extends Controller
             ->exists();
     }
 
-    private function storeUserFileFromRequest(Request $request, User $user, string $fileType): ?UserFile
-    {
-        if (! $request->hasFile('file')) {
-            return null;
-        }
-
-        $file = $request->file('file');
-        $path = $file->store('user-files', 'public');
-
-        return UserFile::query()->create([
-            'user_id' => $user->id,
-            'file_type' => $fileType,
-            'original_name' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'mime_type' => $file->getMimeType(),
-            'size_bytes' => $file->getSize(),
-        ]);
-    }
-
-    private function nullableString(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
-    }
-
-    private function profilePageUser(User $user): array
-    {
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'gender' => $user->gender,
-            'bday' => $user->bday?->format('Y-m-d'),
-            'phone' => $user->phone,
-            'roles' => $user->assignedRoles(),
-            'bio' => $user->profile?->bio,
-            'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
-            'athleteProfile' => $user->athleteProfile ? [
-                'height_cm' => $user->athleteProfile->height_cm,
-                'weight_kg' => $user->athleteProfile->weight_kg,
-                'geup' => $user->athleteProfile->geup,
-                'nik' => $user->athleteProfile->displayValue('nik'),
-                'bpjs' => $user->athleteProfile->displayValue('bpjs'),
-                'nikHash' => $user->athleteProfile->nik_hash,
-                'bpjsHash' => $user->athleteProfile->bpjs_hash,
-                'phone' => $user->phone,
-                'bday' => $user->bday?->format('Y-m-d'),
-                'gender' => $user->gender,
-                'alamat' => $user->athleteProfile->alamat,
-                'branch_id' => $user->athleteProfile->branch_id,
-                'group_id' => $user->athleteProfile->group_id,
-                'branch' => $user->athleteProfile->branch,
-                'group' => $user->athleteProfile->group,
-            ] : null,
-            'coachProfile' => $user->coachProfile ? [
-                'status' => $user->coachProfile->status,
-                'specialization' => $user->coachProfile->specialization,
-                'bio' => $user->coachProfile->bio,
-            ] : null,
-            'parentProfile' => $user->parentProfile ? [
-                'phone' => $user->phone,
-                'relation' => $user->parentProfile->relation,
-                'occupation' => $user->parentProfile->occupation,
-                'notes' => $user->parentProfile->notes,
-                'athletes' => $user->parentProfile->athletes->map(fn ($athlete) => [
-                    'id' => $athlete->athlete_id,
-                    'name' => $athlete->user?->name ?? 'Unknown athlete',
-                    'branch' => $athlete->branch,
-                    'group' => $athlete->group,
-                ]),
-            ] : null,
-            'achievements' => $user->achievements->map(fn ($achievement) => [
-                'id' => $achievement->id,
-                'championship_name' => $achievement->championship_name,
-                'medal' => $achievement->medal,
-                'location' => $achievement->location,
-                'event_date' => $achievement->event_date?->format('Y-m-d'),
-                'class_name' => $achievement->class_name,
-                'division' => $achievement->division,
-                'category' => $achievement->category,
-                'notes' => $achievement->notes,
-                'fileName' => $achievement->file?->original_name,
-                'fileUrl' => $achievement->file?->file_path ? Storage::url($achievement->file->file_path) : null,
-            ]),
-            'certifications' => $user->certifications->map(fn ($cert) => [
-                'id' => $cert->id,
-                'cert_type' => $cert->cert_type,
-                'title' => $cert->title,
-                'issuer' => $cert->issuer,
-                'certified_at' => $cert->certified_at?->format('Y-m-d'),
-                'expires_at' => $cert->expires_at?->format('Y-m-d'),
-                'notes' => $cert->notes,
-                'fileName' => $cert->file?->original_name,
-                'fileUrl' => $cert->file?->file_path ? Storage::url($cert->file->file_path) : null,
-            ]),
-        ];
-    }
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { computed, onMounted, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -11,8 +13,6 @@ import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];

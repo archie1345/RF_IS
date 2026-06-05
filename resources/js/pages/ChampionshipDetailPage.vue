@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -9,8 +11,6 @@ import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
 
 const props = defineProps<{
     isAdmin: boolean;

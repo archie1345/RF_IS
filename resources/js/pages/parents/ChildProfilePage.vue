@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import InputError from '@/components/InputError.vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import InputError from '@/components/InputError.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 
 type SelectOption = {
     value: string | number;

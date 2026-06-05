@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
