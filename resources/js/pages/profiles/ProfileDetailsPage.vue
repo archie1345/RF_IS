@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { Head, useForm } from '@inertiajs/vue3';
+import { ShieldCheck } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Cropper } from 'vue-advanced-cropper';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -6,17 +10,13 @@ import { Button } from '@/components/ui/button';
 import { useProfilePictureCropper } from '@/composables/useProfilePictureCropper';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
-import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import ProfileAchievementsSection from '@/pages/profiles/components/ProfileAchievementsSection.vue';
 import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCertificationsSection.vue';
 import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
+import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
+import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import type { BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/vue3';
-import { ShieldCheck } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
-import { Cropper } from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
 
 const props = withDefaults(

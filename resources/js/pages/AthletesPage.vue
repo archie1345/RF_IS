@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import InputError from '@/components/InputError.vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
@@ -24,9 +27,6 @@ import {
 } from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, useForm } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 
 const props = withDefaults(
     defineProps<{
@@ -290,6 +290,7 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
                     </ActionButtonsRow>
                 </template>
             </ManagementTablePanel>
@@ -318,6 +319,7 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditParent(row)">Edit</Button>
                         <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)"
                             >Link Children</Button
                         >

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Plus } from 'lucide-vue-next';
-import PageSection from '@/components/shared/PageSection.vue';
+import { useSlots } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
+import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import type { TableColumn, TableRow } from '@/types/management';
-import { useSlots } from 'vue';
 
 const props = withDefaults(defineProps<{
     eyebrow?: string | null;

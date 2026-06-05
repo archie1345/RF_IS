@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { AlertTriangle } from 'lucide-vue-next';
+import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -17,9 +20,6 @@ import type {
     TableColumn,
     TableRow,
 } from '@/types/management';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle } from 'lucide-vue-next';
-import { ref } from 'vue';
 
 const props = defineProps<{
     metrics: Metric[];

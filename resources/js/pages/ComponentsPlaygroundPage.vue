@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import PageSection from '@/components/shared/PageSection.vue';
-import DataTable from '@/components/shared/DataTable.vue';
+import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
-import FormSelectField from '@/components/forms/FormSelectField.vue';
 import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
 import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { managementRoutes } from '@/data/management';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/management';
 
 const breadcrumbs: BreadcrumbItem[] = [

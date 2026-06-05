@@ -1,5 +1,5 @@
-import type { TableColumn, TableRow } from '@/types/management';
 import type { ProfileAchievement, ProfileCertification } from '@/pages/profiles/types';
+import type { TableColumn, TableRow } from '@/types/management';
 
 export const certificationColumns: TableColumn[] = [
     { key: 'cert_type', label: 'Type' },
