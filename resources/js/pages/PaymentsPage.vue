@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { Download, ImagePlus, MessageCircleWarning, PencilLine, Trash2 } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -11,9 +14,6 @@ import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { Check, Download, ImagePlus, MessageCircleWarning, PencilLine, Trash2, XCircle } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -282,12 +282,6 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
     });
 }
 
-function reviewProofReject(row: TableRow) {
-    if (!confirm('Are you sure you want to reject this payment proof?')) return;
-    const id = Number(row.payment_id);
-    reviewForm.decision = 'REJECTED';
-    reviewForm.put(`/payments/${id}/proof-review`, { preserveScroll: true });
-}
 </script>
 
 <template>

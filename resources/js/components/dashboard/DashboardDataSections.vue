@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
 import { dashboardColumns, mapProfileSummary } from '@/data/dashboard';
+import { managementRoutes } from '@/data/management';
 import type { AppRole, TableRow } from '@/types/management';
-import { Link } from '@inertiajs/vue3';
 
 const props = defineProps<{
     role: AppRole;

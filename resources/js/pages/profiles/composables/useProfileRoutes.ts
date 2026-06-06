@@ -1,5 +1,5 @@
-import type { ProfileUser } from '@/pages/profiles/types';
 import { computed } from 'vue';
+import type { ProfileUser } from '@/pages/profiles/types';
 
 type ProfileContext = 'admin' | 'settings';
 

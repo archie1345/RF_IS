@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import InputError from '@/components/InputError.vue';
+import { Head, useForm } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
@@ -24,9 +27,6 @@ import {
 } from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
-import { Head, useForm } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 
 const props = withDefaults(
     defineProps<{
@@ -71,51 +71,14 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const columns: TableColumn[] = [
-    { key: 'athlete', label: 'Athlete' },
-    { key: 'account_email', label: 'Account Email' },
-    { key: 'parent', label: 'Parent' },
-    { key: 'branch', label: 'Branch' },
-    { key: 'group', label: 'Group' },
-    { key: 'height_cm', label: 'Height' },
-    { key: 'weight_kg', label: 'Weight' },
-    ...(props.canViewSensitiveIdentifiers
-        ? [
-              { key: 'nik', label: 'NIK' },
-              { key: 'bpjs', label: 'BPJS' },
-          ]
-        : []),
-    { key: 'geup', label: 'Geup' },
-    { key: 'status', label: 'Status' },
+    ...athleteRosterBaseColumns,
+    ...(props.canViewSensitiveIdentifiers ? sensitiveIdentifierColumns : []),
+    ...athleteRosterTrailingColumns,
 ];
 
 const coachColumns: TableColumn[] = coachRosterColumns;
 
-const parentColumns: TableColumn[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Account role' },
-    { key: 'relation', label: 'Relation' },
-    { key: 'occupation', label: 'Occupation' },
-    { key: 'children', label: 'Children' },
-];
-
-const geupOptions = [
-    'GEUP_10',
-    'GEUP_9',
-    'GEUP_8',
-    'GEUP_7',
-    'GEUP_6',
-    'GEUP_5',
-    'GEUP_4',
-    'GEUP_3',
-    'GEUP_2',
-    'GEUP_1',
-    'DAN',
-];
-const genderOptions = [
-    { value: 'MALE', label: 'Male' },
-    { value: 'FEMALE', label: 'Female' },
-];
+const parentColumns: TableColumn[] = parentRosterColumns;
 const geupSelectOptions = computed(() =>
     geupOptions.map((option) => ({
         value: option,
@@ -327,6 +290,7 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
                     </ActionButtonsRow>
                 </template>
             </ManagementTablePanel>
@@ -355,6 +319,7 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditParent(row)">Edit</Button>
                         <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)"
                             >Link Children</Button
                         >

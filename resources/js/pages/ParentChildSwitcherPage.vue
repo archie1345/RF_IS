@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { managementRoutes } from '@/data/management';
-import type { BreadcrumbItem } from '@/types';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { managementRoutes } from '@/data/management';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     children: Array<{

@@ -1,28 +1,12 @@
 # syntax=docker/dockerfile:1.5
 
-############################
-# Node stage (New)
-############################
-FROM node:20 as node-deps
-WORKDIR /app
-RUN apt-get update && apt-get install -y php-cli
-COPY package*.json vite.config.ts ./
-RUN npm install
-COPY resources/ resources/
-COPY routes/ routes/
-COPY vite.config.ts .
-COPY bootstrap/ bootstrap/
-# RUN npm run build
+FROM composer:2 AS composer-bin
 
-############################
-# Dependencies stage
-############################
-FROM php:8.4 as deps
+FROM php:8.4-cli AS php-deps
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
     zip \
@@ -31,18 +15,13 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
-    && docker-php-ext-install mbstring \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install gd zip pdo pdo_mysql bcmath
+    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
-
-
-# Copy only composer files first (better caching)
+COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 COPY composer.json composer.lock ./
 
-# Install PHP dependencies
 RUN composer install \
     --no-dev \
     --no-interaction \
@@ -50,78 +29,89 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-############################
-# Application stage
-############################
-FROM php:8.4-apache as final
+FROM php:8.4-cli AS frontend-build
 
-WORKDIR /var/www/html
+WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    unzip \
+    zip \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
- && docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install gd zip pdo pdo_mysql bcmath \
- && a2enmod rewrite
+    libonig-dev \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install opcache
+COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
+COPY --from=php-deps /app/vendor ./vendor
+COPY package.json package-lock.json ./
+RUN npm install
 
-# Copy Composer from deps stage
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY . .
+RUN test -f .env || cp .env.example .env
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+    && LOG_CHANNEL=stderr VIEW_COMPILED_PATH=/tmp/laravel-views npm run build
 
-# Additional runtime tools
-RUN apt-get update && apt-get install -y git curl unzip \
- && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
- && apt-get install -y nodejs \
- && docker-php-ext-install pdo pdo_mysql
+FROM php:8.4-apache AS final
 
-# Set npm cache permissions
-RUN mkdir -p /var/www/.npm && chown -R www-data:www-data /var/www
+WORKDIR /var/www/html
 
-# Use production php.ini
-RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    unzip \
+    zip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath opcache \
+    && a2enmod rewrite \
+    && rm -rf /var/lib/apt/lists/*
 
-# Configure Apache to serve Laravel from public directory
-RUN echo '<VirtualHost *:80>' > /etc/apache2/sites-available/000-default.conf && \
-    echo '    ServerName localhost' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    DocumentRoot /var/www/html/public' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    <Directory /var/www/html/public>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        AllowOverride All' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        Require all granted' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        <IfModule mod_rewrite.c>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteEngine On' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteCond %{REQUEST_FILENAME} !-d' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteCond %{REQUEST_FILENAME} !-f' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '            RewriteRule ^ index.php [QSA,L]' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '        </IfModule>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '    </Directory>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo '</VirtualHost>' >> /etc/apache2/sites-available/000-default.conf && \
-    echo "ServerName localhost" >> /etc/apache2/apache2.conf
+COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
-    RUN { \
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && { \
+        echo 'opcache.enable=1'; \
         echo 'opcache.memory_consumption=128'; \
         echo 'opcache.interned_strings_buffer=8'; \
-        echo 'opcache.max_accelerated_files=4000'; \
-        echo 'opcache.revalidate_freq=0'; \
-        echo 'opcache.fast_shutdown=1'; \
-        } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+        echo 'opcache.max_accelerated_files=10000'; \
+        echo 'opcache.validate_timestamps=0'; \
+      } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-# Copy vendor from deps stage
-COPY --from=deps /app/vendor ./vendor
+RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/public
 
-# # Copy Node dependencies
-# COPY --from=node-deps /app/public/build ./public/build
+    <Directory /var/www/html/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-# Copy application code
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+EOF
+
 COPY . .
+COPY --from=php-deps /app/vendor ./vendor
+COPY --from=frontend-build /app/public/build ./public/build
 
-# Ensure permissions are set as ROOT before switching user
-USER root
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache public/build \
+    && chown -R www-data:www-data storage bootstrap/cache public/build \
+    && chmod -R ug+rwX storage bootstrap/cache public/build
 
-# Now switch to the limited user
-# USER www-data
+EXPOSE 80
+
+CMD ["apache2-foreground"]

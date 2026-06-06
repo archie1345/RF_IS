@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import AdminAccountManagementPanel from '@/components/admin/AdminAccountManagementPanel.vue';
-import { managementRoutes } from '@/data/management';
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { AdminAccountRow } from '@/types/admin';
-import type { BreadcrumbItem } from '@/types';
 import BranchManagement from '@/components/admin/BranchManagement.vue';
 import GroupManagement from '@/components/admin/GroupManagement.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { managementRoutes } from '@/data/management';
+import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { AdminAccountRow } from '@/types/admin';
 import type { Branch } from '@/types/branch';
 import type { Group } from '@/types/group';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import PageSection from '@/components/shared/PageSection.vue';
-import FormSelectField from '@/components/forms/FormSelectField.vue';
 
 const props = defineProps<{
     users: AdminAccountRow[];
@@ -58,41 +55,6 @@ function deleteGroup(id: string) {
     router.delete(`/admin/groups/${id}`, { preserveScroll: true });
 }
 
-const transferOptions = [
-    { value: 'athletes', label: 'Athletes' },
-    { value: 'payments', label: 'Payments' },
-    { value: 'sessions', label: 'Sessions' },
-    { value: 'attendance', label: 'Attendance' },
-    { value: 'events', label: 'Events' },
-    { value: 'event_registrations', label: 'Event Registrations' },
-];
-
-const transferForm = useForm({
-    entity: 'athletes',
-    file: null as File | null,
-});
-
-function onTransferFileChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    transferForm.file = target.files?.[0] ?? null;
-}
-
-function importCsv() {
-    transferForm.post('/admin/data-transfer/import', {
-        forceFormData: true,
-        preserveScroll: true,
-    });
-}
-
-function exportCsv() {
-    const entity = encodeURIComponent(transferForm.entity);
-    window.location.href = `/admin/data-transfer/export?entity=${entity}`;
-}
-
-function downloadTemplate() {
-    const entity = encodeURIComponent(transferForm.entity);
-    window.location.href = `/admin/data-transfer/template?entity=${entity}`;
-}
 </script>
 
 <template>

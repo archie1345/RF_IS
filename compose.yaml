@@ -41,6 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: frontend-build
     container_name: rf-vite
     restart: unless-stopped
     working_dir: /var/www/html

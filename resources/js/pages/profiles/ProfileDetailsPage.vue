@@ -1,123 +1,28 @@
 <script setup lang="ts">
+import { Head, useForm } from '@inertiajs/vue3';
+import { ShieldCheck } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { Cropper } from 'vue-advanced-cropper';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useProfilePictureCropper } from '@/composables/useProfilePictureCropper';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
-import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import ProfileAchievementsSection from '@/pages/profiles/components/ProfileAchievementsSection.vue';
 import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCertificationsSection.vue';
 import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
+import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
+import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import type { BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/vue3';
-import { AlertCircle, FileText, PencilLine, ShieldCheck } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, ref } from 'vue';
-import { Cropper } from 'vue-advanced-cropper';
 import 'vue-advanced-cropper/dist/style.css';
-
-type AthleteProfile = {
-    height_cm?: number;
-    weight_kg?: number;
-    geup?: string;
-    nik?: string;
-    bpjs?: string;
-    nikHash?: string | null;
-    bpjsHash?: string | null;
-    phone?: string;
-    bday?: string;
-    gender?: string;
-    alamat?: string;
-    branch_id?: string | number | null;
-    group_id?: string | number | null;
-    branch?: { branch_name: string };
-    group?: { group_name: string };
-};
-
-type SelectOption = {
-    value: string | number;
-    label: string;
-};
-
-type CoachProfile = {
-    status?: string;
-    specialization?: string;
-    bio?: string;
-};
-
-type ParentProfile = {
-    phone?: string;
-    relation?: string;
-    occupation?: string;
-    notes?: string;
-    athletes?: Array<{
-        id: number;
-        name: string;
-        branch?: { branch_name: string };
-        group?: { group_name: string };
-    }>;
-};
-
-type Certification = {
-    id: number;
-    cert_type: string;
-    title: string;
-    issuer?: string;
-    certified_at?: string;
-    expires_at?: string;
-    notes?: string;
-    fileName?: string | null;
-    fileUrl?: string | null;
-};
-
-type Achievement = {
-    id: number;
-    championship_name: string;
-    medal: string;
-    location?: string;
-    event_date?: string;
-    class_name?: string;
-    division?: string;
-    category?: string;
-    notes?: string;
-    fileName?: string | null;
-    fileUrl?: string | null;
-};
-
-type User = {
-    id: number;
-    name: string;
-    email: string;
-    gender?: string;
-    bday?: string;
-    phone?: string;
-    roles: string[];
-    bio?: string;
-    profilePictureUrl?: string | null;
-    athleteProfile?: AthleteProfile | null;
-    coachProfile?: CoachProfile | null;
-    parentProfile?: ParentProfile | null;
-    achievements: Achievement[];
-    certifications: Certification[];
-};
-
-const selectedImage = ref<string | null>(null);
-const selectedImageObjectUrl = ref<string | null>(null);
-const cropperRef = ref<any>(null);
-const profilePictureError = ref('');
-const profilePictureReady = ref(false);
-const profilePictureFileInput = ref<HTMLInputElement | null>(null);
-const profilePictureWidth = 600;
-const profilePictureHeight = 800;
-const documentFileAccept = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp';
 
 const props = withDefaults(
     defineProps<{
-        user: User;
+        user: ProfileUser;
         context?: 'admin' | 'settings';
         canEditAccount?: boolean;
         canEditRoleProfiles?: boolean;
@@ -126,8 +31,8 @@ const props = withDefaults(
         certificationStoreUrl?: string;
         achievementStoreUrl?: string;
         passwordUpdateUrl?: string | null;
-        branches?: SelectOption[];
-        groups?: SelectOption[];
+        branches?: ProfileSelectOption[];
+        groups?: ProfileSelectOption[];
     }>(),
     {
         context: 'admin',
@@ -174,121 +79,10 @@ const pageShellClass = computed(() => (isSettingsContext.value ? '' : 'flex flex
 
 const pageContentClass = computed(() => (isSettingsContext.value ? 'flex flex-1 flex-col gap-6' : 'contents'));
 
-const accountUpdateUrl = computed(
-    () => props.accountUpdateUrl ?? (isSettingsContext.value ? '/settings/profile' : `/users/${props.user.id}/account`),
-);
-const profileUpdateUrl = computed(() => props.profileUpdateUrl ?? `/users/${props.user.id}/profile`);
-const certificationStoreUrl = computed(() => props.certificationStoreUrl ?? `/users/${props.user.id}/certifications`);
-const achievementStoreUrl = computed(() => props.achievementStoreUrl ?? `/users/${props.user.id}/achievements`);
 const canEditRoleProfiles = computed(() => props.canEditRoleProfiles);
 const shouldShowMilestones = computed(() => props.user.roles.includes('athlete') || props.user.roles.includes('coach'));
 
 const canManageMilestones = computed(() => shouldShowMilestones.value);
-
-const certificationUpdateUrl = (id: number | string) =>
-    props.context === 'settings'
-        ? `/settings/profile/certifications/${id}`
-        : `/users/${props.user.id}/certifications/${id}`;
-
-const achievementUpdateUrl = (id: number | string) =>
-    props.context === 'settings'
-        ? `/settings/profile/achievements/${id}`
-        : `/users/${props.user.id}/achievements/${id}`;
-
-const certColumns: TableColumn[] = [
-    { key: 'cert_type', label: 'Type' },
-    { key: 'title', label: 'Title' },
-    { key: 'issuer', label: 'Issuer' },
-    { key: 'certified_at', label: 'Certified' },
-    { key: 'expires_at', label: 'Expires' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'file_name', label: 'File' },
-];
-
-const achColumns: TableColumn[] = [
-    { key: 'championship_name', label: 'Championship' },
-    { key: 'medal', label: 'Medal' },
-    { key: 'location', label: 'Location' },
-    { key: 'event_date', label: 'Date' },
-    { key: 'class_name', label: 'Class' },
-    { key: 'division', label: 'Division' },
-    { key: 'category', label: 'Category' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'file_name', label: 'File' },
-];
-
-const certRows: TableRow[] = props.user.certifications.map((cert) => ({
-    id: String(cert.id),
-    cert_type: cert.cert_type,
-    title: cert.title,
-    issuer: cert.issuer ?? '-',
-    certified_at: cert.certified_at ?? '-',
-    expires_at: cert.expires_at ?? '-',
-    notes: cert.notes ?? '-',
-    file_name: cert.fileName ?? '-',
-    file_url: cert.fileUrl ?? '',
-}));
-
-const achRows: TableRow[] = props.user.achievements.map((ach) => ({
-    id: String(ach.id),
-    championship_name: ach.championship_name,
-    medal: ach.medal,
-    location: ach.location ?? '-',
-    event_date: ach.event_date ?? '-',
-    class_name: ach.class_name ?? '-',
-    division: ach.division ?? '-',
-    category: ach.category ?? '-',
-    notes: ach.notes ?? '-',
-    file_name: ach.fileName ?? '-',
-    file_url: ach.fileUrl ?? '',
-}));
-
-const certForm = useForm({
-    cert_type: 'BELT',
-    title: '',
-    issuer: '',
-    certified_at: '',
-    expires_at: '',
-    notes: '',
-    file: null as File | null,
-});
-
-const achievementForm = useForm({
-    championship_name: '',
-    medal: 'NONE',
-    location: '',
-    event_date: '',
-    class_name: '',
-    division: '',
-    category: '',
-    notes: '',
-    file: null as File | null,
-});
-
-const editingCertification = ref<Certification | null>(null);
-const editingAchievement = ref<Achievement | null>(null);
-
-const certificationEditForm = useForm({
-    cert_type: 'BELT',
-    title: '',
-    issuer: '',
-    certified_at: '',
-    expires_at: '',
-    notes: '',
-    file: null as File | null,
-});
-
-const achievementEditForm = useForm({
-    championship_name: '',
-    medal: 'NONE',
-    location: '',
-    event_date: '',
-    class_name: '',
-    division: '',
-    category: '',
-    notes: '',
-    file: null as File | null,
-});
 
 const isEditingProfile = ref(false);
 const isEditingAccount = ref(false);
@@ -315,27 +109,58 @@ const profileForm = useForm({
     profile_picture: null as File | null,
 });
 
-const {
-    selectedImage,
-    cropperRef,
-    profilePictureError,
-    profilePictureReady,
-    profilePictureFileInput,
-    profilePictureWidth,
-    profilePictureHeight,
-    clearSelectedImage,
-    onProfilePictureChange,
-    editCurrentProfilePicture: editProfilePictureFromUrl,
-    applyCrop,
-    zoomCrop,
-    rotateCrop,
-    resetCrop,
-    markCropDirty,
-} = useProfilePictureCropper({
-    onCroppedFileChange: (file) => {
-        profileForm.profile_picture = file;
-    },
-});
+function revokeSelectedImageObjectUrl() {
+    if (selectedImageObjectUrl.value) {
+        URL.revokeObjectURL(selectedImageObjectUrl.value);
+        selectedImageObjectUrl.value = null;
+    }
+}
+
+function clearSelectedImage() {
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = null;
+    profilePictureError.value = '';
+    markCropDirty();
+
+    if (profilePictureFileInput.value) {
+        profilePictureFileInput.value.value = '';
+    }
+}
+
+function onProfilePictureChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        profilePictureError.value = 'Profile picture must be smaller than 2MB.';
+        target.value = '';
+        return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+        profilePictureError.value = 'Selected file must be an image.';
+        target.value = '';
+        return;
+    }
+
+    profilePictureError.value = '';
+    markCropDirty();
+
+    revokeSelectedImageObjectUrl();
+    selectedImageObjectUrl.value = URL.createObjectURL(file);
+    selectedImage.value = selectedImageObjectUrl.value;
+}
+
+function editProfilePictureFromUrl(profilePictureUrl?: string | null) {
+    if (!profilePictureUrl) return;
+
+    revokeSelectedImageObjectUrl();
+    selectedImage.value = profilePictureUrl;
+    profilePictureError.value = '';
+    markCropDirty();
+}
 
 const athleteForm = useForm({
     height_cm: String(props.user.athleteProfile?.height_cm ?? ''),
@@ -737,15 +562,6 @@ function resetCrop() {
     profilePictureReady.value = false;
     profileForm.profile_picture = null;
 }
-
-function markCropDirty() {
-    profilePictureReady.value = false;
-    profileForm.profile_picture = null;
-}
-
-onBeforeUnmount(() => {
-    revokeSelectedImageObjectUrl();
-});
 </script>
 
 <template>
@@ -759,19 +575,13 @@ onBeforeUnmount(() => {
                     :description="`View detailed information for ${user.email}`"
                 />
 
-                <Alert v-if="saveError" variant="destructive" class="shadow-sm">
-                    <AlertCircle class="size-4" />
-                    <AlertTitle>{{ saveError.title }}</AlertTitle>
-                    <AlertDescription>
-                        <p>{{ saveError.message }}</p>
-                        <ul v-if="saveError.fields.length" class="list-inside list-disc">
-                            <li v-for="field in saveError.fields" :key="field">{{ field }}</li>
-                        </ul>
-                        <Button type="button" size="sm" variant="outline" class="mt-3" @click="clearSaveError">
-                            Dismiss
-                        </Button>
-                    </AlertDescription>
-                </Alert>
+                <ProfileSaveErrorAlert
+                    v-if="saveError"
+                    :title="saveError.title"
+                    :message="saveError.message"
+                    :fields="saveError.fields"
+                    @clear="clearSaveError"
+                />
 
                 <div class="grid gap-6">
                     <div
@@ -817,10 +627,7 @@ onBeforeUnmount(() => {
                                     v-model="accountForm.gender"
                                     label="Gender"
                                     :disabled="!isEditingAccount"
-                                    :options="[
-                                        { value: 'MALE', label: 'Male' },
-                                        { value: 'FEMALE', label: 'Female' },
-                                    ]"
+                                    :options="genderOptions"
                                     :error="accountForm.errors.gender"
                                 />
                                 <FormInputField
@@ -1101,29 +908,14 @@ onBeforeUnmount(() => {
                                     v-model="athleteForm.geup"
                                     label="Geup"
                                     :disabled="!isEditingAthlete"
-                                    :options="[
-                                        { value: 'GEUP_10', label: 'GEUP 10' },
-                                        { value: 'GEUP_9', label: 'GEUP 9' },
-                                        { value: 'GEUP_8', label: 'GEUP 8' },
-                                        { value: 'GEUP_7', label: 'GEUP 7' },
-                                        { value: 'GEUP_6', label: 'GEUP 6' },
-                                        { value: 'GEUP_5', label: 'GEUP 5' },
-                                        { value: 'GEUP_4', label: 'GEUP 4' },
-                                        { value: 'GEUP_3', label: 'GEUP 3' },
-                                        { value: 'GEUP_2', label: 'GEUP 2' },
-                                        { value: 'GEUP_1', label: 'GEUP 1' },
-                                        { value: 'DAN', label: 'DAN' },
-                                    ]"
+                                    :options="geupOptions"
                                 />
                                 <FormSelectField
                                     id="gender"
                                     v-model="athleteForm.gender"
                                     label="Gender"
                                     :disabled="!isEditingAthlete"
-                                    :options="[
-                                        { value: 'MALE', label: 'Male' },
-                                        { value: 'FEMALE', label: 'Female' },
-                                    ]"
+                                    :options="genderOptions"
                                 />
                             </div>
                             <div class="grid gap-2 md:grid-cols-2">
@@ -1237,10 +1029,7 @@ onBeforeUnmount(() => {
                                 v-model="coachForm.status"
                                 label="Status"
                                 :disabled="!isEditingCoach"
-                                :options="[
-                                    { value: 'active', label: 'Active' },
-                                    { value: 'inactive', label: 'Inactive' },
-                                ]"
+                                :options="coachStatusOptions"
                             />
                             <FormInputField
                                 id="specialization"
@@ -1313,14 +1102,7 @@ onBeforeUnmount(() => {
                                     v-model="parentForm.relation"
                                     label="Relation"
                                     :disabled="!isEditingParent"
-                                    :options="[
-                                        { value: 'father', label: 'Father' },
-                                        { value: 'mother', label: 'Mother' },
-                                        {
-                                            value: 'guardian',
-                                            label: 'Guardian',
-                                        },
-                                    ]"
+                                    :options="parentRelationOptions"
                                 />
                             </div>
                             <FormInputField
@@ -1378,433 +1160,21 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div
+                <ProfileCertificationsSection
                     v-if="shouldShowMilestones"
-                    class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
-                >
-                    <h4 class="mb-3 flex items-center gap-2 font-semibold">
-                        <FileText class="h-4 w-4 text-muted-foreground" />
-                        Certifications
-                    </h4>
-                    <DataTable
-                        title="Certifications"
-                        description="View all certifications for this user."
-                        :columns="certColumns"
-                        :rows="certRows"
-                        action-label="Manage"
-                        empty-text="No certifications found."
-                    >
-                        <template #cell="{ row, column, value }">
-                            <a
-                                v-if="column.key === 'file_name' && row.file_url"
-                                :href="String(row.file_url)"
-                                target="_blank"
-                                class="text-sm font-medium underline underline-offset-4"
-                            >
-                                {{ value }}
-                            </a>
-                            <span v-else>{{ value ?? '-' }}</span>
-                        </template>
-                        <template v-if="canManageMilestones" #row-actions="{ row }">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                class="gap-2"
-                                @click="openCertificationEdit(row)"
-                            >
-                                <PencilLine class="h-3.5 w-3.5" />
-                                Edit
-                            </Button>
-                        </template>
-                    </DataTable>
-                    <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
-                        <h5 class="mb-2 font-medium">Add Certification</h5>
-                        <form class="grid gap-3" @submit.prevent="addCertification">
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormSelectField
-                                    id="cert-type"
-                                    v-model="certForm.cert_type"
-                                    label="Type"
-                                    :options="[
-                                        { value: 'BELT', label: 'Belt' },
-                                        { value: 'REFEREE', label: 'Referee' },
-                                        { value: 'TRAINER', label: 'Trainer' },
-                                    ]"
-                                />
-                                <FormInputField
-                                    id="cert-title"
-                                    v-model="certForm.title"
-                                    label="Title"
-                                    required
-                                    :error="certForm.errors.title"
-                                />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormInputField
-                                    id="cert-issuer"
-                                    v-model="certForm.issuer"
-                                    label="Issuer"
-                                    :error="certForm.errors.issuer"
-                                />
-                                <FormInputField
-                                    id="cert-date"
-                                    v-model="certForm.certified_at"
-                                    label="Certified at"
-                                    type="date"
-                                />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormInputField
-                                    id="cert-expires"
-                                    v-model="certForm.expires_at"
-                                    label="Expires at"
-                                    type="date"
-                                />
-                                <FormInputField
-                                    id="cert-notes"
-                                    v-model="certForm.notes"
-                                    label="Notes"
-                                    :error="certForm.errors.notes"
-                                />
-                            </div>
-                            <div class="grid gap-2">
-                                <label for="cert-file" class="text-sm font-medium">Certificate File</label>
-                                <input
-                                    id="cert-file"
-                                    type="file"
-                                    accept="documentFileAccept"
-                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                    @change="onCertificationFileChange"
-                                />
-                            </div>
-                            <div>
-                                <Button type="submit" :disabled="certForm.processing">Add Certification</Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                    :certifications="user.certifications"
+                    :can-manage="canManageMilestones"
+                    :store-url="certificationStoreUrl"
+                    :update-url="certificationUpdateUrl"
+                />
 
-                <div
+                <ProfileAchievementsSection
                     v-if="shouldShowMilestones"
-                    class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
-                >
-                    <h4 class="mb-3 flex items-center gap-2 font-semibold">
-                        <FileText class="h-4 w-4 text-muted-foreground" />
-                        Achievements
-                    </h4>
-                    <DataTable
-                        title="Achievements"
-                        description="View all achievements for this user."
-                        :columns="achColumns"
-                        :rows="achRows"
-                        action-label="Manage"
-                        empty-text="No achievements found."
-                    >
-                        <template #cell="{ row, column, value }">
-                            <a
-                                v-if="column.key === 'file_name' && row.file_url"
-                                :href="String(row.file_url)"
-                                target="_blank"
-                                class="text-sm font-medium underline underline-offset-4"
-                            >
-                                {{ value }}
-                            </a>
-                            <span v-else>{{ value ?? '-' }}</span>
-                        </template>
-                        <template v-if="canManageMilestones" #row-actions="{ row }">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                class="gap-2"
-                                @click="openAchievementEdit(row)"
-                            >
-                                <PencilLine class="h-3.5 w-3.5" />
-                                Edit
-                            </Button>
-                        </template>
-                    </DataTable>
-                    <div v-if="canManageMilestones" class="mt-6 border-t border-border pt-4">
-                        <h5 class="mb-2 font-medium">Add Achievement</h5>
-                        <form class="grid gap-3" @submit.prevent="addAchievement">
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormInputField
-                                    id="ach-name"
-                                    v-model="achievementForm.championship_name"
-                                    label="Championship name"
-                                    required
-                                    :error="achievementForm.errors.championship_name"
-                                />
-                                <FormSelectField
-                                    id="ach-medal"
-                                    v-model="achievementForm.medal"
-                                    label="Medal"
-                                    :options="[
-                                        { value: 'GOLD', label: 'Gold' },
-                                        { value: 'SILVER', label: 'Silver' },
-                                        { value: 'BRONZE', label: 'Bronze' },
-                                        { value: 'NONE', label: 'None' },
-                                    ]"
-                                />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormInputField
-                                    id="ach-location"
-                                    v-model="achievementForm.location"
-                                    label="Location"
-                                    :error="achievementForm.errors.location"
-                                />
-                                <FormInputField
-                                    id="ach-date"
-                                    v-model="achievementForm.event_date"
-                                    label="Date"
-                                    type="date"
-                                    :error="achievementForm.errors.event_date"
-                                />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-3">
-                                <FormInputField
-                                    id="ach-class"
-                                    v-model="achievementForm.class_name"
-                                    label="Class name"
-                                />
-                                <FormInputField id="ach-division" v-model="achievementForm.division" label="Division" />
-                                <FormInputField id="ach-category" v-model="achievementForm.category" label="Category" />
-                            </div>
-                            <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Notes" />
-                            <div class="grid gap-2">
-                                <label for="achievement-file" class="text-sm font-medium">Supporting File</label>
-                                <input
-                                    id="achievement-file"
-                                    type="file"
-                                    accept="documentFileAccept"
-                                    class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                    @change="onAchievementFileChange"
-                                />
-                            </div>
-                            <div>
-                                <Button type="submit" :disabled="achievementForm.processing">Add Achievement</Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <FormModal
-                    :open="Boolean(editingCertification)"
-                    max-width-class="max-w-4xl"
-                    @close="closeCertificationEdit"
-                >
-                    <form class="grid gap-4" @submit.prevent="saveCertificationEdit">
-                        <div>
-                            <h3 class="text-lg font-semibold">Edit Certification</h3>
-                            <p class="text-sm text-muted-foreground">
-                                Update the record details or replace the attached file.
-                            </p>
-                        </div>
-
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormSelectField
-                                id="cert-edit-type"
-                                v-model="certificationEditForm.cert_type"
-                                label="Type"
-                                :options="[
-                                    { value: 'BELT', label: 'Belt' },
-                                    { value: 'REFEREE', label: 'Referee' },
-                                    { value: 'TRAINER', label: 'Trainer' },
-                                ]"
-                                :error="certificationEditForm.errors.cert_type"
-                            />
-                            <FormInputField
-                                id="cert-edit-title"
-                                v-model="certificationEditForm.title"
-                                label="Title"
-                                required
-                                :error="certificationEditForm.errors.title"
-                            />
-                        </div>
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField
-                                id="cert-edit-issuer"
-                                v-model="certificationEditForm.issuer"
-                                label="Issuer"
-                                :error="certificationEditForm.errors.issuer"
-                            />
-                            <FormInputField
-                                id="cert-edit-date"
-                                v-model="certificationEditForm.certified_at"
-                                label="Certified at"
-                                type="date"
-                                :error="certificationEditForm.errors.certified_at"
-                            />
-                        </div>
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField
-                                id="cert-edit-expires"
-                                v-model="certificationEditForm.expires_at"
-                                label="Expires at"
-                                type="date"
-                                :error="certificationEditForm.errors.expires_at"
-                            />
-                            <FormInputField
-                                id="cert-edit-notes"
-                                v-model="certificationEditForm.notes"
-                                label="Notes"
-                                :error="certificationEditForm.errors.notes"
-                            />
-                        </div>
-                        <div class="grid gap-2">
-                            <label for="cert-edit-file" class="text-sm font-medium">Replace Certificate File</label>
-                            <a
-                                v-if="editingCertification?.fileUrl"
-                                :href="editingCertification.fileUrl"
-                                target="_blank"
-                                class="text-sm font-medium underline underline-offset-4"
-                            >
-                                Current file:
-                                {{ editingCertification.fileName ?? 'Open file' }}
-                            </a>
-                            <input
-                                id="cert-edit-file"
-                                type="file"
-                                accept="documentFileAccept"
-                                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                @change="onCertificationEditFileChange"
-                            />
-                            <p v-if="certificationEditForm.errors.file" class="text-sm text-destructive">
-                                {{ certificationEditForm.errors.file }}
-                            </p>
-                        </div>
-
-                        <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                class="w-full sm:w-auto"
-                                @click="closeCertificationEdit"
-                                >Cancel</Button
-                            >
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="certificationEditForm.processing"
-                                >Save Certification</Button
-                            >
-                        </div>
-                    </form>
-                </FormModal>
-
-                <FormModal
-                    :open="Boolean(editingAchievement)"
-                    max-width-class="max-w-4xl"
-                    @close="closeAchievementEdit"
-                >
-                    <form class="grid gap-4" @submit.prevent="saveAchievementEdit">
-                        <div>
-                            <h3 class="text-lg font-semibold">Edit Achievement</h3>
-                            <p class="text-sm text-muted-foreground">
-                                Update the achievement details or replace the supporting file.
-                            </p>
-                        </div>
-
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField
-                                id="ach-edit-name"
-                                v-model="achievementEditForm.championship_name"
-                                label="Championship name"
-                                required
-                                :error="achievementEditForm.errors.championship_name"
-                            />
-                            <FormSelectField
-                                id="ach-edit-medal"
-                                v-model="achievementEditForm.medal"
-                                label="Medal"
-                                :options="[
-                                    { value: 'GOLD', label: 'Gold' },
-                                    { value: 'SILVER', label: 'Silver' },
-                                    { value: 'BRONZE', label: 'Bronze' },
-                                    { value: 'NONE', label: 'None' },
-                                ]"
-                                :error="achievementEditForm.errors.medal"
-                            />
-                        </div>
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField
-                                id="ach-edit-location"
-                                v-model="achievementEditForm.location"
-                                label="Location"
-                                :error="achievementEditForm.errors.location"
-                            />
-                            <FormInputField
-                                id="ach-edit-date"
-                                v-model="achievementEditForm.event_date"
-                                label="Date"
-                                type="date"
-                                :error="achievementEditForm.errors.event_date"
-                            />
-                        </div>
-                        <div class="grid gap-3 md:grid-cols-3">
-                            <FormInputField
-                                id="ach-edit-class"
-                                v-model="achievementEditForm.class_name"
-                                label="Class name"
-                                :error="achievementEditForm.errors.class_name"
-                            />
-                            <FormInputField
-                                id="ach-edit-division"
-                                v-model="achievementEditForm.division"
-                                label="Division"
-                                :error="achievementEditForm.errors.division"
-                            />
-                            <FormInputField
-                                id="ach-edit-category"
-                                v-model="achievementEditForm.category"
-                                label="Category"
-                                :error="achievementEditForm.errors.category"
-                            />
-                        </div>
-                        <FormInputField
-                            id="ach-edit-notes"
-                            v-model="achievementEditForm.notes"
-                            label="Notes"
-                            :error="achievementEditForm.errors.notes"
-                        />
-                        <div class="grid gap-2">
-                            <label for="achievement-edit-file" class="text-sm font-medium"
-                                >Replace Supporting File</label
-                            >
-                            <a
-                                v-if="editingAchievement?.fileUrl"
-                                :href="editingAchievement.fileUrl"
-                                target="_blank"
-                                class="text-sm font-medium underline underline-offset-4"
-                            >
-                                Current file:
-                                {{ editingAchievement.fileName ?? 'Open file' }}
-                            </a>
-                            <input
-                                id="achievement-edit-file"
-                                type="file"
-                                accept="documentFileAccept"
-                                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                                @change="onAchievementEditFileChange"
-                            />
-                            <p v-if="achievementEditForm.errors.file" class="text-sm text-destructive">
-                                {{ achievementEditForm.errors.file }}
-                            </p>
-                        </div>
-
-                        <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                class="w-full sm:w-auto"
-                                @click="closeAchievementEdit"
-                                >Cancel</Button
-                            >
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="achievementEditForm.processing"
-                                >Save Achievement</Button
-                            >
-                        </div>
-                    </form>
-                </FormModal>
+                    :achievements="user.achievements"
+                    :can-manage="canManageMilestones"
+                    :store-url="achievementStoreUrl"
+                    :update-url="achievementUpdateUrl"
+                />
             </div>
         </component>
     </AppLayout>
