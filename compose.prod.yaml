@@ -3,34 +3,33 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: rfis-stage-server
+    container_name: ${APP_CONTAINER_NAME}
     restart: unless-stopped
     ports:
-      - "8082:80"
+      - "${APP_PORT}:80"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      APP_NAME: "RF_IS Stage"
-      APP_ENV: staging
-      APP_DEBUG: "true"
-      APP_URL: http://100.72.97.77:8082
+      APP_NAME: ${APP_NAME}
+      APP_ENV: ${APP_ENV}
+      APP_DEBUG: ${APP_DEBUG}
+      APP_URL: ${APP_URL}
+      APP_KEY: ${APP_KEY}
+
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: rf_is
-      DB_USERNAME: rf_user
-      DB_PASSWORD: rf_password
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
       SESSION_DRIVER: database
       CACHE_STORE: database
       QUEUE_CONNECTION: database
-      VITE_APP_NAME: "RF_IS Stage"
+      VITE_APP_NAME: ${APP_NAME}
     command: >
       sh -lc "
-      if [ -z \"$${APP_KEY:-}\" ]; then
-        [ -f .env ] || cp .env.example .env;
-        php artisan key:generate --force;
-      fi;
       php artisan storage:link || true;
       php artisan config:clear || true;
       php artisan route:clear || true;
@@ -50,21 +49,21 @@ services:
 
   db:
     image: mysql:8.4
-    container_name: rfis-stage-db
+    container_name: ${DB_CONTAINER_NAME}
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: rf_is
-      MYSQL_USER: rf_user
-      MYSQL_PASSWORD: rf_password
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
-      - rfis_stage_db_data:/var/lib/mysql
+      - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
 
 volumes:
-  rfis_stage_db_data:
+  db_data:
