@@ -103,7 +103,6 @@ function saveAccount() {
         preserveScroll: true,
         onSuccess: () => {
             isEditingAccount.value = false;
-            window.location.reload();
         },
     });
 }
@@ -113,7 +112,6 @@ function saveAthlete() {
         preserveScroll: true,
         onSuccess: () => {
             isEditingAthlete.value = false;
-            window.location.reload();
         },
     });
 }

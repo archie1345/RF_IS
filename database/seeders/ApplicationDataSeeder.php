@@ -19,7 +19,7 @@ class ApplicationDataSeeder extends Seeder
 
         $adminUserId = DB::table('users')->insertGetId([
             'name' => 'Admin RFIS',
-            'email' => 'archiesaskara@gmail.com',
+            'email' => 'admin@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('12345678'),
             'gender' => 'MALE',

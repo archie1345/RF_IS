@@ -10,9 +10,13 @@ class Payment extends Model
     use SoftDeletes;
 
     protected $table = 'payments';
+
     public $timestamps = true;
+
     protected $primaryKey = 'payment_id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [
@@ -55,5 +59,12 @@ class Payment extends Model
     public function payer()
     {
         return $this->belongsTo(User::class, 'payer_user_id', 'id');
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transactions::class, 'payment_id', 'payment_id')
+            ->latest('transaction_date')
+            ->latest('ptid');
     }
 }

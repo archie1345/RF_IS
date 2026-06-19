@@ -46,9 +46,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::get('dashboard', DashboardController::class)->name('dashboard');
-    Route::get('components-playground', function () {
-        return Inertia::render('ComponentsPlaygroundPage');
-    })->name('components-playground');
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
     Route::redirect('my-profile', '/settings/profile');
 
@@ -115,8 +112,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('accounts', 'store')->name('accounts.store');
             Route::get('accounts/{user}', 'show')->name('accounts.show');
             Route::put('accounts/{user}', 'update')->name('accounts.update');
-            Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
             Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy');
+            Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
             Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore');
             Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete');
 

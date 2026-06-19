@@ -31,6 +31,8 @@ class Transactions extends Model
         'payment_method',
         'transaction_type',
         'notes',
+        'proof_path',
+        'proof_notes',
     ];
 
     protected $dates = ['deleted_at', 'transaction_date'];

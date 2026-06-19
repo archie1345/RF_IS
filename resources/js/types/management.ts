@@ -23,7 +23,7 @@ export type TableBadgeCell = {
     tone?: StatusTone;
 };
 
-export type TableCell = string | number | TableBadgeCell;
+export type TableCell = string | number | boolean | null | TableBadgeCell | Record<string, unknown> | unknown[];
 
 export type TableRow = {
     id: string;

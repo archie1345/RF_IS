@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Download, ImagePlus, MessageCircleWarning, PencilLine, Trash2 } from 'lucide-vue-next';
+import { Download, ImagePlus, MessageCircleWarning, PencilLine, ReceiptText, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -44,6 +44,18 @@ const invoiceTemplateModalOpen = ref(false);
 
 const showReviewForm = ref(false);
 const reviewPaymentRow = ref<TableRow | null>(null);
+
+type PaymentHistoryEntry = {
+    id: number | string;
+    amount: string;
+    date: string;
+    method: string;
+    type: string;
+    verified_by: string;
+    notes?: string;
+    proof_notes?: string;
+    proof_url?: string | null;
+};
 
 const columns: TableColumn[] = [
     { key: 'athlete', label: 'Person' },
@@ -125,6 +137,12 @@ function canUploadProof(row: TableRow) {
 
 function canReviewProof(row: TableRow) {
     return props.isAdmin && row.proof_status === 'SUBMITTED';
+}
+
+function paymentHistory(row: TableRow | null | undefined): PaymentHistoryEntry[] {
+    const history = row?.transaction_history;
+
+    return Array.isArray(history) ? (history as PaymentHistoryEntry[]) : [];
 }
 
 function submit() {
@@ -368,6 +386,25 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                             </div>
                         </div>
                     </details>
+
+                    <div v-if="editingPaymentId && paymentHistory(editingPaymentRow).length" class="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                        <div class="flex items-center gap-2 font-medium">
+                            <ReceiptText class="size-4" />
+                            <span>Payment history</span>
+                        </div>
+                        <div v-for="history in paymentHistory(editingPaymentRow)" :key="history.id" class="grid gap-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-medium">{{ history.amount }}</span>
+                                <span class="text-xs text-muted-foreground">{{ history.date }} by {{ history.verified_by }}</span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                <span>{{ history.type }}</span>
+                                <span>{{ history.method }}</span>
+                                <a v-if="history.proof_url" :href="history.proof_url" target="_blank" class="font-medium text-foreground underline underline-offset-4">Receipt</a>
+                            </div>
+                            <p v-if="history.notes" class="whitespace-pre-line text-xs leading-5 text-muted-foreground">{{ history.notes }}</p>
+                        </div>
+                    </div>
                     
                     <div class="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
                         <div class="flex flex-wrap gap-3">
@@ -436,6 +473,22 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     <p><span class="font-medium">Balance:</span> {{ activeProofRow.balance }}</p>
                     <p class="leading-6 text-muted-foreground">{{ props.paymentInstructions }}</p>
                 </div>
+                <div v-if="paymentHistory(activeProofRow).length" class="grid gap-3 rounded-lg border border-border p-3 text-sm">
+                    <div class="flex items-center gap-2 font-medium">
+                        <ReceiptText class="size-4" />
+                        <span>Approved payments</span>
+                    </div>
+                    <div v-for="history in paymentHistory(activeProofRow)" :key="history.id" class="grid gap-1 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-medium">{{ history.amount }}</span>
+                            <span class="text-xs text-muted-foreground">{{ history.date }}</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>{{ history.method }}</span>
+                            <a v-if="history.proof_url" :href="history.proof_url" target="_blank" class="font-medium text-foreground underline underline-offset-4">Receipt</a>
+                        </div>
+                    </div>
+                </div>
                 <form class="grid gap-4" @submit.prevent="submitProof">
                     <FormInputField id="proof-notes" v-model="proofForm.notes" label="Receipt note" placeholder="Example: Paid by bank transfer today" help="Optional, but useful if the receipt is hard to read." :error="proofForm.errors.notes" />
                     <div class="grid gap-2">
@@ -470,7 +523,8 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                         label="Amount paid in this receipt" 
                         type="number" 
                         inputmode="decimal" 
-                        min="0" 
+                        min="0.01"
+                        step="0.01"
                         required
                         help="If this is a partial payment, change this number. The system will calculate the remaining balance."
                         :error="reviewForm.errors.approved_amount" 

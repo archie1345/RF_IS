@@ -12,6 +12,7 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -37,7 +38,12 @@ class PaymentManagementController extends Controller
             : null;
 
         $payments = Payment::query()
-            ->with(['athlete.user:id,name,phone', 'billableUser:id,name,phone', 'payeeUser:id,name,phone'])
+            ->with([
+                'athlete.user:id,name,phone',
+                'billableUser:id,name,phone',
+                'payeeUser:id,name,phone',
+                'transactions.verifier:id,name',
+            ])
             ->when(! $user?->isAdmin(), fn ($q) => $q->where(function ($query) use ($user): void {
                 $childIds = $user?->isParent() ? $user->children()->pluck('athletes.athlete_id')->all() : [];
                 $childUserIds = $user?->isParent() ? $user->children()->pluck('athletes.id')->all() : [];
@@ -85,6 +91,7 @@ class PaymentManagementController extends Controller
                 'proof_status_label' => $this->proofBadge((string) ($payment->proof_status ?? 'NONE')),
                 'proof_url' => $payment->proof_path ? Storage::url($payment->proof_path) : null,
                 'proof_notes' => $payment->proof_notes ?? '',
+                'transaction_history' => $this->paymentTransactionHistory($payment),
                 'status' => $this->paymentBadge($payment),
             ])->values(),
             'athletes' => Athlete::query()
@@ -152,15 +159,27 @@ class PaymentManagementController extends Controller
         }
 
         if ($validated['decision'] === 'APPROVED') {
-            // Use the amount the admin typed in, or default to the full remaining amount
-            $amountToApprove = (float) ($validated['approved_amount'] ?? $payment->remaining_amount);
+            $total = (float) ($payment->total_amount ?? $payment->amount ?? 0);
+            $currentPaid = (float) ($payment->paid_amount ?? 0);
+            $currentRemaining = max((float) ($payment->remaining_amount ?? ($total - $currentPaid)), 0);
+            $amountToApprove = filled($validated['approved_amount'] ?? null)
+                ? (float) $validated['approved_amount']
+                : $currentRemaining;
 
-            // Calculate new totals
-            $newPaid = min((float) ($payment->paid_amount ?? 0) + $amountToApprove, (float) ($payment->total_amount ?? $payment->amount ?? 0));
-            $newRemaining = max((float) ($payment->total_amount ?? $payment->amount ?? 0) - $newPaid, 0);
+            if ($amountToApprove <= 0) {
+                return back()->withErrors(['approved_amount' => 'Enter an amount greater than zero.']);
+            }
 
-            // Log this specific partial payment into the Transactions table!
-            if ($amountToApprove > 0) {
+            if ($amountToApprove > $currentRemaining) {
+                return back()->withErrors(['approved_amount' => 'The approved amount cannot exceed the remaining balance.']);
+            }
+
+            $newPaid = min($currentPaid + $amountToApprove, $total);
+            $newRemaining = max($total - $newPaid, 0);
+            $reviewedProofPath = $payment->proof_path;
+            $submittedProofNotes = $payment->proof_notes;
+
+            DB::transaction(function () use ($request, $payment, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes): void {
                 Transactions::create([
                     'payment_id' => $payment->payment_id,
                     'verified_by' => $request->user()->id,
@@ -168,20 +187,20 @@ class PaymentManagementController extends Controller
                     'transaction_date' => now(),
                     'transaction_type' => Transactions::TYPE_PAYMENT,
                     'payment_method' => $this->extractCollectionMethod($payment->notes),
-                    'notes' => 'Proof approved: '.($validated['notes'] ?? ''),
+                    'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes),
+                    'proof_path' => $reviewedProofPath,
+                    'proof_notes' => $submittedProofNotes,
                 ]);
-            }
 
-            $payment->update([
-                'paid_amount' => $newPaid,
-                'remaining_amount' => $newRemaining,
-                'status' => $newRemaining <= 0 ? 'COMPLETED' : 'PENDING',
-                // If fully paid, lock it. If partial, set to 'NONE' so the user can upload the next receipt!
-                'proof_status' => $newRemaining <= 0 ? 'APPROVED' : 'NONE',
-                // Clear the proof image if partial, so they can upload a new one next time
-                'proof_path' => $newRemaining <= 0 ? $payment->proof_path : null,
-                'proof_notes' => $validated['notes'] ?? null,
-            ]);
+                $payment->update([
+                    'paid_amount' => $newPaid,
+                    'remaining_amount' => $newRemaining,
+                    'status' => $newRemaining <= 0 ? 'COMPLETED' : 'PENDING',
+                    'proof_status' => $newRemaining <= 0 ? 'APPROVED' : 'NONE',
+                    'proof_path' => $newRemaining <= 0 ? $reviewedProofPath : null,
+                    'proof_notes' => $validated['notes'] ?? null,
+                ]);
+            });
         } else {
             // Rejected
             $payment->update([
@@ -556,6 +575,33 @@ class PaymentManagementController extends Controller
             'REJECTED' => $this->badge('Rejected', 'danger'),
             default => $this->badge('No proof yet', 'neutral'),
         };
+    }
+
+    private function paymentTransactionHistory(Payment $payment): array
+    {
+        return $payment->transactions
+            ->map(fn (Transactions $transaction) => [
+                'id' => $transaction->ptid,
+                'amount' => $this->rupiah((float) $transaction->amount),
+                'amount_raw' => (string) $transaction->amount,
+                'date' => optional($transaction->transaction_date)->format('d M Y') ?? '-',
+                'method' => $transaction->payment_method,
+                'type' => Str::headline(strtolower((string) $transaction->transaction_type)),
+                'verified_by' => $transaction->verifier?->name ?? 'System',
+                'notes' => $transaction->notes ?? '',
+                'proof_notes' => $transaction->proof_notes ?? '',
+                'proof_url' => $transaction->proof_path ? Storage::url($transaction->proof_path) : null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes): string
+    {
+        return collect([
+            filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved',
+            filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
+        ])->filter()->implode("\n");
     }
 
     private function userCanSubmitProof(?User $user, Payment $payment): bool

@@ -27,7 +27,6 @@ class User extends Authenticatable
         'bday',
         'phone',
         'account_status',
-        // 'is-active'
     ];
 
     protected $hidden = [
@@ -104,16 +103,9 @@ class User extends Authenticatable
         return $this->hasOne(Parents::class, 'id', 'id');
     }
 
-    public function children(): HasManyThrough
+    public function children(): HasMany
     {
-        return $this->hasManyThrough(
-            Athlete::class,
-            Parents::class,
-            'id',
-            'parent_id',
-            'id',
-            'parent_id',
-        );
+        return $this->hasMany(Athlete::class, 'parent_id', 'id');
     }
 
     public function athleteProfile(): HasOne
