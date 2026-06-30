@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\Domain\AttendanceStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class BulkUpdateAttendanceRequest extends FormRequest
         return [
             'attendance_ids' => ['required', 'array', 'min:1'],
             'attendance_ids.*' => ['required', 'integer', 'exists:athlete_attendance,atid'],
-            'status' => ['required', Rule::in(['PRESENT', 'ABSENT', 'EXCUSED'])],
+            'status' => ['required', Rule::in(AttendanceStatus::ALL)],
         ];
     }
 }

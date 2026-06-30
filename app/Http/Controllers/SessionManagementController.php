@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Sessions\CreateSession;
+use App\Actions\Sessions\UpdateSession;
 use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Requests\Sessions\StoreSessionRequest;
+use App\Http\Requests\Sessions\UpdateSessionRequest;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Session;
@@ -12,6 +16,8 @@ use App\Models\SessionCoachAttendance;
 use App\Models\Group;
 use App\Support\ActivityLogger;
 use App\Services\SessionVisibilityService;
+use App\Presenters\SessionRowPresenter;
+use App\Support\Domain\SessionStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,14 +30,18 @@ class SessionManagementController extends Controller
 {
     use FormatsMvpData;
 
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
-    {
+    public function __construct(
+        private readonly SessionVisibilityService $sessionVisibility,
+        private readonly SessionRowPresenter $sessionRows,
+        private readonly CreateSession $createSession,
+        private readonly UpdateSession $updateSession,
+    ) {
     }
 
     public function index(): Response
     {
         $user = request()->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
+        $this->authorize('viewAny', Session::class);
         $currentCoachId = $this->sessionVisibility->coachProfileIdFor($user);
         $hasCoachPivot = $this->sessionVisibility->hasCoachPivotTable();
 
@@ -52,25 +62,7 @@ class SessionManagementController extends Controller
                 ['label' => 'Confirmed coverage', 'value' => (string) $sessions->where('status', 'CONFIRMED')->count(), 'detail' => 'Sessions fully staffed and approved', 'tone' => 'success'],
                 ['label' => 'Need support', 'value' => (string) $sessions->where('status', 'NEEDS_ASSISTANT')->count(), 'detail' => 'Still waiting for coach support', 'tone' => 'warning'],
             ],
-            'rows' => $sessions->map(fn (Session $session) => [
-                'id' => 'SES-'.$session->csid,
-                'session_id' => $session->csid,
-                'session' => $session->title,
-                'branch' => $session->branch?->branch_name ?? 'Unassigned',
-                'group' => $session->group?->group_name ?? 'All groups',
-                'coach' => $this->coachNames($session),
-                'schedule' => $this->formatDateYmd($session->session_date).' '.$this->formatTime24($session->start_time).' - '.$this->formatTime24($session->end_time),
-                'status' => $this->sessionBadge((string) $session->status),
-                'location' => $session->location,
-                'session_date' => $this->formatIsoDate($session->session_date),
-                'start_time' => $this->formatTime24($session->start_time),
-                'end_time' => $this->formatTime24($session->end_time),
-                'branch_id' => $session->branch_id,
-                'group_id' => $session->group_id,
-                'coach_id' => $session->coach_id,
-                'status_value' => $session->status,
-                'can_join' => $this->sessionVisibility->coachCanJoinSession($currentCoachId, $session),
-            ])->values(),
+            'rows' => $sessions->map(fn (Session $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
             'coaches' => Coach::query()
@@ -82,45 +74,9 @@ class SessionManagementController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreSessionRequest $request): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:150'],
-            'branch_id' => ['required', 'exists:branches,branch_id'],
-            'group_id' => ['nullable', 'exists:class_groups,group_id'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'session_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'status' => ['required', Rule::in(['DRAFT', 'CONFIRMED', 'NEEDS_ASSISTANT', 'CANCELED'])],
-        ]);
-
-        $validated['coach_id'] = $this->sessionVisibility->resolveSessionCoachId($user, null);
-
-        if (empty($validated['coach_id'])) {
-            return back()->withErrors(['coach_id' => 'Coach is required for attendance session.']);
-        }
-
-        $session = Session::create($validated);
-        if ($this->sessionVisibility->hasCoachPivotTable()) {
-            $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
-        }
-        $athletes = Athlete::query()
-            ->where('branch_id', $session->branch_id)
-            ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
-            ->pluck('athlete_id');
-
-        foreach ($athletes as $athleteId) {
-            Attendance::create([
-                'athlete_id' => $athleteId,
-                'coach_session_id' => $session->csid,
-                'date' => $session->session_date,
-                'status' => 'ABSENT',
-            ]);
-        }
+        [$session, $defaultAbsentCount] = $this->createSession->handle($request->user(), $request->validated());
 
         ActivityLogger::log(
             $request,
@@ -128,52 +84,22 @@ class SessionManagementController extends Controller
             'session',
             'Created training session',
             $session,
-            ['title' => $session->title, 'session_date' => $session->session_date, 'default_absent_records' => $athletes->count()],
+            ['title' => $session->title, 'session_date' => $session->session_date, 'default_absent_records' => $defaultAbsentCount],
         );
 
         return redirect()->route('sessions.index');
     }
 
-    public function update(Request $request, Session $session): RedirectResponse
+    public function update(UpdateSessionRequest $request, Session $session): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-        // if ($user?->isCoach()) {
-        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        // }
-
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:150'],
-            'branch_id' => ['required', 'exists:branches,branch_id'],
-            'group_id' => ['nullable', 'exists:class_groups,group_id'],
-            'location' => ['nullable', 'string', 'max:255'],
-            'session_date' => ['required', 'date'],
-            'start_time' => ['required', 'date_format:H:i'],
-            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'status' => ['required', Rule::in(['DRAFT', 'CONFIRMED', 'NEEDS_ASSISTANT', 'CANCELED'])],
-        ]);
-
-        $validated['coach_id'] = $this->sessionVisibility->resolveSessionCoachId($user, $session->coach_id);
-
-        if (empty($validated['coach_id'])) {
-            return back()->withErrors(['coach_id' => 'Coach is required for attendance session.']);
-        }
-
-        $session->update($validated);
-        if ($this->sessionVisibility->hasCoachPivotTable()) {
-            $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
-        }
+        $this->updateSession->handle($request->user(), $session, $request->validated());
 
         return redirect()->route('sessions.index');
     }
 
     public function destroy(Session $session): RedirectResponse
     {
-        $user = request()->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-        // if ($user?->isCoach()) {
-        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        // }
+        $this->authorize('update', $session);
         $session->delete();
 
         return redirect()->route('sessions.index');
@@ -203,9 +129,6 @@ class SessionManagementController extends Controller
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
-        // if ($user?->isCoach()) {
-        //     abort_unless($this->coachCanAccessSession($user->id, $session), 403);
-        // }
 
         $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($this->sessionVisibility->hasCoachPivotTable()) {
@@ -341,16 +264,6 @@ class SessionManagementController extends Controller
         $coachAttendance->delete();
 
         return back();
-    }
-
-    private function sessionBadge(string $status): array
-    {
-        return match ($status) {
-            'CONFIRMED' => $this->badge('Confirmed', 'success'),
-            'NEEDS_ASSISTANT' => $this->badge('Needs assistant', 'warning'),
-            'CANCELED' => $this->badge('Canceled', 'danger'),
-            default => $this->badge('Draft', 'info'),
-        };
     }
 
     private function attendanceBadge(string $status): array

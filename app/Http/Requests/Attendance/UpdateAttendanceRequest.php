@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\Domain\AttendanceStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +16,7 @@ class UpdateAttendanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', Rule::in(['PRESENT', 'ABSENT', 'EXCUSED'])],
+            'status' => ['required', Rule::in(AttendanceStatus::ALL)],
         ];
     }
 }

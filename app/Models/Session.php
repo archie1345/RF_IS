@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Session extends Model
@@ -31,17 +32,17 @@ class Session extends Model
 
     protected $dates = ['deleted_at','session_date','start_time','end_time'];
 
-    public function coach()
+    public function coach(): BelongsTo
     {
         return $this->belongsTo(Coach::class,'coach_id');
     }
 
-    public function branch()
+    public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class,'branch_id');
     }
 
-    public function group()
+    public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
     }

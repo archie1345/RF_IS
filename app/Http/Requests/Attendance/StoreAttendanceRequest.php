@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Attendance;
 
+use App\Support\Domain\AttendanceStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +19,7 @@ class StoreAttendanceRequest extends FormRequest
             'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
             'coach_session_id' => ['nullable', 'exists:coach_sessions,csid'],
             'date' => ['required', 'date'],
-            'status' => ['required', Rule::in(['PRESENT', 'ABSENT', 'EXCUSED'])],
+            'status' => ['required', Rule::in(AttendanceStatus::ALL)],
             'checked_in_time' => ['nullable', 'date_format:H:i'],
             'notes' => ['nullable', 'string'],
             'follow_up_owner' => ['nullable', 'string', 'max:120'],

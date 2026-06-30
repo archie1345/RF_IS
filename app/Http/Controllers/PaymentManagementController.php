@@ -3,25 +3,28 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Actions\Payments\CreatePayment;
+use App\Actions\Payments\ReviewPaymentProof;
+use App\Actions\Payments\SubmitPaymentProof;
+use App\Actions\Payments\UpdatePayment;
+use App\Actions\Payments\UpdatePaymentStatus;
 use App\Http\Requests\Payments\ReviewPaymentProofRequest;
+use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Http\Requests\Payments\SubmitPaymentProofRequest;
+use App\Http\Requests\Payments\UpdatePaymentRequest;
 use App\Http\Requests\Payments\UpdatePaymentStatusRequest;
 use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
-use App\Models\Transactions;
 use App\Models\User;
 use App\Support\ActivityLogger;
-use App\Services\ParentChildContextService;
 use App\Services\PaymentVisibilityService;
+use App\Presenters\PaymentRowPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,8 +33,13 @@ class PaymentManagementController extends Controller
     use FormatsMvpData;
 
     public function __construct(
-        private readonly ParentChildContextService $childContext,
         private readonly PaymentVisibilityService $paymentVisibility,
+        private readonly PaymentRowPresenter $paymentRows,
+        private readonly CreatePayment $createPayment,
+        private readonly UpdatePayment $updatePayment,
+        private readonly SubmitPaymentProof $submitPaymentProof,
+        private readonly ReviewPaymentProof $reviewPaymentProof,
+        private readonly UpdatePaymentStatus $updatePaymentStatus,
     ) {
     }
 
@@ -65,34 +73,7 @@ class PaymentManagementController extends Controller
                 ['label' => 'Outstanding balance', 'value' => $this->rupiah((float) $payments->sum('remaining_amount')), 'detail' => 'Still open across all active invoices', 'tone' => 'warning'],
                 ['label' => 'Open payment items', 'value' => (string) $payments->where('remaining_amount', '>', 0)->count(), 'detail' => 'Invoices still waiting for completion', 'tone' => 'info'],
             ],
-            'rows' => $payments->map(fn (Payment $payment) => [
-                'id' => 'PAY-'.$payment->payment_id,
-                'payment_id' => $payment->payment_id,
-                'athlete_id' => $payment->athlete_id,
-                'athlete_user_id' => $payment->athlete?->id,
-                'billable_user_id' => $payment->billable_user_id,
-                'payee_user_id' => $payment->payee_user_id,
-                'bill_kind' => $payment->bill_kind ?? 'INVOICE',
-                'athlete' => $this->paymentSubject($payment),
-                'athlete_phone' => $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '',
-                'type' => Str::headline(strtolower((string) $payment->payment_type)),
-                'payment_type_raw' => $payment->payment_type,
-                'amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount)),
-                'total_amount_raw' => (string) ($payment->total_amount ?? $payment->amount ?? 0),
-                'paid_amount_raw' => (string) ($payment->paid_amount ?? 0),
-                'remaining_amount_raw' => (string) ($payment->remaining_amount ?? 0),
-                'balance' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
-                'payment_date_raw' => optional($payment->payment_date)->format('Y-m-d') ?? '',
-                'issued' => optional($payment->payment_date)->format('d M Y') ?? '-',
-                'notes_raw' => $payment->notes ?? '',
-                'collection_method_raw' => $this->extractCollectionMethod($payment->notes),
-                'proof_status' => $payment->proof_status ?? 'NONE',
-                'proof_status_label' => $this->proofBadge((string) ($payment->proof_status ?? 'NONE')),
-                'proof_url' => $payment->proof_path ? Storage::url($payment->proof_path) : null,
-                'proof_notes' => $payment->proof_notes ?? '',
-                'transaction_history' => $this->paymentTransactionHistory($payment),
-                'status' => $this->paymentBadge($payment),
-            ])->values(),
+            'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
             'athletes' => Athlete::query()
                 ->with('user:id,name')
                 ->get()
@@ -123,181 +104,31 @@ class PaymentManagementController extends Controller
 
         $user = $request->user();
         $payment->loadMissing(['athlete.user', 'billableUser', 'payeeUser']);
-        abort_unless($this->paymentVisibility->userCanSubmitProof($user, $payment), 403);
+        $this->authorize('submitProof', $payment);
 
         if ((float) ($payment->remaining_amount ?? 0) <= 0.0) {
             return back()->withErrors(['proof_file' => 'This bill is already marked as paid.']);
         }
 
-        $path = $request->file('proof_file')->store('payment-proofs', 'public');
-        $payment->update([
-            'payer_user_id' => $user?->id,
-            'proof_path' => $path,
-            'proof_status' => 'SUBMITTED',
-            'proof_notes' => $validated['notes'] ?? null,
-        ]);
+        $payment = $this->submitPaymentProof->handle($payment, $user, $request->file('proof_file'), $validated['notes'] ?? null);
 
         return redirect()->route('payments.index');
     }
 
     public function reviewProof(ReviewPaymentProofRequest $request, Payment $payment): RedirectResponse
     {
+        $this->authorize('reviewProof', $payment);
         $validated = $request->validated();
 
-        if (($payment->proof_status ?? 'NONE') !== 'SUBMITTED') {
-            return back()->withErrors(['proof_review' => 'A user must upload payment proof before it can be approved or rejected.']);
-        }
-
-        if ($validated['decision'] === 'APPROVED') {
-            $total = (float) ($payment->total_amount ?? $payment->amount ?? 0);
-            $currentPaid = (float) ($payment->paid_amount ?? 0);
-            $currentRemaining = max((float) ($payment->remaining_amount ?? ($total - $currentPaid)), 0);
-            $amountToApprove = filled($validated['approved_amount'] ?? null)
-                ? (float) $validated['approved_amount']
-                : $currentRemaining;
-
-            if ($amountToApprove <= 0) {
-                return back()->withErrors(['approved_amount' => 'Enter an amount greater than zero.']);
-            }
-
-            if ($amountToApprove > $currentRemaining) {
-                return back()->withErrors(['approved_amount' => 'The approved amount cannot exceed the remaining balance.']);
-            }
-
-            $newPaid = min($currentPaid + $amountToApprove, $total);
-            $newRemaining = max($total - $newPaid, 0);
-            $reviewedProofPath = $payment->proof_path;
-            $submittedProofNotes = $payment->proof_notes;
-
-            DB::transaction(function () use ($request, $payment, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes): void {
-                Transactions::create([
-                    'payment_id' => $payment->payment_id,
-                    'verified_by' => $request->user()->id,
-                    'amount' => $amountToApprove,
-                    'transaction_date' => now(),
-                    'transaction_type' => Transactions::TYPE_PAYMENT,
-                    'payment_method' => $this->extractCollectionMethod($payment->notes),
-                    'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes),
-                    'proof_path' => $reviewedProofPath,
-                    'proof_notes' => $submittedProofNotes,
-                ]);
-
-                $payment->update([
-                    'paid_amount' => $newPaid,
-                    'remaining_amount' => $newRemaining,
-                    'status' => $newRemaining <= 0 ? 'COMPLETED' : 'PENDING',
-                    'proof_status' => $newRemaining <= 0 ? 'APPROVED' : 'NONE',
-                    'proof_path' => $newRemaining <= 0 ? $reviewedProofPath : null,
-                    'proof_notes' => $validated['notes'] ?? null,
-                ]);
-            });
-        } else {
-            // Rejected
-            $payment->update([
-                'proof_status' => 'REJECTED',
-                'proof_notes' => $validated['notes'] ?? null,
-            ]);
-        }
+        $payment = $this->reviewPaymentProof->handle($payment, $request->user(), $validated);
 
         return redirect()->route('payments.index');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StorePaymentRequest $request): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
-            'payment_type' => ['required', Rule::in(['TUITION', 'UNIFORM', 'LICENSE', 'CHAMPIONSHIP', 'OTHER', 'UNKNOWN'])],
-            'total_amount' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
-            'payment_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'collection_method' => ['nullable', Rule::in(['CASH', 'TRANSFER', 'OTHER'])],
-            'bill_kind' => ['nullable', Rule::in(['INVOICE', 'PAYROLL'])],
-            'billable_user_id' => ['nullable', 'exists:users,id'],
-            'payee_user_id' => ['nullable', 'exists:users,id'],
-        ]);
-        $validated['bill_kind'] = $validated['bill_kind'] ?? 'INVOICE';
-        $validated['athlete_id'] = $validated['athlete_id'] ?? null;
-        $validated['paid_amount'] = $validated['paid_amount'] ?? 0;
-        $validated['payment_date'] = $validated['payment_date'] ?? now()->toDateString();
-
-        if ($validated['bill_kind'] === 'PAYROLL') {
-            $request->validate(['payee_user_id' => ['required', 'exists:users,id']]);
-            $validated['athlete_id'] = null;
-            $validated['billable_user_id'] = null;
-        } else {
-            $validated['payee_user_id'] = null;
-            $request->validate(['athlete_id' => ['nullable', 'exists:athletes,athlete_id']]);
-            $validated = $this->normalizeInvoiceRecipient($validated);
-            if (empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
-                return back()->withErrors([
-                    'athlete_id' => 'Choose an athlete or another account for this bill.',
-                    'billable_user_id' => 'Choose an athlete or another account for this bill.',
-                ]);
-            }
-        }
-
-        $notes = trim(collect([
-            $validated['collection_method'] ?? null,
-            $validated['notes'] ?? null,
-        ])->filter()->implode(' | '));
-
-        $openInvoice = Payment::query()
-            ->where('athlete_id', $validated['athlete_id'])
-            ->where('billable_user_id', $validated['billable_user_id'] ?? null)
-            ->where('payee_user_id', $validated['payee_user_id'] ?? null)
-            ->where('bill_kind', $validated['bill_kind'])
-            ->where('payment_type', $validated['payment_type'])
-            ->where('status', 'PENDING')
-            ->where('remaining_amount', '>', 0)
-            ->orderBy('payment_date')
-            ->first();
-
-        if ($openInvoice) {
-            $currentTotal = (float) ($openInvoice->total_amount ?? $openInvoice->amount ?? 0);
-            $currentPaid = (float) ($openInvoice->paid_amount ?? 0);
-            $inputTotal = (float) $validated['total_amount'];
-            $additionalPaid = (float) $validated['paid_amount'];
-
-            // Keep current invoice total unless a larger total is intentionally provided.
-            $newTotal = max($currentTotal, $inputTotal);
-            $newPaid = min($currentPaid + $additionalPaid, $newTotal);
-            $remainingAmount = max($newTotal - $newPaid, 0);
-
-            $openInvoice->update([
-                'amount' => $newTotal,
-                'total_amount' => $newTotal,
-                'paid_amount' => $newPaid,
-                'remaining_amount' => $remainingAmount,
-                'payment_date' => $validated['payment_date'],
-                'status' => $remainingAmount === 0.0 ? 'COMPLETED' : 'PENDING',
-                'notes' => $this->appendNote($openInvoice->notes, $notes),
-            ]);
-
-            $payment = $openInvoice;
-        } else {
-            $totalAmount = (float) $validated['total_amount'];
-            $paidAmount = min((float) $validated['paid_amount'], $totalAmount);
-            $remainingAmount = max($totalAmount - $paidAmount, 0);
-
-            $payment = Payment::create([
-                'athlete_id' => $validated['athlete_id'],
-                'billable_user_id' => $validated['billable_user_id'] ?? null,
-                'payee_user_id' => $validated['payee_user_id'] ?? null,
-                'bill_kind' => $validated['bill_kind'],
-                'payment_type' => $validated['payment_type'],
-                'amount' => $totalAmount,
-                'reference_id' => null,
-                'total_amount' => $totalAmount,
-                'paid_amount' => $paidAmount,
-                'remaining_amount' => $remainingAmount,
-                'payment_date' => $validated['payment_date'],
-                'status' => $remainingAmount === 0.0 ? 'COMPLETED' : 'PENDING',
-                'notes' => $notes !== '' ? $notes : null,
-            ]);
-        }
+        $this->authorize('create', Payment::class);
+        $payment = $this->createPayment->handle($request->validated());
 
         ActivityLogger::log(
             $request,
@@ -311,66 +142,10 @@ class PaymentManagementController extends Controller
         return redirect()->route('payments.index');
     }
 
-    public function update(Request $request, Payment $payment): RedirectResponse
+    public function update(UpdatePaymentRequest $request, Payment $payment): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
-            'payment_type' => ['required', Rule::in(['TUITION', 'UNIFORM', 'LICENSE', 'CHAMPIONSHIP', 'OTHER', 'UNKNOWN'])],
-            'total_amount' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
-            'payment_date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'collection_method' => ['nullable', Rule::in(['CASH', 'TRANSFER', 'OTHER'])],
-            'bill_kind' => ['nullable', Rule::in(['INVOICE', 'PAYROLL'])],
-            'billable_user_id' => ['nullable', 'exists:users,id'],
-            'payee_user_id' => ['nullable', 'exists:users,id'],
-        ]);
-        $validated['bill_kind'] = $validated['bill_kind'] ?? 'INVOICE';
-        $validated['athlete_id'] = $validated['athlete_id'] ?? null;
-        $validated['paid_amount'] = $validated['paid_amount'] ?? 0;
-        $validated['payment_date'] = $validated['payment_date'] ?? now()->toDateString();
-
-        if ($validated['bill_kind'] === 'PAYROLL') {
-            $request->validate(['payee_user_id' => ['required', 'exists:users,id']]);
-            $validated['athlete_id'] = null;
-            $validated['billable_user_id'] = null;
-        } else {
-            $validated['payee_user_id'] = null;
-            $validated = $this->normalizeInvoiceRecipient($validated);
-        }
-
-        if ($validated['bill_kind'] !== 'PAYROLL' && empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
-            return back()->withErrors([
-                'athlete_id' => 'Choose an athlete or another account for this bill.',
-                'billable_user_id' => 'Choose an athlete or another account for this bill.',
-            ]);
-        }
-
-        $notes = trim(collect([
-            $validated['collection_method'] ?? null,
-            $validated['notes'] ?? null,
-        ])->filter()->implode(' | '));
-
-        $totalAmount = (float) $validated['total_amount'];
-        $paidAmount = min((float) $validated['paid_amount'], $totalAmount);
-        $remainingAmount = max($totalAmount - $paidAmount, 0);
-
-        $payment->update([
-            'athlete_id' => $validated['athlete_id'],
-            'billable_user_id' => $validated['billable_user_id'] ?? null,
-            'payee_user_id' => $validated['payee_user_id'] ?? null,
-            'bill_kind' => $validated['bill_kind'],
-            'payment_type' => $validated['payment_type'],
-            'amount' => $totalAmount,
-            'total_amount' => $totalAmount,
-            'paid_amount' => $paidAmount,
-            'remaining_amount' => $remainingAmount,
-            'payment_date' => $validated['payment_date'],
-            'status' => $remainingAmount === 0.0 ? 'COMPLETED' : 'PENDING',
-            'notes' => $notes !== '' ? $notes : null,
-        ]);
+        $this->authorize('update', $payment);
+        $payment = $this->updatePayment->handle($payment, $request->validated());
 
         ActivityLogger::log(
             $request,
@@ -386,7 +161,7 @@ class PaymentManagementController extends Controller
 
     public function destroy(Request $request, Payment $payment): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        $this->authorize('delete', $payment);
 
         ActivityLogger::log(
             $request,
@@ -402,44 +177,10 @@ class PaymentManagementController extends Controller
         return redirect()->route('payments.index');
     }
 
-    private function appendNote(?string $existing, string $incoming): ?string
-    {
-        $existing = trim((string) $existing);
-        $incoming = trim($incoming);
-
-        if ($incoming === '') {
-            return $existing !== '' ? $existing : null;
-        }
-
-        if ($existing === '') {
-            return $incoming;
-        }
-
-        return $existing.' | '.$incoming;
-    }
-
-    private function normalizeInvoiceRecipient(array $validated): array
-    {
-        $athleteId = $validated['athlete_id'] ?? null;
-        $billableUserId = $validated['billable_user_id'] ?? null;
-
-        if (! empty($billableUserId)) {
-            $athlete = Athlete::query()->where('id', $billableUserId)->first();
-            $validated['athlete_id'] = $athlete?->athlete_id;
-
-            return $validated;
-        }
-
-        if (! empty($athleteId)) {
-            $athlete = Athlete::query()->find($athleteId);
-            $validated['billable_user_id'] = $athlete?->id;
-        }
-
-        return $validated;
-    }
 
     public function exportInvoice(Request $request, Payment $payment)
     {
+        $this->authorize('exportInvoice', $payment);
         $payment->loadMissing(['athlete.user:id,name,email', 'billableUser:id,name,email', 'payeeUser:id,name,email']);
 
         $template = Schema::hasTable('invoice_templates')
@@ -461,7 +202,7 @@ class PaymentManagementController extends Controller
         $invoiceData = [
             'invoice_number' => 'INV-'.$payment->payment_id,
             'invoice_date' => optional($payment->payment_date)->format('d M Y') ?? now()->format('d M Y'),
-            'athlete_name' => $this->paymentSubject($payment),
+            'athlete_name' => $this->paymentRows->subject($payment),
             'athlete_email' => $payment->athlete?->user?->email ?? $payment->billableUser?->email ?? $payment->payeeUser?->email ?? '-',
             'payment_type' => Str::headline(strtolower((string) $payment->payment_type)),
             'status' => $payment->status,
@@ -501,110 +242,15 @@ class PaymentManagementController extends Controller
 
     public function updateStatus(UpdatePaymentStatusRequest $request, Payment $payment): RedirectResponse
     {
+        $this->authorize('updateStatus', $payment);
         $validated = $request->validated();
-
-        $status = $validated['status'];
-        $total = (float) ($payment->total_amount ?? $payment->amount ?? 0);
-        $paid = (float) ($payment->paid_amount ?? 0);
-
-        if ($status === 'COMPLETED') {
-            $paid = $total;
-        }
-
-        if ($status === 'PENDING' && $paid >= $total) {
-            $paid = max($total - 1, 0);
-        }
-
-        if ($status === 'FAILED' || $status === 'REFUNDED') {
-            $paid = 0.0;
-        }
-
-        $payment->update([
-            'status' => $status,
-            'paid_amount' => $paid,
-            'remaining_amount' => max($total - $paid, 0),
-        ]);
+        $payment = $this->updatePaymentStatus->handle($payment, $validated['status']);
 
         ActivityLogger::log($request, 'payment.status.updated', 'payment', 'Updated payment status manually', $payment, [
-            'new_status' => $status,
+            'new_status' => $payment->status,
         ]);
 
         return redirect()->route('payments.index');
     }
 
-    private function paymentBadge(Payment $payment): array
-    {
-        if ($payment->status === 'FAILED') {
-            return $this->badge('Failed', 'danger');
-        }
-
-        if ($payment->status === 'REFUNDED') {
-            return $this->badge('Refunded', 'info');
-        }
-
-        if ((float) ($payment->remaining_amount ?? 0) === 0.0) {
-            return $this->badge('Paid', 'success');
-        }
-
-        if ((float) ($payment->paid_amount ?? 0) > 0) {
-            return $this->badge('Partial', 'warning');
-        }
-
-        return $this->badge('Unpaid', 'danger');
-    }
-
-    private function proofBadge(string $proofStatus): array
-    {
-        return match ($proofStatus) {
-            'SUBMITTED' => $this->badge('Waiting review', 'warning'),
-            'APPROVED' => $this->badge('Approved', 'success'),
-            'REJECTED' => $this->badge('Rejected', 'danger'),
-            default => $this->badge('No proof yet', 'neutral'),
-        };
-    }
-
-    private function paymentTransactionHistory(Payment $payment): array
-    {
-        return $payment->transactions
-            ->map(fn (Transactions $transaction) => [
-                'id' => $transaction->ptid,
-                'amount' => $this->rupiah((float) $transaction->amount),
-                'amount_raw' => (string) $transaction->amount,
-                'date' => optional($transaction->transaction_date)->format('d M Y') ?? '-',
-                'method' => $transaction->payment_method,
-                'type' => Str::headline(strtolower((string) $transaction->transaction_type)),
-                'verified_by' => $transaction->verifier?->name ?? 'System',
-                'notes' => $transaction->notes ?? '',
-                'proof_notes' => $transaction->proof_notes ?? '',
-                'proof_url' => $transaction->proof_path ? Storage::url($transaction->proof_path) : null,
-            ])
-            ->values()
-            ->all();
-    }
-
-    private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes): string
-    {
-        return collect([
-            filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved',
-            filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
-        ])->filter()->implode("\n");
-    }
-
-    private function extractCollectionMethod(?string $notes): string
-    {
-        $first = trim(explode('|', (string) $notes)[0] ?? '');
-
-        return in_array($first, ['CASH', 'TRANSFER', 'OTHER'], true) ? $first : 'CASH';
-    }
-
-    private function paymentSubject(Payment $payment): string
-    {
-        if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
-            return 'Payroll: '.($payment->payeeUser?->name ?? 'Unknown coach');
-        }
-
-        return $payment->athlete?->user?->name
-            ?? $payment->billableUser?->name
-            ?? 'Unknown user';
-    }
 }
