@@ -210,8 +210,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->controller(ParentChildContextController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::get('switch','check')->name('check');
             Route::post('switch', 'switch')->name('switch');
+            Route::post('{athlete}/switch', 'switchAthlete')->name('switch-athlete');
             Route::delete('switch', 'clear')->name('clear');
         });
 

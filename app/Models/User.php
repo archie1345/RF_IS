@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -103,9 +103,14 @@ class User extends Authenticatable
         return $this->hasOne(Parents::class, 'id', 'id');
     }
 
-    public function children(): HasMany
+    public function children(): Builder
     {
-        return $this->hasMany(Athlete::class, 'parent_id', 'id');
+        return Athlete::query()->whereIn(
+            'athletes.parent_id',
+            Parents::query()
+                ->select('parent_id')
+                ->where('id', $this->getKey())
+        );
     }
 
     public function athleteProfile(): HasOne
