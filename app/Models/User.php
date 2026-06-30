@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use App\Support\RoleResolver;
 
 class User extends Authenticatable
 {
@@ -27,7 +29,6 @@ class User extends Authenticatable
         'bday',
         'phone',
         'account_status',
-        // 'is-active'
     ];
 
     protected $hidden = [
@@ -81,38 +82,33 @@ class User extends Authenticatable
 
     public function assignedRoles(): array
     {
-        if (! $this->relationLoaded('roleAssignments')) {
-            $this->load('roleAssignments');
-        }
+        return app(RoleResolver::class)->rolesFor($this);
+    }
 
-        $roles = $this->roleAssignments->pluck('role')->filter()->unique()->values()->all();
-
-        if (count($roles) === 0 && ! empty($this->role)) {
-            return [$this->role];
-        }
-
-        return $roles;
+    public function primaryRole(string $default = 'athlete'): string
+    {
+        return app(RoleResolver::class)->primaryRoleFor($this, $default);
     }
 
     public function hasRole(string $role): bool
     {
-        return in_array($role, $this->assignedRoles(), true);
+        return app(RoleResolver::class)->hasRole($this, $role);
     }
 
     public function parentProfile(): HasOne
     {
-        return $this->hasOne(Parents::class, 'id', 'id');
+        return $this->hasOne(ParentProfile::class, 'id', 'id');
     }
 
     public function children(): HasManyThrough
     {
         return $this->hasManyThrough(
             Athlete::class,
-            Parents::class,
+            ParentProfile::class,
             'id',
             'parent_id',
             'id',
-            'parent_id',
+            'parent_id'
         );
     }
 

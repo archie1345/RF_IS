@@ -5,11 +5,11 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption } from '@/types/management';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { SelectOption } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     rows: TableRow[];
@@ -29,8 +29,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'User Activity Log', href: managementRoutes.activityLogs },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'User Activity Log', href: appRoutes.activityLogs },
 ];
 
 const columns: TableColumn[] = [
