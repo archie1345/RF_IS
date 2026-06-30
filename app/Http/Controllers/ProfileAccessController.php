@@ -22,6 +22,7 @@ use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Support\ActivityLogger;
 use App\Support\Profile\ProfilePageData;
+use App\Services\ParentChildContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,6 +34,7 @@ class ProfileAccessController extends Controller
 
     public function __construct(
         private readonly ProfilePageData $profilePageData,
+        private readonly ParentChildContextService $childContext,
     ) {
     }
 
@@ -44,12 +46,7 @@ class ProfileAccessController extends Controller
         $parentScopedAthleteIds = null;
 
         if ($isParent) {
-            $children = $viewer->children()->pluck('athletes.athlete_id');
-            $activeChildId = $request->session()->get('active_child_id');
-
-            $parentScopedAthleteIds = $activeChildId
-                ? $children->filter(fn ($id) => (int) $id === (int) $activeChildId)->values()
-                : $children->values();
+            $parentScopedAthleteIds = collect($this->childContext->visibleChildAthleteIds($request));
         }
 
         $athletes = Athlete::query()
@@ -65,7 +62,7 @@ class ProfileAccessController extends Controller
             ->filter(fn (User $user) => $user->hasRole('athlete'))
             ->when($parentScopedAthleteIds !== null, fn ($users) => $users->filter(function (User $user) use ($parentScopedAthleteIds) {
                 return $user->athleteProfile
-                    && $parentScopedAthleteIds->contains(fn ($id) => (int) $id === (int) $user->athleteProfile->athlete_id);
+                    && $parentScopedAthleteIds->contains(fn ($id) => (string) $id === (string) $user->athleteProfile->athlete_id);
             }))
             ->values();
 
