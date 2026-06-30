@@ -46,11 +46,18 @@ class ParentChildContextController extends Controller
         $athleteId = $request->input('athlete_id');
         $athlete = Athlete::findOrFail($athleteId);
 
-        abort_unless($athlete->parent_id && $user->parentProfile?->parent_id === $athlete->parent_id, 403);
+        abort_unless($athlete->parent_id && $user->children()->where('athletes.athlete_id', $athlete->athlete_id)->exists(), 403);
 
         $request->session()->put('active_child_id', $athlete->athlete_id);
 
         return back();
+    }
+
+    public function switchAthlete(Request $request, Athlete $athlete): RedirectResponse
+    {
+        $request->merge(['athlete_id' => $athlete->athlete_id]);
+
+        return $this->switch($request);
     }
 
     public function clear(Request $request): RedirectResponse
