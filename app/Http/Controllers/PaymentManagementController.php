@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Requests\Payments\ReviewPaymentProofRequest;
+use App\Http\Requests\Payments\SubmitPaymentProofRequest;
+use App\Http\Requests\Payments\UpdatePaymentStatusRequest;
 use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
 use App\Models\Transactions;
 use App\Models\User;
 use App\Support\ActivityLogger;
+use App\Services\ParentChildContextService;
+use App\Services\PaymentVisibilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -24,6 +29,12 @@ class PaymentManagementController extends Controller
 {
     use FormatsMvpData;
 
+    public function __construct(
+        private readonly ParentChildContextService $childContext,
+        private readonly PaymentVisibilityService $paymentVisibility,
+    ) {
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -37,25 +48,13 @@ class PaymentManagementController extends Controller
             )
             : null;
 
-        $payments = Payment::query()
+        $payments = $this->paymentVisibility->visiblePaymentsQuery($request)
             ->with([
                 'athlete.user:id,name,phone',
                 'billableUser:id,name,phone',
                 'payeeUser:id,name,phone',
                 'transactions.verifier:id,name',
             ])
-            ->when(! $user?->isAdmin(), fn ($q) => $q->where(function ($query) use ($user): void {
-                $childIds = $user?->isParent() ? $user->children()->pluck('athletes.athlete_id')->all() : [];
-                $childUserIds = $user?->isParent() ? $user->children()->pluck('athletes.id')->all() : [];
-                $athleteId = $user?->athleteProfile?->athlete_id;
-
-                $query
-                    ->where('billable_user_id', $user?->id)
-                    ->orWhere('payee_user_id', $user?->id)
-                    ->when($athleteId, fn ($inner) => $inner->orWhere('athlete_id', $athleteId))
-                    ->when(count($childIds) > 0, fn ($inner) => $inner->orWhereIn('athlete_id', $childIds))
-                    ->when(count($childUserIds) > 0, fn ($inner) => $inner->orWhereIn('billable_user_id', $childUserIds));
-            }))
             ->latest('payment_date')
             ->get();
 
@@ -118,16 +117,13 @@ class PaymentManagementController extends Controller
         ]);
     }
 
-    public function submitProof(Request $request, Payment $payment): RedirectResponse
+    public function submitProof(SubmitPaymentProofRequest $request, Payment $payment): RedirectResponse
     {
-        $validated = $request->validate([
-            'notes' => ['nullable', 'string'],
-            'proof_file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf,heic,heif', 'max:10240'],
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
         $payment->loadMissing(['athlete.user', 'billableUser', 'payeeUser']);
-        abort_unless($this->userCanSubmitProof($user, $payment), 403);
+        abort_unless($this->paymentVisibility->userCanSubmitProof($user, $payment), 403);
 
         if ((float) ($payment->remaining_amount ?? 0) <= 0.0) {
             return back()->withErrors(['proof_file' => 'This bill is already marked as paid.']);
@@ -144,15 +140,9 @@ class PaymentManagementController extends Controller
         return redirect()->route('payments.index');
     }
 
-    public function reviewProof(Request $request, Payment $payment): RedirectResponse
+    public function reviewProof(ReviewPaymentProofRequest $request, Payment $payment): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'decision' => ['required', Rule::in(['APPROVED', 'REJECTED'])],
-            'notes' => ['nullable', 'string'],
-            'approved_amount' => ['nullable', 'numeric', 'min:0'], // Added to accept partial amounts
-        ]);
+        $validated = $request->validated();
 
         if (($payment->proof_status ?? 'NONE') !== 'SUBMITTED') {
             return back()->withErrors(['proof_review' => 'A user must upload payment proof before it can be approved or rejected.']);
@@ -509,13 +499,9 @@ class PaymentManagementController extends Controller
         );
     }
 
-    public function updateStatus(Request $request, Payment $payment): RedirectResponse
+    public function updateStatus(UpdatePaymentStatusRequest $request, Payment $payment): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'status' => ['required', Rule::in(['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'])],
-        ]);
+        $validated = $request->validated();
 
         $status = $validated['status'];
         $total = (float) ($payment->total_amount ?? $payment->amount ?? 0);
@@ -602,47 +588,6 @@ class PaymentManagementController extends Controller
             filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved',
             filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
         ])->filter()->implode("\n");
-    }
-
-    private function userCanSubmitProof(?User $user, Payment $payment): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
-        }
-
-        $directUserIds = collect([
-            $payment->billable_user_id,
-            $payment->payee_user_id,
-            $payment->payer_user_id,
-            $payment->athlete?->id,
-        ])->filter()->map(fn ($id) => (int) $id)->unique();
-
-        if ($directUserIds->contains((int) $user->id)) {
-            return true;
-        }
-
-        if ($user->isAthlete()) {
-            return (int) $payment->athlete_id === (int) $user->athleteProfile?->athlete_id;
-        }
-
-        if ($user->isParent()) {
-            $childAthletes = $user->children()
-                ->with('user:id')
-                ->get(['athletes.athlete_id', 'athletes.id', 'athletes.parent_id'])
-                ->map(fn (Athlete $athlete) => [
-                    'athlete_id' => (int) $athlete->athlete_id,
-                    'user_id' => (int) $athlete->id,
-                ]);
-
-            return $childAthletes->contains('athlete_id', (int) $payment->athlete_id)
-                || $childAthletes->contains('user_id', (int) $payment->billable_user_id);
-        }
-
-        return false;
     }
 
     private function extractCollectionMethod(?string $notes): string

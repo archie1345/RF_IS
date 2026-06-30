@@ -41,15 +41,15 @@ class ChampionshipManagementController extends Controller
 
         if ($user?->isAthlete()) {
             $athleteId = $user->athleteProfile?->athlete_id;
-            $athleteOptions = $athleteOptions->filter(fn ($item) => (int) $item['value'] === (int) $athleteId)->values();
+            $athleteOptions = $athleteOptions->filter(fn ($item) => (string) $item['value'] === (string) $athleteId)->values();
         }
 
         if ($user?->isParent()) {
             $childIds = $user->children()->pluck('athletes.athlete_id')->all();
-            $athleteOptions = $athleteOptions->filter(fn ($item) => in_array((int) $item['value'], array_map('intval', $childIds), true))->values();
+            $athleteOptions = $athleteOptions->filter(fn ($item) => in_array((string) $item['value'], array_map('strval', $childIds), true))->values();
         }
 
-        $pendingAthleteIds = $athleteOptions->pluck('value')->map(fn ($id) => (int) $id)->all();
+        $pendingAthleteIds = $athleteOptions->pluck('value')->map(fn ($id) => (string) $id)->all();
         $pendingPayments = Payment::query()
             ->where('payment_type', 'CHAMPIONSHIP')
             ->whereIn('athlete_id', $pendingAthleteIds)
@@ -177,13 +177,13 @@ class ChampionshipManagementController extends Controller
             ->findOrFail($validated['event_id']);
 
         $user = $request->user();
-        if ($user?->isAthlete() && (int) $user->athleteProfile?->athlete_id !== (int) $validated['athlete_id']) {
+        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== (string) $validated['athlete_id']) {
             return back()->withErrors(['athlete_id' => 'Athlete can only register own account.']);
         }
 
         if ($user?->isParent()) {
-            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (int) $id)->all();
-            if (! in_array((int) $validated['athlete_id'], $childIds, true)) {
+            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all();
+            if (! in_array((string) $validated['athlete_id'], $childIds, true)) {
                 return back()->withErrors(['athlete_id' => 'Parent can only register linked children.']);
             }
         }
@@ -236,12 +236,12 @@ class ChampionshipManagementController extends Controller
         ]);
 
         $user = $request->user();
-        $athleteId = (int) $payment->athlete_id;
-        if ($user?->isAthlete() && (int) $user->athleteProfile?->athlete_id !== $athleteId) {
+        $athleteId = (string) $payment->athlete_id;
+        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== $athleteId) {
             abort(403);
         }
         if ($user?->isParent()) {
-            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (int) $id)->all();
+            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all();
             if (! in_array($athleteId, $childIds, true)) {
                 abort(403);
             }
@@ -270,10 +270,10 @@ class ChampionshipManagementController extends Controller
         ]);
 
         $coachId = $request->user()?->isAdmin()
-            ? (int) ($validated['coach_id'] ?? 0)
-            : (int) ($request->user()?->coachProfile?->coach_id ?? 0);
+            ? (string) ($validated['coach_id'] ?? '')
+            : (string) ($request->user()?->coachProfile?->coach_id ?? '');
 
-        if ($coachId <= 0) {
+        if ($coachId === '') {
             return back()->withErrors(['coach_id' => 'Coach profile not found.']);
         }
 

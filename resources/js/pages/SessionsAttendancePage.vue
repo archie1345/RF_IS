@@ -7,6 +7,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/management';
@@ -49,16 +50,18 @@ const coachForm = useForm({
 
 function updateStatus(rowId: string, status: string) {
     const attendanceId = rowId.replace('ATT-', '');
-    router.put(`/attendance/${attendanceId}`, { status }, { preserveScroll: true });
+    router.put(appRoutes.attendanceItem(attendanceId), { status }, { preserveScroll: true });
 }
 
 function bulkUpdate(status: 'PRESENT' | 'ABSENT') {
-    const attendanceIds = props.rows.map((row) => Number(String(row.id).replace('ATT-', ''))).filter((id) => ! Number.isNaN(id));
-    router.post('/attendance/bulk-update', { attendance_ids: attendanceIds, status }, { preserveScroll: true });
+    const attendanceIds = props.rows
+        .map((row) => Number(String(row.id).replace('ATT-', '')))
+        .filter((id) => !Number.isNaN(id));
+    router.post(appRoutes.attendanceBulkUpdate, { attendance_ids: attendanceIds, status }, { preserveScroll: true });
 }
 
 function addCoach() {
-    coachForm.post(`/sessions/${props.session.id}/coach-attendance`, {
+    coachForm.post(appRoutes.sessionCoachAttendance(props.session.id), {
         preserveScroll: true,
         onSuccess: () => coachForm.reset(),
     });
@@ -66,12 +69,12 @@ function addCoach() {
 
 function updateCoachStatus(rowId: string, status: 'TEACH' | 'NOT_TEACH') {
     const coachAttendanceId = rowId.replace('SCA-', '');
-    router.put(`/sessions/coach-attendance/${coachAttendanceId}`, { status }, { preserveScroll: true });
+    router.put(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { status }, { preserveScroll: true });
 }
 
 function removeCoach(rowId: string) {
     const coachAttendanceId = rowId.replace('SCA-', '');
-    router.delete(`/sessions/coach-attendance/${coachAttendanceId}`, { preserveScroll: true });
+    router.delete(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { preserveScroll: true });
 }
 </script>
 
@@ -96,10 +99,19 @@ function removeCoach(rowId: string) {
                 </template>
             </PageSection>
 
-            <PageSection title="Coach attendance table" description="Add coaches to this session and mark whether they teach or not.">
+            <PageSection
+                title="Coach attendance table"
+                description="Add coaches to this session and mark whether they teach or not."
+            >
                 <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
                     <div class="grid gap-2">
-                        <FormSelectField id="coach-picker" v-model="coachForm.coach_id" label="Add coach" :options="props.coachOptions" placeholder="Select coach" />
+                        <FormSelectField
+                            id="coach-picker"
+                            v-model="coachForm.coach_id"
+                            label="Add coach"
+                            :options="props.coachOptions"
+                            placeholder="Select coach"
+                        />
                         <InputError :message="coachForm.errors.coach_id" />
                     </div>
                     <div class="flex items-end">
@@ -118,9 +130,23 @@ function removeCoach(rowId: string) {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Teach</Button>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Not teach</Button>
-                            <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))">Delete</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'TEACH')"
+                                >Teach</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'NOT_TEACH')"
+                                >Not teach</Button
+                            >
+                            <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))"
+                                >Delete</Button
+                            >
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
@@ -137,12 +163,23 @@ function removeCoach(rowId: string) {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'PRESENT')">Attend</Button>
-                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'ABSENT')">Not attend</Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="updateStatus(String(row.id), 'PRESENT')"
+                            >Attend</Button
+                        >
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="updateStatus(String(row.id), 'ABSENT')"
+                            >Not attend</Button
+                        >
                     </ActionButtonsRow>
                 </template>
             </DataTable>
         </div>
     </AppLayout>
 </template>
-

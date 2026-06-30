@@ -11,6 +11,7 @@ use App\Models\Attendance;
 use App\Models\SessionCoachAttendance;
 use App\Models\Group;
 use App\Support\ActivityLogger;
+use App\Services\SessionVisibilityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -23,12 +24,16 @@ class SessionManagementController extends Controller
 {
     use FormatsMvpData;
 
+    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
+    {
+    }
+
     public function index(): Response
     {
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
-        $currentCoachId = $user?->isCoach() ? Coach::query()->where('id', $user->id)->value('coach_id') : null;
-        $hasCoachPivot = $this->hasCoachPivotTable();
+        $currentCoachId = $this->sessionVisibility->coachProfileIdFor($user);
+        $hasCoachPivot = $this->sessionVisibility->hasCoachPivotTable();
 
         $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($hasCoachPivot) {
@@ -64,9 +69,7 @@ class SessionManagementController extends Controller
                 'group_id' => $session->group_id,
                 'coach_id' => $session->coach_id,
                 'status_value' => $session->status,
-                'can_join' => $currentCoachId
-                    ? ! ($session->coach_id === (int) $currentCoachId || ($hasCoachPivot && $session->coaches->contains('coach_id', (int) $currentCoachId)))
-                    : false,
+                'can_join' => $this->sessionVisibility->coachCanJoinSession($currentCoachId, $session),
             ])->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
@@ -95,14 +98,14 @@ class SessionManagementController extends Controller
             'status' => ['required', Rule::in(['DRAFT', 'CONFIRMED', 'NEEDS_ASSISTANT', 'CANCELED'])],
         ]);
 
-        $validated['coach_id'] = $this->resolveSessionCoachId($user?->id, null);
+        $validated['coach_id'] = $this->sessionVisibility->resolveSessionCoachId($user, null);
 
         if (empty($validated['coach_id'])) {
             return back()->withErrors(['coach_id' => 'Coach is required for attendance session.']);
         }
 
         $session = Session::create($validated);
-        if ($this->hasCoachPivotTable()) {
+        if ($this->sessionVisibility->hasCoachPivotTable()) {
             $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
         }
         $athletes = Athlete::query()
@@ -150,14 +153,14 @@ class SessionManagementController extends Controller
             'status' => ['required', Rule::in(['DRAFT', 'CONFIRMED', 'NEEDS_ASSISTANT', 'CANCELED'])],
         ]);
 
-        $validated['coach_id'] = $this->resolveSessionCoachId($user?->id, $session->coach_id);
+        $validated['coach_id'] = $this->sessionVisibility->resolveSessionCoachId($user, $session->coach_id);
 
         if (empty($validated['coach_id'])) {
             return back()->withErrors(['coach_id' => 'Coach is required for attendance session.']);
         }
 
         $session->update($validated);
-        if ($this->hasCoachPivotTable()) {
+        if ($this->sessionVisibility->hasCoachPivotTable()) {
             $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
         }
 
@@ -186,7 +189,7 @@ class SessionManagementController extends Controller
             return back()->withErrors(['coach_id' => 'Coach profile not found.']);
         }
 
-        if (! $this->hasCoachPivotTable()) {
+        if (! $this->sessionVisibility->hasCoachPivotTable()) {
             return back()->withErrors(['coach_id' => 'Multi-coach table not ready yet. Please run migrations.']);
         }
 
@@ -205,7 +208,7 @@ class SessionManagementController extends Controller
         // }
 
         $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
-        if ($this->hasCoachPivotTable()) {
+        if ($this->sessionVisibility->hasCoachPivotTable()) {
             $with[] = 'coaches.user:id,name';
         }
         $session->load($with);
@@ -238,7 +241,7 @@ class SessionManagementController extends Controller
         if (Schema::hasTable('session_coach_attendance')) {
             $assignedCoachIds = collect([$session->coach_id])
                 ->filter()
-                ->when($this->hasCoachPivotTable(), fn ($collection) => $collection->merge($session->coaches->pluck('coach_id')))
+                ->when($this->sessionVisibility->hasCoachPivotTable(), fn ($collection) => $collection->merge($session->coaches->pluck('coach_id')))
                 ->unique()
                 ->values();
 
@@ -309,7 +312,7 @@ class SessionManagementController extends Controller
             ['status' => 'TEACH', 'checked_at' => now()]
         );
 
-        if ($this->hasCoachPivotTable()) {
+        if ($this->sessionVisibility->hasCoachPivotTable()) {
             $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
         }
 
@@ -366,7 +369,7 @@ class SessionManagementController extends Controller
             $names->push($session->coach->user->name);
         }
 
-        $assistantNames = $this->hasCoachPivotTable()
+        $assistantNames = $this->sessionVisibility->hasCoachPivotTable()
             ? $session->coaches
             ->map(fn (Coach $coach) => $coach->user?->name)
             ->filter()
@@ -394,38 +397,6 @@ class SessionManagementController extends Controller
         return Carbon::parse((string) $value)->format('Y-m-d');
     }
 
-    private function coachCanAccessSession(int $userId, Session $session): bool
-    {
-        $coachId = Coach::query()->where('id', $userId)->value('coach_id');
-        if (! $coachId) {
-            return false;
-        }
 
-        return $session->coach_id === (int) $coachId
-            || ($this->hasCoachPivotTable() && $session->coaches()->where('coaches.coach_id', $coachId)->exists());
-    }
-
-    private function hasCoachPivotTable(): bool
-    {
-        return Schema::hasTable('coach_session_coaches');
-    }
-
-    private function resolveSessionCoachId(?int $userId, ?int $fallbackCoachId): ?int
-    {
-        if ($userId) {
-            $coachId = Coach::query()->where('id', $userId)->value('coach_id');
-            if ($coachId) {
-                return (int) $coachId;
-            }
-        }
-
-        if ($fallbackCoachId) {
-            return (int) $fallbackCoachId;
-        }
-
-        $firstCoachId = Coach::query()->orderBy('coach_id')->value('coach_id');
-
-        return $firstCoachId ? (int) $firstCoachId : null;
-    }
 }
 
