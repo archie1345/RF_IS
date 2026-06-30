@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attendance extends Model
 {
@@ -29,12 +30,12 @@ class Attendance extends Model
 
     protected $dates = ['deleted_at','date', 'checked_in_at'];
 
-    public function athlete()
+    public function athlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class,'athlete_id');
     }
 
-    public function session()
+    public function session(): BelongsTo
     {
         return $this->belongsTo(Session::class, 'coach_session_id', 'csid');
     }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Actions\Profiles\SaveUserCertification;
 use App\Actions\Profiles\UpdateAccountProfile;
@@ -16,12 +16,13 @@ use App\Http\Requests\Profiles\UpdateUserAccountRequest;
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Support\ActivityLogger;
 use App\Support\Profile\ProfilePageData;
+use App\Services\ParentChildContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -29,10 +30,11 @@ use Inertia\Response;
 
 class ProfileAccessController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(
         private readonly ProfilePageData $profilePageData,
+        private readonly ParentChildContextService $childContext,
     ) {
     }
 
@@ -44,12 +46,7 @@ class ProfileAccessController extends Controller
         $parentScopedAthleteIds = null;
 
         if ($isParent) {
-            $children = $viewer->children()->pluck('athletes.athlete_id');
-            $activeChildId = $request->session()->get('active_child_id');
-
-            $parentScopedAthleteIds = $activeChildId
-                ? $children->filter(fn ($id) => (int) $id === (int) $activeChildId)->values()
-                : $children->values();
+            $parentScopedAthleteIds = collect($this->childContext->visibleChildAthleteIds($request));
         }
 
         $athletes = Athlete::query()
@@ -65,7 +62,7 @@ class ProfileAccessController extends Controller
             ->filter(fn (User $user) => $user->hasRole('athlete'))
             ->when($parentScopedAthleteIds !== null, fn ($users) => $users->filter(function (User $user) use ($parentScopedAthleteIds) {
                 return $user->athleteProfile
-                    && $parentScopedAthleteIds->contains(fn ($id) => (int) $id === (int) $user->athleteProfile->athlete_id);
+                    && $parentScopedAthleteIds->contains(fn ($id) => (string) $id === (string) $user->athleteProfile->athlete_id);
             }))
             ->values();
 
@@ -160,11 +157,11 @@ class ProfileAccessController extends Controller
                     'label' => $athlete->user?->name ?? 'Unknown athlete',
                 ])
                 ->values(),
-            'parents' => $isParent ? [] : Parents::query()
+            'parents' => $isParent ? [] : ParentProfile::query()
                 ->with('user:id,name')
                 ->orderBy('parent_id')
                 ->get()
-                ->map(fn (Parents $parent) => [
+                ->map(fn (ParentProfile $parent) => [
                     'value' => $parent->parent_id,
                     'label' => $parent->user?->name ?? 'Unknown parent',
                 ])

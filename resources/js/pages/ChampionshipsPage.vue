@@ -8,10 +8,10 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -30,8 +30,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Championships', href: managementRoutes.championships },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Championships', href: appRoutes.championships },
 ];
 
 const columns: TableColumn[] = [
@@ -204,7 +204,7 @@ onMounted(() => {
                 </div>
                 <div class="mt-4 flex flex-wrap gap-3">
                     <Button as-child class="w-full sm:w-auto">
-                        <Link :href="managementRoutes.payments">Open Payment Center</Link>
+                        <Link :href="appRoutes.payments">Open Payment Center</Link>
                     </Button>
                     <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentPrompt = false">Later</Button>
                 </div>
