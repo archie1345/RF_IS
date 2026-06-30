@@ -55,7 +55,7 @@ it('allows a parent to switch to their own child context', function () {
             ->where('children.0.user_id', $childUser->id));
 
     $this->actingAs($parentUser)
-        ->post(route('parent.children.switch', $childAthlete))
+        ->post(route('parent.children.switch'), ['athlete_id' => $childAthlete->athlete_id])
         ->assertRedirect();
 
     expect(session('active_child_id'))->toBe($childAthlete->athlete_id);
@@ -113,7 +113,7 @@ it('prevents a parent from switching to another parent child context', function 
     ]);
 
     $this->actingAs($parentUser)
-        ->post(route('parent.children.switch', $otherChildAthlete))
+        ->post(route('parent.children.switch'), ['athlete_id' => $otherChildAthlete->athlete_id])
         ->assertForbidden();
 });
 

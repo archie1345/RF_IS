@@ -18,6 +18,8 @@ export const appRoutes = {
     attendanceItem: (attendanceId: string | number) => `/attendance/${attendanceId}`,
     attendanceBulkUpdate: '/attendance/bulk-update',
     sessionAttendance: (sessionId: string | number) => `/sessions/${sessionId}/attendance`,
+    sessionAttendanceQr: (sessionId: string | number) => `/sessions/${sessionId}/attendance-qr`,
+    attendanceScan: (token: string) => `/attendance/scan/${token}`,
     sessionCoachAttendance: (sessionId: string | number) => `/sessions/${sessionId}/coach-attendance`,
     sessionCoachAttendanceItem: (coachAttendanceId: string | number) =>
         `/sessions/coach-attendance/${coachAttendanceId}`,

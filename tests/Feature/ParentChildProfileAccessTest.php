@@ -41,7 +41,7 @@ test('linked parent can open the full child profile management page', function (
     [$parentUser, $childUser] = makeLinkedParentChildForProfileAccessTest();
 
     $this->actingAs($parentUser)
-        ->get(route('athletes.show', $childUser))
+        ->get(route('users.show', $childUser))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('profiles/ProfileDetailsPage')
@@ -131,6 +131,6 @@ test('parent cannot access an unlinked child profile', function () {
     [, $unlinkedChildUser] = makeLinkedParentChildForProfileAccessTest();
 
     $this->actingAs($parentUser)
-        ->get(route('athletes.show', $unlinkedChildUser))
+        ->get(route('users.show', $unlinkedChildUser))
         ->assertForbidden();
 });

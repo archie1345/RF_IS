@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
@@ -9,7 +8,7 @@ import { appRoutes } from '@/data/routes';
 import type { AppRole, TableRow, AttendanceRow } from '@/types/resource-table';
 
 
-let timer = 0;
+let timer: ReturnType<typeof setInterval> | null = null;
 
 const props = defineProps<{
     role: AppRole;
@@ -72,11 +71,15 @@ const updateClock = () => {
 
 
 onMounted(() => {
-  updateClock();
-  timer = setInterval(updateClock, 1000);
+    updateClock();
+    timer = setInterval(updateClock, 1000);
 });
 
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+    if (timer) {
+        clearInterval(timer);
+    }
+});
 
 </script>
 

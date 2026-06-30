@@ -7,6 +7,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
+import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
@@ -21,6 +22,13 @@ const props = defineProps<{
         coach: string;
         athlete_attendance_summary: string;
         coach_attendance_summary: string;
+        attendance_qr: {
+            is_active: boolean;
+            opens_at?: string | null;
+            closes_at?: string | null;
+            generated_at?: string | null;
+            revoked_at?: string | null;
+        };
     };
     rows: TableRow[];
     coachRows: TableRow[];
@@ -97,6 +105,8 @@ function removeCoach(rowId: string) {
                     </div>
                 </template>
             </PageSection>
+
+            <SessionAttendanceQrPanel :session-id="props.session.id" :qr="props.session.attendance_qr" />
 
             <PageSection
                 title="Coach attendance table"

@@ -8,9 +8,7 @@ use App\Services\SessionVisibilityService;
 
 class SessionPolicy
 {
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
-    {
-    }
+    public function __construct(private readonly SessionVisibilityService $sessionVisibility) {}
 
     public function viewAny(User $user): bool
     {
@@ -30,6 +28,11 @@ class SessionPolicy
     public function manageAttendance(User $user, Session $session): bool
     {
         return $this->update($user, $session);
+    }
+
+    public function manageAttendanceQr(User $user, Session $session): bool
+    {
+        return $this->manageAttendance($user, $session);
     }
 
     public function join(User $user, Session $session): bool

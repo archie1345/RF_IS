@@ -292,6 +292,10 @@ return new class extends Migration
             return;
         }
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         $constraints = DB::select(
             <<<'SQL'
                 SELECT DISTINCT CONSTRAINT_NAME

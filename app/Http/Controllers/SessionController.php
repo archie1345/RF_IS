@@ -197,6 +197,13 @@ class SessionController extends Controller
                 'coach' => $this->coachNames($session),
                 'athlete_attendance_summary' => $athletePresentCount.' / '.$attendance->count(),
                 'coach_attendance_summary' => $coachTeachCount.' / '.$coachAttendance->count(),
+                'attendance_qr' => [
+                    'is_active' => $session->attendance_token_hash !== null && $session->attendance_qr_revoked_at === null,
+                    'opens_at' => $session->attendance_opens_at?->toIso8601String(),
+                    'closes_at' => $session->attendance_closes_at?->toIso8601String(),
+                    'generated_at' => $session->attendance_qr_generated_at?->toIso8601String(),
+                    'revoked_at' => $session->attendance_qr_revoked_at?->toIso8601String(),
+                ],
             ],
             'rows' => $attendance->map(fn (Attendance $row) => [
                 'id' => 'ATT-'.$row->atid,
