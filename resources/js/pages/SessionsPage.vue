@@ -11,7 +11,7 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type {
@@ -19,7 +19,7 @@ import type {
     SelectOption,
     TableColumn,
     TableRow,
-} from '@/types/management';
+} from '@/types/resource-table';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -29,8 +29,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Sessions', href: managementRoutes.sessions },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Sessions', href: appRoutes.sessions },
 ];
 
 const columns: TableColumn[] = [

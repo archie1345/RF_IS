@@ -1,4 +1,4 @@
-import type { TableColumn } from '@/types/management';
+import type { TableColumn } from '@/types/resource-table';
 
 export const athleteRosterBaseColumns: TableColumn[] = [
     { key: 'athlete', label: 'Athlete' },

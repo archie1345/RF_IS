@@ -7,16 +7,16 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{ achievements: TableRow[] }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Achievements', href: managementRoutes.achievements },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Achievements', href: appRoutes.achievements },
 ];
 
 const achievementColumns: TableColumn[] = [

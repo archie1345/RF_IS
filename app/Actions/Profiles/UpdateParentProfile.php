@@ -2,7 +2,7 @@
 
 namespace App\Actions\Profiles;
 
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +13,7 @@ class UpdateParentProfile
         DB::transaction(function () use ($user, $data): void {
             $user->update(['phone' => $data['phone'] ?? null]);
 
-            Parents::query()->updateOrCreate(
+            ParentProfile::query()->updateOrCreate(
                 ['id' => $user->id],
                 [
                     'relation' => $data['relation'],
