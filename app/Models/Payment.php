@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
@@ -41,29 +43,29 @@ class Payment extends Model
 
     protected $dates = ['deleted_at', 'payment_date'];
 
-    public function athlete()
+    public function athlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class, 'athlete_id', 'athlete_id');
     }
 
-    public function billableUser()
+    public function billableUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'billable_user_id', 'id');
     }
 
-    public function payeeUser()
+    public function payeeUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payee_user_id', 'id');
     }
 
-    public function payer()
+    public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_user_id', 'id');
     }
 
-    public function transactions()
+    public function transactions(): HasMany
     {
-        return $this->hasMany(Transactions::class, 'payment_id', 'payment_id')
+        return $this->hasMany(PaymentTransaction::class, 'payment_id', 'payment_id')
             ->latest('transaction_date')
             ->latest('ptid');
     }

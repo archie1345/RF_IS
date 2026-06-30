@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Athlete;
+use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
@@ -38,26 +38,9 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $activeChildId = $request->session()->get('active_child_id');
-        $children = [];
-        $activeChild = null;
-
-        if ($user && $user->isParent()) {
-            $children = $user->children()
-                ->with('user:id,name')
-                ->orderBy('athlete_id')
-                ->get()
-                ->map(fn (Athlete $athlete) => [
-                    'athlete_id' => $athlete->athlete_id,
-                    'user_id' => $athlete->id,
-                    'name' => $athlete->user?->name ?? 'Unknown athlete',
-                ])
-                ->values();
-
-            if ($activeChildId !== null) {
-                $activeChild = $children->firstWhere('athlete_id', (string) $activeChildId);
-            }
-        }
+        $childContext = app(ParentChildContextService::class);
+        $children = $childContext->sharedChildrenFor($user);
+        $activeChild = $childContext->activeChildFor($request);
 
         return [
             ...parent::share($request),
@@ -72,6 +55,11 @@ class HandleInertiaRequests extends Middleware
                 'activeChild' => $activeChild,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'flash' => [
+                'attendanceQr' => fn () => $request->session()->get('attendanceQr'),
+                'attendanceQrStatus' => fn () => $request->session()->get('attendanceQrStatus'),
+                'attendanceScan' => fn () => $request->session()->get('attendanceScan'),
+            ],
         ];
     }
 }

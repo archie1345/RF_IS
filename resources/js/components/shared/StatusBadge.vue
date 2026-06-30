@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { StatusTone } from '@/types/management';
+import type { StatusTone } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{

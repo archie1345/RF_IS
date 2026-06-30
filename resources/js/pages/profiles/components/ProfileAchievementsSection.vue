@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { documentFileAccept, medalOptions } from '@/pages/profiles/profileOptions';
 import { achievementColumns, achievementRows } from '@/pages/profiles/profileTables';
 import type { ProfileAchievement } from '@/pages/profiles/types';
-import type { TableRow } from '@/types/management';
+import type { TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     achievements: ProfileAchievement[];

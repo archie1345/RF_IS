@@ -5,10 +5,10 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -16,8 +16,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Announcements', href: managementRoutes.announcements },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Announcements', href: appRoutes.announcements },
 ];
 
 const columns: TableColumn[] = [

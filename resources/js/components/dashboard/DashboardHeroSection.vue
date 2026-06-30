@@ -5,9 +5,9 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import type { ParentChild } from '@/types/auth';
-import type { AppRole, Metric } from '@/types/management';
+import type { AppRole, Metric } from '@/types/resource-table';
 
 const props = defineProps<{
     role: AppRole;
@@ -45,21 +45,21 @@ const roleDescription = computed(() => {
 const quickActions = computed(() => {
     if (props.role === 'admin') {
         return [
-            { label: 'Issue bill', href: managementRoutes.payments },
-            { label: 'Post announcement', href: managementRoutes.announcements },
+            { label: 'Issue bill', href: appRoutes.payments },
+            { label: 'Post announcement', href: appRoutes.announcements },
         ];
     }
 
     if (props.role === 'coach') {
         return [
-            { label: 'Sessions', href: managementRoutes.sessions },
-            { label: 'Payments', href: managementRoutes.payments },
+            { label: 'Sessions', href: appRoutes.sessions },
+            { label: 'Payments', href: appRoutes.payments },
         ];
     }
 
     return [
-        { label: 'Payments', href: managementRoutes.payments },
-        { label: 'Championships', href: managementRoutes.championships },
+        { label: 'Payments', href: appRoutes.payments },
+        { label: 'Championships', href: appRoutes.championships },
     ];
 });
 </script>

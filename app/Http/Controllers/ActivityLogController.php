@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -10,7 +10,7 @@ use Inertia\Response;
 
 class ActivityLogController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function index(Request $request): Response
     {
