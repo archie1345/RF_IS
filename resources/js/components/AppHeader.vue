@@ -118,7 +118,7 @@ function switchChild(athleteId: string | null) {
 
     isChildPickerOpen.value = false;
 
-    router.post(`/parent/children/${athleteId}/switch`, {}, { preserveScroll: true });
+    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveScroll: true });
 }
 
 function clearChildContext() {

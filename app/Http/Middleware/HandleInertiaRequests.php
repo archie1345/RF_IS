@@ -55,7 +55,7 @@ class HandleInertiaRequests extends Middleware
                 ->values();
 
             if ($activeChildId !== null) {
-                $activeChild = $children->firstWhere('athlete_id', (int) $activeChildId);
+                $activeChild = $children->firstWhere('athlete_id', (string) $activeChildId);
             }
         }
 
