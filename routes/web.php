@@ -83,7 +83,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('parents')->group(function () {
-        Route::put('{parent}/children', [UsersManagementController::class, 'syncParentChildren'])->name('parents.children.sync');
+        Route::put('{parent:parent_id}/children', [UsersManagementController::class, 'syncParentChildren'])->name('parents.children.sync');
     });
 
     Route::prefix('athlete')
@@ -210,7 +210,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->controller(ParentChildContextController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::post('{athlete}/switch', 'switch')->name('switch');
+            Route::get('switch','check')->name('check');
+            Route::post('switch', 'switch')->name('switch');
             Route::delete('switch', 'clear')->name('clear');
         });
 

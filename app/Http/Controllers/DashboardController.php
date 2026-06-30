@@ -24,7 +24,32 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
+
+        $activeChildId = $request->session()->get('active_child_id');
         $role = $user?->role ?? 'athlete';
+        $children = [];
+        $activeChild = null;
+
+        if ($role === 'parent') {
+            $children = $user->children()
+                ->with('user:id,name')
+                ->get()
+                ->map(fn ($athlete) => [
+                    'athlete_id' => $athlete->athlete_id,
+                    'name' => $athlete->user?->name ?? 'Unknown Child',
+                ])
+                ->values()
+                ->all();
+
+            $activeChildId = session('active_child_id');
+
+            if (!$activeChildId && count($children) > 0) {
+                $activeChildId = $children[0]['athlete_id'];
+                session(['active_child_id' => $activeChildId]);
+            }
+
+            $activeChild = collect($children)->firstWhere('athlete_id', $activeChildId);
+        }
 
         return Inertia::render('Dashboard', [
             'metrics' => $this->dashboardMetrics($request, $role),
@@ -35,6 +60,8 @@ class DashboardController extends Controller
             'paymentRows' => $this->paymentRows($request, $role),
             'medalRows' => $this->medalRows(),
             'profileSummary' => $this->profileSummary($request, $role),
+            'children' => $children,
+            'activeChild' => $activeChild,
         ]);
     }
 
@@ -142,7 +169,7 @@ class DashboardController extends Controller
         if ($role === 'parent') {
             $childIds = $request->user()?->children()->pluck('athletes.athlete_id')->all() ?? [];
             if ($request->session()->has('active_child_id')) {
-                $childIds = [(int) $request->session()->get('active_child_id')];
+                $childIds = [$request->session()->get('active_child_id')];
             }
             $query->whereIn('athlete_id', $childIds);
         } elseif ($role === 'athlete') {
@@ -222,9 +249,9 @@ class DashboardController extends Controller
             $childIds = $user?->children()->pluck('athletes.athlete_id')->all() ?? [];
             $childUserIds = $user?->children()->pluck('athletes.id')->all() ?? [];
             if ($request->session()->has('active_child_id')) {
-                $childIds = [(int) $request->session()->get('active_child_id')];
+                $childIds = [$request->session()->get('active_child_id')];
                 $childUserIds = \App\Models\Athlete::query()
-                    ->where('athlete_id', (int) $request->session()->get('active_child_id'))
+                    ->where('athlete_id', $request->session()->get('active_child_id'))
                     ->pluck('id')
                     ->all();
             }

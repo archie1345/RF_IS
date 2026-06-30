@@ -12,7 +12,7 @@ export type User = {
 };
 
 export type ParentChild = {
-    athlete_id: number;
+    athlete_id: string;
     user_id: number;
     name: string;
 };

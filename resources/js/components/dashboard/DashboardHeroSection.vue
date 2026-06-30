@@ -21,7 +21,6 @@ const emit = defineEmits<{
 }>();
 
 const childOptions = (children: ParentChild[]) => [
-    { value: '', label: 'All children' },
     ...children.map((child) => ({ value: String(child.athlete_id), label: child.name })),
 ];
 
@@ -85,7 +84,7 @@ const quickActions = computed(() => {
             />
         </div>
 
-        <div class="grid gap-4 md:grid-cols-4">
+        <div class="grid gap-4" :class="role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3'">
             <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
         </div>
     </PageSection>

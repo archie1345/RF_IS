@@ -34,7 +34,7 @@ class UsersManagementController extends Controller
             $activeChildId = request()->session()->get('active_child_id');
 
             $parentScopedAthleteIds = $activeChildId
-                ? $children->where(fn ($id) => (int) $id === (int) $activeChildId)
+                ? $children->where(fn ($id) => $id === $activeChildId)
                 : $children;
         }
 
@@ -261,11 +261,10 @@ class UsersManagementController extends Controller
 
         $validated = $request->validate([
             'athlete_ids' => ['nullable', 'array'],
-            'athlete_ids.*' => ['integer', 'exists:athletes,athlete_id'],
+            'athlete_ids.*' => ['string', 'exists:athletes,athlete_id'],
         ]);
 
         $athleteIds = collect($validated['athlete_ids'] ?? [])
-            ->map(fn ($id) => (int) $id)
             ->filter()
             ->unique()
             ->values();

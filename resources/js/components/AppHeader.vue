@@ -111,7 +111,7 @@ watch(childSearch, () => {
     visibleChildrenCount.value = 12;
 });
 
-function switchChild(athleteId: number | string) {
+function switchChild(athleteId: string | null) {
     if (!athleteId) {
         return;
     }

@@ -6,14 +6,15 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 class Athlete extends Model{
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, HasUlids;
     protected $table = 'athletes';
 
     protected $primaryKey = 'athlete_id';
-    public $incrementing = true;
-    protected $keyType = 'int';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'height_cm',

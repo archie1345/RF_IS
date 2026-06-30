@@ -1,47 +1,11 @@
 import type { TableColumn, TableRow } from '@/types/management';
 
 export const dashboardColumns = {
-    announcement: [
-        { key: 'title', label: 'Announcement' },
-        { key: 'audience', label: 'Audience' },
-        { key: 'published', label: 'Published' },
-        { key: 'status', label: 'Status' },
-    ] as TableColumn[],
-    event: [
-        { key: 'event', label: 'Event' },
-        { key: 'date', label: 'Date' },
-        { key: 'location', label: 'Location' },
-    ] as TableColumn[],
-    attendance: [
-        { key: 'athlete', label: 'Athlete' },
-        { key: 'date', label: 'Date' },
-        { key: 'status', label: 'Status' },
-    ] as TableColumn[],
-    payment: [
-        { key: 'athlete', label: 'Person' },
-        { key: 'total', label: 'Total' },
-        { key: 'paid', label: 'Paid' },
-        { key: 'remaining', label: 'Remaining' },
-        { key: 'status', label: 'Status' },
-    ] as TableColumn[],
-    medal: [
-        { key: 'type', label: 'Medal' },
-        { key: 'count', label: 'Count', align: 'right' },
-    ] as TableColumn[],
     log: [
         { key: 'time', label: 'Time' },
         { key: 'actor', label: 'Actor' },
         { key: 'action', label: 'Action' },
         { key: 'description', label: 'Description' },
-    ] as TableColumn[],
-    snapshot: [
-        { key: 'module', label: 'Module' },
-        { key: 'status', label: 'Status' },
-        { key: 'value', label: 'Value' },
-    ] as TableColumn[],
-    profile: [
-        { key: 'field', label: 'Field' },
-        { key: 'value', label: 'Value' },
     ] as TableColumn[],
 };
 

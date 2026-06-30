@@ -9,7 +9,7 @@ import { managementRoutes } from '@/data/management';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
-import type { AppRole, Metric, TableRow } from '@/types/management';
+import type { AppRole, Metric, TableRow, AttendanceRow } from '@/types/management';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -24,7 +24,7 @@ const props = defineProps({
     activityPreviewRows: { type: Array as PropType<TableRow[]>, required: true },
     announcements: { type: Array as PropType<TableRow[]>, required: true },
     upcomingEvents: { type: Array as PropType<TableRow[]>, required: true },
-    attendanceRows: { type: Array as PropType<TableRow[]>, required: true },
+    attendanceRows: { type: Array as PropType<AttendanceRow[]>, required: true },
     paymentRows: { type: Array as PropType<TableRow[]>, required: true },
     medalRows: { type: Array as PropType<TableRow[]>, required: true },
     profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
@@ -39,13 +39,12 @@ const role = computed<AppRole>(() => {
 const children = computed(() => page.props.auth.children ?? []);
 const activeChild = computed(() => page.props.auth.activeChild ?? null);
 
-function switchChild(value: string): void {
-    if (!value) {
-        router.delete('/parent/children/switch', { preserveScroll: true });
-        return;
+const switchChild = (athleteId: string) => {
+    if (!athleteId) {
+        router.delete('/parent/children/switch', { preserveState: true });
     }
 
-    router.post(`/parent/children/${value}/switch`, {}, { preserveScroll: true });
+    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
 }
 
 useLiveReload(

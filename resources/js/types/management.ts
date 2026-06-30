@@ -47,3 +47,9 @@ export type RoleDashboardContent = {
     metrics: Metric[];
     panels: DashboardPanel[];
 };
+
+export type AttendanceRow = {
+    id?: number;
+    session_date: string;
+    status: string;
+}

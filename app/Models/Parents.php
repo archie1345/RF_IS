@@ -4,17 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 
 class Parents extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasUlids;
 
     protected $table = 'parents';
     public $timestamps = true;
     protected $primaryKey = 'parent_id';
-    public $incrementing = true;
-    protected $keyType = 'int';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $fillable = [
         'id',
         'relation',
@@ -23,6 +24,11 @@ class Parents extends Model
     ];
 
     protected $dates = ['deleted_at'];
+
+    public function getRouteKeyName(): string
+    {
+        return 'parent_id';
+    }
 
     public function athletes()
     {

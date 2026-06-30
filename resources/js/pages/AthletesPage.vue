@@ -61,7 +61,7 @@ const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
 const editingCoachId = ref<string | null>(null);
 const editingParentId = ref<string | null>(null);
-const editingParentChildrenId = ref<number | null>(null);
+const editingParentChildrenId = ref<string | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
 
@@ -157,14 +157,12 @@ function toNumericString(value: unknown) {
     return numeric;
 }
 
-function getUserId(row: TableRow) {
-    const rawValue = row.user_id ?? row.id ?? row.athlete_id;
-
-    return Number(toNumericString(rawValue));
+function getUserId(row: TableRow): string {
+    return String(row.user_id ?? row.id ?? row.athlete_id ?? '');
 }
 
-function getParentId(row: TableRow) {
-    return Number(toNumericString(row.parent_id ?? row.id));
+function getParentId(row: TableRow): string {
+    return String(row.parent_id ?? row.id ?? '');
 }
 
 function viewProfile(row: TableRow) {

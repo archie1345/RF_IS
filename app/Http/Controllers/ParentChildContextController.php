@@ -27,21 +27,25 @@ class ParentChildContextController extends Controller
                 'email' => $athlete->user?->email ?? '-',
                 'branch' => $athlete->branch?->branch_name ?? 'Unassigned',
                 'group' => $athlete->group?->group_name ?? 'Unassigned',
-                'is_active' => (int) $activeChildId === (int) $athlete->athlete_id,
+                'is_active' => $activeChildId === $athlete->athlete_id,
             ])
             ->values();
 
         return Inertia::render('ParentChildSwitcherPage', [
             'children' => $children,
-            'activeChildId' => $activeChildId ? (int) $activeChildId : null,
+            'activeChildId' => $activeChildId ?? null,
         ]);
     }
 
-    public function switch(Request $request, Athlete $athlete): RedirectResponse
+    public function switch(Request $request): RedirectResponse
     {
         $user = $request->user();
 
         abort_unless($user && $user->isParent(), 403);
+        
+        $athleteId = $request->input('athlete_id');
+        $athlete = Athlete::findOrFail($athleteId);
+
         abort_unless($athlete->parent_id && $user->parentProfile?->parent_id === $athlete->parent_id, 403);
 
         $request->session()->put('active_child_id', $athlete->athlete_id);

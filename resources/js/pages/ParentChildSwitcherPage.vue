@@ -8,7 +8,7 @@ import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     children: Array<{
-        athlete_id: number;
+        athlete_id: string;
         user_id: number;
         name: string;
         email: string;
@@ -16,7 +16,7 @@ const props = defineProps<{
         group: string;
         is_active: boolean;
     }>;
-    activeChildId: number | null;
+    activeChildId: string | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -24,13 +24,18 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Child Switcher', href: managementRoutes.parentChildSwitcher },
 ];
 
-function switchChild(athleteId: number) {
-    router.post(`/parent/children/${athleteId}/switch`, {}, { preserveScroll: true });
-}
+const switchChild = (athleteId: string) => {
+    if (!athleteId) {
+        router.delete('/parent/children/switch', { preserveState: true });
+        return;
+    }
 
-function clearChild() {
-    router.delete('/parent/children/switch', { preserveScroll: true });
-}
+    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
+};
+
+const clearChild = () => {
+    router.delete('/parent/children/switch', { preserveState: true });
+};
 
 function profileUrl(userId: number) {
     return `/users/${userId}`;

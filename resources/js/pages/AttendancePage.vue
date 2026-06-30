@@ -22,7 +22,7 @@ const props = defineProps<{
     branches: SelectOption[];
     groups: SelectOption[];
     role: 'admin' | 'coach' | 'parent' | 'athlete';
-    activeAthleteId: number | null;
+    activeAthleteId: string | null;
 }>();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: managementRoutes.dashboard },
