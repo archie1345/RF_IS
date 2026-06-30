@@ -74,12 +74,20 @@ const quickActions = computed(() => {
             </div>
         </template>
 
-        <div v-if="props.role === 'parent'" class="mt-4 max-w-sm">
+        <div  v-if="props.role === 'parent' && props.children.length > 1" class="mt-4 max-w-sm">
             <FormSelectField
+                v-if="props.children.length > 0"
                 id="dashboard-selected-child"
-                :model-value="String(props.activeChild?.athlete_id ?? '')"
+                :model-value="
+                    String(
+                        props.activeChild?.athlete_id
+                        ?? props.children[0]?.athlete_id
+                        ?? ''
+                    )
+                "
                 label="Child shown on dashboard"
                 :options="childOptions(props.children)"
+                :show-placeholder="false"
                 @update:model-value="emit('switch-child', $event)"
             />
         </div>

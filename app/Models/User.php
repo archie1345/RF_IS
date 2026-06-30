@@ -10,6 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class User extends Authenticatable
 {
@@ -103,13 +104,15 @@ class User extends Authenticatable
         return $this->hasOne(Parents::class, 'id', 'id');
     }
 
-    public function children(): Builder
+    public function children(): HasManyThrough
     {
-        return Athlete::query()->whereIn(
-            'athletes.parent_id',
-            Parents::query()
-                ->select('parent_id')
-                ->where('id', $this->getKey())
+        return $this->hasManyThrough(
+            Athlete::class,
+            Parents::class,
+            'id',
+            'parent_id',
+            'id',
+            'parent_id'
         );
     }
 

@@ -26,7 +26,7 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $activeChildId = $request->session()->get('active_child_id');
-        $role = $user?->role ?? 'athlete';
+        $role = $user?->assignedRoles()[0] ?? $user?->role ?? 'athlete';        
         $children = [];
         $activeChild = null;
 

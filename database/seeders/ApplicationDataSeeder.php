@@ -326,5 +326,32 @@ class ApplicationDataSeeder extends Seeder
             'payload' => base64_encode(json_encode(['login_web_' . sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
             'last_activity' => $now->timestamp,
         ]);
+
+        DB::table('user_role_assignments')->insert([
+            [
+                'user_id' => $adminUserId,
+                'role' => 'admin',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $coachUserId,
+                'role' => 'coach',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $parentUserId,
+                'role' => 'parent',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $athleteUserId,
+                'role' => 'athlete',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+        ]);
     }
 }

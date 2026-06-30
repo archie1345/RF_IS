@@ -28,6 +28,8 @@ const props = defineProps({
     paymentRows: { type: Array as PropType<TableRow[]>, required: true },
     medalRows: { type: Array as PropType<TableRow[]>, required: true },
     profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
+    children: { type: Array as PropType<Array<{ athlete_id: string; name: string;}>>, default: () => [],},
+    activeChild: {type: Object as PropType<{ athlete_id: string; name: string;} | null>, default: null,},
 });
 
 const role = computed<AppRole>(() => {
@@ -42,6 +44,8 @@ const activeChild = computed(() => page.props.auth.activeChild ?? null);
 const switchChild = (athleteId: string) => {
     if (!athleteId) {
         router.delete('/parent/children/switch', { preserveState: true });
+
+        return;
     }
 
     router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
