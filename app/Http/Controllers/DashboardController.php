@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\ActivityLog;
 use App\Models\Announcement;
 use App\Models\Athlete;
@@ -13,43 +13,26 @@ use App\Models\Payment;
 use App\Models\Session;
 use App\Models\UserCertification;
 use App\Models\UserAchievement;
+use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
+
+    public function __construct(private readonly ParentChildContextService $childContext)
+    {
+    }
 
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
 
-        $activeChildId = $request->session()->get('active_child_id');
-        $role = $user?->assignedRoles()[0] ?? $user?->role ?? 'athlete';        
-        $children = [];
-        $activeChild = null;
-
-        if ($role === 'parent') {
-            $children = $user->children()
-                ->with('user:id,name')
-                ->get()
-                ->map(fn ($athlete) => [
-                    'athlete_id' => $athlete->athlete_id,
-                    'name' => $athlete->user?->name ?? 'Unknown Child',
-                ])
-                ->values()
-                ->all();
-
-            $activeChildId = session('active_child_id');
-
-            if (!$activeChildId && count($children) > 0) {
-                $activeChildId = $children[0]['athlete_id'];
-                session(['active_child_id' => $activeChildId]);
-            }
-
-            $activeChild = collect($children)->firstWhere('athlete_id', $activeChildId);
-        }
+        $role = $user?->primaryRole() ?? 'athlete';
+        $children = $role === 'parent' ? $this->childContext->sharedChildrenFor($user)->all() : [];
+        $activeChild = $role === 'parent' ? $this->childContext->activeChildFor($request, true) : null;
 
         return Inertia::render('Dashboard', [
             'metrics' => $this->dashboardMetrics($request, $role),
@@ -167,10 +150,7 @@ class DashboardController extends Controller
         $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('atid');
 
         if ($role === 'parent') {
-            $childIds = $request->user()?->children()->pluck('athletes.athlete_id')->all() ?? [];
-            if ($request->session()->has('active_child_id')) {
-                $childIds = [$request->session()->get('active_child_id')];
-            }
+            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
             $query->whereIn('athlete_id', $childIds);
         } elseif ($role === 'athlete') {
             $athleteId = $request->user()?->athleteProfile?->athlete_id;
@@ -246,15 +226,8 @@ class DashboardController extends Controller
         }
 
         if ($role === 'parent') {
-            $childIds = $user?->children()->pluck('athletes.athlete_id')->all() ?? [];
-            $childUserIds = $user?->children()->pluck('athletes.id')->all() ?? [];
-            if ($request->session()->has('active_child_id')) {
-                $childIds = [$request->session()->get('active_child_id')];
-                $childUserIds = \App\Models\Athlete::query()
-                    ->where('athlete_id', $request->session()->get('active_child_id'))
-                    ->pluck('id')
-                    ->all();
-            }
+            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
+            $childUserIds = $this->childContext->visibleChildUserIds($request, true, true);
 
             return $query->where(function ($inner) use ($user, $childIds, $childUserIds): void {
                 $inner->where('billable_user_id', $user?->id)

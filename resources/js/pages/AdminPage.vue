@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import AdminAccountManagementPanel from '@/components/admin/AdminAccountManagementPanel.vue';
-import BranchManagement from '@/components/admin/BranchManagement.vue';
-import GroupManagement from '@/components/admin/GroupManagement.vue';
-import { managementRoutes } from '@/data/management';
+import AdminUserAccountPanel from '@/components/admin/AdminUserAccountPanel.vue';
+import BranchAdministrationPanel from '@/components/admin/BranchAdministrationPanel.vue';
+import GroupAdministrationPanel from '@/components/admin/GroupAdministrationPanel.vue';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { AdminAccountRow } from '@/types/admin';
 import type { Branch } from '@/types/branch';
 import type { Group } from '@/types/group';
 
-const props = defineProps<{
+const { users, branches, groups } = defineProps<{
     users: AdminAccountRow[];
     branches?: Branch[];
     groups?: Group[];
@@ -26,7 +26,7 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
+    { title: 'Dashboard', href: appRoutes.dashboard },
     { title: 'Admin Panel', href: '/admin' },
 ];
 
@@ -62,14 +62,14 @@ function deleteGroup(id: string) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
 
-            <AdminAccountManagementPanel :initial-users="users" />
-            <BranchManagement
+            <AdminUserAccountPanel :initial-users="users" />
+            <BranchAdministrationPanel
                 :branches="branches ?? []"
                 @create="createBranch"
                 @update="updateBranch"
                 @delete="deleteBranch"
             />
-            <GroupManagement
+            <GroupAdministrationPanel
                 :groups="groups ?? []"
                 @create="createGroup"
                 @update="updateGroup"

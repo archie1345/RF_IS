@@ -10,10 +10,10 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -36,8 +36,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Payments', href: managementRoutes.payments },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Payments', href: appRoutes.payments },
 ];
 
 const invoiceTemplateModalOpen = ref(false);

@@ -1,4 +1,4 @@
-import type { Metric, TableRow } from '@/types/management';
+import type { Metric, TableRow } from '@/types/resource-table';
 
 export type DashboardPageProps = {
     metrics: Metric[];

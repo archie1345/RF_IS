@@ -1,4 +1,4 @@
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 export const dashboardColumns = {
     log: [

@@ -4,14 +4,14 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
-use App\Http\Controllers\AdminManagementController;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnnouncementController;
-use App\Http\Controllers\AttendanceManagementController;
-use App\Http\Controllers\ChampionshipManagementController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
-use App\Http\Controllers\PaymentManagementController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileAccessController;
 use App\Http\Controllers\Profiles\AthleteProfileController;
 use App\Http\Controllers\Profiles\CoachProfileController;
@@ -19,9 +19,9 @@ use App\Http\Controllers\Profiles\ParentProfileController;
 use App\Http\Controllers\Profiles\UserAccountController;
 use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\UserCertificationController;
-use App\Http\Controllers\SessionManagementController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserAchievementController;
-use App\Http\Controllers\UsersManagementController;
+use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -83,18 +83,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('parents')->group(function () {
-        Route::put('{parent:parent_id}/children', [UsersManagementController::class, 'syncParentChildren'])->name('parents.children.sync');
+        Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync');
     });
 
     Route::prefix('athlete')
-        ->controller(UsersManagementController::class)
+        ->controller(UserDirectoryController::class)
         ->group(function () {
             Route::post('/', 'store')->name('athletes.store');
             Route::get('{athlete}', 'show')->name('athletes.record.show');
             Route::put('{athlete}', 'update')->name('athletes.update');
             Route::delete('{athlete}', 'destroy')->name('athletes.destroy');
             Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
-            Route::get('user/{user}', 'showByUser')->name('users.show');
+            Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
             Route::put('user/{user}', 'upsertByUser')->name('users.update');
         });
     /*
@@ -104,11 +104,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
 
     Route::prefix('admin')->name('admin.')->group(function () {
-        Route::get('/', [AdminManagementController::class, 'index'])->name('index');
+        Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
 
-        Route::controller(AdminManagementController::class)->group(function () {
+        Route::controller(AdminController::class)->group(function () {
             Route::post('accounts', 'store')->name('accounts.store');
             Route::get('accounts/{user}', 'show')->name('accounts.show');
             Route::put('accounts/{user}', 'update')->name('accounts.update');
@@ -143,7 +143,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('payments')
         ->name('payments.')
-        ->controller(PaymentManagementController::class)
+        ->controller(PaymentController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
@@ -157,7 +157,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('attendance')
         ->name('attendance.')
-        ->controller(AttendanceManagementController::class)
+        ->controller(AttendanceController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
@@ -173,7 +173,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('championships')
         ->name('championships.')
-        ->controller(ChampionshipManagementController::class)
+        ->controller(ChampionshipController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('events', 'storeEvent')->name('events.store');
@@ -186,7 +186,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::prefix('sessions')
         ->name('sessions.')
-        ->controller(SessionManagementController::class)
+        ->controller(SessionController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');

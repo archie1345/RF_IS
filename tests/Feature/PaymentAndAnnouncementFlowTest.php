@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Payment;
-use App\Models\Transactions;
+use App\Models\PaymentTransaction;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -83,7 +83,7 @@ test('admin issues a bill, user uploads proof, and admin approves it', function 
     $this->assertDatabaseHas('payment_transactions', [
         'payment_id' => $payment->payment_id,
         'verified_by' => $admin->id,
-        'transaction_type' => Transactions::TYPE_PAYMENT,
+        'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
         'payment_method' => 'TRANSFER',
     ]);
 });
@@ -132,7 +132,7 @@ test('admin can partially approve proof and keep receipt history for the next up
         ->and((float) $payment->paid_amount)->toBe(100000.0)
         ->and((float) $payment->remaining_amount)->toBe(150000.0);
 
-    $transaction = Transactions::query()->firstOrFail();
+    $transaction = PaymentTransaction::query()->firstOrFail();
     expect((float) $transaction->amount)->toBe(100000.0)
         ->and($transaction->proof_path)->toBe($firstProofPath)
         ->and($transaction->proof_notes)->toBe('First installment transfer');
