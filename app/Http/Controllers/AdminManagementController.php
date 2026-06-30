@@ -742,7 +742,7 @@ class AdminManagementController extends Controller
     private function importPaymentRow(array $row): void
     {
         Payment::query()->create([
-            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'athlete_id' => (string) ($row['athlete_id'] ?? ''),
             'payment_type' => strtoupper((string) ($row['payment_type'] ?? 'OTHER')),
             'amount' => (float) ($row['total_amount'] ?? 0),
             'reference_id' => $this->nullableString($row['reference_id'] ?? null),
@@ -758,7 +758,7 @@ class AdminManagementController extends Controller
     private function importSessionRow(array $row): void
     {
         Session::query()->create([
-            'coach_id' => $this->nullableInt($row['coach_id'] ?? null),
+            'coach_id' => $this->nullableString($row['coach_id'] ?? null),
             'branch_id' => (int) ($row['branch_id'] ?? 0),
             'group_id' => $this->nullableInt($row['group_id'] ?? null),
             'title' => (string) ($row['title'] ?? ''),
@@ -773,7 +773,7 @@ class AdminManagementController extends Controller
     private function importAttendanceRow(array $row): void
     {
         Attendance::query()->create([
-            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'athlete_id' => (string) ($row['athlete_id'] ?? ''),
             'coach_session_id' => (int) ($row['coach_session_id'] ?? 0),
             'date' => $this->nullableDate($row['date'] ?? null) ?? now()->toDateString(),
             'status' => strtoupper((string) ($row['status'] ?? 'ABSENT')),
@@ -804,7 +804,7 @@ class AdminManagementController extends Controller
     private function importEventRegistrationRow(array $row): void
     {
         EventRegistration::query()->create([
-            'athlete_id' => (int) ($row['athlete_id'] ?? 0),
+            'athlete_id' => (string) ($row['athlete_id'] ?? ''),
             'event_id' => (int) ($row['event_id'] ?? 0),
             'category' => strtoupper((string) ($row['category'] ?? 'UNKNOWN')),
             'division' => $this->nullableString($row['division'] ?? null),

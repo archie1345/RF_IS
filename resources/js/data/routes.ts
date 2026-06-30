@@ -1,0 +1,20 @@
+export const appRoutes = {
+    dashboard: '/dashboard',
+    attendance: '/attendance',
+    sessions: '/sessions',
+    payments: '/payments',
+    users: '/users',
+    parentChildren: '/parent/children',
+    parentChildrenSwitch: '/parent/children/switch',
+    attendanceItem: (attendanceId: string | number) => `/attendance/${attendanceId}`,
+    attendanceBulkUpdate: '/attendance/bulk-update',
+    sessionAttendance: (sessionId: string | number) => `/sessions/${sessionId}/attendance`,
+    sessionCoachAttendance: (sessionId: string | number) => `/sessions/${sessionId}/coach-attendance`,
+    sessionCoachAttendanceItem: (coachAttendanceId: string | number) =>
+        `/sessions/coach-attendance/${coachAttendanceId}`,
+    paymentItem: (paymentId: string | number) => `/payments/${paymentId}`,
+    paymentExport: (paymentId: string | number) => `/payments/${paymentId}/export`,
+    paymentProof: (paymentId: string | number) => `/payments/${paymentId}/proof`,
+    paymentProofReview: (paymentId: string | number) => `/payments/${paymentId}/proof-review`,
+    adminDataTransferExport: (entity: string) => `/admin/data-transfer/export?entity=${encodeURIComponent(entity)}`,
+} as const;
