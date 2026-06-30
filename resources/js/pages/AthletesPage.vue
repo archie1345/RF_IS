@@ -8,13 +8,13 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
-import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import PageSection from '@/components/shared/PageSection.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
 import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     athleteRosterBaseColumns,
@@ -26,7 +26,7 @@ import {
     sensitiveIdentifierColumns,
 } from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -61,13 +61,13 @@ const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
 const editingCoachId = ref<string | null>(null);
 const editingParentId = ref<string | null>(null);
-const editingParentChildrenId = ref<number | null>(null);
+const editingParentChildrenId = ref<string | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Users', href: managementRoutes.athletes },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Users', href: appRoutes.athletes },
 ];
 
 const columns: TableColumn[] = [
@@ -152,19 +152,12 @@ function closeAthleteForm() {
     form.clearErrors();
 }
 
-function toNumericString(value: unknown) {
-    const numeric = String(value ?? '').match(/-?\d+(\.\d+)?/)?.[0] ?? '';
-    return numeric;
+function getUserId(row: TableRow): string {
+    return String(row.user_id ?? row.id ?? row.athlete_id ?? '');
 }
 
-function getUserId(row: TableRow) {
-    const rawValue = row.user_id ?? row.id ?? row.athlete_id;
-
-    return Number(toNumericString(rawValue));
-}
-
-function getParentId(row: TableRow) {
-    return Number(toNumericString(row.parent_id ?? row.id));
+function getParentId(row: TableRow): string {
+    return String(row.parent_id ?? row.id ?? '');
 }
 
 function viewProfile(row: TableRow) {
@@ -276,9 +269,9 @@ function saveParentChildren() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <ManagementTablePanel
-                eyebrow="Users Management"
-                title="Users Management workspace"
+            <ResourceTablePanel
+                eyebrow="User Directory"
+                title="User directory workspace"
                 description="View and edit athlete, Coach, Parent profiles. Create/delete accounts from Admin Panel only."
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
@@ -293,8 +286,8 @@ function saveParentChildren() {
                         <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
-            <ManagementTablePanel
+            </ResourceTablePanel>
+            <ResourceTablePanel
                 :columns="coachColumns"
                 :rows="props.coachRows"
                 table-title="Coach profiles"
@@ -307,8 +300,8 @@ function saveParentChildren() {
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
-            <ManagementTablePanel
+            </ResourceTablePanel>
+            <ResourceTablePanel
                 :columns="parentColumns"
                 :rows="props.parentRows"
                 table-title="Parent profiles"
@@ -325,7 +318,7 @@ function saveParentChildren() {
                         >
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
+            </ResourceTablePanel>
         </div>
 
         <FormModal :open="showNewAthleteForm" max-width-class="max-w-4xl" @close="closeAthleteForm">

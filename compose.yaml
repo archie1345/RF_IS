@@ -6,28 +6,31 @@ services:
     container_name: rf-server
     restart: unless-stopped
     ports:
-      - "9200:80"
+      - "${APP_PORT}:80"
     volumes:
       - .:/var/www/html
     depends_on:
       db:
         condition: service_healthy
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://127.0.0.1:9200
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: rf_is
-      DB_USERNAME: rf_user
-      DB_PASSWORD: rf_password
-      VITE_DEV_SERVER_URL: http://127.0.0.1:9201
+      APP_KEY: ${APP_KEY}
+      APP_ENV: ${APP_ENV}
+      APP_DEBUG: ${APP_DEBUG}
+      APP_URL: ${APP_URL}
+
+      DB_CONNECTION: ${DB_CONNECTION}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL}
     command: >
       sh -c "
       composer install --ignore-platform-req=php &&
-      php artisan key:generate --force &&
-      php artisan storage:link &&
+      if [ -z \"$$APP_KEY\" ]; then php artisan key:generate --force; fi &&
+      (php artisan storage:link || true) &&
       php artisan migrate --force &&
       apache2-foreground
       "
@@ -46,7 +49,7 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     ports:
-      - "9201:9201"
+      - "${VITE_PORT}:9201"
     volumes:
       - .:/var/www/html
       - /var/www/html/node_modules
@@ -67,16 +70,16 @@ services:
     container_name: rf-db
     restart: unless-stopped
     ports:
-      - "9203:3306"
+      - "${DB_FORWARD_PORT}:3306"
     environment:
-      MYSQL_DATABASE: rf_is
-      MYSQL_USER: rf_user
-      MYSQL_PASSWORD: rf_password
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - rf_is_db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -proot_password || exit 1"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${DB_ROOT_PASSWORD} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -86,12 +89,12 @@ services:
     container_name: rf-phpmyadmin
     restart: unless-stopped
     ports:
-      - "9202:80"
+      - "${PHPMYADMIN_PORT}:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
-      PMA_USER: rf_user
-      PMA_PASSWORD: rf_password
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

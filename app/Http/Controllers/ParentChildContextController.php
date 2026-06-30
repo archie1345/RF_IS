@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\ParentChild\ClearActiveChild;
+use App\Actions\ParentChild\SwitchActiveChild;
+use App\Http\Requests\ParentChild\SwitchActiveChildRequest;
 use App\Models\Athlete;
+use App\Services\ParentChildContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -10,41 +14,37 @@ use Inertia\Response;
 
 class ParentChildContextController extends Controller
 {
+    public function __construct(
+        private readonly ParentChildContextService $childContext,
+        private readonly SwitchActiveChild $switchActiveChild,
+        private readonly ClearActiveChild $clearActiveChild,
+    ) {
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
         abort_unless($user && $user->isParent(), 403);
 
-        $activeChildId = $request->session()->get('active_child_id');
-        $children = $user->children()
-            ->with(['user:id,name,email', 'branch:branch_id,branch_name', 'group:group_id,group_name'])
-            ->orderBy('athlete_id')
-            ->get()
-            ->map(fn (Athlete $athlete) => [
-                'athlete_id' => $athlete->athlete_id,
-                'user_id' => $athlete->id,
-                'name' => $athlete->user?->name ?? 'Unknown athlete',
-                'email' => $athlete->user?->email ?? '-',
-                'branch' => $athlete->branch?->branch_name ?? 'Unassigned',
-                'group' => $athlete->group?->group_name ?? 'Unassigned',
-                'is_active' => (int) $activeChildId === (int) $athlete->athlete_id,
-            ])
-            ->values();
+        $activeChildId = $this->childContext->activeChildId($request);
+        $children = $this->childContext->childOptionsFor($user, $activeChildId);
 
         return Inertia::render('ParentChildSwitcherPage', [
             'children' => $children,
-            'activeChildId' => $activeChildId ? (int) $activeChildId : null,
+            'activeChildId' => $activeChildId ?? null,
         ]);
     }
 
-    public function switch(Request $request, Athlete $athlete): RedirectResponse
+    public function switch(SwitchActiveChildRequest $request): RedirectResponse
     {
-        $user = $request->user();
+        $this->switchActiveChild->handle($request, (string) $request->validated('athlete_id'));
 
-        abort_unless($user && $user->isParent(), 403);
-        abort_unless($athlete->parent_id && $user->parentProfile?->parent_id === $athlete->parent_id, 403);
+        return back();
+    }
 
-        $request->session()->put('active_child_id', $athlete->athlete_id);
+    public function switchAthlete(Request $request, Athlete $athlete): RedirectResponse
+    {
+        $this->switchActiveChild->handle($request, (string) $athlete->athlete_id);
 
         return back();
     }
@@ -54,7 +54,7 @@ class ParentChildContextController extends Controller
         $user = $request->user();
         abort_unless($user && $user->isParent(), 403);
 
-        $request->session()->forget('active_child_id');
+        $this->clearActiveChild->handle($request);
 
         return back();
     }

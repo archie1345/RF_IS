@@ -16,10 +16,14 @@ class ApplicationDataSeeder extends Seeder
     public function run(): void
     {
         $now = now();
+        
+        $parentIdToken = (string) Str::lower(Str::ulid());
+        $athleteIdToken = (string) Str::lower(Str::ulid());
+        $coachIdToken = (string) Str::lower(Str::ulid());
 
         $adminUserId = DB::table('users')->insertGetId([
             'name' => 'Admin RFIS',
-            'email' => 'archiesaskara@gmail.com',
+            'email' => 'admin@rfis.test',
             'email_verified_at' => $now,
             'password' => Hash::make('12345678'),
             'gender' => 'MALE',
@@ -123,7 +127,8 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ], 'group_id');
 
-        $parentId = DB::table('parents')->insertGetId([
+        DB::table('parents')->insert([
+            'parent_id' => $parentIdToken,
             'id' => $parentUserId,
             'relation' => 'mother',
             'occupation' => 'Accountant',
@@ -131,9 +136,10 @@ class ApplicationDataSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
-        ], 'parent_id');
+        ]);
 
-        $coachId = DB::table('coaches')->insertGetId([
+        DB::table('coaches')->insert([
+            'coach_id' => $coachIdToken,
             'id' => $coachUserId,
             'specialization' => 'Kyorugi and youth development',
             'bio' => 'National-level coach assigned to junior athletes.',
@@ -141,10 +147,10 @@ class ApplicationDataSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
-        ], 'coach_id');
+        ]);
 
         DB::table('coach_sessions')->insert([
-            'coach_id' => $coachId,
+            'coach_id' => $coachIdToken,
             'branch_id' => $branchId,
             'location' => 'Hall A',
             'session_date' => $now->copy()->addDays(1)->toDateString(),
@@ -154,10 +160,11 @@ class ApplicationDataSeeder extends Seeder
             'updated_at' => $now,
         ]);
 
-        $athleteId = DB::table('athletes')->insertGetId([
+        DB::table('athletes')->insert([
+            'athlete_id' => $athleteIdToken,
             'id' => $athleteUserId,
             'group_id' => $groupId,
-            'parent_id' => $parentId,
+            'parent_id' => $parentIdToken,
             'branch_id' => $branchId,
             'height_cm' => 150.50,
             'weight_kg' => 42.30,
@@ -170,10 +177,10 @@ class ApplicationDataSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
-        ], 'athlete_id');
+        ]);
 
         DB::table('athlete_attendance')->insert([
-            'athlete_id' => $athleteId,
+            'athlete_id' => $athleteIdToken, 
             'date' => $now->toDateString(),
             'status' => 'PRESENT',
             'created_at' => $now,
@@ -199,7 +206,7 @@ class ApplicationDataSeeder extends Seeder
         ], 'event_id');
 
         DB::table('event_registrations')->insert([
-            'athlete_id' => $athleteId,
+            'athlete_id' => $athleteIdToken, 
             'event_id' => $eventId,
             'category' => 'KYORUGI',
             'registered_at' => $now,
@@ -210,7 +217,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         DB::table('event_results')->insert([
-            'athlete_id' => $athleteId,
+            'athlete_id' => $athleteIdToken, 
             'event_id' => $eventId,
             'result' => 'PARTICIPATED',
             'created_at' => $now,
@@ -232,7 +239,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $paymentId = DB::table('payments')->insertGetId([
-            'athlete_id' => $athleteId,
+            'athlete_id' => $athleteIdToken, 
             'payment_type' => 'TUITION',
             'amount' => 300000,
             'reference_id' => 100001,
@@ -318,6 +325,33 @@ class ApplicationDataSeeder extends Seeder
             'user_agent' => 'RFIS Seeder',
             'payload' => base64_encode(json_encode(['login_web_' . sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
             'last_activity' => $now->timestamp,
+        ]);
+
+        DB::table('user_role_assignments')->insert([
+            [
+                'user_id' => $adminUserId,
+                'role' => 'admin',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $coachUserId,
+                'role' => 'coach',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $parentUserId,
+                'role' => 'parent',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'user_id' => $athleteUserId,
+                'role' => 'athlete',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
         ]);
     }
 }

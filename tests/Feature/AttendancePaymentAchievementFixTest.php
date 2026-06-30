@@ -5,7 +5,7 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\Session;
 use App\Models\User;
@@ -68,7 +68,7 @@ test('parent can see and upload proof for a tuition bill issued to their child u
 
     [$childUser, $childAthlete] = makeAthleteWithProfile('Child User');
     $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = Parents::create(['id' => $parentUser->id, 'relation' => 'mother']);
+    $parent = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'mother']);
     $childAthlete->update(['parent_id' => $parent->parent_id]);
 
     $payment = Payment::create([

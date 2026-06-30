@@ -23,10 +23,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import { type NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
-import type { AppRole } from '@/types/management';
+import type { AppRole } from '@/types/resource-table';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage<{ auth: Auth }>();
@@ -45,40 +45,40 @@ const roles = computed<AppRole[]>(() => {
 
 const navByRole: Record<AppRole, NavItem[]> = {
     admin: [
-        { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
-        // { title: 'Components Playground', href: managementRoutes.componentsPlayground, icon: Blocks },
-        { title: 'Users', href: managementRoutes.athletes, icon: Users },
-        { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: managementRoutes.sessions, icon: CalendarCheck2 },
-        { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Announcements', href: managementRoutes.announcements, icon: FileClock },
-        { title: 'User Activity Log', href: managementRoutes.activityLogs, icon: FileClock },
+        // { title: 'Components Playground', href: appRoutes.componentsPlayground, icon: Blocks },
+        { title: 'Users', href: appRoutes.athletes, icon: Users },
+        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Attendance', href: appRoutes.sessions, icon: CalendarCheck2 },
+        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
+        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
+        { title: 'User Activity Log', href: appRoutes.activityLogs, icon: FileClock },
     ],
     coach: [
-        { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: managementRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: managementRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
+        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
+        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
+        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
     ],
     parent: [
-        { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Child Profiles', href: managementRoutes.parentChildSwitcher, icon: Users },
-        { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: managementRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: managementRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Child Profiles', href: appRoutes.parentChildSwitcher, icon: Users },
+        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
+        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
+        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
+        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
     ],
     athlete: [
-        { title: 'Dashboard', href: managementRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Payments', href: managementRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: managementRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: managementRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: managementRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: managementRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
+        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
+        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
+        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
+        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
     ],
 };
 
@@ -106,7 +106,7 @@ const footerNavItems: NavItem[] = [];
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="managementRoutes.dashboard">
+                        <Link :href="appRoutes.dashboard">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
