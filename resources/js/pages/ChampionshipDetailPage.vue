@@ -7,10 +7,10 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -31,8 +31,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Championships', href: managementRoutes.championships },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Championships', href: appRoutes.championships },
     { title: props.event.name, href: `/championships/${props.event.id}` },
 ];
 

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Concerns;
 
-trait FormatsMvpData
+trait FormatsPresentationData
 {
     protected function badge(string $text, string $tone = 'neutral'): array
     {

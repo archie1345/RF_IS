@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Payments\CreatePayment;
 use App\Actions\Payments\ReviewPaymentProof;
 use App\Actions\Payments\SubmitPaymentProof;
@@ -28,9 +28,9 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class PaymentManagementController extends Controller
+class PaymentController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(
         private readonly PaymentVisibilityService $paymentVisibility,

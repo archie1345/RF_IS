@@ -77,7 +77,7 @@ class Athlete extends Model{
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(Parents::class,'parent_id');
+        return $this->belongsTo(ParentProfile::class,'parent_id');
     }
 
     public function user(): BelongsTo

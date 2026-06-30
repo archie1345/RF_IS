@@ -10,12 +10,11 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useRole } from '@/composables/useRole';
-import { managementRoutes } from '@/data/management';
 import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -28,8 +27,8 @@ const props = defineProps<{
     activeAthleteId: string | null;
 }>();
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Attendance', href: managementRoutes.attendance },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Attendance', href: appRoutes.attendance },
 ];
 
 const columns: TableColumn[] = [
@@ -179,7 +178,7 @@ onMounted(() => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection
-                eyebrow="Basic module"
+                eyebrow="Attendance workspace"
                 :title="roleTitle"
                 description="Role-specific attendance flow for athlete, coach, and admin."
             >

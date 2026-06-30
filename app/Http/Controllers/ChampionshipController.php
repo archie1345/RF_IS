@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Athlete;
 use App\Models\Coach;
 use App\Models\Event;
@@ -18,9 +18,9 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ChampionshipManagementController extends Controller
+class ChampionshipController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function index(): Response
     {

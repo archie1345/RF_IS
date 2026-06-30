@@ -97,14 +97,14 @@ class User extends Authenticatable
 
     public function parentProfile(): HasOne
     {
-        return $this->hasOne(Parents::class, 'id', 'id');
+        return $this->hasOne(ParentProfile::class, 'id', 'id');
     }
 
     public function children(): HasManyThrough
     {
         return $this->hasManyThrough(
             Athlete::class,
-            Parents::class,
+            ParentProfile::class,
             'id',
             'parent_id',
             'id',

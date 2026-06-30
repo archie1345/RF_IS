@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
-import { managementRoutes } from '@/data/management';
-import type { AppRole, TableRow, AttendanceRow } from '@/types/management';
-import { router } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { appRoutes } from '@/data/routes';
+import type { AppRole, TableRow, AttendanceRow } from '@/types/resource-table';
 
 
 let timer = 0;
@@ -78,12 +78,6 @@ onMounted(() => {
 
 onUnmounted(() => clearInterval(timer));
 
-const formatDate = (dateValue: unknown): string => {
-    if (typeof dateValue === 'string' || typeof dateValue === 'number') {
-        return new Date(dateValue).toLocaleDateString();
-    }
-    return 'Recent';
-};
 </script>
 
 <template>
@@ -180,7 +174,7 @@ const formatDate = (dateValue: unknown): string => {
         <DataTable title="Recent account activity" description="Live preview of recent admin actions." :columns="dashboardColumns.log" :rows="props.activityPreviewRows">
             <template #row-actions>
                 <Button as-child variant="outline" size="sm">
-                    <Link :href="managementRoutes.activityLogs">Open full log</Link>
+                    <Link :href="appRoutes.activityLogs">Open full log</Link>
                 </Button>
             </template>
         </DataTable>

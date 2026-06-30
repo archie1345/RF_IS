@@ -65,7 +65,7 @@ class Payment extends Model
 
     public function transactions(): HasMany
     {
-        return $this->hasMany(Transactions::class, 'payment_id', 'payment_id')
+        return $this->hasMany(PaymentTransaction::class, 'payment_id', 'payment_id')
             ->latest('transaction_date')
             ->latest('ptid');
     }

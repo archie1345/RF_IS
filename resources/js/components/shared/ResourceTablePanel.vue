@@ -4,7 +4,7 @@ import { useSlots } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(defineProps<{
     eyebrow?: string | null;

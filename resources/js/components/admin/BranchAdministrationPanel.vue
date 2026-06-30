@@ -2,7 +2,7 @@
 import { MapPin, PencilLine, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Branch } from '@/types/branch';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     branches: Branch[];
@@ -90,9 +90,9 @@ function submit() {
 
 <template>
     <div>
-        <ManagementTablePanel
+        <ResourceTablePanel
             eyebrow="Admin panel"
-            title="Branch Management"
+            title="Branch Administration"
             description="Manage operational branches with the same reusable management pattern used across admin tools."
             create-label="New branch"
             table-title="Branch roster"
@@ -114,7 +114,7 @@ function submit() {
                     </Button>
                 </ActionButtonsRow>
             </template>
-        </ManagementTablePanel>
+        </ResourceTablePanel>
 
         <Dialog v-model:open="isFormOpen">
             <DialogContent class="sm:max-w-xl">

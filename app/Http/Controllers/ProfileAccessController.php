@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Actions\Profiles\SaveUserCertification;
 use App\Actions\Profiles\UpdateAccountProfile;
@@ -16,7 +16,7 @@ use App\Http\Requests\Profiles\UpdateUserAccountRequest;
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
@@ -30,7 +30,7 @@ use Inertia\Response;
 
 class ProfileAccessController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(
         private readonly ProfilePageData $profilePageData,
@@ -157,11 +157,11 @@ class ProfileAccessController extends Controller
                     'label' => $athlete->user?->name ?? 'Unknown athlete',
                 ])
                 ->values(),
-            'parents' => $isParent ? [] : Parents::query()
+            'parents' => $isParent ? [] : ParentProfile::query()
                 ->with('user:id,name')
                 ->orderBy('parent_id')
                 ->get()
-                ->map(fn (Parents $parent) => [
+                ->map(fn (ParentProfile $parent) => [
                     'value' => $parent->parent_id,
                     'label' => $parent->user?->name ?? 'Unknown parent',
                 ])

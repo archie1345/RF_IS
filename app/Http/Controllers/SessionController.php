@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Sessions\CreateSession;
 use App\Actions\Sessions\UpdateSession;
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Sessions\StoreSessionRequest;
 use App\Http\Requests\Sessions\UpdateSessionRequest;
 use App\Models\Branch;
@@ -26,9 +26,9 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class SessionManagementController extends Controller
+class SessionController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(
         private readonly SessionVisibilityService $sessionVisibility,
@@ -187,7 +187,7 @@ class SessionManagementController extends Controller
         $athletePresentCount = $attendance->where('status', 'PRESENT')->count();
         $coachTeachCount = $coachAttendance->where('status', 'TEACH')->count();
 
-        return Inertia::render('SessionsAttendancePage', [
+        return Inertia::render('SessionAttendancePage', [
             'session' => [
                 'id' => $session->csid,
                 'title' => $session->title,

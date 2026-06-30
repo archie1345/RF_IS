@@ -4,7 +4,7 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -17,7 +17,7 @@ it('allows a parent to switch to their own child context', function () {
         'role' => 'parent',
     ]);
 
-    $parentProfile = Parents::create([
+    $parentProfile = ParentProfile::create([
         'id' => $parentUser->id,
         'relation' => 'mother',
     ]);
@@ -70,7 +70,7 @@ it('prevents a parent from switching to another parent child context', function 
         'role' => 'parent',
     ]);
 
-    Parents::create([
+    ParentProfile::create([
         'id' => $parentUser->id,
         'relation' => 'mother',
     ]);
@@ -83,7 +83,7 @@ it('prevents a parent from switching to another parent child context', function 
         'role' => 'parent',
     ]);
 
-    $otherParentProfile = Parents::create([
+    $otherParentProfile = ParentProfile::create([
         'id' => $otherParentUser->id,
         'relation' => 'father',
     ]);
@@ -119,7 +119,7 @@ it('prevents a parent from switching to another parent child context', function 
 
 it('filters parent attendance by string active child identifiers', function () {
     $parentUser = User::factory()->create(['role' => 'parent']);
-    $parentProfile = Parents::create(['id' => $parentUser->id, 'relation' => 'guardian']);
+    $parentProfile = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'guardian']);
     $branch = Branch::create(['branch_name' => 'String Branch', 'location' => 'Jakarta']);
     $group = Group::create(['group_name' => 'String Group']);
 

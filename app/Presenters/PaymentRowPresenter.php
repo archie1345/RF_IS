@@ -3,7 +3,7 @@
 namespace App\Presenters;
 
 use App\Models\Payment;
-use App\Models\Transactions;
+use App\Models\PaymentTransaction;
 use App\Presenters\Concerns\FormatsPresenterData;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Support\Facades\Storage;
@@ -77,7 +77,7 @@ class PaymentRowPresenter
     public function transactionHistory(Payment $payment): array
     {
         return $payment->transactions
-            ->map(fn (Transactions $transaction) => [
+            ->map(fn (PaymentTransaction $transaction) => [
                 'id' => $transaction->ptid,
                 'amount' => $this->rupiah((float) $transaction->amount),
                 'amount_raw' => (string) $transaction->amount,

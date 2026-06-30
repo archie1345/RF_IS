@@ -3,7 +3,7 @@ import { router, useForm } from '@inertiajs/vue3';
 import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
-import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
-import type { Metric, TableColumn, TableRow } from '@/types/management';
+import type { Metric, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
@@ -344,9 +344,9 @@ function confirmPendingAction() {
             <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
         </div>
         
-        <ManagementTablePanel
+        <ResourceTablePanel
             eyebrow="Admin panel"
-            title="Account Management"
+            title="User Account Directory"
             description="Modeled after the JTE admin workspace: one place to review account types, manage access, and prepare new users for onboarding."
             create-label="New account"
             table-title="Account roster"
@@ -376,7 +376,7 @@ function confirmPendingAction() {
                     >
                 </div>
             </template>
-        </ManagementTablePanel>
+        </ResourceTablePanel>
     </div>
 
     <Dialog v-model:open="isFormOpen">

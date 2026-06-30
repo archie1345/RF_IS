@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\ActivityLog;
 use App\Models\Announcement;
 use App\Models\Athlete;
@@ -20,7 +20,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(private readonly ParentChildContextService $childContext)
     {

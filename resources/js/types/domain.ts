@@ -1,4 +1,4 @@
-import type { TableBadgeCell } from '@/types/management';
+import type { TableBadgeCell } from '@/types/resource-table';
 
 export type AppRole = 'admin' | 'coach' | 'parent' | 'athlete';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'EXCUSED';

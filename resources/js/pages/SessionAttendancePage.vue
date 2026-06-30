@@ -6,11 +6,10 @@ import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
 import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     session: {
@@ -29,8 +28,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Coach Sessions', href: managementRoutes.sessions },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Coach Sessions', href: appRoutes.sessions },
     { title: 'Attendance Sheet', href: `/sessions/${props.session.id}/attendance` },
 ];
 

@@ -3,7 +3,7 @@
 namespace App\Actions\Payments;
 
 use App\Models\Payment;
-use App\Models\Transactions;
+use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Presenters\PaymentRowPresenter;
 use App\Support\Domain\PaymentStatus;
@@ -61,12 +61,12 @@ class ReviewPaymentProof
         $submittedProofNotes = $payment->proof_notes;
 
         return DB::transaction(function () use ($payment, $reviewer, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes): Payment {
-            Transactions::query()->create([
+            PaymentTransaction::query()->create([
                 'payment_id' => $payment->payment_id,
                 'verified_by' => $reviewer->id,
                 'amount' => $amountToApprove,
                 'transaction_date' => now(),
-                'transaction_type' => Transactions::TYPE_PAYMENT,
+                'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
                 'payment_method' => $this->paymentRows->extractCollectionMethod($payment->notes),
                 'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes),
                 'proof_path' => $reviewedProofPath,

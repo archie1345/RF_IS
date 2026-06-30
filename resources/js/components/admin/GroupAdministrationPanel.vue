@@ -2,7 +2,7 @@
 import { ClipboardList, PencilLine, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Group } from '@/types/group';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     groups: Group[];
@@ -91,10 +91,10 @@ function submit() {
 
 <template>
     <div>
-        <ManagementTablePanel
+        <ResourceTablePanel
             eyebrow="Admin panel"
-            title="Group Management"
-            description="Manage athlete groups with the same reusable CRUD table and dialog pattern used across the admin workspace."
+            title="Group Administration"
+            description="Manage athlete groups with the same reusable resource table and dialog pattern used across the admin workspace."
             create-label="New group"
             table-title="Group roster"
             table-description="A reusable group table designed for expansion without duplicating layout code."
@@ -115,7 +115,7 @@ function submit() {
                     </Button>
                 </ActionButtonsRow>
             </template>
-        </ManagementTablePanel>
+        </ResourceTablePanel>
 
         <Dialog v-model:open="isFormOpen">
             <DialogContent class="sm:max-w-xl">
@@ -125,7 +125,7 @@ function submit() {
                         {{ editingId ? 'Edit group' : 'Create group' }}
                     </DialogTitle>
                     <DialogDescription>
-                        This matches the branch management flow so future admin modules can stay visually and structurally consistent.
+                        This matches the branch administration flow so future admin modules can stay visually and structurally consistent.
                     </DialogDescription>
                 </DialogHeader>
 

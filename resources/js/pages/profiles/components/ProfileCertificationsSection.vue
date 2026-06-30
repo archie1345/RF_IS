@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { certificationTypeOptions, documentFileAccept } from '@/pages/profiles/profileOptions';
 import { certificationColumns, certificationRows } from '@/pages/profiles/profileTables';
 import type { ProfileCertification } from '@/pages/profiles/types';
-import type { TableRow } from '@/types/management';
+import type { TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     certifications: ProfileCertification[];

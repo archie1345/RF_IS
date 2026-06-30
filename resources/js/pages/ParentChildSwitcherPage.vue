@@ -2,7 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -20,8 +20,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Child Switcher', href: managementRoutes.parentChildSwitcher },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Child Switcher', href: appRoutes.parentChildSwitcher },
 ];
 
 const switchChild = (athleteId: string) => {
@@ -50,7 +50,7 @@ function profileUrl(userId: number) {
             <PageSection title="Choose Child Context" description="Select which child account data to view across attendance, payments, and championships.">
                 <template #actions>
                     <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(managementRoutes.dashboard)">Back to dashboard</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(appRoutes.dashboard)">Back to dashboard</Button>
                         <Button v-if="props.activeChildId" type="button" variant="outline" class="w-full sm:w-auto" @click="clearChild">Exit child view</Button>
                     </div>
                 </template>

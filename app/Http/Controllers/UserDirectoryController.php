@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\Coach;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -19,9 +19,9 @@ use Inertia\Response;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 
-class UsersManagementController extends Controller
+class UserDirectoryController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function index(): Response
     {
@@ -196,11 +196,11 @@ class UsersManagementController extends Controller
         ])
         ->values(),
 
-    'parents' => Parents::query()
+    'parents' => ParentProfile::query()
         ->with('user:id,name')
         ->orderBy('parent_id')
         ->get()
-        ->map(fn (Parents $parent) => [
+        ->map(fn (ParentProfile $parent) => [
             'value' => $parent->parent_id,
             'label' => $parent->user?->name ?? 'Unknown parent',
         ])
@@ -255,7 +255,7 @@ class UsersManagementController extends Controller
         return redirect()->route('athletes.index');
     }
 
-    public function syncParentChildren(Request $request, Parents $parent): RedirectResponse
+    public function syncParentChildren(Request $request, ParentProfile $parent): RedirectResponse
     {
         abort_if($request->user()?->isParent(), 403);
 

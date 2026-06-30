@@ -19,7 +19,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Group;
 use App\Models\InvoiceTemplate;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\Session;
 use App\Models\Attendance;
@@ -41,7 +41,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class AdminManagementController extends Controller
+class AdminController extends Controller
 {
     public function index(): Response
     {
@@ -610,7 +610,7 @@ class AdminManagementController extends Controller
         }
 
         if ($hasParentRole) {
-            Parents::firstOrCreate(
+            ParentProfile::firstOrCreate(
                 ['id' => $user->id],
                 ['relation' => 'guardian'],
             );
@@ -705,7 +705,7 @@ class AdminManagementController extends Controller
                 ['email' => $email],
                 [
                     'name' => $name,
-                    'password' => Hash::make('TempPass123!'),
+                    'password' => Hash::make('InitialPass123!'),
                     'gender' => strtoupper((string) ($row['gender'] ?? 'MALE')),
                     'role' => 'athlete',
                     'bday' => $this->nullableDate($row['bday'] ?? null),

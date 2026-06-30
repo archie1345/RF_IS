@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Attendance\BulkUpdateAttendanceStatus;
 use App\Actions\Attendance\CreateAttendanceRecord;
 use App\Actions\Attendance\UpdateAttendanceStatus;
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\Branch;
@@ -23,9 +23,9 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AttendanceManagementController extends Controller
+class AttendanceController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function __construct(
         private readonly ParentChildContextService $childContext,
