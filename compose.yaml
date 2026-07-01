@@ -49,7 +49,7 @@ services:
       chown -R www-data:www-data storage bootstrap/cache;
       chmod -R 775 storage bootstrap/cache;
       php artisan storage:link || true;
-      php artisan optimize:clear;
+      CACHE_STORE=file php artisan optimize:clear;
       php artisan migrate --force;
       exec apache2-foreground
       "
@@ -80,14 +80,14 @@ services:
 
     volumes:
       - .:/var/www/html
-      - /var/www/html/node_modules
+      - vite_node_modules:/var/www/html/node_modules
 
     environment:
-      APP_URL: ${APP_URL}
-      VITE_PORT: ${VITE_PORT}
-      VITE_HOST: ${VITE_HOST}
-      VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL}
-      VITE_HMR_ENABLED: ${VITE_HMR_ENABLED}
+      APP_URL: ${APP_URL:-http://localhost:9200}
+      VITE_PORT: ${VITE_PORT:-9201}
+      VITE_HOST: ${VITE_HOST:-0.0.0.0}
+      VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL:-http://localhost:9201}
+      VITE_HMR_ENABLED: ${VITE_HMR_ENABLED:-true}
 
     command: >
       sh -c "
