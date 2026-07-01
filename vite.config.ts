@@ -1,6 +1,8 @@
-import { defineConfig, loadEnv } from 'vite';
-import laravel from 'laravel-vite-plugin';
+import { wayfinder } from '@laravel/vite-plugin-wayfinder';
+import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
+import laravel from 'laravel-vite-plugin';
+import { defineConfig, loadEnv } from 'vite';
 
 function parseBoolean(
     value: string | undefined,
@@ -48,15 +50,6 @@ export default defineConfig(({ command, mode }) => {
 
     const vitePort = parsePort(env.VITE_PORT, 9201);
 
-    /*
-     * This is the URL used by the browser, not the Docker-internal address.
-     *
-     * Windows:
-     * http://localhost:9201
-     *
-     * Proxmox:
-     * http://100.72.97.77:8083
-     */
     const publicViteUrl = parseUrl(
         env.VITE_DEV_SERVER_URL ||
             `${appUrl.protocol}//${appUrl.hostname}:${vitePort}`,
@@ -72,27 +65,30 @@ export default defineConfig(({ command, mode }) => {
         plugins: [
             laravel({
                 input: ['resources/js/app.ts'],
+                ssr: 'resources/js/ssr.ts',
                 refresh: isDevServer,
             }),
-            vue(),
+
+            tailwindcss(),
+
+            wayfinder({
+                formVariants: true,
+            }),
+
+            vue({
+                template: {
+                    transformAssetUrls: {
+                        base: null,
+                        includeAbsolute: false,
+                    },
+                },
+            }),
         ],
 
         server: {
-            /*
-             * Listen on every interface inside the container.
-             */
             host: env.VITE_HOST || '0.0.0.0',
-
-            /*
-             * This is the container port Vite listens on.
-             */
             port: vitePort,
             strictPort: true,
-
-            /*
-             * This is the browser-visible Vite URL.
-             * Laravel's hot file will use this address.
-             */
             origin: publicViteUrl.origin,
 
             cors: {
@@ -115,6 +111,10 @@ export default defineConfig(({ command, mode }) => {
                       ),
                   }
                 : false,
+
+            watch: {
+                usePolling: true,
+            },
         },
     };
 });
