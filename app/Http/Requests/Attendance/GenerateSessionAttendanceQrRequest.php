@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Attendance;
 
-use App\Models\Session;
+use App\Models\TrainingSession;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GenerateSessionAttendanceQrRequest extends FormRequest
@@ -12,7 +12,7 @@ class GenerateSessionAttendanceQrRequest extends FormRequest
         $session = $this->route('session');
 
         return $this->user() !== null
-            && $session instanceof Session
+            && $session instanceof TrainingSession
             && $this->user()->can('manageAttendanceQr', $session);
     }
 

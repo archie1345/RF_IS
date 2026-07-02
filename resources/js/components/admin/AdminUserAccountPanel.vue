@@ -148,6 +148,7 @@ const rows = computed<TableRow[]>(() =>
         },
         createdAt: user.createdAt,
         deletedAt: user.deletedAt ?? '-',
+        statusValue: user.status,
     })),
 );
 
@@ -246,6 +247,16 @@ const submit = () => {
 //         preserveScroll: true,
 //     });
 // }
+
+function isInvitedRow(row: TableRow) {
+    return row.statusValue === 'invited';
+}
+
+function resendInvitation(row: TableRow) {
+    const id = Number(row.id);
+    if (!id) return;
+    router.post(`/admin/accounts/${id}/invitation`, {}, { preserveScroll: true });
+}
 
 function deleteAccount(row: TableRow) {
     const id = Number(row.id);
@@ -367,6 +378,9 @@ function confirmPendingAction() {
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
+                    <Button v-if="row.deletedAt === '-' && isInvitedRow(row)" variant="outline" @click="resendInvitation(row)">
+                        Resend invite
+                    </Button>
                     <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)"
                         >Delete</Button
                     >
@@ -453,7 +467,11 @@ function confirmPendingAction() {
                         v-model="form.password"
                         type="text"
                         :placeholder="
-                            editingId !== null ? 'Leave blank to keep current password' : 'Set initial password'
+                            form.status === 'invited'
+                                ? 'Invitation users set this themselves'
+                                : editingId !== null
+                                  ? 'Leave blank to keep current password'
+                                  : 'Set initial password'
                         "
                     />
                     <p v-if="form.errors.password" class="text-sm text-destructive">

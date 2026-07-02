@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Attendance;
 use App\Models\Coach;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -12,9 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AttendanceVisibilityService
 {
-    public function __construct(private readonly ParentChildContextService $childContext)
-    {
-    }
+    public function __construct(private readonly ParentChildContextService $childContext) {}
 
     public function scopedAttendanceQuery(Request $request): Builder
     {
@@ -34,7 +32,7 @@ class AttendanceVisibilityService
         }
 
         if ($user->isCoach()) {
-            return $query->whereIn('coach_session_id', $this->coachSessionIds($user));
+            return $query->whereIn('training_session_id', $this->coachSessionIds($user));
         }
 
         return $query->whereRaw('1 = 0');
@@ -42,7 +40,7 @@ class AttendanceVisibilityService
 
     public function visibleSessionQuery(?User $user): Builder
     {
-        $query = Session::query();
+        $query = TrainingSession::query();
 
         if (! $user || $user->isAdmin()) {
             return $query;
@@ -53,7 +51,7 @@ class AttendanceVisibilityService
 
             return $query->where(function ($sessionQuery) use ($coachId): void {
                 $sessionQuery->where('coach_id', $coachId);
-                if ($coachId && Schema::hasTable('coach_session_coaches')) {
+                if ($coachId && Schema::hasTable('training_session_coaches')) {
                     $sessionQuery->orWhereHas('coaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId));
                 }
             });
@@ -83,8 +81,8 @@ class AttendanceVisibilityService
         }
 
         if ($user->isCoach()) {
-            return $attendance->session
-                ? $this->coachCanAccessSession($user, $attendance->session)
+            return $attendance->trainingSession
+                ? $this->coachCanAccessSession($user, $attendance->trainingSession)
                 : false;
         }
 
@@ -95,7 +93,7 @@ class AttendanceVisibilityService
         return false;
     }
 
-    public function coachCanAccessSession(User $user, Session $session): bool
+    public function coachCanAccessSession(User $user, TrainingSession $session): bool
     {
         $coachId = $user->coachProfile?->coach_id ?? Coach::query()->where('id', $user->id)->value('coach_id');
         if (! $coachId) {
@@ -103,7 +101,7 @@ class AttendanceVisibilityService
         }
 
         return (string) $session->coach_id === (string) $coachId
-            || (Schema::hasTable('coach_session_coaches') && $session->coaches()->where('coaches.coach_id', $coachId)->exists());
+            || (Schema::hasTable('training_session_coaches') && $session->assignedCoaches()->where('coaches.coach_id', $coachId)->exists());
     }
 
     public function coachSessionIds(User $user): array
@@ -112,6 +110,6 @@ class AttendanceVisibilityService
             return [];
         }
 
-        return $this->visibleSessionQuery($user)->pluck('csid')->all();
+        return $this->visibleSessionQuery($user)->pluck('training_session_id')->all();
     }
 }

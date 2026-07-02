@@ -8,19 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('coach_session_coaches', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('coach_session_id')->constrained('coach_sessions', 'csid')->cascadeOnDelete();
+        Schema::create('training_session_coaches', function (Blueprint $table) {
+            $table->id('training_session_coach_id');
+            $table->foreignId('training_session_id')->constrained('training_sessions', 'training_session_id')->cascadeOnDelete();
             $table->foreignId('coach_id')->constrained('coaches', 'coach_id')->cascadeOnDelete();
             $table->timestamps();
 
-            $table->unique(['coach_session_id', 'coach_id'], 'coach_session_coach_unique');
+            $table->unique(['training_session_id', 'coach_id'], 'training_session_coach_unique');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('coach_session_coaches');
+        Schema::dropIfExists('training_session_coaches');
     }
 };
-

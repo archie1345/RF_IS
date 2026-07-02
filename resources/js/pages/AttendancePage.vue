@@ -41,7 +41,7 @@ const columns: TableColumn[] = [
 
 const form = useForm({
     athlete_id: props.activeAthleteId ? String(props.activeAthleteId) : '',
-    coach_session_id: '',
+    training_session_id: '',
     date: '',
     status: 'PRESENT',
     checked_in_time: '',
@@ -141,7 +141,7 @@ function openSessionFromCoachInput() {
 }
 
 function applySessionDate(sessionValue: string) {
-    form.coach_session_id = sessionValue;
+    form.training_session_id = sessionValue;
     const selected = props.sessions.find((session) => String(session.value) === sessionValue);
     if (selected?.date) {
         form.date = selected.date;
@@ -166,8 +166,8 @@ onMounted(() => {
     }
 
     if (props.sessions.length === 1) {
-        form.coach_session_id = String(props.sessions[0].value);
-        applySessionDate(form.coach_session_id);
+        form.training_session_id = String(props.sessions[0].value);
+        applySessionDate(form.training_session_id);
     }
 });
 </script>
@@ -203,12 +203,12 @@ onMounted(() => {
                         <FormSelectField
                             v-if="props.sessions.length > 1"
                             id="attendance-session"
-                            :model-value="form.coach_session_id"
+                            :model-value="form.training_session_id"
                             label="Training session"
                             :options="props.sessions"
                             placeholder="General attendance"
                             help="Choose today’s session if it is listed. Otherwise leave it as general attendance."
-                            :error="form.errors.coach_session_id"
+                            :error="form.errors.training_session_id"
                             @update:model-value="applySessionDate"
                         />
                         <div v-else-if="props.sessions.length === 1" class="grid gap-2">

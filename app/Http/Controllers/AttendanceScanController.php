@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Attendance\RecordQrAttendance;
 use App\Http\Requests\Attendance\RecordQrAttendanceRequest;
 use App\Models\Attendance;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Services\AttendanceQrTokenService;
 use App\Support\ActivityLogger;
 use App\Support\Domain\AttendanceStatus;
@@ -30,7 +30,7 @@ class AttendanceScanController extends Controller
         $attendance = $session && $athlete
             ? Attendance::query()
                 ->where('athlete_id', $athlete->athlete_id)
-                ->where('coach_session_id', $session->csid)
+                ->where('training_session_id', $session->training_session_id)
                 ->first()
             : null;
 
@@ -50,7 +50,7 @@ class AttendanceScanController extends Controller
     public function store(RecordQrAttendanceRequest $request, string $token): RedirectResponse
     {
         $session = $this->tokens->findActiveSessionByToken($token);
-        abort_unless($session instanceof Session, 404);
+        abort_unless($session instanceof TrainingSession, 404);
 
         [$attendance, $alreadyRecorded] = $this->recordQrAttendance->handle($request->user(), $session);
 
@@ -60,7 +60,7 @@ class AttendanceScanController extends Controller
             'attendance',
             $alreadyRecorded ? 'QR attendance was already recorded' : 'Recorded QR attendance check-in',
             $attendance,
-            ['session_id' => $session->csid, 'athlete_id' => $attendance->athlete_id],
+            ['session_id' => $session->training_session_id, 'athlete_id' => $attendance->athlete_id],
         );
 
         return back()->with('attendanceScan', [
@@ -69,10 +69,10 @@ class AttendanceScanController extends Controller
         ]);
     }
 
-    private function sessionPayload(Session $session): array
+    private function sessionPayload(TrainingSession $session): array
     {
         return [
-            'id' => $session->csid,
+            'id' => $session->training_session_id,
             'title' => $session->title,
             'date' => Carbon::parse((string) $session->session_date)->format('Y-m-d'),
             'start_time' => Carbon::parse((string) $session->start_time)->format('H:i'),

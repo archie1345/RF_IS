@@ -3,7 +3,7 @@
 namespace App\Actions\Attendance;
 
 use App\Models\Attendance;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\AttendanceVisibilityService;
 use App\Services\ParentChildContextService;
@@ -18,8 +18,7 @@ class CreateAttendanceRecord
     public function __construct(
         private readonly ParentChildContextService $childContext,
         private readonly AttendanceVisibilityService $attendanceVisibility,
-    ) {
-    }
+    ) {}
 
     public function handle(User $user, Request $request, array $validated): Attendance
     {
@@ -37,8 +36,8 @@ class CreateAttendanceRecord
             throw ValidationException::withMessages(['athlete_id' => 'Selected athlete is not linked to this parent account.']);
         }
 
-        if ($user->isCoach() && ! empty($validated['coach_session_id'])) {
-            $session = Session::query()->find($validated['coach_session_id']);
+        if ($user->isCoach() && ! empty($validated['training_session_id'])) {
+            $session = TrainingSession::query()->find($validated['training_session_id']);
             if (! $session || ! $this->attendanceVisibility->coachCanAccessSession($user, $session)) {
                 abort(403);
             }
@@ -52,7 +51,7 @@ class CreateAttendanceRecord
         return DB::transaction(fn () => Attendance::query()->updateOrCreate(
             [
                 'athlete_id' => $athleteId,
-                'coach_session_id' => $validated['coach_session_id'],
+                'training_session_id' => $validated['training_session_id'],
                 'date' => $validated['date'],
             ],
             [

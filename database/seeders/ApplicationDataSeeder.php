@@ -16,7 +16,7 @@ class ApplicationDataSeeder extends Seeder
     public function run(): void
     {
         $now = now();
-        
+
         $parentIdToken = (string) Str::lower(Str::ulid());
         $athleteIdToken = (string) Str::lower(Str::ulid());
         $coachIdToken = (string) Str::lower(Str::ulid());
@@ -149,7 +149,7 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ]);
 
-        DB::table('coach_sessions')->insert([
+        DB::table('training_sessions')->insert([
             'coach_id' => $coachIdToken,
             'branch_id' => $branchId,
             'location' => 'Hall A',
@@ -180,7 +180,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         DB::table('athlete_attendance')->insert([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'date' => $now->toDateString(),
             'status' => 'PRESENT',
             'created_at' => $now,
@@ -206,7 +206,7 @@ class ApplicationDataSeeder extends Seeder
         ], 'event_id');
 
         DB::table('event_registrations')->insert([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'event_id' => $eventId,
             'category' => 'KYORUGI',
             'registered_at' => $now,
@@ -217,7 +217,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         DB::table('event_results')->insert([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'event_id' => $eventId,
             'result' => 'PARTICIPATED',
             'created_at' => $now,
@@ -239,7 +239,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $paymentId = DB::table('payments')->insertGetId([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'payment_type' => 'TUITION',
             'amount' => 300000,
             'reference_id' => 100001,
@@ -323,7 +323,7 @@ class ApplicationDataSeeder extends Seeder
             'user_id' => $adminUserId,
             'ip_address' => '127.0.0.1',
             'user_agent' => 'RFIS Seeder',
-            'payload' => base64_encode(json_encode(['login_web_' . sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
+            'payload' => base64_encode(json_encode(['login_web_'.sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
             'last_activity' => $now->timestamp,
         ]);
 

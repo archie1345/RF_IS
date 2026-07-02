@@ -16,9 +16,9 @@ return new class extends Migration
         $this->dropForeignKeysForColumn('event_registrations', 'athlete_id');
         $this->dropForeignKeysForColumn('event_results', 'athlete_id');
 
-        $this->dropForeignKeysForColumn('coach_sessions', 'coach_id');
-        $this->dropForeignKeysForColumn('coach_session_coaches', 'coach_id');
-        $this->dropForeignKeysForColumn('session_coach_attendance', 'coach_id');
+        $this->dropForeignKeysForColumn('training_sessions', 'coach_id');
+        $this->dropForeignKeysForColumn('training_session_coaches', 'coach_id');
+        $this->dropForeignKeysForColumn('coach_attendance', 'coach_id');
         $this->dropForeignKeysForColumn('event_coach_registrations', 'coach_id');
 
         Schema::table('parents', function (Blueprint $table) {
@@ -50,15 +50,15 @@ return new class extends Migration
             $table->char('athlete_id', 26)->change();
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->char('coach_id', 26)->change();
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
+        Schema::table('training_session_coaches', function (Blueprint $table) {
             $table->char('coach_id', 26)->change();
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
+        Schema::table('coach_attendance', function (Blueprint $table) {
             $table->char('coach_id', 26)->change();
         });
 
@@ -101,21 +101,21 @@ return new class extends Migration
                 ->cascadeOnDelete();
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')
                 ->cascadeOnDelete();
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
+        Schema::table('training_session_coaches', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')
                 ->cascadeOnDelete();
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
+        Schema::table('coach_attendance', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')
@@ -140,9 +140,9 @@ return new class extends Migration
             'payments',
             'event_registrations',
             'event_results',
-            'coach_sessions',
-            'coach_session_coaches',
-            'session_coach_attendance',
+            'training_sessions',
+            'training_session_coaches',
+            'coach_attendance',
             'event_coach_registrations',
         ];
 
@@ -161,9 +161,9 @@ return new class extends Migration
         $this->dropForeignKeysForColumn('event_registrations', 'athlete_id');
         $this->dropForeignKeysForColumn('event_results', 'athlete_id');
 
-        $this->dropForeignKeysForColumn('coach_sessions', 'coach_id');
-        $this->dropForeignKeysForColumn('coach_session_coaches', 'coach_id');
-        $this->dropForeignKeysForColumn('session_coach_attendance', 'coach_id');
+        $this->dropForeignKeysForColumn('training_sessions', 'coach_id');
+        $this->dropForeignKeysForColumn('training_session_coaches', 'coach_id');
+        $this->dropForeignKeysForColumn('coach_attendance', 'coach_id');
         $this->dropForeignKeysForColumn('event_coach_registrations', 'coach_id');
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
@@ -182,15 +182,15 @@ return new class extends Migration
             $table->unsignedBigInteger('athlete_id')->change();
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->unsignedBigInteger('coach_id')->change();
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
+        Schema::table('training_session_coaches', function (Blueprint $table) {
             $table->unsignedBigInteger('coach_id')->change();
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
+        Schema::table('coach_attendance', function (Blueprint $table) {
             $table->unsignedBigInteger('coach_id')->change();
         });
 
@@ -252,21 +252,21 @@ return new class extends Migration
                 ->cascadeOnDelete();
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')
                 ->cascadeOnDelete();
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
+        Schema::table('training_session_coaches', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')
                 ->cascadeOnDelete();
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
+        Schema::table('coach_attendance', function (Blueprint $table) {
             $table->foreign('coach_id')
                 ->references('coach_id')
                 ->on('coaches')

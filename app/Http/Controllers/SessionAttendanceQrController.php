@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Attendance\GenerateSessionAttendanceQr;
 use App\Actions\Attendance\RevokeSessionAttendanceQr;
 use App\Http\Requests\Attendance\GenerateSessionAttendanceQrRequest;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 
@@ -16,7 +16,7 @@ class SessionAttendanceQrController extends Controller
         private readonly RevokeSessionAttendanceQr $revokeQr,
     ) {}
 
-    public function store(GenerateSessionAttendanceQrRequest $request, Session $session): RedirectResponse
+    public function store(GenerateSessionAttendanceQrRequest $request, TrainingSession $session): RedirectResponse
     {
         [$session, $token] = $this->generateQr->handle($session, $request->validated());
 
@@ -26,7 +26,7 @@ class SessionAttendanceQrController extends Controller
             'attendance',
             'Generated session attendance QR code',
             $session,
-            ['session_id' => $session->csid],
+            ['session_id' => $session->training_session_id],
         );
 
         return back()->with('attendanceQr', [
@@ -38,7 +38,7 @@ class SessionAttendanceQrController extends Controller
         ]);
     }
 
-    public function destroy(Session $session): RedirectResponse
+    public function destroy(TrainingSession $session): RedirectResponse
     {
         $this->authorize('manageAttendanceQr', $session);
 
@@ -50,7 +50,7 @@ class SessionAttendanceQrController extends Controller
             'attendance',
             'Revoked session attendance QR code',
             $session,
-            ['session_id' => $session->csid],
+            ['session_id' => $session->training_session_id],
         );
 
         return back()->with('attendanceQrStatus', 'Attendance QR code closed.');

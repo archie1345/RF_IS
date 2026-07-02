@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\Session;
+use App\Models\TrainingSession;
 use Illuminate\Support\Str;
 
 class AttendanceQrTokenService
@@ -17,10 +17,10 @@ class AttendanceQrTokenService
         return hash('sha256', $token);
     }
 
-    public function findActiveSessionByToken(string $token): ?Session
+    public function findActiveSessionByToken(string $token): ?TrainingSession
     {
-        return Session::query()
-            ->with(['branch:branch_id,branch_name', 'group:group_id,group_name', 'coach.user:id,name'])
+        return TrainingSession::query()
+            ->with(['branch:branch_id,branch_name', 'group:group_id,group_name', 'primaryCoach.user:id,name'])
             ->where('attendance_token_hash', $this->hashToken($token))
             ->whereNull('attendance_qr_revoked_at')
             ->first();

@@ -7,15 +7,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Session extends Model
+class TrainingSession extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'coach_sessions';
+    protected $table = 'training_sessions';
 
     public $timestamps = true;
 
-    protected $primaryKey = 'csid';
+    protected $primaryKey = 'training_session_id';
 
     public $incrementing = true;
 
@@ -47,7 +47,7 @@ class Session extends Model
         'attendance_qr_revoked_at' => 'datetime',
     ];
 
-    public function coach(): BelongsTo
+    public function primaryCoach(): BelongsTo
     {
         return $this->belongsTo(Coach::class, 'coach_id');
     }
@@ -62,9 +62,9 @@ class Session extends Model
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
     }
 
-    public function coaches(): BelongsToMany
+    public function assignedCoaches(): BelongsToMany
     {
-        return $this->belongsToMany(Coach::class, 'coach_session_coaches', 'coach_session_id', 'coach_id')
+        return $this->belongsToMany(Coach::class, 'training_session_coaches', 'training_session_id', 'coach_id')
             ->withTimestamps();
     }
 }
