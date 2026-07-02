@@ -18,16 +18,41 @@ services:
         condition: service_healthy
 
     command: >
-      sh -c "
-      mkdir -p storage/logs bootstrap/cache &&
-      touch storage/logs/laravel.log &&
-      chown -R 1000:1000 storage bootstrap/cache &&
-      chmod -R ug+rwX storage bootstrap/cache &&
-      composer install --ignore-platform-req=php &&
-      php artisan key:generate --force &&
-      php artisan storage:link &&
-      php artisan migrate --force &&
-      apache2-foreground
+      sh -ec "
+      set -e;
+      umask 0002;
+
+      dev_uid=\"$${APP_DEV_UID:-1000}\";
+      dev_gid=\"$${APP_DEV_GID:-1000}\";
+
+      group_name=\"$$(getent group \"$$dev_gid\" | cut -d: -f1 || true)\";
+
+      if [ -z \"$$group_name\" ]; then
+        groupadd --gid \"$$dev_gid\" appdev;
+        group_name=appdev;
+      fi;
+
+      usermod -a -G \"$$group_name\" www-data;
+
+      composer install --ignore-platform-req=php;
+
+      mkdir -p \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache;
+
+      chown -R www-data:\"$$group_name\" storage bootstrap/cache;
+
+      find storage bootstrap/cache -type d -exec chmod 2775 {} +;
+      find storage bootstrap/cache -type f -exec chmod 0664 {} +;
+
+      php artisan storage:link || true;
+      CACHE_STORE=file php artisan optimize:clear;
+      php artisan migrate --force;
+
+      exec apache2-foreground
       "
 
     healthcheck:
