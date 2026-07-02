@@ -2,7 +2,7 @@
 
 namespace App\Presenters;
 
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Presenters\Concerns\FormatsPresenterData;
 use App\Services\SessionVisibilityService;
 use App\Support\Domain\SessionStatus;
@@ -12,15 +12,13 @@ class SessionRowPresenter
 {
     use FormatsPresenterData;
 
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
-    {
-    }
+    public function __construct(private readonly SessionVisibilityService $sessionVisibility) {}
 
-    public function row(Session $session, ?string $currentCoachId = null): array
+    public function row(TrainingSession $session, ?string $currentCoachId = null): array
     {
         return [
-            'id' => 'SES-'.$session->csid,
-            'session_id' => $session->csid,
+            'id' => 'SES-'.$session->training_session_id,
+            'session_id' => $session->training_session_id,
             'session' => $session->title,
             'branch' => $session->branch?->branch_name ?? 'Unassigned',
             'group' => $session->group?->group_name ?? 'All groups',
@@ -44,12 +42,12 @@ class SessionRowPresenter
         return $this->badge(SessionStatus::label($status), SessionStatus::tone($status));
     }
 
-    private function coachNames(Session $session): string
+    private function coachNames(TrainingSession $session): string
     {
-        $names = collect([$session->coach?->user?->name]);
+        $names = collect([$session->primaryCoach?->user?->name]);
 
-        if ($session->relationLoaded('coaches')) {
-            $names = $names->merge($session->coaches->map(fn ($coach) => $coach->user?->name));
+        if ($session->relationLoaded('assignedCoaches')) {
+            $names = $names->merge($session->assignedCoaches->map(fn ($coach) => $coach->user?->name));
         }
 
         return $names->filter()->unique()->values()->implode(', ') ?: 'Unassigned';

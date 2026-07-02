@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Coach;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 
@@ -11,7 +11,7 @@ class SessionVisibilityService
 {
     public function hasCoachPivotTable(): bool
     {
-        return Schema::hasTable('coach_session_coaches');
+        return Schema::hasTable('training_session_coaches');
     }
 
     public function coachProfileIdFor(?User $user): ?string
@@ -25,7 +25,7 @@ class SessionVisibilityService
         return $coachId ? (string) $coachId : null;
     }
 
-    public function coachCanAccessSession(User $user, Session $session): bool
+    public function coachCanAccessSession(User $user, TrainingSession $session): bool
     {
         $coachId = $this->coachProfileIdFor($user);
         if (! $coachId) {
@@ -33,10 +33,10 @@ class SessionVisibilityService
         }
 
         return (string) $session->coach_id === $coachId
-            || ($this->hasCoachPivotTable() && $session->coaches()->where('coaches.coach_id', $coachId)->exists());
+            || ($this->hasCoachPivotTable() && $session->assignedCoaches()->where('coaches.coach_id', $coachId)->exists());
     }
 
-    public function coachCanJoinSession(?string $coachId, Session $session): bool
+    public function coachCanJoinSession(?string $coachId, TrainingSession $session): bool
     {
         if (! $coachId) {
             return false;
@@ -44,7 +44,7 @@ class SessionVisibilityService
 
         return ! (
             (string) $session->coach_id === $coachId
-            || ($this->hasCoachPivotTable() && $session->relationLoaded('coaches') && $session->coaches->contains('coach_id', $coachId))
+            || ($this->hasCoachPivotTable() && $session->relationLoaded('assignedCoaches') && $session->assignedCoaches->contains('coach_id', $coachId))
         );
     }
 

@@ -1,52 +1,53 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\Athlete;
-use App\Models\Session;
-use App\Models\Attendance;
 use App\Actions\Attendance\InitializeSessionAttendance;
+use App\Models\Athlete;
 use App\Models\Branch;
-use App\Models\Group;
 use App\Models\Coach;
+use App\Models\Group;
+use App\Models\TrainingSession;
 use App\Models\User;
-use App\Models\CoachSession;
-use App\Models\AthleteAttendance;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-it('creates absent attendance rows for eligible athletes', function() {
-    $branch = Branch::factory()->create();
-    $group = Group::factory()->create();
-    $coachSession = CoachSession::factory()->create([
-        'branch_id' => $branch->branch_id,
-        'group_id' => $group->group_id,
-    ]);
-    $coachUser = User::factory()->create();
-    $coach = Coach::factory()->create([
-        'coach_id' => $coachUser->id
-    ]);
-    $session = Session::factory()->create([
-        'branch_id' => $branch->branch_id,
-        'group_id' => $group->group_id,
+it('creates absent athlete attendance rows for eligible athletes', function () {
+    $branch = Branch::create(['branch_name' => 'Attendance Branch', 'location' => 'Jakarta']);
+    $group = Group::create(['group_name' => 'Junior']);
+    $coachUser = User::factory()->create(['role' => 'coach']);
+    $coach = Coach::create(['id' => $coachUser->id, 'status' => 'active']);
+
+    $trainingSession = TrainingSession::create([
         'coach_id' => $coach->coach_id,
-        'coach_session_id' => $coachSession->coach_session_id,
-    ]);
-
-    $athleteUser = User::factory()->create();
-
-    $athlete = Athlete::factory()->create([
         'branch_id' => $branch->branch_id,
         'group_id' => $group->group_id,
-        'user_id' => $athleteUser->id,
+        'title' => 'Morning Training',
+        'location' => 'Dojo',
+        'session_date' => '2026-07-02',
+        'start_time' => '08:00:00',
+        'end_time' => '09:00:00',
+        'status' => 'CONFIRMED',
     ]);
 
-    $created = app(InitializeSessionAttendance::class)->handle($session);
+    $athleteUser = User::factory()->create(['role' => 'athlete']);
+    $athlete = Athlete::create([
+        'id' => $athleteUser->id,
+        'branch_id' => $branch->branch_id,
+        'group_id' => $group->group_id,
+        'height_cm' => 150,
+        'weight_kg' => 45,
+        'nik_hash' => hash('sha256', 'nik'),
+        'bpjs_hash' => hash('sha256', 'bpjs'),
+        'geup' => 'GEUP_1',
+    ]);
+
+    $created = app(InitializeSessionAttendance::class)->handle($trainingSession);
 
     expect($created)->toBe(1);
 
-    $this->assertDatabaseHas('athlete_attendances', [
+    $this->assertDatabaseHas('athlete_attendance', [
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->coach_session_id,
-        'status' => 'absent',
+        'training_session_id' => $trainingSession->training_session_id,
+        'status' => 'ABSENT',
     ]);
 });

@@ -6,19 +6,19 @@ use App\Actions\Attendance\BulkUpdateAttendanceStatus;
 use App\Actions\Attendance\CreateAttendanceRecord;
 use App\Actions\Attendance\UpdateAttendanceStatus;
 use App\Http\Controllers\Concerns\FormatsPresentationData;
-use App\Models\Athlete;
-use App\Models\Attendance;
-use App\Models\Branch;
 use App\Http\Requests\Attendance\BulkUpdateAttendanceRequest;
 use App\Http\Requests\Attendance\StoreAttendanceRequest;
 use App\Http\Requests\Attendance\UpdateAttendanceRequest;
+use App\Models\Athlete;
+use App\Models\Attendance;
+use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
-use App\Models\Session;
-use App\Support\ActivityLogger;
-use App\Services\ParentChildContextService;
-use App\Services\AttendanceVisibilityService;
+use App\Models\TrainingSession;
 use App\Presenters\AttendanceRowPresenter;
+use App\Services\AttendanceVisibilityService;
+use App\Services\ParentChildContextService;
+use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,8 +34,7 @@ class AttendanceController extends Controller
         private readonly CreateAttendanceRecord $createAttendance,
         private readonly UpdateAttendanceStatus $updateAttendanceStatus,
         private readonly BulkUpdateAttendanceStatus $bulkUpdateAttendanceStatus,
-    ) {
-    }
+    ) {}
 
     public function index(): Response
     {
@@ -46,9 +45,9 @@ class AttendanceController extends Controller
         $athleteScopedId = $user?->isAthlete() ? $user->athleteProfile?->athlete_id : null;
 
         $attendanceQuery = $this->attendanceVisibility->scopedAttendanceQuery($request)
-            ->with(['athlete.user:id,name', 'session.coach.user:id,name'])
+            ->with(['athlete.user:id,name', 'trainingSession.primaryCoach.user:id,name'])
             ->latest('date')
-            ->latest('atid');
+            ->latest('athlete_attendance_id');
 
         $attendance = $attendanceQuery->get();
 
@@ -60,7 +59,7 @@ class AttendanceController extends Controller
             'metrics' => [
                 ['label' => 'Attendance today', 'value' => $attendanceRate.'%', 'detail' => $presentToday.' present records logged today', 'tone' => 'success'],
                 ['label' => 'Absent records this week', 'value' => (string) $attendance->whereBetween('date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->where('status', 'ABSENT')->count(), 'detail' => 'Weekly absences that may need follow-up', 'tone' => 'warning'],
-                ['label' => 'Sessions tracked', 'value' => (string) $attendance->pluck('coach_session_id')->filter()->unique()->count(), 'detail' => 'Distinct sessions referenced in the log', 'tone' => 'info'],
+                ['label' => 'Sessions tracked', 'value' => (string) $attendance->pluck('training_session_id')->filter()->unique()->count(), 'detail' => 'Distinct sessions referenced in the log', 'tone' => 'info'],
             ],
             'rows' => $attendance->map(fn (Attendance $record) => $this->attendanceRows->row($record, $user))->values(),
             'athletes' => Athlete::query()
@@ -72,14 +71,14 @@ class AttendanceController extends Controller
                 ->sortBy('label')
                 ->values(),
             'sessions' => $this->attendanceVisibility->visibleSessionQuery($user)
-                ->with(['coach.user:id,name', 'branch:branch_id,branch_name'])
+                ->with(['primaryCoach.user:id,name', 'branch:branch_id,branch_name'])
                 ->orderBy('session_date')
                 ->get()
-                ->map(fn (Session $session) => [
-                    'value' => $session->csid,
+                ->map(fn (TrainingSession $session) => [
+                    'value' => $session->training_session_id,
                     'title' => $session->title,
                     'label' => $session->title.' - '.($session->branch?->branch_name ?? 'No branch'),
-                    'href' => route('sessions.attendance', $session->csid),
+                    'href' => route('sessions.attendance', $session->training_session_id),
                     'date' => $this->attendanceRows->formatDateYmd($session->session_date),
                 ])
                 ->values(),
@@ -120,7 +119,7 @@ class AttendanceController extends Controller
 
     public function update(UpdateAttendanceRequest $request, Attendance $attendance): RedirectResponse
     {
-        $attendance->loadMissing(['athlete', 'session']);
+        $attendance->loadMissing(['athlete', 'trainingSession']);
 
         $this->authorize('update', $attendance);
 
@@ -150,7 +149,7 @@ class AttendanceController extends Controller
 
         $attendanceRows = Attendance::query()
             ->with(['athlete', 'session'])
-            ->whereIn('atid', $validated['attendance_ids'])
+            ->whereIn('athlete_attendance_id', $validated['attendance_ids'])
             ->get();
 
         abort_unless(
@@ -171,5 +170,4 @@ class AttendanceController extends Controller
 
         return back();
     }
-
 }

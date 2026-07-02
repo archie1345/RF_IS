@@ -21,8 +21,8 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        Schema::create('coach_sessions', function (Blueprint $table) {
-            $table->id('csid');
+        Schema::create('training_sessions', function (Blueprint $table) {
+            $table->id('training_session_id');
             $table->foreignId('coach_id')->constrained('coaches', 'coach_id')->cascadeOnDelete();
             $table->foreignId('branch_id')->constrained('branches', 'branch_id')->cascadeOnDelete();
             $table->string('location', 255)->nullable();
@@ -39,7 +39,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('coach_sessions');
+        Schema::dropIfExists('training_sessions');
         Schema::dropIfExists('coaches');
     }
 };
