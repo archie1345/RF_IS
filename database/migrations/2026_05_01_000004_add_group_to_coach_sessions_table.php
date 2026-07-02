@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->foreignId('group_id')->nullable()->after('branch_id')->constrained('class_groups', 'group_id')->nullOnDelete();
         });
     }
 
     public function down(): void
     {
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->dropConstrainedForeignId('group_id');
         });
     }

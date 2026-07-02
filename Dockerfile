@@ -87,7 +87,11 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
         echo 'opcache.interned_strings_buffer=8'; \
         echo 'opcache.max_accelerated_files=10000'; \
         echo 'opcache.validate_timestamps=0'; \
-      } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+      } > /usr/local/etc/php/conf.d/opcache-recommended.ini \
+    && { \
+        echo 'sys_temp_dir=/tmp/laravel'; \
+        echo 'upload_tmp_dir=/tmp/laravel'; \
+      } > /usr/local/etc/php/conf.d/laravel-temp.ini
 
 RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 <VirtualHost *:80>
@@ -108,9 +112,22 @@ COPY . .
 COPY --from=php-deps /app/vendor ./vendor
 COPY --from=frontend-build /app/public/build ./public/build
 
-RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache public/build \
-    && chown -R www-data:www-data storage bootstrap/cache public/build \
-    && chmod -R ug+rwX storage bootstrap/cache public/build
+RUN set -eux; \
+    dev_gid=1000; \
+    group_name="$(getent group "$dev_gid" | cut -d: -f1 || true)"; \
+    if [ -z "$group_name" ]; then groupadd --gid "$dev_gid" appdev; group_name=appdev; fi; \
+    usermod -a -G "$group_name" www-data; \
+    mkdir -p \
+        /tmp/laravel \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+        public/build; \
+    chown -R www-data:"$group_name" /tmp/laravel storage bootstrap/cache public/build; \
+    find /tmp/laravel storage bootstrap/cache public/build -type d -exec chmod 2775 {} +; \
+    find /tmp/laravel storage bootstrap/cache public/build -type f -exec chmod ug+rw {} +
 
 EXPOSE 80
 

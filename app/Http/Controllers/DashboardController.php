@@ -10,9 +10,9 @@ use App\Models\Attendance;
 use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Payment;
-use App\Models\Session;
-use App\Models\UserCertification;
+use App\Models\TrainingSession;
 use App\Models\UserAchievement;
+use App\Models\UserCertification;
 use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,9 +22,7 @@ class DashboardController extends Controller
 {
     use FormatsPresentationData;
 
-    public function __construct(private readonly ParentChildContextService $childContext)
-    {
-    }
+    public function __construct(private readonly ParentChildContextService $childContext) {}
 
     public function __invoke(Request $request): Response
     {
@@ -147,7 +145,7 @@ class DashboardController extends Controller
 
     private function attendanceRows(Request $request, string $role): array
     {
-        $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('atid');
+        $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('athlete_attendance_id');
 
         if ($role === 'parent') {
             $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
@@ -155,13 +153,13 @@ class DashboardController extends Controller
         } elseif ($role === 'athlete') {
             $athleteId = $request->user()?->athleteProfile?->athlete_id;
             $query->when($athleteId, fn ($inner) => $inner->where('athlete_id', $athleteId));
-        } 
+        }
         // elseif ($role === 'coach' && ! $request->user()?->isAdmin()) {
-        //     $query->whereHas('session', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
+        //     $query->whereHas('trainingSession', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
         // }
 
         return $query->limit(8)->get()->map(fn (Attendance $record) => [
-            'id' => 'DA-'.$record->atid,
+            'id' => 'DA-'.$record->athlete_attendance_id,
             'athlete' => $record->athlete?->user?->name ?? 'Unknown',
             'date' => optional($record->date)->format('d M Y') ?? '-',
             'status' => $this->badge((string) $record->status, $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger')),

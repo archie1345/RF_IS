@@ -44,10 +44,18 @@ services:
 
     command: >
       sh -ec "
+      set -e;
+      umask 0002;
+      dev_gid=\"$${APP_DEV_GID:-1000}\";
+      group_name=\"$$(getent group \"$$dev_gid\" | cut -d: -f1 || true)\";
+      if [ -z \"$$group_name\" ]; then groupadd --gid \"$$dev_gid\" appdev; group_name=appdev; fi;
+      usermod -a -G \"$$group_name\" www-data;
       composer install --ignore-platform-req=php;
-      mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
-      chown -R www-data:www-data storage bootstrap/cache;
-      chmod -R 775 storage bootstrap/cache;
+      mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
+      chown -R www-data:\"$$group_name\" /tmp/laravel storage bootstrap/cache;
+      find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +;
+      find /tmp/laravel storage bootstrap/cache -type f -exec chmod ug+rw {} +;
+      php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir().\" is not writable\\n\"); exit(1); }';
       php artisan storage:link || true;
       CACHE_STORE=file php artisan optimize:clear;
       php artisan migrate --force;

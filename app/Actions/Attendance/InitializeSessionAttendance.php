@@ -4,13 +4,13 @@ namespace App\Actions\Attendance;
 
 use App\Models\Athlete;
 use App\Models\Attendance;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Support\Domain\AttendanceStatus;
 use Illuminate\Support\Facades\DB;
 
 class InitializeSessionAttendance
 {
-    public function handle(Session $session): int
+    public function handle(TrainingSession $session): int
     {
         $athleteIds = Athlete::query()
             ->where('branch_id', $session->branch_id)
@@ -27,7 +27,7 @@ class InitializeSessionAttendance
                 $attendance = Attendance::query()->firstOrCreate(
                     [
                         'athlete_id' => $athleteId,
-                        'coach_session_id' => $session->csid,
+                        'training_session_id' => $session->training_session_id,
                     ],
                     [
                         'date' => $session->session_date,

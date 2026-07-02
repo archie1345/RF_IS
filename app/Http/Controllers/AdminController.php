@@ -8,12 +8,16 @@ use App\Actions\Profiles\UpdateAccountProfile;
 use App\Actions\Profiles\UpdateAthleteProfile;
 use App\Actions\Profiles\UpdateCoachProfile;
 use App\Actions\Profiles\UpdateParentProfile;
+use App\Actions\Users\CreateUserInvitation;
+use App\Actions\Users\ResendUserInvitation;
 use App\Http\Requests\Profiles\SaveUserAchievementRequest;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
 use App\Http\Requests\Profiles\UpdateAthleteProfileRequest;
 use App\Http\Requests\Profiles\UpdateCoachProfileRequest;
 use App\Http\Requests\Profiles\UpdateParentProfileRequest;
+use App\Models\Athlete;
+use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -21,9 +25,7 @@ use App\Models\Group;
 use App\Models\InvoiceTemplate;
 use App\Models\ParentProfile;
 use App\Models\Payment;
-use App\Models\Session;
-use App\Models\Attendance;
-use App\Models\Athlete;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
@@ -32,10 +34,10 @@ use App\Support\ActivityLogger;
 use App\Support\Profile\ProfilePageData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -134,7 +136,7 @@ class AdminController extends Controller
         return back();
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, CreateUserInvitation $createUserInvitation): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
@@ -145,7 +147,7 @@ class AdminController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($validated['password'] ?? str()->random(40)),
             'gender' => 'MALE',
             'role' => $primaryRole,
             ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $validated['status']] : []),
@@ -153,6 +155,11 @@ class AdminController extends Controller
 
         $this->syncUserRoles($user, $roles);
         $this->syncRoleProfile($user, $roles);
+
+        if ($user->isInvited()) {
+            $createUserInvitation->handle($user);
+        }
+
         ActivityLogger::log($request, 'admin.account.created', 'admin', 'Created user account', $user, ['role' => $user->role]);
 
         return back();
@@ -163,6 +170,7 @@ class AdminController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validateAccount($request, $user);
+        $this->validateAccountStatusTransition($user, $validated['status']);
         $roles = $validated['roles'];
         $primaryRole = $this->resolvePrimaryRole($roles);
 
@@ -283,6 +291,17 @@ class AdminController extends Controller
         ActivityLogger::log($request, 'admin.account.restored', 'admin', 'Restored soft deleted user account', $user, ['user_id' => $user->id]);
 
         return redirect()->route('admin.index');
+    }
+
+    public function resendInvitation(Request $request, User $user, ResendUserInvitation $resendUserInvitation): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $resendUserInvitation->handle($user);
+
+        ActivityLogger::log($request, 'admin.account.invitation_resent', 'admin', 'Resent user invitation', $user, ['user_id' => $user->id]);
+
+        return back()->with('status', 'Invitation email sent.');
     }
 
     public function hardDelete(Request $request, int $id): RedirectResponse
@@ -420,7 +439,7 @@ class AdminController extends Controller
 
         $file = $request->file('file');
         $csvData = array_map('str_getcsv', file($file->getRealPath()));
-        
+
         if (count($csvData) < 2) {
             return back()->withErrors(['file' => 'The CSV file is empty or missing data rows.']);
         }
@@ -433,8 +452,10 @@ class AdminController extends Controller
         $errors = [];
 
         foreach ($rows as $index => $row) {
-            if (count(array_filter($row)) === 0) continue; 
-            
+            if (count(array_filter($row)) === 0) {
+                continue;
+            }
+
             $data = array_combine($headers, array_pad($row, count($headers), null));
 
             try {
@@ -443,7 +464,7 @@ class AdminController extends Controller
                 $email = trim($data['email'] ?? '');
                 if (empty($email)) {
                     $cleanName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $data['name']));
-                    $email = $cleanName . rand(100,999) . '@rfis.com';
+                    $email = $cleanName.rand(100, 999).'@rfis.com';
                 }
 
                 $user = User::firstOrCreate(
@@ -458,7 +479,7 @@ class AdminController extends Controller
                 $role = strtolower(trim($data['role'] ?? 'athlete'));
 
                 $bday = null;
-                if (!empty($data['bday'])) {
+                if (! empty($data['bday'])) {
                     try {
                         $bday = Carbon::parse(trim($data['bday']))->format('Y-m-d');
                     } catch (\Exception $e) {
@@ -472,12 +493,12 @@ class AdminController extends Controller
                         [
                             'gender' => strtoupper(trim($data['gender'] ?? '')) === 'M' ? 'MALE' : 'FEMALE',
                             'date_of_birth' => $bday,
-                            'height_cm' => floatval($data['height_cm'] ?? 0), 
+                            'height_cm' => floatval($data['height_cm'] ?? 0),
                             'weight_kg' => floatval($data['weight_kg'] ?? 0),
                             'alamat' => trim($data['alamat'] ?? '') ?: null,
                             'branch_id' => intval($data['branch_id'] ?? 0) ?: null,
                             'group_id' => intval($data['group_id'] ?? 0) ?: null,
-                            'geup' => !empty($data['geup']) ? 'GEUP_' . trim($data['geup']) : 'GEUP_10',
+                            'geup' => ! empty($data['geup']) ? 'GEUP_'.trim($data['geup']) : 'GEUP_10',
                             'nik_hash' => trim($data['nik'] ?? '') ? hash('sha256', trim($data['nik'])) : null,
                             'nik_ciphertext' => trim($data['nik'] ?? '') ?: null,
                             'bpjs_hash' => trim($data['bpjs'] ?? '') ? hash('sha256', trim($data['bpjs'])) : null,
@@ -501,7 +522,7 @@ class AdminController extends Controller
             } catch (\Exception $e) {
                 DB::rollBack();
                 $failed++;
-                $errors[] = "Row " . ($index + 2) . " (" . ($data['name'] ?? 'Unknown') . "): " . $e->getMessage();
+                $errors[] = 'Row '.($index + 2).' ('.($data['name'] ?? 'Unknown').'): '.$e->getMessage();
             }
         }
 
@@ -511,7 +532,7 @@ class AdminController extends Controller
                 'imported' => $imported,
                 'failed' => $failed,
                 'errors' => $errors,
-            ]
+            ],
         ]);
     }
 
@@ -562,8 +583,34 @@ class AdminController extends Controller
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
             'status' => ['required', Rule::in(['active', 'invited', 'suspended'])],
-            'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                $user || $request->input('status') === User::ACCOUNT_STATUS_INVITED ? 'nullable' : 'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
         ]);
+    }
+
+    private function validateAccountStatusTransition(User $user, string $nextStatus): void
+    {
+        $currentStatus = $user->account_status ?? User::ACCOUNT_STATUS_ACTIVE;
+
+        if ($currentStatus === $nextStatus) {
+            return;
+        }
+
+        $allowed = [
+            User::ACCOUNT_STATUS_ACTIVE => [User::ACCOUNT_STATUS_SUSPENDED],
+            User::ACCOUNT_STATUS_SUSPENDED => [User::ACCOUNT_STATUS_ACTIVE],
+            User::ACCOUNT_STATUS_INVITED => [],
+        ];
+
+        if (! in_array($nextStatus, $allowed[$currentStatus] ?? [], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => 'This account status transition is not supported. Invited accounts become active only by accepting an invitation.',
+            ]);
+        }
     }
 
     private function branchLabel(User $user): string
@@ -757,7 +804,7 @@ class AdminController extends Controller
 
     private function importSessionRow(array $row): void
     {
-        Session::query()->create([
+        TrainingSession::query()->create([
             'coach_id' => $this->nullableString($row['coach_id'] ?? null),
             'branch_id' => (int) ($row['branch_id'] ?? 0),
             'group_id' => $this->nullableInt($row['group_id'] ?? null),
@@ -774,7 +821,7 @@ class AdminController extends Controller
     {
         Attendance::query()->create([
             'athlete_id' => (string) ($row['athlete_id'] ?? ''),
-            'coach_session_id' => (int) ($row['coach_session_id'] ?? 0),
+            'training_session_id' => (int) ($row['training_session_id'] ?? 0),
             'date' => $this->nullableDate($row['date'] ?? null) ?? now()->toDateString(),
             'status' => strtoupper((string) ($row['status'] ?? 'ABSENT')),
             'checked_in_at' => ! empty($row['checked_in_time']) ? Carbon::parse((string) $row['date'].' '.(string) $row['checked_in_time']) : null,
@@ -824,12 +871,12 @@ class AdminController extends Controller
                 $item->athlete_id, $item->payment_type, $item->total_amount, $item->paid_amount, optional($item->payment_date)->format('Y-m-d'),
                 $item->status, $item->reference_id, $item->notes,
             ])->all()),
-            'sessions' => $this->templateRows('sessions', Session::query()->get()->map(fn ($item) => [
+            'sessions' => $this->templateRows('sessions', TrainingSession::query()->get()->map(fn ($item) => [
                 $item->title, $item->branch_id, $item->group_id, $item->coach_id, $item->location,
                 optional($item->session_date)->format('Y-m-d'), $item->start_time, $item->end_time, $item->status,
             ])->all()),
             'attendance' => $this->templateRows('attendance', Attendance::query()->get()->map(fn ($item) => [
-                $item->athlete_id, $item->coach_session_id, optional($item->date)->format('Y-m-d'),
+                $item->athlete_id, $item->training_session_id, optional($item->date)->format('Y-m-d'),
                 $item->status, optional($item->checked_in_at)->format('H:i'), $item->notes, $item->follow_up_owner,
             ])->all()),
             'events' => $this->templateRows('events', Event::query()->get()->map(fn ($item) => [
@@ -849,7 +896,7 @@ class AdminController extends Controller
             'athletes' => ['name', 'email', 'gender', 'bday', 'phone', 'height_cm', 'weight_kg', 'alamat', 'branch_id', 'group_id', 'geup', 'parent_id', 'nik', 'bpjs'],
             'payments' => ['athlete_id', 'payment_type', 'total_amount', 'paid_amount', 'payment_date', 'status', 'reference_id', 'notes'],
             'sessions' => ['title', 'branch_id', 'group_id', 'coach_id', 'location', 'session_date', 'start_time', 'end_time', 'status'],
-            'attendance' => ['athlete_id', 'coach_session_id', 'date', 'status', 'checked_in_time', 'notes', 'follow_up_owner'],
+            'attendance' => ['athlete_id', 'training_session_id', 'date', 'status', 'checked_in_time', 'notes', 'follow_up_owner'],
             'events' => ['e_name', 'e_date', 'location', 'level', 'entry_fee', 'max_slots', 'description', 'organizer', 'contact_info', 'sponsors', 'status', 'poster_url'],
             'event_registrations' => ['athlete_id', 'event_id', 'category', 'division', 'status'],
             default => [],
@@ -861,6 +908,7 @@ class AdminController extends Controller
     private function nullableString(mixed $value): ?string
     {
         $trimmed = trim((string) ($value ?? ''));
+
         return $trimmed === '' ? null : $trimmed;
     }
 
@@ -869,6 +917,7 @@ class AdminController extends Controller
         if ($value === null || $value === '') {
             return null;
         }
+
         return (int) $value;
     }
 
@@ -877,6 +926,7 @@ class AdminController extends Controller
         if ($value === null || $value === '') {
             return null;
         }
+
         return Carbon::parse((string) $value)->format('Y-m-d');
     }
 }

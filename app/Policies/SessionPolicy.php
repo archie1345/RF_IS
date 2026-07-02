@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
 
@@ -20,22 +20,22 @@ class SessionPolicy
         return $user->isAdmin() || $user->isCoach();
     }
 
-    public function update(User $user, Session $session): bool
+    public function update(User $user, TrainingSession $session): bool
     {
         return $user->isAdmin() || $this->sessionVisibility->coachCanAccessSession($user, $session);
     }
 
-    public function manageAttendance(User $user, Session $session): bool
+    public function manageAttendance(User $user, TrainingSession $session): bool
     {
         return $this->update($user, $session);
     }
 
-    public function manageAttendanceQr(User $user, Session $session): bool
+    public function manageAttendanceQr(User $user, TrainingSession $session): bool
     {
         return $this->manageAttendance($user, $session);
     }
 
-    public function join(User $user, Session $session): bool
+    public function join(User $user, TrainingSession $session): bool
     {
         return $user->isCoach() && $this->sessionVisibility->coachCanJoinSession($this->sessionVisibility->coachProfileIdFor($user), $session);
     }

@@ -11,7 +11,7 @@ class BulkUpdateAttendanceStatus
     {
         DB::transaction(function () use ($attendanceIds, $status): void {
             Attendance::query()
-                ->whereIn('atid', $attendanceIds)
+                ->whereIn('athlete_attendance_id', $attendanceIds)
                 ->update(['status' => $status]);
         });
     }

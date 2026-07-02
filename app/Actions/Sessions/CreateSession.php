@@ -4,7 +4,7 @@ namespace App\Actions\Sessions;
 
 use App\Models\Athlete;
 use App\Models\Attendance;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
 use App\Support\Domain\AttendanceStatus;
@@ -13,9 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class CreateSession
 {
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
-    {
-    }
+    public function __construct(private readonly SessionVisibilityService $sessionVisibility) {}
 
     public function handle(User $user, array $validated): array
     {
@@ -26,10 +24,10 @@ class CreateSession
         }
 
         return DB::transaction(function () use ($validated): array {
-            $session = Session::query()->create($validated);
+            $session = TrainingSession::query()->create($validated);
 
             if ($this->sessionVisibility->hasCoachPivotTable()) {
-                $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
+                $session->assignedCoaches()->syncWithoutDetaching([$validated['coach_id']]);
             }
 
             $athleteIds = Athlete::query()
@@ -40,7 +38,7 @@ class CreateSession
             foreach ($athleteIds as $athleteId) {
                 Attendance::query()->create([
                     'athlete_id' => $athleteId,
-                    'coach_session_id' => $session->csid,
+                    'training_session_id' => $session->training_session_id,
                     'date' => $session->session_date,
                     'status' => AttendanceStatus::ABSENT,
                 ]);

@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceScanController;
+use App\Http\Controllers\Auth\InvitationController;
 use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
@@ -40,7 +41,16 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware('guest')->group(function () {
+    Route::get('invitations/{token}', [InvitationController::class, 'show'])
+        ->middleware('throttle:6,1')
+        ->name('invitations.show');
+    Route::post('invitations/{token}', [InvitationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('invitations.accept');
+});
+
+Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     /*
     |--------------------------------------------------------------------------
     | Core pages
@@ -114,6 +124,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('accounts', 'store')->name('accounts.store');
             Route::get('accounts/{user}', 'show')->name('accounts.show');
             Route::put('accounts/{user}', 'update')->name('accounts.update');
+            Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend');
             Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy');
             Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
             Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore');

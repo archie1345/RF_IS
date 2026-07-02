@@ -9,10 +9,9 @@ use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('allows a parent to switch to their own child context', function () {
-    $parentUser = User::create([
+    $parentUser = User::factory()->create([
         'name' => 'Parent User',
         'email' => 'parent@example.com',
-        'password' => 'password',
         'gender' => 'FEMALE',
         'role' => 'parent',
     ]);
@@ -25,10 +24,9 @@ it('allows a parent to switch to their own child context', function () {
     $branch = Branch::create(['branch_name' => 'Jakarta', 'location' => 'Jakarta']);
     $group = Group::create(['group_name' => 'Group A']);
 
-    $childUser = User::create([
+    $childUser = User::factory()->create([
         'name' => 'Child User',
         'email' => 'child@example.com',
-        'password' => 'password',
         'gender' => 'MALE',
         'role' => 'athlete',
     ]);
@@ -62,10 +60,9 @@ it('allows a parent to switch to their own child context', function () {
 });
 
 it('prevents a parent from switching to another parent child context', function () {
-    $parentUser = User::create([
+    $parentUser = User::factory()->create([
         'name' => 'Parent User',
         'email' => 'parent2@example.com',
-        'password' => 'password',
         'gender' => 'FEMALE',
         'role' => 'parent',
     ]);
@@ -75,10 +72,9 @@ it('prevents a parent from switching to another parent child context', function 
         'relation' => 'mother',
     ]);
 
-    $otherParentUser = User::create([
+    $otherParentUser = User::factory()->create([
         'name' => 'Other Parent User',
         'email' => 'other-parent@example.com',
-        'password' => 'password',
         'gender' => 'MALE',
         'role' => 'parent',
     ]);
@@ -91,10 +87,9 @@ it('prevents a parent from switching to another parent child context', function 
     $branch = Branch::create(['branch_name' => 'Bandung', 'location' => 'Bandung']);
     $group = Group::create(['group_name' => 'Group B']);
 
-    $childUser = User::create([
+    $childUser = User::factory()->create([
         'name' => 'Other Child User',
         'email' => 'other-child@example.com',
-        'password' => 'password',
         'gender' => 'MALE',
         'role' => 'athlete',
     ]);

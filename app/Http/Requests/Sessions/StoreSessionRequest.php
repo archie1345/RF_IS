@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Sessions;
 
 use App\Http\Requests\Sessions\Concerns\SessionMutationRules;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSessionRequest extends FormRequest
@@ -12,7 +12,7 @@ class StoreSessionRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return (bool) $this->user()?->can('create', Session::class);
+        return (bool) $this->user()?->can('create', TrainingSession::class);
     }
 
     public function rules(): array
