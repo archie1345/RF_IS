@@ -8,16 +8,20 @@ use App\Http\Requests\Attendance\GenerateSessionAttendanceQrRequest;
 use App\Models\TrainingSession;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
+use App\Actions\Attendance\InitializeSessionAttendance;
 
 class SessionAttendanceQrController extends Controller
 {
     public function __construct(
         private readonly GenerateSessionAttendanceQr $generateQr,
         private readonly RevokeSessionAttendanceQr $revokeQr,
+        private readonly InitializeSessionAttendance $initializeAttendance,
     ) {}
 
     public function store(GenerateSessionAttendanceQrRequest $request, TrainingSession $session): RedirectResponse
     {
+        $this->initializeAttendance->handle($session);
+
         [$session, $token] = $this->generateQr->handle($session, $request->validated());
 
         ActivityLogger::log(
