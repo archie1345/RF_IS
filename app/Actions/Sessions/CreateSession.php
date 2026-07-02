@@ -44,7 +44,7 @@ class CreateSession
                 ]);
             }
 
-            return [$session, $athleteIds->count()];
+            return [$session, $this->createAbsentAttendanceRows($session)];
         });
     }
 }
