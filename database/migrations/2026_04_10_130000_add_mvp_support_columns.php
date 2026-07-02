@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
-            $table->foreignId('coach_session_id')->nullable()->after('athlete_id')->constrained('coach_sessions', 'csid')->nullOnDelete();
+            $table->foreignId('coach_session_id')->after('athlete_id')->constrained('coach_sessions', 'csid')->nullOnDelete();
             $table->dateTime('checked_in_at')->nullable()->after('status');
             $table->text('notes')->nullable()->after('checked_in_at');
             $table->string('follow_up_owner', 120)->nullable()->after('notes');

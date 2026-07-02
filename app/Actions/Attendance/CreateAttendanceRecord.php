@@ -52,7 +52,7 @@ class CreateAttendanceRecord
         return DB::transaction(fn () => Attendance::query()->updateOrCreate(
             [
                 'athlete_id' => $athleteId,
-                'coach_session_id' => $validated['coach_session_id'] ?? null,
+                'coach_session_id' => $validated['coach_session_id'],
                 'date' => $validated['date'],
             ],
             [
