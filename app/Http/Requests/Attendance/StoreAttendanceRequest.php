@@ -17,7 +17,7 @@ class StoreAttendanceRequest extends FormRequest
     {
         return [
             'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
-            'coach_session_id' => ['required', 'exists:coach_sessions,csid'],
+            'training_session_id' => ['required', 'exists:training_sessions,training_session_id'],
             'date' => ['required', 'date'],
             'status' => ['required', Rule::in(AttendanceStatus::ALL)],
             'checked_in_time' => ['nullable', 'date_format:H:i'],

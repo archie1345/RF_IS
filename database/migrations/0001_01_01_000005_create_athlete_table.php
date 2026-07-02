@@ -28,7 +28,7 @@ return new class extends Migration
         });
 
         Schema::create('athlete_attendance', function (Blueprint $table) {
-            $table->id('atid');
+            $table->id('athlete_attendance_id');
             $table->foreignId('athlete_id')->constrained('athletes', 'athlete_id')->cascadeOnDelete();
             $table->date('date')->index();
             $table->enum('status', ['PRESENT', 'ABSENT', 'EXCUSED'])->default('ABSENT')->index();

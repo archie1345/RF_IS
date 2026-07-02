@@ -17,7 +17,7 @@ class BulkUpdateAttendanceRequest extends FormRequest
     {
         return [
             'attendance_ids' => ['required', 'array', 'min:1'],
-            'attendance_ids.*' => ['required', 'integer', 'exists:athlete_attendance,atid'],
+            'attendance_ids.*' => ['required', 'integer', 'exists:athlete_attendance,athlete_attendance_id'],
             'status' => ['required', Rule::in(AttendanceStatus::ALL)],
         ];
     }

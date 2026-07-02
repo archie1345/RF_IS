@@ -5,18 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SessionCoachAttendance extends Model
+class CoachAttendance extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'session_coach_attendance';
-    protected $primaryKey = 'scaid';
+    protected $table = 'coach_attendance';
+
+    protected $primaryKey = 'coach_attendance_id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [
-        'coach_session_id',
+        'training_session_id',
         'coach_id',
         'status',
         'checked_at',
@@ -29,9 +33,8 @@ class SessionCoachAttendance extends Model
         return $this->belongsTo(Coach::class, 'coach_id', 'coach_id');
     }
 
-    public function session()
+    public function trainingSession()
     {
-        return $this->belongsTo(Session::class, 'coach_session_id', 'csid');
+        return $this->belongsTo(TrainingSession::class, 'training_session_id', 'training_session_id');
     }
 }
-
