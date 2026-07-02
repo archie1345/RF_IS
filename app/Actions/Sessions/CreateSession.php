@@ -2,6 +2,8 @@
 
 namespace App\Actions\Sessions;
 
+use App\Models\Athlete;
+use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
@@ -26,6 +28,20 @@ class CreateSession
 
             if ($this->sessionVisibility->hasCoachPivotTable()) {
                 $session->assignedCoaches()->syncWithoutDetaching([$validated['coach_id']]);
+            }
+
+            $athleteIds = Athlete::query()
+                ->where('branch_id', $session->branch_id)
+                ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
+                ->pluck('athlete_id');
+
+            foreach ($athleteIds as $athleteId) {
+                Attendance::query()->create([
+                    'athlete_id' => $athleteId,
+                    'training_session_id' => $session->training_session_id,
+                    'date' => $session->session_date,
+                    'status' => AttendanceStatus::ABSENT,
+                ]);
             }
 
             return [$session, $this->createAbsentAttendanceRows($session)];

@@ -8,6 +8,8 @@ use App\Actions\Profiles\UpdateAccountProfile;
 use App\Actions\Profiles\UpdateAthleteProfile;
 use App\Actions\Profiles\UpdateCoachProfile;
 use App\Actions\Profiles\UpdateParentProfile;
+use App\Actions\Users\CreateUserInvitation;
+use App\Actions\Users\ResendUserInvitation;
 use App\Http\Requests\Profiles\SaveUserAchievementRequest;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
@@ -134,7 +136,7 @@ class AdminController extends Controller
         return back();
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, CreateUserInvitation $createUserInvitation): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
@@ -145,7 +147,7 @@ class AdminController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($validated['password'] ?? str()->random(40)),
             'gender' => 'MALE',
             'role' => $primaryRole,
             ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $validated['status']] : []),
@@ -153,6 +155,11 @@ class AdminController extends Controller
 
         $this->syncUserRoles($user, $roles);
         $this->syncRoleProfile($user, $roles);
+
+        if ($user->isInvited()) {
+            $createUserInvitation->handle($user);
+        }
+
         ActivityLogger::log($request, 'admin.account.created', 'admin', 'Created user account', $user, ['role' => $user->role]);
 
         return back();
@@ -163,6 +170,7 @@ class AdminController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validateAccount($request, $user);
+        $this->validateAccountStatusTransition($user, $validated['status']);
         $roles = $validated['roles'];
         $primaryRole = $this->resolvePrimaryRole($roles);
 
@@ -283,6 +291,17 @@ class AdminController extends Controller
         ActivityLogger::log($request, 'admin.account.restored', 'admin', 'Restored soft deleted user account', $user, ['user_id' => $user->id]);
 
         return redirect()->route('admin.index');
+    }
+
+    public function resendInvitation(Request $request, User $user, ResendUserInvitation $resendUserInvitation): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $resendUserInvitation->handle($user);
+
+        ActivityLogger::log($request, 'admin.account.invitation_resent', 'admin', 'Resent user invitation', $user, ['user_id' => $user->id]);
+
+        return back()->with('status', 'Invitation email sent.');
     }
 
     public function hardDelete(Request $request, int $id): RedirectResponse
@@ -564,8 +583,34 @@ class AdminController extends Controller
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
             'status' => ['required', Rule::in(['active', 'invited', 'suspended'])],
-            'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                $user || $request->input('status') === User::ACCOUNT_STATUS_INVITED ? 'nullable' : 'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
         ]);
+    }
+
+    private function validateAccountStatusTransition(User $user, string $nextStatus): void
+    {
+        $currentStatus = $user->account_status ?? User::ACCOUNT_STATUS_ACTIVE;
+
+        if ($currentStatus === $nextStatus) {
+            return;
+        }
+
+        $allowed = [
+            User::ACCOUNT_STATUS_ACTIVE => [User::ACCOUNT_STATUS_SUSPENDED],
+            User::ACCOUNT_STATUS_SUSPENDED => [User::ACCOUNT_STATUS_ACTIVE],
+            User::ACCOUNT_STATUS_INVITED => [],
+        ];
+
+        if (! in_array($nextStatus, $allowed[$currentStatus] ?? [], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => 'This account status transition is not supported. Invited accounts become active only by accepting an invitation.',
+            ]);
+        }
     }
 
     private function branchLabel(User $user): string
