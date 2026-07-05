@@ -1,24 +1,17 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { nextTick, onBeforeUnmount, ref } from 'vue';
 import { Camera, Loader2, QrCode, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
 
-type BarcodeDetectorLike = {
-    detect(source: HTMLVideoElement): Promise<{ rawValue?: string }[]>;
-};
-
-const videoRef = ref<HTMLVideoElement | null>(null);
-const stream = ref<MediaStream | null>(null);
+const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
+const scanner = ref<import('html5-qrcode').Html5Qrcode | null>(null);
 const isScanning = ref(false);
 const isPosting = ref(false);
 const scannerError = ref<string | null>(null);
 const lastScanUrl = ref<string | null>(null);
 const manualQrUrl = ref('');
-let scanTimer: number | null = null;
-
-const canUseNativeScanner = computed(() => typeof window !== 'undefined' && 'BarcodeDetector' in window && navigator.mediaDevices?.getUserMedia);
 
 function extractAttendanceScanUrl(value: string): string | null {
     const raw = value.trim();
@@ -45,7 +38,7 @@ function submitScanUrl(url: string) {
     if (lastScanUrl.value === scanUrl || isPosting.value) return;
     lastScanUrl.value = scanUrl;
     isPosting.value = true;
-    stopScanner();
+    void stopScanner();
 
     router.post(
         scanUrl,
@@ -66,60 +59,61 @@ function submitScanUrl(url: string) {
     );
 }
 
-async function scanFrame(detector: BarcodeDetectorLike) {
-    if (!isScanning.value || !videoRef.value) return;
-
-    try {
-        const results = await detector.detect(videoRef.value);
-        const value = results.find((result) => result.rawValue)?.rawValue;
-        if (value) {
-            submitScanUrl(value);
-            return;
-        }
-    } catch {
-        scannerError.value = 'Camera is open, but QR scanning failed. Try better lighting or paste the QR link.';
-    }
-
-    scanTimer = window.setTimeout(() => scanFrame(detector), 350);
-}
-
 async function startScanner() {
     scannerError.value = null;
 
-    if (!canUseNativeScanner.value) {
-        scannerError.value = 'This browser cannot scan QR from camera here. Use the phone camera app, or paste the QR link below.';
+    if (!window.isSecureContext) {
+        scannerError.value = 'Camera access requires HTTPS. Open the attendance page using https://, not http://.';
+        return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        scannerError.value = 'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone, or paste the QR link below.';
         return;
     }
 
     try {
-        const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector: new (options: { formats: string[] }) => BarcodeDetectorLike }).BarcodeDetector;
-        const detector = new BarcodeDetectorCtor({ formats: ['qr_code'] });
-        stream.value = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        isScanning.value = true;
+        const { Html5Qrcode } = await import('html5-qrcode');
         await nextTick();
 
-        if (videoRef.value) {
-            videoRef.value.srcObject = stream.value;
-            await videoRef.value.play();
-        }
+        scanner.value = new Html5Qrcode(scannerElementId, false);
+        await scanner.value.start(
+            { facingMode: 'environment' },
+            {
+                fps: 10,
+                qrbox: { width: 240, height: 240 },
+                aspectRatio: 1,
+            },
+            (decodedText) => submitScanUrl(decodedText),
+            () => undefined,
+        );
 
-        void scanFrame(detector);
-    } catch {
-        scannerError.value = 'Camera permission was denied or unavailable. Use the phone camera app, or paste the QR link below.';
-        stopScanner();
+        isScanning.value = true;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error ?? '');
+        scannerError.value = message.toLowerCase().includes('permission') || message.toLowerCase().includes('notallowed')
+            ? 'Camera permission was denied. Allow camera access in the browser/site settings, then try again.'
+            : 'Camera could not start. Close other apps using the camera, use a phone browser, or paste the QR link below.';
+        await stopScanner();
     }
 }
 
-function stopScanner() {
-    isScanning.value = false;
-    if (scanTimer !== null) {
-        window.clearTimeout(scanTimer);
-        scanTimer = null;
+async function stopScanner() {
+    if (!scanner.value) {
+        isScanning.value = false;
+        return;
     }
-    stream.value?.getTracks().forEach((track) => track.stop());
-    stream.value = null;
-    if (videoRef.value) {
-        videoRef.value.srcObject = null;
+
+    try {
+        if (isScanning.value) {
+            await scanner.value.stop();
+        }
+        await scanner.value.clear();
+    } catch {
+        // Ignore cleanup failures from already-stopped camera streams.
+    } finally {
+        scanner.value = null;
+        isScanning.value = false;
     }
 }
 
@@ -127,7 +121,9 @@ function submitManualQrUrl() {
     submitScanUrl(manualQrUrl.value);
 }
 
-onBeforeUnmount(stopScanner);
+onBeforeUnmount(() => {
+    void stopScanner();
+});
 </script>
 
 <template>
@@ -144,10 +140,10 @@ onBeforeUnmount(stopScanner);
         </div>
 
         <div class="mt-5 overflow-hidden rounded-3xl border bg-background">
-            <video v-show="isScanning" ref="videoRef" muted playsinline class="aspect-video w-full bg-black object-cover"></video>
-            <div v-if="!isScanning" class="flex aspect-video flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+            <div :id="scannerElementId" class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
+            <div v-if="!isScanning" class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
                 <Camera class="size-10" />
-                <p>Open the scanner, point your phone at the coach QR, then wait for the saved confirmation.</p>
+                <p>Open the scanner, allow camera permission, point your phone at the coach QR, then wait for the saved confirmation.</p>
             </div>
         </div>
 
