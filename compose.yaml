@@ -19,12 +19,9 @@ services:
 
     command: >
       sh -ec "
-      set -e;
       umask 0002;
 
-      dev_uid=\"$${APP_DEV_UID:-1000}\";
       dev_gid=\"$${APP_DEV_GID:-1000}\";
-
       group_name=\"$$(getent group \"$$dev_gid\" | cut -d: -f1 || true)\";
 
       if [ -z \"$$group_name\" ]; then
@@ -36,17 +33,14 @@ services:
 
       composer install --ignore-platform-req=php;
 
-      mkdir -p \
-        storage/framework/cache/data \
-        storage/framework/sessions \
-        storage/framework/views \
-        storage/logs \
-        bootstrap/cache;
+      mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
 
-      chown -R www-data:\"$$group_name\" storage bootstrap/cache;
+      chown -R www-data:\"$$group_name\" /tmp/laravel storage bootstrap/cache;
 
-      find storage bootstrap/cache -type d -exec chmod 2775 {} +;
-      find storage bootstrap/cache -type f -exec chmod 0664 {} +;
+      find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +;
+      find /tmp/laravel storage bootstrap/cache -type f -exec chmod 0664 {} +;
+
+      php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir().\" is not writable\\n\"); exit(1); }';
 
       php artisan storage:link || true;
       CACHE_STORE=file php artisan optimize:clear;
@@ -155,6 +149,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ${MAILPIT_CONTAINER_NAME:-rf-mailpit}
+    restart: unless-stopped
+
+    ports:
+      - "${MAILPIT_WEB_PORT:-9204}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
 
 volumes:
   db_data:
