@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref, toRef } from 'vue';
+import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -174,19 +175,10 @@ onMounted(() => {
                 <PageSection
                     v-if="isAthlete"
                     title="Scan QR attendance"
-                    description="Athlete attendance is QR-only. Open this menu, scan the coach QR, confirm the prompt, then attendance is saved."
+                    description="Athlete attendance is QR-only. Scan the coach QR inside this page or use the phone camera QR link."
                 >
-                    <div class="grid gap-4 lg:grid-cols-[20rem_1fr]">
-                        <div class="rounded-3xl border bg-muted/40 p-5">
-                            <p class="text-xs font-black uppercase tracking-[0.22em] text-blue-600">QR Flow</p>
-                            <h2 class="mt-2 text-2xl font-black">Open scan menu</h2>
-                            <p class="mt-2 text-sm text-muted-foreground">Use a phone while logged in as the athlete. The QR link opens the check-in page and saves the record automatically.</p>
-                            <div class="mt-5 grid gap-3 text-sm">
-                                <div class="rounded-2xl bg-background p-3"><span class="font-bold">1.</span> Scan coach QR from your phone.</div>
-                                <div class="rounded-2xl bg-background p-3"><span class="font-bold">2.</span> Wait for the saved prompt.</div>
-                                <div class="rounded-2xl bg-background p-3"><span class="font-bold">3.</span> Done. No normal Attend button is available.</div>
-                            </div>
-                        </div>
+                    <div class="grid gap-4 lg:grid-cols-[24rem_1fr]">
+                        <AthleteQrScanner />
 
                         <DataTable
                             title="My attendance records"
