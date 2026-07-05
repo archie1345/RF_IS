@@ -21,12 +21,7 @@ const props = defineProps<{
     rows: TableRow[];
     athletes: SelectOption[];
     events: SelectOption[];
-    pendingPayments: {
-        payment_id: number;
-        athlete: string;
-        amount: number;
-        remaining: number;
-    }[];
+    pendingPayments: { payment_id: number; athlete: string; amount: number; remaining: number }[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -52,7 +47,10 @@ const form = useForm({
     athlete_id: '',
     event_id: '',
     category: 'KYORUGI',
+    classification: '',
+    class_name: '',
     division: '',
+    team_contingent: 'rhino fighter',
 });
 const showRegistrationForm = ref(false);
 const showEventForm = ref(false);
@@ -72,10 +70,10 @@ function submit() {
     form.post('/championships/registrations', {
         onSuccess: () => {
             form.reset();
+            form.category = 'KYORUGI';
+            form.team_contingent = 'rhino fighter';
             showRegistrationForm.value = false;
-            if (props.pendingPayments.length > 0) {
-                showPaymentPrompt.value = true;
-            }
+            if (props.pendingPayments.length > 0) showPaymentPrompt.value = true;
         },
     });
 }
@@ -100,20 +98,8 @@ function openRegistrationForEvent(row: TableRow) {
 }
 
 onMounted(() => {
-
-    if (
-        props.isAthlete &&
-        !form.athlete_id &&
-        props.athletes.length === 1
-    ) {
-        form.athlete_id = String(
-            props.athletes[0].value
-        );
-    }
-
-    if (props.pendingPayments.length > 0) {
-        openPaymentPrompt();
-    }
+    if (props.isAthlete && !form.athlete_id && props.athletes.length === 1) form.athlete_id = String(props.athletes[0].value);
+    if (props.pendingPayments.length > 0) openPaymentPrompt();
 });
 </script>
 
@@ -122,7 +108,7 @@ onMounted(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection eyebrow="Championship module" title="Championships" description="Register for open events. Any championship fee appears as a bill in the Payment Center.">
+            <PageSection eyebrow="Championship module" title="Championships" description="Register for open events. Any championship fee appears as a bill in the Payment Center for athletes and parents only.">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
                         <Button v-if="props.pendingPayments.length > 0" type="button" variant="outline" @click="openPaymentPrompt">Open unpaid bill</Button>
@@ -131,68 +117,60 @@ onMounted(() => {
                 </template>
             </PageSection>
 
-            <DataTable title="Championship list" description="Open events with registration actions beside each row." :columns="columns" :rows="props.rows" action-label="Register / details" empty-text="No championships are open yet.">
+            <DataTable title="Championship list" description="Open events with registration actions beside each row." :columns="columns" :rows="props.rows" action-label="Register / details" empty-text="No championships are open yet." searchable>
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button v-if="props.canRegister" type="button" size="sm" variant="outline" @click="openRegistrationForEvent(row)">
-                            Register
-                        </Button>
-                        <Button as-child type="button" size="sm" variant="outline">
-                            <Link :href="`/championships/${row.event_id}`">View participants</Link>
-                        </Button>
+                        <Button v-if="props.canRegister" type="button" size="sm" variant="outline" @click="openRegistrationForEvent(row)">Register</Button>
+                        <Button as-child type="button" size="sm" variant="outline"><Link :href="`/championships/${row.event_id}`">View participants</Link></Button>
                     </ActionButtonsRow>
                 </template>
             </DataTable>
         </div>
 
-        <FormModal :open="showRegistrationForm" max-width-class="max-w-xl" @close="showRegistrationForm = false">
-                <PageSection title="Register for championship" description="Choose the athlete and category. Payment is handled separately through the Payment Center.">
-                    <form class="grid gap-4" @submit.prevent="submit">
-                        <FormSelectField v-if="props.athletes.length > 1" id="event-athlete" v-model="form.athlete_id" label="Athlete" :options="props.athletes" placeholder="Select athlete" required :error="form.errors.athlete_id" />
-                        <div v-else-if="props.athletes.length === 1" class="grid gap-2">
-                            <label class="text-sm font-medium">Athlete</label>
-                            <input :value="props.athletes[0].label" disabled class="h-10 rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                        </div>
+        <FormModal :open="showRegistrationForm" max-width-class="max-w-2xl" @close="showRegistrationForm = false">
+            <PageSection title="Register for championship" description="Choose athlete, classification, class, and division. Team defaults to rhino fighter but admin can change it.">
+                <form class="grid gap-4" @submit.prevent="submit">
+                    <FormSelectField v-if="props.athletes.length > 1" id="event-athlete" v-model="form.athlete_id" label="Athlete" :options="props.athletes" placeholder="Select athlete" required :error="form.errors.athlete_id" />
+                    <div v-else-if="props.athletes.length === 1" class="grid gap-2">
+                        <label class="text-sm font-medium">Athlete</label>
+                        <input :value="props.athletes[0].label" disabled class="h-10 rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-2">
                         <FormSelectField id="event-name" v-model="form.event_id" label="Championship" :options="props.events" placeholder="Select event" required :error="form.errors.event_id" />
-                        <FormSelectField id="event-category" v-model="form.category" label="Competition category" :options="categoryOptions" required :error="form.errors.category" />
-                        <FormInputField id="event-weight" v-model="form.division" label="Division or weight class" placeholder="Example: Junior under 45 kg" help="Leave empty if the admin will assign this later." :error="form.errors.division" />
-                        <div class="flex flex-wrap gap-3">
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Submit registration</Button>
-                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showRegistrationForm = false">Cancel</Button>
-                        </div>
-                    </form>
-                </PageSection>
+                        <FormSelectField id="event-category" v-model="form.category" label="Class/Kategori" :options="categoryOptions" required :error="form.errors.category" />
+                    </div>
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <FormInputField id="event-classification" v-model="form.classification" label="Klasifikasi" placeholder="Cadet / Junior / Senior" :error="form.errors.classification" />
+                        <FormInputField id="event-class-name" v-model="form.class_name" label="Class" placeholder="Under 45 kg / Individual" :error="form.errors.class_name" />
+                        <FormInputField id="event-division" v-model="form.division" label="Divisi" placeholder="Putra / Putri / Weight division" :error="form.errors.division" />
+                    </div>
+                    <FormInputField id="event-team" v-model="form.team_contingent" label="Tim/Kontingen" placeholder="rhino fighter" help="Default: rhino fighter" :error="form.errors.team_contingent" />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Submit registration</Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showRegistrationForm = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
         </FormModal>
 
         <FormModal :open="showEventForm" max-width-class="max-w-xl" @close="showEventForm = false">
-                <PageSection title="Add championship" description="Create a public event. Max slots already has a safe default and can be changed if needed.">
-                    <form class="grid gap-4" @submit.prevent="submitEvent">
-                        <FormInputField id="event-new-name" v-model="eventForm.name" label="Championship name" required :error="eventForm.errors.name" />
-                        <FormInputField id="event-new-date" v-model="eventForm.date" label="Event date" type="date" required :error="eventForm.errors.date" />
-                        <FormInputField id="event-new-location" v-model="eventForm.location" label="Place" placeholder="Example: GOR Jakarta Selatan" required :error="eventForm.errors.location" />
-                        <FormInputField id="event-new-gmaps" v-model="eventForm.gmaps_url" label="Google Maps link" type="url" placeholder="https://maps.google.com/..." :error="eventForm.errors.gmaps_url" />
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <FormInputField id="event-new-price" v-model="eventForm.entry_fee" label="Entry fee" type="number" inputmode="decimal" min="0" step="1000" required :error="eventForm.errors.entry_fee" />
-                            <FormInputField id="event-new-slots" v-model="eventForm.max_slots" label="Maximum athletes" type="number" inputmode="numeric" min="1" step="1" help="Default is 24." :error="eventForm.errors.max_slots" />
-                        </div>
-                        <FormSelectField
-                            id="event-new-level"
-                            v-model="eventForm.level"
-                            label="Level"
-                            :options="[
-                                { value: 'LOCAL', label: 'Local' },
-                                { value: 'REGIONAL', label: 'Regional' },
-                                { value: 'NATIONAL', label: 'National' },
-                                { value: 'INTERNATIONAL', label: 'International' },
-                            ]"
-                            :error="eventForm.errors.level"
-                        />
-                        <div class="flex flex-wrap gap-3">
-                            <Button type="submit" class="w-full sm:w-auto" :disabled="eventForm.processing">Save event</Button>
-                            <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showEventForm = false">Cancel</Button>
-                        </div>
-                    </form>
-                </PageSection>
+            <PageSection title="Add championship" description="Create a public event. Max slots already has a safe default and can be changed if needed.">
+                <form class="grid gap-4" @submit.prevent="submitEvent">
+                    <FormInputField id="event-new-name" v-model="eventForm.name" label="Championship name" required :error="eventForm.errors.name" />
+                    <FormInputField id="event-new-date" v-model="eventForm.date" label="Event date" type="date" required :error="eventForm.errors.date" />
+                    <FormInputField id="event-new-location" v-model="eventForm.location" label="Place" placeholder="Example: GOR Jakarta Selatan" required :error="eventForm.errors.location" />
+                    <FormInputField id="event-new-gmaps" v-model="eventForm.gmaps_url" label="Google Maps link" type="url" placeholder="https://maps.google.com/..." :error="eventForm.errors.gmaps_url" />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormInputField id="event-new-price" v-model="eventForm.entry_fee" label="Entry fee" type="number" inputmode="decimal" min="0" step="1000" required :error="eventForm.errors.entry_fee" />
+                        <FormInputField id="event-new-slots" v-model="eventForm.max_slots" label="Maximum athletes" type="number" inputmode="numeric" min="1" step="1" help="Default is 24." :error="eventForm.errors.max_slots" />
+                    </div>
+                    <FormSelectField id="event-new-level" v-model="eventForm.level" label="Level" :options="[{ value: 'LOCAL', label: 'Local' }, { value: 'REGIONAL', label: 'Regional' }, { value: 'NATIONAL', label: 'National' }, { value: 'INTERNATIONAL', label: 'International' }]" :error="eventForm.errors.level" />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="eventForm.processing">Save event</Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showEventForm = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
         </FormModal>
 
         <FormModal :open="showPaymentPrompt" max-width-class="max-w-xl" @close="showPaymentPrompt = false">
@@ -203,9 +181,7 @@ onMounted(() => {
                     <p><span class="font-medium">Remaining:</span> Rp {{ props.pendingPayments[0].remaining.toLocaleString() }}</p>
                 </div>
                 <div class="mt-4 flex flex-wrap gap-3">
-                    <Button as-child class="w-full sm:w-auto">
-                        <Link :href="appRoutes.payments">Open Payment Center</Link>
-                    </Button>
+                    <Button as-child class="w-full sm:w-auto"><Link :href="appRoutes.payments">Open Payment Center</Link></Button>
                     <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentPrompt = false">Later</Button>
                 </div>
             </PageSection>
