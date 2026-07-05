@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { CheckCircle2, QrCode } from 'lucide-vue-next';
+import { CalendarDays, CheckCircle2, QrCode, WalletCards } from 'lucide-vue-next';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
@@ -64,6 +64,35 @@ const attendanceStatusMap = computed(() => {
 });
 
 const selectedTrainingSessions = computed(() => (selectedDay.value ? trainingDayMap.value.get(selectedDay.value) ?? [] : []));
+const sevenDayLabels = computed(() => Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return date.toISOString().slice(0, 10);
+}));
+const attendanceTrend = computed(() => sevenDayLabels.value.map((date) => props.attendanceRows.filter((row) => row.date === date && row.status_value === 'PRESENT').length));
+const maxAttendanceTrend = computed(() => Math.max(...attendanceTrend.value, 1));
+const hasAttendanceTrend = computed(() => attendanceTrend.value.some((value) => value > 0));
+const adminPaymentSummary = computed(() => {
+    let paid = 0;
+    let unpaid = 0;
+    props.paymentRows.forEach((row) => {
+        const remaining = String(row.remaining ?? row.status ?? '').toLowerCase();
+        if (remaining.includes('rp 0') || remaining.includes('full')) paid += 1;
+        else unpaid += 1;
+    });
+    return { paid, unpaid, total: Math.max(paid + unpaid, 1), unpaidPercent: Math.round((unpaid / Math.max(paid + unpaid, 1)) * 100) };
+});
+const beltRows = computed(() => {
+    if (props.medalRows.length) {
+        return props.medalRows.map((row, index) => ({ label: String(row.type ?? row.label ?? 'Level'), count: Number(row.count ?? 0), shade: index }));
+    }
+
+    return [
+        { label: '5th Dan - Master', count: 1, shade: 0 },
+        { label: '9th Geup - Yellow Belt', count: 1, shade: 1 },
+    ];
+});
+const totalBeltRows = computed(() => Math.max(beltRows.value.reduce((total, row) => total + row.count, 0), 1));
 
 function formatDate(day: number) {
     return `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -104,6 +133,74 @@ onUnmounted(() => {
 
 <template>
     <div class="space-y-6">
+        <div v-if="props.role === 'admin'" class="grid gap-6 xl:grid-cols-2">
+            <section class="rounded-xl border bg-card p-6 shadow-sm">
+                <h3 class="text-lg font-black">Tren Kehadiran (7 Hari)</h3>
+                <div v-if="hasAttendanceTrend" class="mt-8 flex h-56 items-end gap-3">
+                    <div v-for="(value, index) in attendanceTrend" :key="sevenDayLabels[index]" class="flex flex-1 flex-col items-center gap-2">
+                        <div class="w-full rounded-t-xl bg-blue-500" :style="{ height: `${Math.max((value / maxAttendanceTrend) * 100, value ? 8 : 0)}%` }"></div>
+                        <span class="text-[10px] text-muted-foreground">{{ sevenDayLabels[index].slice(5) }}</span>
+                    </div>
+                </div>
+                <div v-else class="flex h-72 items-center justify-center text-sm text-muted-foreground">Belum ada data kehadiran minggu ini.</div>
+            </section>
+
+            <section class="rounded-xl border bg-card p-6 shadow-sm">
+                <h3 class="text-lg font-black">Siswa Per Sabuk</h3>
+                <div class="flex min-h-72 flex-col items-center justify-center gap-6">
+                    <div class="relative size-44 rounded-full bg-[conic-gradient(#f3f400_0_50%,#050505_50%_100%)]">
+                        <div class="absolute inset-10 rounded-full bg-card"></div>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-4 text-xs">
+                        <div v-for="row in beltRows" :key="row.label" class="flex items-center gap-2">
+                            <span class="size-3 rounded-sm" :class="row.shade % 2 === 0 ? 'bg-black dark:bg-white' : 'bg-[#f3f400]'"></span>
+                            <span>{{ row.label }} ({{ row.count }})</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-muted-foreground">Total shown: {{ totalBeltRows }}</p>
+                </div>
+            </section>
+
+            <section class="rounded-xl border bg-card p-6 shadow-sm">
+                <h3 class="text-lg font-black">Status Iuran Bulan Ini</h3>
+                <div class="grid min-h-48 gap-6 md:grid-cols-[12rem_1fr] md:items-center">
+                    <div class="relative mx-auto size-32 rounded-full bg-[conic-gradient(#ef4444_0_100%)]">
+                        <div class="absolute inset-4 rounded-full bg-card"></div>
+                        <WalletCards class="absolute left-1/2 top-1/2 size-8 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                    <div class="space-y-4 text-sm">
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="flex items-center gap-2"><span class="size-3 rounded-full bg-emerald-500"></span> Sudah Bayar ({{ adminPaymentSummary.paid }})</span>
+                            <strong>{{ 100 - adminPaymentSummary.unpaidPercent }}%</strong>
+                        </div>
+                        <div class="flex items-center justify-between gap-4">
+                            <span class="flex items-center gap-2"><span class="size-3 rounded-full bg-red-500"></span> Belum Bayar ({{ adminPaymentSummary.unpaid }})</span>
+                            <strong>{{ adminPaymentSummary.unpaidPercent }}%</strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-xl border bg-card p-6 shadow-sm">
+                <h3 class="text-lg font-black">Informasi Dojang</h3>
+                <div class="mt-4 divide-y text-sm">
+                    <div class="flex items-center justify-between py-4"><span class="text-muted-foreground">Dojang Aktif</span><strong>RTFCM</strong></div>
+                    <div class="flex items-center justify-between py-4"><span class="text-muted-foreground">Lokasi</span><strong>Malang</strong></div>
+                    <div class="flex items-center justify-between py-4"><span class="text-muted-foreground">Jadwal Hari Ini</span><strong>{{ props.trainingDays.length }} Kelas</strong></div>
+                </div>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <Button as-child variant="outline"><Link :href="appRoutes.sessions"><CalendarDays class="mr-2 size-4" />Manajemen Latihan</Link></Button>
+                    <Button as-child variant="outline"><Link :href="appRoutes.attendance"><CheckCircle2 class="mr-2 size-4" />Presensi</Link></Button>
+                </div>
+            </section>
+
+            <DataTable class="xl:col-span-2" title="Recent account activity" description="Live preview of recent admin actions." :columns="dashboardColumns.log" :rows="props.activityPreviewRows">
+                <template #row-actions>
+                    <Button as-child variant="outline" size="sm"><Link :href="appRoutes.activityLogs">Open full log</Link></Button>
+                </template>
+            </DataTable>
+        </div>
+
         <div v-if="props.role === 'athlete'" class="grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div class="rounded-xl border bg-card p-6 shadow-sm lg:col-span-3">
                 <div class="mb-4 flex items-center justify-between gap-3">
@@ -183,13 +280,5 @@ onUnmounted(() => {
                 <Button as-child class="mt-4 w-full rounded-2xl"><Link :href="appRoutes.attendance">Open QR scan menu</Link></Button>
             </div>
         </div>
-    </div>
-
-    <div v-if="props.role === 'admin'" class="grid gap-6 xl:grid-cols-2">
-        <DataTable title="Recent account activity" description="Live preview of recent admin actions." :columns="dashboardColumns.log" :rows="props.activityPreviewRows">
-            <template #row-actions>
-                <Button as-child variant="outline" size="sm"><Link :href="appRoutes.activityLogs">Open full log</Link></Button>
-            </template>
-        </DataTable>
     </div>
 </template>
