@@ -35,23 +35,20 @@ function badgeCell(value: TableCell | undefined): TableBadgeCell | null {
 }
 
 function getCellText(value: TableCell | undefined): string | number | boolean {
-    if (typeof value === 'object' && value !== null && 'text' in value) {
-        return String(value.text);
-    }
-
-    if (Array.isArray(value)) {
-        return value.join(', ');
-    }
-
-    if (value === null || value === undefined) {
-        return '-';
-    }
-
-    if (typeof value === 'object') {
-        return JSON.stringify(value);
-    }
-
+    if (typeof value === 'object' && value !== null && 'text' in value) return String(value.text);
+    if (Array.isArray(value)) return value.join(', ');
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'object') return JSON.stringify(value);
     return value;
+}
+
+function isExternalUrl(value: TableCell | undefined): value is string {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function linkText(value: string): string {
+    if (value.includes('wa.me')) return 'Open WA';
+    return 'Open';
 }
 
 function setSort(column: TableColumn) {
@@ -94,12 +91,7 @@ const filteredRows = computed(() => {
             </div>
             <div v-if="props.searchable" class="relative pt-1">
                 <Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                    v-model="search"
-                    type="text"
-                    class="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/25"
-                    :placeholder="props.searchPlaceholder ?? 'Search table...'"
-                >
+                <input v-model="search" type="text" class="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/25" :placeholder="props.searchPlaceholder ?? 'Search table...'">
             </div>
         </CardHeader>
         <CardContent class="px-0 pb-3 sm:px-5 sm:pb-5">
@@ -124,6 +116,9 @@ const filteredRows = computed(() => {
                             <td v-for="column in props.columns" :key="`${row.id}-${column.key}`" class="px-2 py-3 first:rounded-l-xl last:rounded-r-xl sm:px-3" :class="[column.align === 'right' ? 'text-right' : 'text-left', hasRowActions ? 'last:rounded-r-none' : '']">
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
                                     <StatusBadge v-if="badgeCell(getCellValue(row, column.key))" :label="badgeCell(getCellValue(row, column.key))?.text ?? ''" :tone="badgeCell(getCellValue(row, column.key))?.tone" />
+                                    <a v-else-if="isExternalUrl(getCellValue(row, column.key))" :href="String(getCellValue(row, column.key))" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">
+                                        {{ linkText(String(getCellValue(row, column.key))) }}
+                                    </a>
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
