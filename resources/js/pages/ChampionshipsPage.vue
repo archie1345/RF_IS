@@ -13,16 +13,18 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     isAdmin: boolean;
-    isAthlete: boolean;
+    isAthlete?: boolean;
     canRegister: boolean;
     metrics: Metric[];
     rows: TableRow[];
     athletes: SelectOption[];
     events: SelectOption[];
     pendingPayments: { payment_id: number; athlete: string; amount: number; remaining: number }[];
-}>();
+}>(), {
+    isAthlete: false,
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: appRoutes.dashboard },
