@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminFeatureController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceScanController;
@@ -115,6 +116,21 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('attendance', [AdminFeatureController::class, 'attendance'])->name('attendance');
+        Route::get('instructor-attendance', [AdminFeatureController::class, 'instructorAttendance'])->name('instructor-attendance');
+        Route::get('payments', [AdminFeatureController::class, 'payments'])->name('payments');
+        Route::get('monthly-dues', [AdminFeatureController::class, 'monthlyDues'])->name('monthly-dues');
+        Route::get('members', [AdminFeatureController::class, 'members'])->name('members');
+        Route::get('instructors', [AdminFeatureController::class, 'instructors'])->name('instructors');
+        Route::get('events', [AdminFeatureController::class, 'events'])->name('events');
+        Route::get('events/history', [AdminFeatureController::class, 'eventHistory'])->name('events.history');
+        Route::get('events/schedule', [AdminFeatureController::class, 'eventSchedule'])->name('events.schedule');
+        Route::get('locations', [AdminFeatureController::class, 'locations'])->name('locations');
+        Route::get('classes', [AdminFeatureController::class, 'classes'])->name('classes');
+        Route::get('schedules', [AdminFeatureController::class, 'weeklySchedules'])->name('schedules');
+        Route::get('daily-schedules', [AdminFeatureController::class, 'dailySchedules'])->name('daily-schedules');
+        Route::get('periodic-stats', [AdminFeatureController::class, 'periodicStats'])->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
 
