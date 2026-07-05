@@ -9,6 +9,9 @@ import {
     LayoutGrid,
     Trophy,
     Users,
+    WalletCards,
+    TrendingDown,
+    CalendarDays,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -47,9 +50,11 @@ const navByRole: Record<AppRole, NavItem[]> = {
     admin: [
         { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
-        // { title: 'Components Playground', href: appRoutes.componentsPlayground, icon: Blocks },
         { title: 'Users', href: appRoutes.athletes, icon: Users },
-        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Bills & Proof', href: appRoutes.payments, icon: CreditCard },
+        { title: 'Finance In', href: appRoutes.adminFinanceIncome, icon: WalletCards },
+        { title: 'Finance Out', href: appRoutes.adminFinanceOutput, icon: TrendingDown },
+        { title: 'Weekly Training', href: appRoutes.adminSchedules, icon: CalendarDays },
         { title: 'Attendance', href: appRoutes.sessions, icon: CalendarCheck2 },
         { title: 'Championships', href: appRoutes.championships, icon: Trophy },
         { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },

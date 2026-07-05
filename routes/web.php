@@ -97,7 +97,10 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('attendance', [AdminFeatureController::class, 'attendance'])->name('attendance');
         Route::get('instructor-attendance', [AdminFeatureController::class, 'instructorAttendance'])->name('instructor-attendance');
         Route::get('payments', [AdminFeatureController::class, 'payments'])->name('payments');
+        Route::get('finance-income', [AdminFeatureController::class, 'financeIncome'])->name('finance-income');
+        Route::get('finance-output', [AdminFeatureController::class, 'financeOutput'])->name('finance-output');
         Route::get('monthly-dues', [AdminFeatureController::class, 'monthlyDues'])->name('monthly-dues');
+        Route::post('monthly-dues/generate', [AdminFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
         Route::get('members', [AdminFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminFeatureController::class, 'instructors'])->name('instructors');
         Route::get('events', [AdminFeatureController::class, 'events'])->name('events');
@@ -106,6 +109,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('locations', [AdminFeatureController::class, 'locations'])->name('locations');
         Route::get('classes', [AdminFeatureController::class, 'classes'])->name('classes');
         Route::get('schedules', [AdminFeatureController::class, 'weeklySchedules'])->name('schedules');
+        Route::post('schedules/generate-week', [AdminFeatureController::class, 'generateWeeklySessions'])->name('schedules.generate-week');
         Route::get('daily-schedules', [AdminFeatureController::class, 'dailySchedules'])->name('daily-schedules');
         Route::get('periodic-stats', [AdminFeatureController::class, 'periodicStats'])->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
