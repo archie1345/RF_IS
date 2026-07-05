@@ -21,8 +21,8 @@ use App\Http\Controllers\Profiles\ParentProfileController;
 use App\Http\Controllers\Profiles\UserAccountController;
 use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\UserCertificationController;
-use App\Http\Controllers\SessionManagementController;
-use App\Http\Controllers\SessionQrAttendanceController;
+use App\Http\Controllers\SessionAttendanceQrController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
@@ -66,8 +66,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         ->controller(AnnouncementController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::get('scan/{token}', [AttendanceScanController::class, 'show'])->name('scan.show');
-            Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
             Route::post('/', 'store')->name('store');
         });
 
@@ -159,8 +157,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         ->controller(PaymentController::class)
         ->group(function () {
             Route::get('/', 'index')->name('index');
-            Route::get('scan/{token}', [AttendanceScanController::class, 'show'])->name('scan.show');
-            Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
             Route::post('/', 'store')->name('store');
             Route::put('{payment}', 'update')->name('update');
             Route::delete('{payment}', 'destroy')->name('destroy');
@@ -182,9 +178,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
             Route::put('{attendance}', 'update')->name('update');
         });
 
-    Route::get('attendance/scan/{token}', [SessionQrAttendanceController::class, 'show'])->name('attendance.scan.show');
-    Route::post('attendance/scan/{token}', [SessionQrAttendanceController::class, 'store'])->name('attendance.scan.store');
-
     /*
     |--------------------------------------------------------------------------
     | Championships and sessions
@@ -203,9 +196,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
             Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store');
             Route::get('{event}', 'show')->name('show');
         });
-
-    Route::post('sessions/{session}/attendance-qr', [SessionQrAttendanceController::class, 'generate'])->name('sessions.attendance-qr.generate');
-    Route::delete('sessions/{session}/attendance-qr', [SessionQrAttendanceController::class, 'revoke'])->name('sessions.attendance-qr.revoke');
 
     Route::prefix('sessions')
         ->name('sessions.')
