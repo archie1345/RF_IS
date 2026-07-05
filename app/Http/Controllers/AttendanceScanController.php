@@ -35,7 +35,7 @@ class AttendanceScanController extends Controller
                 ->where('training_session_id', $session->training_session_id)
                 ->first()
             : null;
-        $deviceAllowed = $this->isPhone($request);
+        $deviceAllowed = $this->isPhoneOrTablet($request);
         [$state, $message] = $this->scanState($session, $athlete, $attendance, $deviceAllowed);
 
         return Inertia::render('AttendanceScanPage', [
@@ -56,8 +56,8 @@ class AttendanceScanController extends Controller
 
     public function store(RecordQrAttendanceRequest $request, string $token): RedirectResponse
     {
-        if (! $this->isPhone($request)) {
-            return back()->withErrors(['device' => 'QR attendance is phone-only. Please scan with a mobile phone.']);
+        if (! $this->isPhoneOrTablet($request)) {
+            return back()->withErrors(['device' => 'QR attendance is only available on phones and tablets.']);
         }
 
         $session = $this->tokens->findActiveSessionByToken($token);
@@ -104,7 +104,7 @@ class AttendanceScanController extends Controller
     private function scanState(?TrainingSession $session, ?Athlete $athlete, ?Attendance $attendance, bool $deviceAllowed): array
     {
         if (! $deviceAllowed) {
-            return ['desktop_blocked', 'QR attendance is phone-only. Open this page by scanning the QR with a mobile phone.'];
+            return ['desktop_blocked', 'QR attendance is only available on phones and tablets.'];
         }
 
         if (! $session) {
@@ -142,16 +142,20 @@ class AttendanceScanController extends Controller
         return ['ready', 'Attendance is being saved from this QR.'];
     }
 
-    private function isPhone(Request $request): bool
+    private function isPhoneOrTablet(Request $request): bool
     {
         $agent = strtolower((string) $request->userAgent());
 
-        if ($agent === '' || str_contains($agent, 'ipad') || str_contains($agent, 'tablet')) {
+        if ($agent === '') {
             return false;
         }
 
+        if (str_contains($agent, 'ipad') || str_contains($agent, 'tablet')) {
+            return true;
+        }
+
         if (str_contains($agent, 'android')) {
-            return str_contains($agent, 'mobile');
+            return true;
         }
 
         foreach (['iphone', 'ipod', 'windows phone', 'iemobile', 'blackberry', 'bb10', 'opera mini', 'mobile safari', 'mobile'] as $signal) {
