@@ -54,6 +54,7 @@ const contextOptions: SelectOption[] = [
 ];
 
 const perPageOptions: SelectOption[] = [
+    { value: '10', label: '10' },
     { value: '25', label: '25' },
     { value: '50', label: '50' },
     { value: '100', label: '100' },
@@ -83,7 +84,7 @@ function resetFilters() {
     filterForm.action = '';
     filterForm.context = '';
     filterForm.actor_email = '';
-    filterForm.per_page = '50';
+    filterForm.per_page = '10';
     applyFilters(1);
 }
 </script>
@@ -113,7 +114,7 @@ function resetFilters() {
 
             <DataTable
                 title="Log entries"
-                :description="`Total entries: ${props.total} | Page ${props.currentPage} of ${props.lastPage}`"
+                :description="`Page ${props.currentPage} of ${props.lastPage}`"
                 :columns="columns"
                 :rows="props.rows"
             />

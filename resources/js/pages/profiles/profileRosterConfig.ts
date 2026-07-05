@@ -2,18 +2,11 @@ import type { TableColumn } from '@/types/resource-table';
 
 export const athleteRosterBaseColumns: TableColumn[] = [
     { key: 'athlete', label: 'Athlete' },
-    { key: 'account_email', label: 'Account Email' },
-    { key: 'parent', label: 'Parent' },
+    { key: 'account_email', label: 'Email' },
     { key: 'branch', label: 'Branch' },
     { key: 'group', label: 'Group' },
-    { key: 'height_cm', label: 'Height' },
-    { key: 'weight_kg', label: 'Weight' },
 ];
 
-export const sensitiveIdentifierColumns: TableColumn[] = [
-    { key: 'nik', label: 'NIK' },
-    { key: 'bpjs', label: 'BPJS' },
-];
 
 export const athleteRosterTrailingColumns: TableColumn[] = [
     { key: 'geup', label: 'Geup' },
@@ -23,7 +16,6 @@ export const athleteRosterTrailingColumns: TableColumn[] = [
 export const coachRosterColumns: TableColumn[] = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Account role' },
     { key: 'status', label: 'Status' },
     { key: 'specialization', label: 'Specialization' },
 ];
@@ -31,9 +23,7 @@ export const coachRosterColumns: TableColumn[] = [
 export const parentRosterColumns: TableColumn[] = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Account role' },
     { key: 'relation', label: 'Relation' },
-    { key: 'occupation', label: 'Occupation' },
     { key: 'children', label: 'Children' },
 ];
 

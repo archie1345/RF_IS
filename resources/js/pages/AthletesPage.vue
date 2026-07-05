@@ -23,7 +23,6 @@ import {
     genderOptions,
     geupOptions,
     parentRosterColumns,
-    sensitiveIdentifierColumns,
 } from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
@@ -73,9 +72,8 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Users', href: appRoutes.athletes },
 ];
 
-const columns: TableColumn[] = [
+const athleteColumns: TableColumn[] = [
     ...athleteRosterBaseColumns,
-    ...(props.canViewSensitiveIdentifiers ? sensitiveIdentifierColumns : []),
     ...athleteRosterTrailingColumns,
 ];
 
@@ -292,7 +290,7 @@ function saveParentChildren() {
                 description="View and edit athlete, Coach, Parent profiles. Create/delete accounts from Admin Panel only."
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
-                :columns="columns"
+                :columns="athleteColumns"
                 :rows="athleteRows"
                 action-label="Actions"
                 searchable
