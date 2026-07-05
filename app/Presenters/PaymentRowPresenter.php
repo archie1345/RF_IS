@@ -15,6 +15,8 @@ class PaymentRowPresenter
 
     public function row(Payment $payment): array
     {
+        $phone = $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '';
+
         return [
             'id' => 'PAY-'.$payment->payment_id,
             'payment_id' => $payment->payment_id,
@@ -24,7 +26,8 @@ class PaymentRowPresenter
             'payee_user_id' => $payment->payee_user_id,
             'bill_kind' => $payment->bill_kind ?? 'INVOICE',
             'athlete' => $this->subject($payment),
-            'athlete_phone' => $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '',
+            'athlete_phone' => $phone,
+            'whatsapp_url' => $this->whatsAppUrl($payment, $phone),
             'type' => Str::headline(strtolower((string) $payment->payment_type)),
             'payment_type_raw' => $payment->payment_type,
             'amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount)),
@@ -98,5 +101,27 @@ class PaymentRowPresenter
         $first = trim(explode('|', (string) $notes)[0] ?? '');
 
         return in_array($first, ['CASH', 'TRANSFER', 'OTHER'], true) ? $first : 'TRANSFER';
+    }
+
+    private function whatsAppUrl(Payment $payment, string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+        if (! $digits) {
+            return null;
+        }
+
+        if (str_starts_with($digits, '0')) {
+            $digits = '62'.substr($digits, 1);
+        }
+
+        $message = sprintf(
+            "Halo %s, tagihan %s Anda sebesar %s masih memiliki sisa %s. Silakan lakukan pembayaran lalu upload bukti di sistem RF IS. Terima kasih.",
+            $this->subject($payment),
+            Str::headline(strtolower((string) $payment->payment_type)),
+            $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
+            $this->rupiah((float) ($payment->remaining_amount ?? 0)),
+        );
+
+        return 'https://wa.me/'.$digits.'?text='.rawurlencode($message);
     }
 }
