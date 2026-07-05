@@ -10,17 +10,29 @@ import type { AppRole, TableRow, AttendanceRow, TrainingDay } from '@/types/reso
 
 let timer: ReturnType<typeof setInterval> | null = null;
 
-const props = defineProps<{
-    role: AppRole;
-    announcements: TableRow[];
-    upcomingEvents: TableRow[];
-    profileSummary: Record<string, string>;
-    medalRows: TableRow[];
-    activityPreviewRows: TableRow[];
-    attendanceRows: AttendanceRow[];
-    trainingDays: TrainingDay[];
-    paymentRows: TableRow[];
-}>();
+const props = withDefaults(
+    defineProps<{
+        role: AppRole;
+        announcements?: TableRow[];
+        upcomingEvents?: TableRow[];
+        profileSummary?: Record<string, string>;
+        medalRows?: TableRow[];
+        activityPreviewRows?: TableRow[];
+        attendanceRows?: AttendanceRow[];
+        trainingDays?: TrainingDay[];
+        paymentRows?: TableRow[];
+    }>(),
+    {
+        announcements: () => [],
+        upcomingEvents: () => [],
+        profileSummary: () => ({}),
+        medalRows: () => [],
+        activityPreviewRows: () => [],
+        attendanceRows: () => [],
+        trainingDays: () => [],
+        paymentRows: () => [],
+    },
+);
 
 const currentDate = ref(new Date());
 const timeString = ref('');
@@ -46,7 +58,7 @@ const attendanceStatusMap = computed(() => {
     const map = new Map<string, string>();
     props.attendanceRows.forEach((row) => {
         const date = row.date || row.session_date;
-        if (date) map.set(date, row.status_value ?? '');
+        if (date) map.set(date, String(row.status_value ?? ''));
     });
     return map;
 });
