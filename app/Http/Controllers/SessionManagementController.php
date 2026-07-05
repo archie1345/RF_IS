@@ -111,12 +111,16 @@ class SessionManagementController extends Controller
             ->pluck('athlete_id');
 
         foreach ($athletes as $athleteId) {
-            Attendance::create([
-                'athlete_id' => $athleteId,
-                'coach_session_id' => $session->csid,
-                'date' => $session->session_date,
-                'status' => 'ABSENT',
-            ]);
+            Attendance::query()->firstOrCreate(
+                [
+                    'athlete_id' => $athleteId,
+                    'coach_session_id' => $session->csid,
+                ],
+                [
+                    'date' => $session->session_date,
+                    'status' => 'ABSENT',
+                ],
+            );
         }
 
         ActivityLogger::log(
@@ -218,20 +222,28 @@ class SessionManagementController extends Controller
             ->get();
 
         foreach ($athletes as $athlete) {
-            Attendance::query()->firstOrCreate(
-                [
+            $row = Attendance::withTrashed()
+                ->where('athlete_id', $athlete->athlete_id)
+                ->where('coach_session_id', $session->csid)
+                ->first();
+
+            if ($row?->trashed()) {
+                $row->restore();
+            }
+
+            if (! $row) {
+                Attendance::query()->create([
                     'athlete_id' => $athlete->athlete_id,
                     'coach_session_id' => $session->csid,
                     'date' => $session->session_date,
-                ],
-                ['status' => 'ABSENT'],
-            );
+                    'status' => 'ABSENT',
+                ]);
+            }
         }
 
         $attendance = Attendance::query()
             ->with('athlete.user:id,name')
             ->where('coach_session_id', $session->csid)
-            ->whereDate('date', $session->session_date)
             ->orderBy('athlete_id')
             ->get();
 
@@ -260,17 +272,34 @@ class SessionManagementController extends Controller
 
         $athletePresentCount = $attendance->where('status', 'PRESENT')->count();
         $coachTeachCount = $coachAttendance->where('status', 'TEACH')->count();
+        $sessionStart = $this->dateTimeLocal($session->session_date, $session->start_time);
+        $sessionEnd = $this->dateTimeLocal($session->session_date, $session->end_time);
+        $scanUrl = $session->attendance_scan_token
+            ? route('attendance.scan.show', $session->attendance_scan_token)
+            : null;
 
         return Inertia::render('SessionsAttendancePage', [
             'session' => [
                 'id' => $session->csid,
                 'title' => $session->title,
                 'date' => $this->formatIsoDate($session->session_date),
+                'time' => $this->formatTime24($session->start_time).' - '.$this->formatTime24($session->end_time),
+                'location' => $session->location,
                 'branch' => $session->branch?->branch_name ?? 'Unassigned',
                 'group' => $session->group?->group_name ?? 'All groups',
                 'coach' => $this->coachNames($session),
                 'athlete_attendance_summary' => $athletePresentCount.' / '.$attendance->count(),
                 'coach_attendance_summary' => $coachTeachCount.' / '.$coachAttendance->count(),
+            ],
+            'qr' => [
+                'is_active' => filled($session->attendance_scan_token) && ! $session->attendance_qr_revoked_at,
+                'scan_url' => $scanUrl,
+                'opens_at' => $session->attendance_opens_at ? Carbon::parse($session->attendance_opens_at)->format('Y-m-d\\TH:i') : $sessionStart,
+                'closes_at' => $session->attendance_closes_at ? Carbon::parse($session->attendance_closes_at)->format('Y-m-d\\TH:i') : $sessionEnd,
+                'generated_at' => $session->attendance_qr_generated_at ? Carbon::parse($session->attendance_qr_generated_at)->format('d/m/Y H:i') : null,
+                'revoked_at' => $session->attendance_qr_revoked_at ? Carbon::parse($session->attendance_qr_revoked_at)->format('d/m/Y H:i') : null,
+                'session_start' => $sessionStart,
+                'session_end' => $sessionEnd,
             ],
             'rows' => $attendance->map(fn (Attendance $row) => [
                 'id' => 'ATT-'.$row->atid,
@@ -394,6 +423,11 @@ class SessionManagementController extends Controller
         return Carbon::parse((string) $value)->format('Y-m-d');
     }
 
+    private function dateTimeLocal(mixed $date, mixed $time): string
+    {
+        return Carbon::parse(Carbon::parse((string) $date)->format('Y-m-d').' '.Carbon::parse((string) $time)->format('H:i:s'))->format('Y-m-d\\TH:i');
+    }
+
     private function coachCanAccessSession(int $userId, Session $session): bool
     {
         $coachId = Coach::query()->where('id', $userId)->value('coach_id');
@@ -428,4 +462,3 @@ class SessionManagementController extends Controller
         return $firstCoachId ? (int) $firstCoachId : null;
     }
 }
-
