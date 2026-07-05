@@ -48,18 +48,33 @@ class CreateAttendanceRecord
             $checkedInAt = Carbon::createFromFormat('Y-m-d H:i', $validated['date'].' '.$validated['checked_in_time']);
         }
 
-        return DB::transaction(fn () => Attendance::query()->updateOrCreate(
-            [
-                'athlete_id' => $athleteId,
-                'training_session_id' => $validated['training_session_id'],
+        return DB::transaction(function () use ($athleteId, $validated, $checkedInAt): Attendance {
+            $attendance = Attendance::withTrashed()
+                ->where('athlete_id', $athleteId)
+                ->where('training_session_id', $validated['training_session_id'])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $attendance) {
+                $attendance = new Attendance([
+                    'athlete_id' => $athleteId,
+                    'training_session_id' => $validated['training_session_id'],
+                ]);
+            }
+
+            if ($attendance->trashed()) {
+                $attendance->restore();
+            }
+
+            $attendance->fill([
                 'date' => $validated['date'],
-            ],
-            [
                 'status' => $validated['status'],
                 'checked_in_at' => $checkedInAt ?? ($validated['status'] === AttendanceStatus::PRESENT ? now() : null),
                 'notes' => $validated['notes'] ?? null,
                 'follow_up_owner' => $validated['follow_up_owner'] ?? null,
-            ],
-        ));
+            ])->save();
+
+            return $attendance->refresh();
+        });
     }
 }

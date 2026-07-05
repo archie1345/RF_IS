@@ -19,6 +19,8 @@ import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resour
 
 const props = defineProps<{
     isAdmin: boolean;
+    canSubmitPaymentProof?: boolean;
+    coachPaymentLimitation?: string | null;
     metrics: Metric[];
     rows: TableRow[];
     athletes: SelectOption[];
@@ -158,7 +160,7 @@ function remainingAmount(row: TableRow) {
 
 function canUploadProof(row: TableRow) {
     return (
-        !props.isAdmin &&
+        Boolean(props.canSubmitPaymentProof) &&
         remainingAmount(row) > 0 &&
         row.proof_status !== 'SUBMITTED' &&
         row.proof_status !== 'APPROVED'
@@ -336,6 +338,10 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                         <Button v-if="props.isAdmin" type="button" @click="openCreate">Issue bill</Button>
                     </div>
                 </template>
+
+                <div v-if="props.coachPaymentLimitation" class="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                    {{ props.coachPaymentLimitation }}
+                </div>
 
                 <div class="grid gap-4 md:grid-cols-3">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
