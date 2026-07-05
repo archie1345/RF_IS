@@ -30,12 +30,28 @@ function isBadgeCell(value: TableCell | undefined): value is TableBadgeCell {
     return typeof value === 'object' && value !== null && 'kind' in value && value.kind === 'badge';
 }
 
-function getCellText(value: TableCell | undefined) {
+function badgeCell(value: TableCell | undefined): TableBadgeCell | null {
+    return isBadgeCell(value) ? value : null;
+}
+
+function getCellText(value: TableCell | undefined): string | number | boolean {
     if (typeof value === 'object' && value !== null && 'text' in value) {
-        return value.text;
+        return String(value.text);
     }
 
-    return value ?? '-';
+    if (Array.isArray(value)) {
+        return value.join(', ');
+    }
+
+    if (value === null || value === undefined) {
+        return '-';
+    }
+
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+
+    return value;
 }
 
 function setSort(column: TableColumn) {
@@ -107,7 +123,7 @@ const filteredRows = computed(() => {
                         <tr v-for="row in filteredRows" :key="row.id" class="rounded-xl bg-muted/35 text-sm text-foreground transition-all hover:-translate-y-0.5 hover:bg-muted/70 hover:shadow-sm">
                             <td v-for="column in props.columns" :key="`${row.id}-${column.key}`" class="px-2 py-3 first:rounded-l-xl last:rounded-r-xl sm:px-3" :class="[column.align === 'right' ? 'text-right' : 'text-left', hasRowActions ? 'last:rounded-r-none' : '']">
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
-                                    <StatusBadge v-if="isBadgeCell(getCellValue(row, column.key))" :label="(getCellValue(row, column.key) as TableBadgeCell).text" :tone="(getCellValue(row, column.key) as TableBadgeCell).tone" />
+                                    <StatusBadge v-if="badgeCell(getCellValue(row, column.key))" :label="badgeCell(getCellValue(row, column.key))?.text ?? ''" :tone="badgeCell(getCellValue(row, column.key))?.tone" />
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
