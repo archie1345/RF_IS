@@ -6,7 +6,6 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
-use App\Presenters\AttendanceRowPresenter;
 use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Support\Facades\DB;
@@ -14,8 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class RecordQrAttendance
 {
-    public function __construct(private readonly AttendanceRowPresenter $attendanceRows) {}
-
     public function handle(User $user, TrainingSession $session): array
     {
         $athlete = $user->athleteProfile;
@@ -45,12 +42,8 @@ class RecordQrAttendance
                 return [$attendance->refresh(), true];
             }
 
-            if ($attendance && $this->attendanceRows->isLocked($attendance->loadMissing('trainingSession'))) {
-                throw ValidationException::withMessages([
-                    'attendance' => 'Attendance cannot be changed because the session time has passed.',
-                ]);
-            }
-
+            // QR attendance is the source of truth while a QR window is active.
+            // Do not block a valid phone scan just because a default ABSENT row was already created.
             $attendance = Attendance::withTrashed()->updateOrCreate(
                 [
                     'athlete_id' => $athlete->athlete_id,
@@ -88,11 +81,11 @@ class RecordQrAttendance
 
     private function validateEligibility(Athlete $athlete, TrainingSession $session): void
     {
-        if ((int) $athlete->branch_id !== (int) $session->branch_id) {
+        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session branch.']);
         }
 
-        if ($session->group_id !== null && (int) $athlete->group_id !== (int) $session->group_id) {
+        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session group.']);
         }
     }
