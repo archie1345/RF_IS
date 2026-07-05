@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { CalendarDays, Download, Plus, RefreshCcw, Search } from 'lucide-vue-next';
+import { computed } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric } from '@/types/resource-table';
+
+type WeeklySession = {
+    title: string;
+    time: string;
+    location: string;
+    date?: string;
+};
 
 const props = withDefaults(
     defineProps<{
@@ -18,7 +26,7 @@ const props = withDefaults(
         rows?: Record<string, string>[];
         emptyText?: string;
         roleAccess?: string;
-        todaySessions?: { title: string; time: string; location: string }[];
+        todaySessions?: WeeklySession[];
     }>(),
     {
         metrics: () => [],
@@ -44,6 +52,27 @@ const dayCards = [
     { id: 6, name: 'Sabtu', sub: 'Saturday' },
     { id: 7, name: 'Minggu', sub: 'Sunday' },
 ];
+
+const sessionsByDay = computed(() => {
+    const grouped = new Map<number, WeeklySession[]>();
+    props.todaySessions.forEach((session) => {
+        if (!session.date) return;
+        const day = new Date(`${session.date}T00:00:00`).getDay();
+        const mondayFirstDay = day === 0 ? 7 : day;
+        const sessions = grouped.get(mondayFirstDay) ?? [];
+        sessions.push(session);
+        grouped.set(mondayFirstDay, sessions);
+    });
+    return grouped;
+});
+
+function generateMonthlyDues() {
+    router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true });
+}
+
+function generateWeeklySessions() {
+    router.post('/admin/schedules/generate-week', {}, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -54,13 +83,22 @@ const dayCards = [
             <PageSection :title="props.title" :description="props.subtitle">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
+                        <Button v-if="props.mode === 'monthly-dues'" type="button" size="sm" @click="generateMonthlyDues">
+                            <Plus class="mr-2 size-4" /> Generate bulan ini
+                        </Button>
+                        <Button v-if="props.mode === 'weekly-schedule'" type="button" size="sm" @click="generateWeeklySessions">
+                            <Plus class="mr-2 size-4" /> Generate sesi minggu ini
+                        </Button>
+                        <Button v-if="['finance-income', 'finance-output', 'payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm">
+                            <Link href="/payments">Open Payment Center</Link>
+                        </Button>
                         <Button v-if="['members', 'instructors', 'events', 'locations', 'classes'].includes(props.mode)" size="sm">
                             <Plus class="mr-2 size-4" /> Tambah
                         </Button>
-                        <Button v-if="['attendance', 'instructor-attendance', 'payments', 'monthly-dues', 'members', 'instructors', 'daily-schedules'].includes(props.mode)" variant="outline" size="sm">
+                        <Button v-if="['attendance', 'instructor-attendance', 'payments', 'monthly-dues', 'members', 'instructors', 'daily-schedules', 'finance-income', 'finance-output'].includes(props.mode)" variant="outline" size="sm">
                             <Download class="mr-2 size-4" /> Export Excel
                         </Button>
-                        <Button variant="secondary" size="sm">
+                        <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })">
                             <RefreshCcw class="mr-2 size-4" /> Refresh
                         </Button>
                     </div>
@@ -75,7 +113,7 @@ const dayCards = [
             <section v-if="props.mode === 'weekly-schedule'" class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div class="rounded-full border px-4 py-2 text-sm font-black">Today: {{ new Date().toLocaleDateString() }}</div>
-                    <Button variant="outline" size="sm"><RefreshCcw class="mr-2 size-4" />Refresh Preview</Button>
+                    <p class="text-sm text-muted-foreground">Generated sessions are real training sessions and will appear in Attendance / Session pages.</p>
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-7">
@@ -86,8 +124,8 @@ const dayCards = [
                 </div>
                 <div class="mt-4 grid gap-3 md:grid-cols-7">
                     <div v-for="day in dayCards" :key="`body-${day.id}`" class="min-h-56 rounded-xl border bg-background p-4">
-                        <template v-if="day.id === 7 && props.todaySessions.length">
-                            <div v-for="session in props.todaySessions" :key="session.title" class="rounded-xl border-l-4 border-red-500 bg-card p-3 shadow-sm">
+                        <template v-if="(sessionsByDay.get(day.id) ?? []).length">
+                            <div v-for="session in sessionsByDay.get(day.id)" :key="`${session.date}-${session.title}-${session.time}`" class="mb-3 rounded-xl border-l-4 border-red-500 bg-card p-3 shadow-sm">
                                 <p class="font-black">{{ session.title }}</p>
                                 <p class="mt-2 text-sm">{{ session.time }}</p>
                                 <p class="text-xs text-muted-foreground">{{ session.location }}</p>
@@ -108,7 +146,7 @@ const dayCards = [
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <select class="h-10 rounded-lg border bg-background px-3 text-sm"><option>Semua Status</option></select>
-                        <Button variant="outline" size="sm"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button>
+                        <Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button>
                     </div>
                 </div>
 
@@ -123,7 +161,7 @@ const dayCards = [
                             <tr v-if="props.rows.length === 0">
                                 <td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td>
                             </tr>
-                            <tr v-for="(row, index) in props.rows" :key="index" class="border-b">
+                            <tr v-for="(row, index) in props.rows" :key="index" class="border-b hover:bg-muted/40">
                                 <td v-for="column in props.columns" :key="column" class="px-3 py-3">{{ row[column] ?? '-' }}</td>
                             </tr>
                         </tbody>
@@ -132,7 +170,7 @@ const dayCards = [
             </section>
 
             <div class="rounded-xl border bg-muted/30 p-4 text-xs text-muted-foreground">
-                This page provides the admin workspace shell, filters, actions, metrics, and table or schedule layout.
+                This page provides the admin workspace, filters, actions, metrics, and table or schedule layout.
                 <Link href="/dashboard" class="font-semibold text-primary">Back to dashboard</Link>
             </div>
         </div>
