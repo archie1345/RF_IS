@@ -27,7 +27,6 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-
         $role = $user?->primaryRole() ?? 'athlete';
         $children = $role === 'parent' ? $this->childContext->sharedChildrenFor($user)->all() : [];
         $activeChild = $role === 'parent' ? $this->childContext->activeChildFor($request, true) : null;
@@ -261,6 +260,14 @@ class DashboardController extends Controller
             'weight' => $athlete?->weight_kg ? $athlete->weight_kg.' kg' : '-',
             'certifications' => (string) UserCertification::query()->where('user_id', $request->user()?->id)->count(),
         ];
+    }
+
+    private function paymentSubject(Payment $payment): string
+    {
+        return $payment->athlete?->user?->name
+            ?? $payment->billableUser?->name
+            ?? $payment->payeeUser?->name
+            ?? 'Unassigned bill';
     }
 
     private function visiblePaymentsQuery(Request $request, string $role)
