@@ -5,8 +5,21 @@ import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
 
+type Html5QrScannerInstance = {
+    start: (
+        cameraIdOrConfig: string | { facingMode: string },
+        configuration: { fps?: number; qrbox?: number | { width: number; height: number }; aspectRatio?: number },
+        qrCodeSuccessCallback: (decodedText: string, decodedResult: unknown) => void,
+        qrCodeErrorCallback?: (errorMessage: string, error: unknown) => void,
+    ) => Promise<void>;
+    stop: () => Promise<void>;
+    clear: () => Promise<void>;
+};
+
+type Html5QrCodeConstructor = new (elementId: string, verbose?: boolean) => Html5QrScannerInstance;
+
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
-const scanner = ref<import('html5-qrcode').Html5Qrcode | null>(null);
+const scanner = ref<Html5QrScannerInstance | null>(null);
 const isPortableDevice = ref(false);
 const isScanning = ref(false);
 const isPosting = ref(false);
@@ -75,6 +88,13 @@ function submitScanUrl(url: string) {
     );
 }
 
+async function loadHtml5QrCode(): Promise<Html5QrCodeConstructor> {
+    const moduleName = 'html5-qrcode';
+    const importedModule = await import(/* @vite-ignore */ moduleName) as { Html5Qrcode: Html5QrCodeConstructor };
+
+    return importedModule.Html5Qrcode;
+}
+
 async function startScanner() {
     scannerError.value = null;
 
@@ -94,7 +114,7 @@ async function startScanner() {
     }
 
     try {
-        const { Html5Qrcode } = await import('html5-qrcode');
+        const Html5Qrcode = await loadHtml5QrCode();
         await nextTick();
 
         scanner.value = new Html5Qrcode(scannerElementId, false);
@@ -105,7 +125,7 @@ async function startScanner() {
                 qrbox: { width: 240, height: 240 },
                 aspectRatio: 1,
             },
-            (decodedText) => submitScanUrl(decodedText),
+            (decodedText: string) => submitScanUrl(decodedText),
             () => undefined,
         );
 
