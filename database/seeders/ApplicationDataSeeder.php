@@ -149,15 +149,41 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ]);
 
-        DB::table('training_sessions')->insert([
+        $trainingSessionDate = $now->copy()->addDays(1)->toDateString();
+        $trainingSessionId = DB::table('training_sessions')->insertGetId([
             'coach_id' => $coachIdToken,
             'branch_id' => $branchId,
+            'group_id' => $groupId,
+            'title' => 'Junior Sparring Demo Session',
             'location' => 'Hall A',
-            'session_date' => $now->copy()->addDays(1)->toDateString(),
+            'session_date' => $trainingSessionDate,
             'start_time' => '16:00:00',
             'end_time' => '18:00:00',
+            'status' => 'CONFIRMED',
+            'attendance_token_hash' => null,
+            'attendance_opens_at' => null,
+            'attendance_closes_at' => null,
+            'attendance_qr_generated_at' => null,
+            'attendance_qr_revoked_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
+        ], 'training_session_id');
+
+        DB::table('training_session_coaches')->insert([
+            'training_session_id' => $trainingSessionId,
+            'coach_id' => $coachIdToken,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('coach_attendance')->insert([
+            'training_session_id' => $trainingSessionId,
+            'coach_id' => $coachIdToken,
+            'status' => 'TEACH',
+            'checked_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         DB::table('athletes')->insert([
@@ -181,8 +207,12 @@ class ApplicationDataSeeder extends Seeder
 
         DB::table('athlete_attendance')->insert([
             'athlete_id' => $athleteIdToken,
-            'date' => $now->toDateString(),
-            'status' => 'PRESENT',
+            'training_session_id' => $trainingSessionId,
+            'date' => $trainingSessionDate,
+            'status' => 'ABSENT',
+            'checked_in_at' => null,
+            'notes' => 'Seeded pending attendance row for QR/manual attendance testing.',
+            'follow_up_owner' => null,
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
