@@ -64,6 +64,9 @@ const editingParentId = ref<string | null>(null);
 const editingParentChildrenId = ref<string | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
+const athleteBranchFilter = ref('');
+const athleteGroupFilter = ref('');
+const athleteStatusFilter = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: appRoutes.dashboard },
@@ -79,6 +82,20 @@ const columns: TableColumn[] = [
 const coachColumns: TableColumn[] = coachRosterColumns;
 
 const parentColumns: TableColumn[] = parentRosterColumns;
+
+const athleteRows = computed(() =>
+    props.rows.filter((row) => {
+        const branchMatches = !athleteBranchFilter.value || String(row.branch_id ?? '') === athleteBranchFilter.value;
+        const groupMatches = !athleteGroupFilter.value || String(row.group_id ?? '') === athleteGroupFilter.value;
+        const statusText =
+            typeof row.status === 'object' && row.status !== null && 'text' in row.status
+                ? String(row.status.text)
+                : String(row.status ?? '');
+        const statusMatches = !athleteStatusFilter.value || statusText.toLowerCase() === athleteStatusFilter.value;
+
+        return branchMatches && groupMatches && statusMatches;
+    }),
+);
 const geupSelectOptions = computed(() =>
     geupOptions.map((option) => ({
         value: option,
@@ -276,10 +293,38 @@ function saveParentChildren() {
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
                 :columns="columns"
-                :rows="props.rows"
+                :rows="athleteRows"
                 action-label="Actions"
+                searchable
+                search-placeholder="Search athletes by name, email, branch, group, or status"
                 :show-create="false"
             >
+                <template #stats>
+                    <div class="grid gap-3 md:grid-cols-3">
+                        <FormSelectField
+                            id="athlete-branch-filter"
+                            v-model="athleteBranchFilter"
+                            label="Filter by branch"
+                            :options="[{ value: '', label: 'All branches' }, ...props.branches]"
+                        />
+                        <FormSelectField
+                            id="athlete-group-filter"
+                            v-model="athleteGroupFilter"
+                            label="Filter by group"
+                            :options="[{ value: '', label: 'All groups' }, ...props.groups]"
+                        />
+                        <FormSelectField
+                            id="athlete-status-filter"
+                            v-model="athleteStatusFilter"
+                            label="Filter by status"
+                            :options="[
+                                { value: '', label: 'All statuses' },
+                                { value: 'active', label: 'Active' },
+                                { value: 'profile incomplete', label: 'Profile incomplete' },
+                            ]"
+                        />
+                    </div>
+                </template>
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
@@ -293,6 +338,8 @@ function saveParentChildren() {
                 table-title="Coach profiles"
                 table-description="Live coach profile data backed by the application database."
                 action-label="Actions"
+                searchable
+                search-placeholder="Search coaches by name, email, status, or specialization"
                 :show-create="false"
             >
                 <template #row-actions="{ row }">
@@ -307,6 +354,8 @@ function saveParentChildren() {
                 table-title="Parent profiles"
                 table-description="Live parent profile data backed by the application database."
                 action-label="Actions"
+                searchable
+                search-placeholder="Search parents by name, email, relation, occupation, or children"
                 :show-create="false"
             >
                 <template #row-actions="{ row }">

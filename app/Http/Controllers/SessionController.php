@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Actions\Sessions\CreateSession;
 use App\Actions\Sessions\UpdateSession;
 use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Sessions\StoreSessionRequest;
 use App\Http\Requests\Sessions\UpdateSessionRequest;
-use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
@@ -34,6 +34,7 @@ class SessionController extends Controller
         private readonly SessionRowPresenter $sessionRows,
         private readonly CreateSession $createSession,
         private readonly UpdateSession $updateSession,
+        private readonly InitializeSessionAttendance $initializeAttendance,
     ) {}
 
     public function index(): Response
@@ -133,28 +134,11 @@ class SessionController extends Controller
         }
         $session->load($with);
 
-        $athletes = Athlete::query()
-            ->with('user:id,name')
-            ->where('branch_id', $session->branch_id)
-            ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
-            ->orderBy('athlete_id')
-            ->get();
-
-        foreach ($athletes as $athlete) {
-            Attendance::query()->firstOrCreate(
-                [
-                    'athlete_id' => $athlete->athlete_id,
-                    'training_session_id' => $session->training_session_id,
-                    'date' => $session->session_date,
-                ],
-                ['status' => 'ABSENT'],
-            );
-        }
+        $this->initializeAttendance->handle($session);
 
         $attendance = Attendance::query()
             ->with('athlete.user:id,name')
             ->where('training_session_id', $session->training_session_id)
-            ->whereDate('date', $session->session_date)
             ->orderBy('athlete_id')
             ->get();
 
@@ -189,6 +173,8 @@ class SessionController extends Controller
                 'id' => $session->training_session_id,
                 'title' => $session->title,
                 'date' => $this->formatIsoDate($session->session_date),
+                'start_time' => $session->start_time ? Carbon::parse((string) $session->start_time)->format('H:i') : null,
+                'end_time' => $session->end_time ? Carbon::parse((string) $session->end_time)->format('H:i') : null,
                 'branch' => $session->branch?->branch_name ?? 'Unassigned',
                 'group' => $session->group?->group_name ?? 'All groups',
                 'coach' => $this->coachNames($session),

@@ -432,6 +432,8 @@ class AdminController extends Controller
 
     public function importCsv(Request $request)
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $request->validate([
             'entity' => 'required|string',
             'file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB

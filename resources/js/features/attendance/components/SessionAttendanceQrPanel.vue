@@ -2,12 +2,10 @@
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
-import InputError from '@/components/InputError.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { appRoutes } from '@/data/routes';
+import AttendanceWindowFields from '@/features/attendance/components/AttendanceWindowFields.vue';
 
 const props = defineProps<{
     sessionId: number;
@@ -18,6 +16,10 @@ const props = defineProps<{
         generated_at?: string | null;
         revoked_at?: string | null;
     };
+    sessionDate?: string | null;
+    sessionStartTime?: string | null;
+    sessionEndTime?: string | null;
+    backHref?: string;
 }>();
 
 type AttendanceQrFlash = {
@@ -78,7 +80,17 @@ function generateQr() {
 }
 
 function revokeQr() {
+    if (!window.confirm('Close this QR window? Athletes will no longer be able to use this code.')) {
+        return;
+    }
+
     router.delete(appRoutes.sessionAttendanceQr(props.sessionId), { preserveScroll: true });
+}
+
+function resetWindow() {
+    form.attendance_opens_at = toDateTimeLocal(props.qr.opens_at);
+    form.attendance_closes_at = toDateTimeLocal(props.qr.closes_at);
+    form.clearErrors();
 }
 
 function copyScanUrl() {
@@ -109,22 +121,38 @@ function toDateTimeLocal(value?: string | null): string {
         title="QR attendance"
         description="Generate a secure one-time-display scan URL for athlete self check-in. Existing records remain visible in the attendance table."
     >
-        <form class="grid gap-4 lg:grid-cols-[1fr_1fr_auto]" @submit.prevent="generateQr">
-            <div class="grid gap-2">
-                <Label for="attendance_opens_at">Open time</Label>
-                <Input id="attendance_opens_at" v-model="form.attendance_opens_at" type="datetime-local" />
-                <InputError :message="form.errors.attendance_opens_at" />
-            </div>
-            <div class="grid gap-2">
-                <Label for="attendance_closes_at">Close time</Label>
-                <Input id="attendance_closes_at" v-model="form.attendance_closes_at" type="datetime-local" />
-                <InputError :message="form.errors.attendance_closes_at" />
-            </div>
-            <div class="flex items-end gap-2">
+        <div class="mb-4 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <p class="font-medium text-foreground">QR flow</p>
+            <p class="mt-1">
+                Generate a window inside the session time, show the QR to athletes, then monitor check-ins in the
+                attendance table below.
+            </p>
+            <p class="mt-1">
+                Session window: {{ props.sessionDate ?? 'Date not set' }} ·
+                {{ props.sessionStartTime ?? 'Start not set' }} - {{ props.sessionEndTime ?? 'End not set' }}
+            </p>
+        </div>
+        <form class="grid gap-4 lg:grid-cols-[1fr_auto]" @submit.prevent="generateQr">
+            <AttendanceWindowFields
+                :opens-at="form.attendance_opens_at"
+                :closes-at="form.attendance_closes_at"
+                :opens-at-error="form.errors.attendance_opens_at"
+                :closes-at-error="form.errors.attendance_closes_at"
+                :session-date="props.sessionDate"
+                :session-start-time="props.sessionStartTime"
+                :session-end-time="props.sessionEndTime"
+                @update:opens-at="form.attendance_opens_at = $event"
+                @update:closes-at="form.attendance_closes_at = $event"
+            />
+            <div class="flex flex-col justify-end gap-2 sm:flex-row lg:flex-col">
                 <Button type="submit" :disabled="form.processing">
                     {{ props.qr.is_active ? 'Regenerate QR' : 'Generate QR' }}
                 </Button>
+                <Button type="button" variant="outline" @click="resetWindow">Reset window</Button>
                 <Button v-if="props.qr.is_active" type="button" variant="outline" @click="revokeQr">Close QR</Button>
+                <Button v-if="props.backHref" as-child type="button" variant="ghost">
+                    <a :href="props.backHref">Back to attendance</a>
+                </Button>
             </div>
         </form>
 
@@ -135,23 +163,42 @@ function toDateTimeLocal(value?: string | null): string {
                     {{ props.qr.is_active ? 'Active' : 'Inactive' }}
                 </span>
             </p>
-            <p v-if="props.qr.generated_at" class="text-sm text-muted-foreground">Generated: {{ props.qr.generated_at }}</p>
+            <p v-if="props.qr.generated_at" class="text-sm text-muted-foreground">
+                Generated: {{ props.qr.generated_at }}
+            </p>
             <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">Closed: {{ props.qr.revoked_at }}</p>
             <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">{{ qrStatus }}</p>
 
             <div v-if="scanUrl" class="mt-4 grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
-                <img v-if="qrDataUrl" :src="qrDataUrl" alt="Session attendance QR code" class="h-64 w-64 rounded border bg-white p-2" />
-                <div v-else class="flex h-64 w-64 items-center justify-center rounded border bg-muted p-4 text-center text-sm text-muted-foreground">
+                <img
+                    v-if="qrDataUrl"
+                    :src="qrDataUrl"
+                    alt="Session attendance QR code"
+                    class="h-64 w-64 rounded border bg-white p-2"
+                />
+                <div
+                    v-else
+                    class="flex h-64 w-64 items-center justify-center rounded border bg-muted p-4 text-center text-sm text-muted-foreground"
+                >
                     {{ renderError ?? 'Rendering QR code...' }}
                 </div>
                 <div class="space-y-2">
                     <p class="text-sm font-medium">Scan URL</p>
-                    <p class="break-all rounded bg-muted p-3 text-sm">{{ scanUrl }}</p>
-                    <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
+                    <p class="rounded bg-muted p-3 text-sm break-all">{{ scanUrl }}</p>
+                    <div class="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
+                        <Button v-if="props.backHref" as-child type="button" variant="secondary">
+                            <a :href="props.backHref">Return to attendance</a>
+                        </Button>
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        Next: ask athletes to scan this QR with their phone camera and check in.
+                    </p>
                 </div>
             </div>
             <p v-else-if="props.qr.is_active" class="mt-4 text-sm text-muted-foreground">
-                A QR window is active, but the plaintext token is only shown immediately after generation. Regenerate the QR to display a new scan code.
+                A QR window is active, but the plaintext token is only shown immediately after generation. Regenerate
+                the QR to display a new scan code.
             </p>
         </div>
     </PageSection>

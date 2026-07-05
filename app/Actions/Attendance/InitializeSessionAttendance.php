@@ -24,7 +24,7 @@ class InitializeSessionAttendance
             $created = 0;
 
             foreach ($athleteIds as $athleteId) {
-                $attendance = Attendance::query()->firstOrCreate(
+                $attendance = Attendance::withTrashed()->firstOrCreate(
                     [
                         'athlete_id' => $athleteId,
                         'training_session_id' => $session->training_session_id,
@@ -35,6 +35,10 @@ class InitializeSessionAttendance
                         'checked_in_at' => null,
                     ],
                 );
+
+                if ($attendance->trashed()) {
+                    $attendance->restore();
+                }
 
                 if ($attendance->wasRecentlyCreated) {
                     $created++;

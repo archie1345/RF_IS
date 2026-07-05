@@ -2,7 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { FileText, PencilLine } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import FileUploadField from '@/components/forms/FileUploadField.vue';
+import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -163,7 +163,7 @@ function saveCertificationEdit() {
                         :error="certForm.errors.notes"
                     />
                 </div>
-                <FileUploadField
+                <FormFileField
                     id="cert-file"
                     v-model="certForm.file"
                     label="Certificate File"
@@ -229,7 +229,7 @@ function saveCertificationEdit() {
                         :error="certificationEditForm.errors.notes"
                     />
                 </div>
-                <FileUploadField
+                <FormFileField
                     id="cert-edit-file"
                     v-model="certificationEditForm.file"
                     label="Replace Certificate File"
