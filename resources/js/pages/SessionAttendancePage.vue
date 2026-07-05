@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -41,7 +40,7 @@ const props = defineProps<{
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: appRoutes.dashboard },
     { title: 'Coach Sessions', href: appRoutes.sessions },
-    { title: 'Attendance Sheet', href: `/sessions/${props.session.id}/attendance` },
+    { title: 'Edit Session', href: `/sessions/${props.session.id}/attendance` },
 ];
 
 const columns: TableColumn[] = [
@@ -56,53 +55,6 @@ const coachColumns: TableColumn[] = [
 
 const coachForm = useForm({
     coach_id: '',
-});
-
-const athleteProgress = computed(() => {
-    const total = props.rows.length;
-    const present = props.rows.filter((row) =>
-        String((row.status as { text?: string })?.text ?? row.status)
-            .toLowerCase()
-            .includes('present'),
-    ).length;
-    const absent = props.rows.filter((row) =>
-        String((row.status as { text?: string })?.text ?? row.status)
-            .toLowerCase()
-            .includes('absent'),
-    ).length;
-
-    return { total, present, absent };
-});
-
-const coachProgress = computed(() => {
-    const total = props.coachRows.length;
-    const teaching = props.coachRows.filter((row) =>
-        String((row.status as { text?: string })?.text ?? row.status)
-            .toLowerCase()
-            .includes('teach'),
-    ).length;
-
-    return { total, teaching };
-});
-
-const qrStateLabel = computed(() => {
-    if (props.session.attendance_qr.revoked_at) {
-        return 'Closed';
-    }
-
-    return props.session.attendance_qr.is_active ? 'Active' : 'Not generated';
-});
-
-const qrStateClass = computed(() => {
-    if (props.session.attendance_qr.is_active) {
-        return 'border-green-500/40 bg-green-500/10 text-green-700';
-    }
-
-    if (props.session.attendance_qr.revoked_at) {
-        return 'border-amber-500/40 bg-amber-500/10 text-amber-700';
-    }
-
-    return 'border-muted bg-muted text-muted-foreground';
 });
 
 function updateStatus(rowId: string, status: string) {
@@ -149,62 +101,17 @@ function resetCoachForm() {
 </script>
 
 <template>
-    <Head :title="`Session Attendance - ${props.session.title}`" />
+    <Head :title="`Edit Session - ${props.session.title}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection
-                eyebrow="Session attendance"
+                eyebrow="Unified session edit"
                 :title="props.session.title"
-                :description="`Follow the flow: confirm session details, generate QR, let athletes scan, then review or adjust attendance.`"
+                :description="`${props.session.date} · ${props.session.start_time ?? 'Start not set'} - ${props.session.end_time ?? 'End not set'} · ${props.session.branch} · ${props.session.group || 'All groups'}`"
             >
-                <div class="grid gap-3 md:grid-cols-4">
-                    <div class="rounded-xl border bg-card p-4">
-                        <p class="text-xs font-medium text-muted-foreground uppercase">When</p>
-                        <p class="mt-1 font-semibold">{{ props.session.date }}</p>
-                        <p class="text-sm text-muted-foreground">
-                            {{ props.session.start_time ?? 'Start not set' }} -
-                            {{ props.session.end_time ?? 'End not set' }}
-                        </p>
-                    </div>
-                    <div class="rounded-xl border bg-card p-4">
-                        <p class="text-xs font-medium text-muted-foreground uppercase">Group</p>
-                        <p class="mt-1 font-semibold">{{ props.session.branch }}</p>
-                        <p class="text-sm text-muted-foreground">{{ props.session.group || 'All groups in branch' }}</p>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            {{ coachProgress.teaching }} / {{ coachProgress.total }} coaches teaching
-                        </p>
-                    </div>
-                    <div class="rounded-xl border bg-card p-4">
-                        <p class="text-xs font-medium text-muted-foreground uppercase">Athletes</p>
-                        <p class="mt-1 font-semibold">
-                            {{ athleteProgress.present }} / {{ athleteProgress.total }} present
-                        </p>
-                        <p class="text-sm text-muted-foreground">{{ athleteProgress.absent }} absent or pending</p>
-                    </div>
-                    <div class="rounded-xl border p-4" :class="qrStateClass">
-                        <p class="text-xs font-medium uppercase">QR status</p>
-                        <p class="mt-1 font-semibold">{{ qrStateLabel }}</p>
-                        <p class="text-sm">
-                            {{ props.session.attendance_qr.closes_at ?? 'Generate inside session time' }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="mt-4 rounded-xl border bg-muted/40 p-4 text-sm">
-                    <p class="font-medium">Next steps</p>
-                    <ol class="mt-2 grid gap-2 md:grid-cols-4">
-                        <li>1. Confirm athletes and coaches.</li>
-                        <li>2. Generate the QR window.</li>
-                        <li>3. Let athletes scan by phone camera.</li>
-                        <li>4. Review exceptions and save manual changes.</li>
-                    </ol>
-                </div>
-
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" @click="bulkUpdate('PRESENT')">Mark all present</Button>
-                        <Button type="button" variant="outline" @click="bulkUpdate('ABSENT')">Mark all absent</Button>
                         <Button as-child variant="outline">
                             <a href="/sessions">Back to sessions</a>
                         </Button>
@@ -212,18 +119,9 @@ function resetCoachForm() {
                 </template>
             </PageSection>
 
-            <SessionAttendanceQrPanel
-                :session-id="props.session.id"
-                :back-href="`/sessions/${props.session.id}/attendance`"
-                :qr="props.session.attendance_qr"
-                :session-date="props.session.date"
-                :session-start-time="props.session.start_time"
-                :session-end-time="props.session.end_time"
-            />
-
             <PageSection
                 title="Coach attendance table"
-                description="Add coaches to this session and mark whether they teach or not."
+                description="Add or update every coach assigned to this session. Use this area when the coach or session creator needs to modify who teaches."
             >
                 <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
                     <div class="grid gap-2">
@@ -244,7 +142,7 @@ function resetCoachForm() {
 
                 <DataTable
                     title="Coach teaching status"
-                    description="Use only Teach / Not teach. Delete removes mistaken coach entry."
+                    description="Use Teach / Not teach to control which coaches are counted for this session. Delete removes mistaken coach entries."
                     :columns="coachColumns"
                     :rows="props.coachRows"
                     empty-text="No coach attendance rows yet. Add a coach above if another coach helped with this session."
@@ -254,31 +152,26 @@ function resetCoachForm() {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                @click="updateCoachStatus(String(row.id), 'TEACH')"
-                                >Teach</Button
-                            >
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                @click="updateCoachStatus(String(row.id), 'NOT_TEACH')"
-                                >Not teach</Button
-                            >
-                            <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))"
-                                >Delete</Button
-                            >
+                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Teach</Button>
+                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Not teach</Button>
+                            <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))">Delete</Button>
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
             </PageSection>
 
+            <SessionAttendanceQrPanel
+                :session-id="props.session.id"
+                :back-href="`/sessions/${props.session.id}/attendance`"
+                :qr="props.session.attendance_qr"
+                :session-date="props.session.date"
+                :session-start-time="props.session.start_time"
+                :session-end-time="props.session.end_time"
+            />
+
             <DataTable
                 title="Athlete attendance form"
-                description="All athletes registered in this session group are preloaded as not attend by default."
+                description="All athletes registered in this session group are preloaded as not attend by default. QR scans update the records automatically."
                 :columns="columns"
                 :rows="props.rows"
                 empty-text="No eligible athletes were found for this session. Check the branch/group assignment or go back to sessions."
@@ -288,20 +181,8 @@ function resetCoachForm() {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            @click="updateStatus(String(row.id), 'PRESENT')"
-                            >Attend</Button
-                        >
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            @click="updateStatus(String(row.id), 'ABSENT')"
-                            >Not attend</Button
-                        >
+                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'PRESENT')">Attend</Button>
+                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'ABSENT')">Not attend</Button>
                     </ActionButtonsRow>
                 </template>
             </DataTable>
