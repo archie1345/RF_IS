@@ -81,7 +81,7 @@ class DashboardController extends Controller
         return ActivityLog::query()
             ->with('actor:id,name')
             ->latest('id')
-            ->limit(8)
+            ->limit(10)
             ->get()
             ->map(fn (ActivityLog $log) => [
                 'id' => 'LOG-'.$log->id,
