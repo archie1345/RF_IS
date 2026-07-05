@@ -3,12 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Attendance\GenerateSessionAttendanceQr;
+use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Actions\Attendance\RevokeSessionAttendanceQr;
 use App\Http\Requests\Attendance\GenerateSessionAttendanceQrRequest;
 use App\Models\TrainingSession;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
-use App\Actions\Attendance\InitializeSessionAttendance;
 
 class SessionAttendanceQrController extends Controller
 {
@@ -35,7 +35,7 @@ class SessionAttendanceQrController extends Controller
 
         return back()->with('attendanceQr', [
             'token' => $token,
-            'scan_url' => route('attendance.scan.show', $token),
+            'scan_url' => $this->scanUrl($token),
             'opens_at' => $session->attendance_opens_at?->toIso8601String(),
             'closes_at' => $session->attendance_closes_at?->toIso8601String(),
             'generated_at' => $session->attendance_qr_generated_at?->toIso8601String(),
@@ -58,5 +58,17 @@ class SessionAttendanceQrController extends Controller
         );
 
         return back()->with('attendanceQrStatus', 'Attendance QR code closed.');
+    }
+
+    private function scanUrl(string $token): string
+    {
+        $relativeUrl = route('attendance.scan.show', $token, false);
+        $host = request()->getHost();
+
+        if (app()->environment('local') || in_array($host, ['localhost', '127.0.0.1'], true)) {
+            return url($relativeUrl);
+        }
+
+        return secure_url($relativeUrl);
     }
 }
