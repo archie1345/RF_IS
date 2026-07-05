@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
@@ -56,18 +58,22 @@ const coachColumns: TableColumn[] = [
 const coachForm = useForm({
     coach_id: '',
 });
+const pendingBulkStatus = ref<'PRESENT' | 'ABSENT' | null>(null);
+const pendingCoachDeleteId = ref<string | null>(null);
 
 function updateStatus(rowId: string, status: string) {
     const attendanceId = rowId.replace('ATT-', '');
     router.put(appRoutes.attendanceItem(attendanceId), { status }, { preserveScroll: true });
 }
 
-function bulkUpdate(status: 'PRESENT' | 'ABSENT') {
-    const label = status === 'PRESENT' ? 'present' : 'absent';
-    if (!window.confirm(`Mark all loaded athletes as ${label}? Existing statuses will be changed.`)) {
-        return;
-    }
+function requestBulkUpdate(status: 'PRESENT' | 'ABSENT') {
+    pendingBulkStatus.value = status;
+}
 
+function confirmBulkUpdate() {
+    if (!pendingBulkStatus.value) return;
+    const status = pendingBulkStatus.value;
+    pendingBulkStatus.value = null;
     const attendanceIds = props.rows
         .map((row) => Number(String(row.id).replace('ATT-', '')))
         .filter((id) => !Number.isNaN(id));
@@ -86,12 +92,14 @@ function updateCoachStatus(rowId: string, status: 'TEACH' | 'NOT_TEACH') {
     router.put(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { status }, { preserveScroll: true });
 }
 
-function removeCoach(rowId: string) {
-    if (!window.confirm('Remove this coach attendance row?')) {
-        return;
-    }
+function requestRemoveCoach(rowId: string) {
+    pendingCoachDeleteId.value = rowId;
+}
 
-    const coachAttendanceId = rowId.replace('SCA-', '');
+function confirmRemoveCoach() {
+    if (!pendingCoachDeleteId.value) return;
+    const coachAttendanceId = pendingCoachDeleteId.value.replace('SCA-', '');
+    pendingCoachDeleteId.value = null;
     router.delete(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { preserveScroll: true });
 }
 function resetCoachForm() {
@@ -105,6 +113,27 @@ function resetCoachForm() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <AppAlert
+                v-if="pendingBulkStatus"
+                tone="warning"
+                title="Update all loaded athletes?"
+                :description="`This will mark every loaded athlete as ${pendingBulkStatus === 'PRESENT' ? 'present' : 'absent'}. Existing statuses will be changed.`"
+                :primary-action="{ label: 'Apply update' }"
+                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
+                @primary="confirmBulkUpdate"
+                @secondary="pendingBulkStatus = null"
+            />
+            <AppAlert
+                v-if="pendingCoachDeleteId"
+                tone="danger"
+                title="Remove this coach row?"
+                description="This removes the coach from this session attendance table."
+                :primary-action="{ label: 'Remove coach', variant: 'destructive' }"
+                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
+                @primary="confirmRemoveCoach"
+                @secondary="pendingCoachDeleteId = null"
+            />
+
             <PageSection
                 eyebrow="Unified session edit"
                 :title="props.session.title"
@@ -112,6 +141,8 @@ function resetCoachForm() {
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" @click="requestBulkUpdate('PRESENT')">Mark all present</Button>
+                        <Button type="button" variant="outline" @click="requestBulkUpdate('ABSENT')">Mark all absent</Button>
                         <Button as-child variant="outline">
                             <a href="/sessions">Back to sessions</a>
                         </Button>
@@ -125,13 +156,7 @@ function resetCoachForm() {
             >
                 <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
                     <div class="grid gap-2">
-                        <FormSelectField
-                            id="coach-picker"
-                            v-model="coachForm.coach_id"
-                            label="Add coach"
-                            :options="props.coachOptions"
-                            placeholder="Select coach"
-                        />
+                        <FormSelectField id="coach-picker" v-model="coachForm.coach_id" label="Add coach" :options="props.coachOptions" placeholder="Select coach" />
                         <InputError :message="coachForm.errors.coach_id" />
                     </div>
                     <div class="flex items-end gap-2">
@@ -154,7 +179,7 @@ function resetCoachForm() {
                         <ActionButtonsRow>
                             <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Teach</Button>
                             <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Not teach</Button>
-                            <Button type="button" size="sm" variant="destructive" @click="removeCoach(String(row.id))">Delete</Button>
+                            <Button type="button" size="sm" variant="destructive" @click="requestRemoveCoach(String(row.id))">Delete</Button>
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
