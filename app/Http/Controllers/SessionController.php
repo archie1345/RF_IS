@@ -189,6 +189,8 @@ class SessionController extends Controller
                 'id' => $session->training_session_id,
                 'title' => $session->title,
                 'date' => $this->formatIsoDate($session->session_date),
+                'start_time' => $session->start_time ? Carbon::parse((string) $session->start_time)->format('H:i') : null,
+                'end_time' => $session->end_time ? Carbon::parse((string) $session->end_time)->format('H:i') : null,
                 'branch' => $session->branch?->branch_name ?? 'Unassigned',
                 'group' => $session->group?->group_name ?? 'All groups',
                 'coach' => $this->coachNames($session),

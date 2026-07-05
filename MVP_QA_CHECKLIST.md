@@ -53,3 +53,10 @@ Use this checklist before demo/deploy. Task names below use domain names first; 
 - Full Midtrans gateway integration remains postponed.
 - Midtrans webhook integration remains postponed.
 - WhatsApp notification/API/template/scheduling remains postponed.
+
+## Fresh setup smoke test
+
+- From a clean checkout, run `composer install`, copy `.env.example` to `.env`, generate `APP_KEY`, configure the database, run `php artisan migrate --seed`, run `php artisan storage:link`, install npm packages, build assets, and start `php artisan serve`.
+- Confirm seeded demo accounts can log in locally only; never use demo credentials in production.
+- Confirm uploaded proof/certification/achievement files are visible through the public storage symlink.
+- Confirm `APP_DEBUG=false`, production `APP_URL`, queue/cache/session/mail drivers, and storage permissions before deployment.

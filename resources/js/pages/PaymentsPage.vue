@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Download, ImagePlus, MessageCircleWarning, PencilLine, ReceiptText, Trash2 } from 'lucide-vue-next';
+import { Download, ImagePlus, PencilLine, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -11,6 +12,7 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
+import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
@@ -214,17 +216,6 @@ function exportInvoice(paymentId: number | string) {
     window.open(`/payments/${paymentId}/export`, '_blank');
 }
 
-function sendWaBilling(row: TableRow) {
-    const phoneRaw = String(row.athlete_phone ?? '').replace(/[^\d]/g, '');
-    if (!phoneRaw) return;
-    const phone = phoneRaw.startsWith('0') ? `62${phoneRaw.slice(1)}` : phoneRaw;
-    const text = encodeURIComponent(
-        `Halo, ini pengingat pembayaran ${row.type} untuk ${row.athlete}. ` +
-            `Total: ${row.amount}. Sisa: ${row.balance}.`,
-    );
-    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
-}
-
 function exportPaymentCsv() {
     window.location.href = '/admin/data-transfer/export?entity=payments';
 }
@@ -263,10 +254,6 @@ function deleteFromEdit() {
         showPaymentForm.value = false;
     }
 }
-function waFromEdit() {
-    if (editingPaymentRow.value) sendWaBilling(editingPaymentRow.value);
-}
-
 function deletePayment(row: TableRow) {
     const id = Number(row.payment_id);
     if (!id) return;
@@ -287,11 +274,6 @@ function openProofForm(row: TableRow) {
     proofPaymentId.value = Number(row.payment_id);
     proofForm.reset();
     showProofForm.value = true;
-}
-
-function onProofFileChange(event: Event) {
-    const target = event.target as HTMLInputElement;
-    proofForm.proof_file = target.files?.[0] ?? null;
 }
 
 function submitProof() {
@@ -574,41 +556,11 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                         </div>
                     </details>
 
-                    <div
-                        v-if="editingPaymentId && paymentHistory(editingPaymentRow).length"
-                        class="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm"
-                    >
-                        <div class="flex items-center gap-2 font-medium">
-                            <ReceiptText class="size-4" />
-                            <span>Transaction history</span>
-                        </div>
-                        <div
-                            v-for="history in paymentHistory(editingPaymentRow)"
-                            :key="history.id"
-                            class="grid gap-1 border-t border-border pt-3 first:border-t-0 first:pt-0"
-                        >
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="font-medium">{{ history.amount }}</span>
-                                <span class="text-xs text-muted-foreground"
-                                    >{{ history.date }} by {{ history.verified_by }}</span
-                                >
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                <span>{{ history.type }}</span>
-                                <span>{{ history.method }}</span>
-                                <a
-                                    v-if="history.proof_url"
-                                    :href="history.proof_url"
-                                    target="_blank"
-                                    class="font-medium text-foreground underline underline-offset-4"
-                                    >Receipt</a
-                                >
-                            </div>
-                            <p v-if="history.notes" class="text-xs leading-5 whitespace-pre-line text-muted-foreground">
-                                {{ history.notes }}
-                            </p>
-                        </div>
-                    </div>
+                    <PaymentTransactionHistory
+                        v-if="editingPaymentId"
+                        :entries="paymentHistory(editingPaymentRow)"
+                        empty-text="No approved installments have been recorded for this bill yet."
+                    />
 
                     <div class="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
                         <div class="flex flex-wrap gap-3">
@@ -627,9 +579,6 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                         </div>
 
                         <div v-if="editingPaymentId" class="flex flex-wrap gap-2">
-                            <Button type="button" variant="secondary" size="sm" @click="waFromEdit">
-                                <MessageCircleWarning class="mr-2 size-4" /> Send WA Reminder
-                            </Button>
                             <Button type="button" variant="destructive" size="sm" @click="deleteFromEdit">
                                 <Trash2 class="mr-2 size-4" /> Delete Bill
                             </Button>
@@ -753,35 +702,13 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     <p><span class="font-medium">Balance:</span> {{ activeProofRow.balance }}</p>
                     <p class="leading-6 text-muted-foreground">{{ props.paymentInstructions }}</p>
                 </div>
-                <div
-                    v-if="paymentHistory(activeProofRow).length"
-                    class="grid gap-3 rounded-lg border border-border p-3 text-sm"
-                >
-                    <div class="flex items-center gap-2 font-medium">
-                        <ReceiptText class="size-4" />
-                        <span>Approved payments</span>
-                    </div>
-                    <div
-                        v-for="history in paymentHistory(activeProofRow)"
-                        :key="history.id"
-                        class="grid gap-1 border-t border-border pt-3 first:border-t-0 first:pt-0"
-                    >
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <span class="font-medium">{{ history.amount }}</span>
-                            <span class="text-xs text-muted-foreground">{{ history.date }}</span>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span>{{ history.method }}</span>
-                            <a
-                                v-if="history.proof_url"
-                                :href="history.proof_url"
-                                target="_blank"
-                                class="font-medium text-foreground underline underline-offset-4"
-                                >Receipt</a
-                            >
-                        </div>
-                    </div>
-                </div>
+                <PaymentTransactionHistory
+                    :entries="paymentHistory(activeProofRow)"
+                    title="Approved installments"
+                    empty-text="No approved installments yet. Upload proof for the remaining amount when ready."
+                    :show-verifier="false"
+                    :bordered="true"
+                />
                 <form class="grid gap-4" @submit.prevent="submitProof">
                     <FormInputField
                         id="proof-notes"
@@ -791,21 +718,16 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                         help="Optional, but useful if the receipt is hard to read."
                         :error="proofForm.errors.notes"
                     />
-                    <div class="grid gap-2">
-                        <label class="text-sm font-medium">Receipt or transfer screenshot</label>
-                        <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            class="h-10 rounded-lg border border-input px-3 py-2 text-sm"
-                            @change="onProofFileChange"
-                        />
-                        <p v-if="!proofForm.errors.proof_file" class="text-xs leading-5 text-muted-foreground">
-                            Accepted: image or PDF, up to 10 MB.
-                        </p>
-                        <p v-if="proofForm.errors.proof_file" class="text-sm text-destructive">
-                            {{ proofForm.errors.proof_file }}
-                        </p>
-                    </div>
+                    <FormFileField
+                        id="proof-file"
+                        v-model="proofForm.proof_file"
+                        label="Payment proof file"
+                        accept="image/*,.pdf"
+                        :error="proofForm.errors.proof_file"
+                    />
+                    <p v-if="!proofForm.errors.proof_file" class="text-xs leading-5 text-muted-foreground">
+                        Accepted: image or PDF, up to 10 MB.
+                    </p>
                     <div class="flex gap-3">
                         <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file"
                             >Send receipt for review</Button
@@ -818,7 +740,7 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
 
         <FormModal :open="showReviewForm" max-width-class="max-w-md" @close="showReviewForm = false">
             <PageSection
-                title="Approve Payment Proof"
+                title="Review Payment Proof"
                 description="Review the receipt and confirm the amount paid in this specific transaction."
             >
                 <form class="grid gap-4">
@@ -839,7 +761,7 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     <FormInputField
                         id="review-approved-amount"
                         v-model="reviewForm.approved_amount"
-                        label="Amount paid in this receipt"
+                        label="Approved amount for this proof"
                         type="number"
                         inputmode="decimal"
                         min="0.01"
@@ -859,7 +781,7 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
 
                     <div class="mt-4 flex gap-3">
                         <Button type="button" :disabled="reviewForm.processing" @click="submitReview('APPROVED')"
-                            >Approve Amount</Button
+                            >Approve approved amount</Button
                         >
                         <Button
                             type="button"
