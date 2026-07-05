@@ -20,6 +20,7 @@ use App\Http\Controllers\Profiles\UserAccountController;
 use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\SessionManagementController;
+use App\Http\Controllers\SessionQrAttendanceController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UsersManagementController;
 use Illuminate\Support\Facades\Route;
@@ -168,6 +169,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('{attendance}', 'update')->name('update');
         });
 
+    Route::get('attendance/scan/{token}', [SessionQrAttendanceController::class, 'show'])->name('attendance.scan.show');
+    Route::post('attendance/scan/{token}', [SessionQrAttendanceController::class, 'store'])->name('attendance.scan.store');
+
     /*
     |--------------------------------------------------------------------------
     | Championships and sessions
@@ -186,6 +190,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store');
             Route::get('{event}', 'show')->name('show');
         });
+
+    Route::post('sessions/{session}/attendance-qr', [SessionQrAttendanceController::class, 'generate'])->name('sessions.attendance-qr.generate');
+    Route::delete('sessions/{session}/attendance-qr', [SessionQrAttendanceController::class, 'revoke'])->name('sessions.attendance-qr.revoke');
 
     Route::prefix('sessions')
         ->name('sessions.')
