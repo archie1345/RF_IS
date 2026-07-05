@@ -11,10 +11,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{
-    isAdmin: boolean;
-    rows: TableRow[];
-}>();
+const props = defineProps<{ isAdmin: boolean; rows: TableRow[] }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: appRoutes.dashboard },
@@ -30,15 +27,25 @@ const columns: TableColumn[] = [
     { key: 'published', label: 'Published' },
 ];
 
-const form = useForm({
-    title: '',
-    message: '',
-    target_role: 'ALL',
-    publish_at: '',
-    expire_at: '',
-});
+const targetRoleOptions = [
+    { value: 'ALL', label: 'Everyone' },
+    { value: 'ADMIN', label: 'Admins only' },
+    { value: 'COACH', label: 'Coaches only' },
+    { value: 'PARENT', label: 'Parents only' },
+    { value: 'ATHLETE', label: 'Athletes only' },
+];
 
-const audienceLabel = computed(() => ({ ALL: 'Everyone', ADMIN: 'Admins only', COACH: 'Coaches only', PARENT: 'Parents only', ATHLETE: 'Athletes only' }[form.target_role] ?? 'Everyone');
+const targetRoleLabels: Record<string, string> = {
+    ALL: 'Everyone',
+    ADMIN: 'Admins only',
+    COACH: 'Coaches only',
+    PARENT: 'Parents only',
+    ATHLETE: 'Athletes only',
+};
+
+const form = useForm({ title: '', message: '', target_role: 'ALL', publish_at: '', expire_at: '' });
+
+const audienceLabel = computed(() => targetRoleLabels[form.target_role] ?? 'Everyone');
 
 function submit() {
     form.post('/announcements', {
@@ -58,13 +65,13 @@ function submit() {
             <PageSection title="Announcements" description="Important club updates, schedules, and reminders in one place." />
 
             <div v-if="props.isAdmin" class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                <PageSection title="Post an announcement" description="Write the message once, choose who should see it, and publish. Scheduling is optional.">
+                <PageSection title="Post an announcement" description="Write the message once, choose the audience, and publish it.">
                     <form class="grid gap-4" @submit.prevent="submit">
-                        <FormInputField id="ann-title" v-model="form.title" label="Title" placeholder="Example: Training schedule update" required :error="form.errors.title" />
-                        <FormSelectField id="ann-target" v-model="form.target_role" label="Who should see this?" :options="[{ value: 'ALL', label: 'Everyone' }, { value: 'ADMIN', label: 'Admins only' }, { value: 'COACH', label: 'Coaches only' }, { value: 'PARENT', label: 'Parents only' }, { value: 'ATHLETE', label: 'Athletes only' }]" required help="Leave this as Everyone unless the message is private to one role." :error="form.errors.target_role" />
+                        <FormInputField id="ann-title" v-model="form.title" label="Title" placeholder="Training schedule update" required :error="form.errors.title" />
+                        <FormSelectField id="ann-target" v-model="form.target_role" label="Audience" :options="targetRoleOptions" required :error="form.errors.target_role" />
                         <div class="grid gap-2">
                             <label for="ann-message" class="text-sm font-medium">Message</label>
-                            <textarea id="ann-message" v-model="form.message" rows="6" required placeholder="Write the announcement exactly as members should read it." class="rounded-2xl border border-input bg-background px-4 py-3 text-sm leading-6 shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/25" />
+                            <textarea id="ann-message" v-model="form.message" rows="6" required placeholder="Write the announcement here." class="rounded-2xl border border-input bg-background px-4 py-3 text-sm leading-6 shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/25" />
                             <p v-if="form.errors.message" class="text-sm text-destructive">{{ form.errors.message }}</p>
                         </div>
                         <details class="rounded-2xl border border-border p-4">
@@ -88,12 +95,12 @@ function submit() {
                             <span class="text-xs text-muted-foreground">{{ form.publish_at ? 'Scheduled' : 'Publish now' }}</span>
                         </div>
                         <h2 class="mt-4 text-2xl font-black">{{ form.title || 'Announcement title' }}</h2>
-                        <p class="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{{ form.message || 'Your announcement message will appear here while you type.' }}</p>
+                        <p class="mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground">{{ form.message || 'Your announcement preview appears here.' }}</p>
                     </div>
                 </section>
             </div>
 
-            <DataTable title="Announcement list" :description="props.isAdmin ? 'Admins see every current, scheduled, and expired announcement.' : 'Only announcements meant for your account are shown here.'" :columns="columns" :rows="props.rows" empty-text="No announcements yet." searchable />
+            <DataTable title="Announcement list" :description="props.isAdmin ? 'Admins see all announcements.' : 'Visible announcements for this account.'" :columns="columns" :rows="props.rows" empty-text="No announcements yet." searchable />
         </div>
     </AppLayout>
 </template>
