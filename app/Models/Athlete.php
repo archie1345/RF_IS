@@ -25,6 +25,7 @@ class Athlete extends Model{
         'bpjs_hash',
         'bpjs_ciphertext',
         'alamat',
+        'school_origin',
         'geup',
         'id',
         'group_id',
