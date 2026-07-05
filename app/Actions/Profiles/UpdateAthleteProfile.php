@@ -36,6 +36,7 @@ class UpdateAthleteProfile
                 'weight_kg' => $data['weight_kg'] ?? 0,
                 'geup' => $data['geup'],
                 'alamat' => $data['alamat'] ?? null,
+                'school_origin' => $data['school_origin'] ?? null,
                 'branch_id' => $branchId,
                 'group_id' => $groupId,
             ];
