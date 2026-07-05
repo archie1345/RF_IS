@@ -27,9 +27,15 @@ class Session extends Model
         'start_time',
         'end_time',
         'status',
+        'attendance_scan_token',
+        'attendance_token_hash',
+        'attendance_opens_at',
+        'attendance_closes_at',
+        'attendance_qr_generated_at',
+        'attendance_qr_revoked_at',
     ];
 
-    protected $dates = ['deleted_at','session_date','start_time','end_time'];
+    protected $dates = ['deleted_at','session_date','start_time','end_time','attendance_opens_at','attendance_closes_at','attendance_qr_generated_at','attendance_qr_revoked_at'];
 
     public function coach()
     {
