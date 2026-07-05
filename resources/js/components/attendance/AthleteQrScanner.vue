@@ -1,17 +1,28 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { nextTick, onBeforeUnmount, ref } from 'vue';
-import { Camera, Loader2, QrCode, XCircle } from 'lucide-vue-next';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
 
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
 const scanner = ref<import('html5-qrcode').Html5Qrcode | null>(null);
+const isPortableDevice = ref(false);
 const isScanning = ref(false);
 const isPosting = ref(false);
 const scannerError = ref<string | null>(null);
 const lastScanUrl = ref<string | null>(null);
 const manualQrUrl = ref('');
+
+function detectPhoneOrTablet() {
+    const agent = window.navigator.userAgent.toLowerCase();
+    const platform = window.navigator.platform.toLowerCase();
+    const hasTouch = window.navigator.maxTouchPoints > 1;
+
+    isPortableDevice.value =
+        /iphone|ipod|ipad|android|tablet|mobile|windows phone|iemobile|blackberry|bb10|opera mini/.test(agent) ||
+        (platform.includes('mac') && hasTouch);
+}
 
 function extractAttendanceScanUrl(value: string): string | null {
     const raw = value.trim();
@@ -32,6 +43,11 @@ function submitScanUrl(url: string) {
     const scanUrl = extractAttendanceScanUrl(url);
     if (!scanUrl) {
         scannerError.value = 'This is not an RF attendance QR code.';
+        return;
+    }
+
+    if (!isPortableDevice.value) {
+        scannerError.value = 'QR attendance can only be scanned from a phone or tablet.';
         return;
     }
 
@@ -62,13 +78,18 @@ function submitScanUrl(url: string) {
 async function startScanner() {
     scannerError.value = null;
 
+    if (!isPortableDevice.value) {
+        scannerError.value = 'QR scan menu is only available on phones and tablets.';
+        return;
+    }
+
     if (!window.isSecureContext) {
         scannerError.value = 'Camera access requires HTTPS. Open the attendance page using https://, not http://.';
         return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        scannerError.value = 'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone, or paste the QR link below.';
+        scannerError.value = 'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone or tablet, or paste the QR link below.';
         return;
     }
 
@@ -93,7 +114,7 @@ async function startScanner() {
         const message = error instanceof Error ? error.message : String(error ?? '');
         scannerError.value = message.toLowerCase().includes('permission') || message.toLowerCase().includes('notallowed')
             ? 'Camera permission was denied. Allow camera access in the browser/site settings, then try again.'
-            : 'Camera could not start. Close other apps using the camera, use a phone browser, or paste the QR link below.';
+            : 'Camera could not start. Close other apps using the camera, use a phone/tablet browser, or paste the QR link below.';
         await stopScanner();
     }
 }
@@ -121,13 +142,15 @@ function submitManualQrUrl() {
     submitScanUrl(manualQrUrl.value);
 }
 
+onMounted(detectPhoneOrTablet);
+
 onBeforeUnmount(() => {
     void stopScanner();
 });
 </script>
 
 <template>
-    <div class="rounded-3xl border bg-muted/40 p-5">
+    <div v-if="isPortableDevice" class="rounded-3xl border bg-muted/40 p-5">
         <div class="flex items-start gap-3">
             <div class="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
                 <QrCode class="size-7" />
@@ -143,7 +166,7 @@ onBeforeUnmount(() => {
             <div :id="scannerElementId" class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
             <div v-if="!isScanning" class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
                 <Camera class="size-10" />
-                <p>Open the scanner, allow camera permission, point your phone at the coach QR, then wait for the saved confirmation.</p>
+                <p>Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for the saved confirmation.</p>
             </div>
         </div>
 
@@ -168,5 +191,14 @@ onBeforeUnmount(() => {
             <XCircle class="mt-0.5 size-4 shrink-0" />
             <span>{{ scannerError }}</span>
         </p>
+    </div>
+
+    <div v-else class="rounded-3xl border bg-muted/40 p-5 text-center">
+        <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <Smartphone class="size-7" />
+        </div>
+        <p class="mt-4 text-xs font-black uppercase tracking-[0.22em] text-muted-foreground">QR scan hidden on desktop</p>
+        <h2 class="mt-1 text-2xl font-black">Use a phone or tablet</h2>
+        <p class="mt-2 text-sm text-muted-foreground">The QR scan menu is intentionally hidden on desktop. Open this attendance page from a phone or tablet to scan.</p>
     </div>
 </template>
