@@ -17,6 +17,8 @@ const props = defineProps<{
         id: number;
         title: string;
         date: string;
+        start_time?: string | null;
+        end_time?: string | null;
         branch: string;
         group: string;
         coach: string;
@@ -106,7 +108,13 @@ function removeCoach(rowId: string) {
                 </template>
             </PageSection>
 
-            <SessionAttendanceQrPanel :session-id="props.session.id" :qr="props.session.attendance_qr" />
+            <SessionAttendanceQrPanel
+                :session-id="props.session.id"
+                :qr="props.session.attendance_qr"
+                :session-date="props.session.date"
+                :session-start-time="props.session.start_time"
+                :session-end-time="props.session.end_time"
+            />
 
             <PageSection
                 title="Coach attendance table"
