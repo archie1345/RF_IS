@@ -4,6 +4,8 @@ export const appRoutes = {
     adminAttendance: '/admin/attendance',
     adminInstructorAttendance: '/admin/instructor-attendance',
     adminPayments: '/admin/payments',
+    adminFinanceIncome: '/admin/finance-income',
+    adminFinanceOutput: '/admin/finance-output',
     adminMonthlyDues: '/admin/monthly-dues',
     adminMembers: '/admin/members',
     adminInstructors: '/admin/instructors',
