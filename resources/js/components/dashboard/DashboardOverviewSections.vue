@@ -6,7 +6,24 @@ import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
 import { appRoutes } from '@/data/routes';
-import type { AppRole, TableRow, AttendanceRow, TrainingDay } from '@/types/resource-table';
+import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
+
+type DashboardAttendanceRow = {
+    id?: number | string;
+    date?: string;
+    session_date?: string;
+    status: string | TableBadgeCell;
+    status_value?: string;
+};
+
+type DashboardTrainingDay = {
+    id: string;
+    date: string;
+    title: string;
+    time: string;
+    branch: string;
+    group: string;
+};
 
 let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -18,8 +35,8 @@ const props = withDefaults(
         profileSummary?: Record<string, string>;
         medalRows?: TableRow[];
         activityPreviewRows?: TableRow[];
-        attendanceRows?: AttendanceRow[];
-        trainingDays?: TrainingDay[];
+        attendanceRows?: DashboardAttendanceRow[];
+        trainingDays?: DashboardTrainingDay[];
         paymentRows?: TableRow[];
     }>(),
     {
@@ -45,7 +62,7 @@ const daysInMonth = computed(() => Array.from({ length: new Date(currentYear.val
 const firstDayOffset = computed(() => new Date(currentYear.value, currentMonth.value, 1).getDay());
 
 const trainingDayMap = computed(() => {
-    const map = new Map<string, TrainingDay[]>();
+    const map = new Map<string, DashboardTrainingDay[]>();
     props.trainingDays.forEach((day) => {
         const sessions = map.get(day.date) ?? [];
         sessions.push(day);
