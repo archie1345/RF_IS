@@ -2,18 +2,19 @@
 
 namespace App\Actions\Sessions;
 
-use App\Models\Athlete;
-use App\Models\Attendance;
+use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
-use App\Support\Domain\AttendanceStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateSession
 {
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility) {}
+    public function __construct(
+        private readonly SessionVisibilityService $sessionVisibility,
+        private readonly InitializeSessionAttendance $initializeAttendance,
+    ) {}
 
     public function handle(User $user, array $validated): array
     {
@@ -30,21 +31,7 @@ class CreateSession
                 $session->assignedCoaches()->syncWithoutDetaching([$validated['coach_id']]);
             }
 
-            $athleteIds = Athlete::query()
-                ->where('branch_id', $session->branch_id)
-                ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
-                ->pluck('athlete_id');
-
-            foreach ($athleteIds as $athleteId) {
-                Attendance::query()->create([
-                    'athlete_id' => $athleteId,
-                    'training_session_id' => $session->training_session_id,
-                    'date' => $session->session_date,
-                    'status' => AttendanceStatus::ABSENT,
-                ]);
-            }
-
-            return [$session, $this->createAbsentAttendanceRows($session)];
+            return [$session, $this->initializeAttendance->handle($session)];
         });
     }
 }

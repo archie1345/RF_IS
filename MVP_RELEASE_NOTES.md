@@ -87,3 +87,11 @@ Use [`MVP_QA_CHECKLIST.md`](MVP_QA_CHECKLIST.md) before demo/deploy.
 - QR codes show the plaintext scan URL only immediately after generation; regenerate if the display token is needed again.
 - CSV import remains a basic admin-only upload flow without advanced column mapping.
 - Production deployments must configure real secrets, database credentials, queue/cache/session drivers, mail delivery, writable storage/cache paths, and public upload storage.
+
+## Final System Flow Readiness Notes
+
+- Attendance sheet loading is now idempotent: opening or refreshing `/sessions/{session}/attendance` creates only missing rows, reuses existing rows, and preserves existing `PRESENT`, `ABSENT`, `LATE`, or `EXCUSED` statuses.
+- QR attendance check-in is duplicate-safe: a pre-created default `ABSENT` row is updated to `PRESENT`, repeated scans return an already-recorded state, and no duplicate attendance rows are created.
+- QR scanning is mobile-first: the scan landing page presents a compact session summary, clear status card, full-width check-in action, and **Done / Back to dashboard** safe exit.
+- Attendance operations now emphasize the business flow: confirm session, generate QR, let athletes scan, monitor rows, and adjust exceptions.
+- Midtrans gateway/webhooks and WhatsApp notification/API/template/scheduling remain postponed. Payments continue to use the manual/internal bill proof review flow.

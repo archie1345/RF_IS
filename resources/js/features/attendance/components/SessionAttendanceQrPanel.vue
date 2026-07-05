@@ -19,6 +19,7 @@ const props = defineProps<{
     sessionDate?: string | null;
     sessionStartTime?: string | null;
     sessionEndTime?: string | null;
+    backHref?: string;
 }>();
 
 type AttendanceQrFlash = {
@@ -79,7 +80,17 @@ function generateQr() {
 }
 
 function revokeQr() {
+    if (!window.confirm('Close this QR window? Athletes will no longer be able to use this code.')) {
+        return;
+    }
+
     router.delete(appRoutes.sessionAttendanceQr(props.sessionId), { preserveScroll: true });
+}
+
+function resetWindow() {
+    form.attendance_opens_at = toDateTimeLocal(props.qr.opens_at);
+    form.attendance_closes_at = toDateTimeLocal(props.qr.closes_at);
+    form.clearErrors();
 }
 
 function copyScanUrl() {
@@ -110,6 +121,17 @@ function toDateTimeLocal(value?: string | null): string {
         title="QR attendance"
         description="Generate a secure one-time-display scan URL for athlete self check-in. Existing records remain visible in the attendance table."
     >
+        <div class="mb-4 rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <p class="font-medium text-foreground">QR flow</p>
+            <p class="mt-1">
+                Generate a window inside the session time, show the QR to athletes, then monitor check-ins in the
+                attendance table below.
+            </p>
+            <p class="mt-1">
+                Session window: {{ props.sessionDate ?? 'Date not set' }} ·
+                {{ props.sessionStartTime ?? 'Start not set' }} - {{ props.sessionEndTime ?? 'End not set' }}
+            </p>
+        </div>
         <form class="grid gap-4 lg:grid-cols-[1fr_auto]" @submit.prevent="generateQr">
             <AttendanceWindowFields
                 :opens-at="form.attendance_opens_at"
@@ -122,11 +144,15 @@ function toDateTimeLocal(value?: string | null): string {
                 @update:opens-at="form.attendance_opens_at = $event"
                 @update:closes-at="form.attendance_closes_at = $event"
             />
-            <div class="flex items-end gap-2">
+            <div class="flex flex-col justify-end gap-2 sm:flex-row lg:flex-col">
                 <Button type="submit" :disabled="form.processing">
                     {{ props.qr.is_active ? 'Regenerate QR' : 'Generate QR' }}
                 </Button>
+                <Button type="button" variant="outline" @click="resetWindow">Reset window</Button>
                 <Button v-if="props.qr.is_active" type="button" variant="outline" @click="revokeQr">Close QR</Button>
+                <Button v-if="props.backHref" as-child type="button" variant="ghost">
+                    <a :href="props.backHref">Back to attendance</a>
+                </Button>
             </div>
         </form>
 
@@ -159,7 +185,15 @@ function toDateTimeLocal(value?: string | null): string {
                 <div class="space-y-2">
                     <p class="text-sm font-medium">Scan URL</p>
                     <p class="rounded bg-muted p-3 text-sm break-all">{{ scanUrl }}</p>
-                    <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
+                    <div class="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
+                        <Button v-if="props.backHref" as-child type="button" variant="secondary">
+                            <a :href="props.backHref">Return to attendance</a>
+                        </Button>
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                        Next: ask athletes to scan this QR with their phone camera and check in.
+                    </p>
                 </div>
             </div>
             <p v-else-if="props.qr.is_active" class="mt-4 text-sm text-muted-foreground">

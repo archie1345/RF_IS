@@ -60,3 +60,40 @@ Use this checklist before demo/deploy. Task names below use domain names first; 
 - Confirm seeded demo accounts can log in locally only; never use demo credentials in production.
 - Confirm uploaded proof/certification/achievement files are visible through the public storage symlink.
 - Confirm `APP_DEBUG=false`, production `APP_URL`, queue/cache/session/mail drivers, and storage permissions before deployment.
+
+## Mobile QR Attendance Regression Checklist
+
+1. Log in as an admin or authorized coach.
+2. Open a training session and then open its attendance sheet.
+3. Refresh the attendance sheet and confirm no duplicate attendance error appears.
+4. Generate a QR window inside the session start/end time.
+5. Scan the QR using a phone camera and open it in the phone browser.
+6. Log in as the athlete if prompted.
+7. Confirm the session summary is readable in portrait mode.
+8. Tap **Check in now** and confirm the success message appears.
+9. Confirm a **Done / Back to dashboard** safe-exit action is visible.
+10. Scan or submit the same QR again and confirm the already-recorded message appears without duplicate rows.
+11. Close/revoke the QR and scan again to confirm the invalid/closed state has a safe exit.
+12. Try an invalid QR window outside the session time and confirm field-level validation errors appear.
+
+## Business Flow QA Checklist
+
+- **Admin:** sessions -> attendance sheet -> QR generation -> monitor attendance -> adjust manual exceptions -> return to sessions.
+- **Coach:** assigned session -> attendance sheet -> QR/check-ins -> mark exceptions -> review session status.
+- **Athlete:** scan QR -> log in if needed -> confirm session -> check in -> success or already-recorded state -> done/back.
+- **Parent:** linked child -> bills/status -> upload proof if needed -> review paid/remaining amount and transaction history.
+- **Payments:** bill -> proof upload -> admin review -> partial/full approval -> transaction history -> completion when remaining amount reaches zero.
+- **CSV:** download template -> fill CSV -> import as admin -> review result -> export data if needed.
+
+## Safe-Exit QA Checklist
+
+- Forms provide **Cancel**, **Back**, or reset behavior before committing changes.
+- Modals can close without saving.
+- Filter-heavy pages provide reset/clear behavior where useful.
+- Upload fields allow selected files to be replaced or cleared before submit.
+- QR scan success/error states provide **Done / Back to dashboard**.
+- Attendance sheet provides **Back to sessions**.
+- QR generation provides **Reset window**, **Close QR** with confirmation, and return-to-attendance actions.
+- Payment upload/review modals provide cancel/close actions.
+- CSV import remains admin-only and should be canceled before upload if the operator is unsure.
+- Destructive actions such as QR close, coach-row deletion, and bulk attendance changes require confirmation.

@@ -30,11 +30,16 @@ class RecordQrAttendance
         $this->validateEligibility($athlete, $session);
 
         return DB::transaction(function () use ($athlete, $session): array {
-            $attendance = Attendance::query()
+            $attendance = Attendance::withTrashed()
                 ->where('athlete_id', $athlete->athlete_id)
                 ->where('training_session_id', $session->training_session_id)
                 ->lockForUpdate()
                 ->first();
+
+            if ($attendance && $attendance->trashed()) {
+                $attendance->restore();
+                $attendance->refresh();
+            }
 
             if ($attendance && $attendance->status === AttendanceStatus::PRESENT) {
                 return [$attendance->refresh(), true];
@@ -46,7 +51,7 @@ class RecordQrAttendance
                 ]);
             }
 
-            $attendance = Attendance::query()->updateOrCreate(
+            $attendance = Attendance::withTrashed()->updateOrCreate(
                 [
                     'athlete_id' => $athlete->athlete_id,
                     'training_session_id' => $session->training_session_id,

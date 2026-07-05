@@ -166,6 +166,33 @@ it('shows a valid scan confirmation page for an eligible athlete', function () {
             ->where('canSubmit', true));
 });
 
+it('updates an existing default absent row during QR check in without inserting a duplicate', function () {
+    [$session, $branch, $group] = makeQrSession();
+    $admin = makeQrUser('admin');
+    [$athleteUser, $athlete] = makeQrAthlete($branch, $group);
+    $token = generateQrForSession($this, $admin, $session);
+
+    Attendance::where('athlete_id', $athlete->athlete_id)
+        ->where('training_session_id', $session->training_session_id)
+        ->update(['status' => AttendanceStatus::ABSENT, 'checked_in_at' => null]);
+
+    $this->actingAs($athleteUser)
+        ->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile')
+        ->post(route('attendance.scan.store', $token))
+        ->assertRedirect()
+        ->assertSessionHas('attendanceScan.status', 'recorded');
+
+    expect(Attendance::where('athlete_id', $athlete->athlete_id)
+        ->where('training_session_id', $session->training_session_id)
+        ->count())->toBe(1);
+
+    $this->assertDatabaseHas('athlete_attendance', [
+        'athlete_id' => $athlete->athlete_id,
+        'training_session_id' => $session->training_session_id,
+        'status' => AttendanceStatus::PRESENT,
+    ]);
+});
+
 it('records QR attendance as present with checked in time and is idempotent', function () {
     [$session, $branch, $group] = makeQrSession();
     $admin = makeQrUser('admin');
