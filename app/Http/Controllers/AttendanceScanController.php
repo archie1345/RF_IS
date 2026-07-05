@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Actions\Attendance\RecordQrAttendance;
 use App\Http\Requests\Attendance\RecordQrAttendanceRequest;
+use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Services\AttendanceQrTokenService;
 use App\Support\ActivityLogger;
 use App\Support\Domain\AttendanceStatus;
+use App\Support\Domain\SessionStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -99,7 +101,7 @@ class AttendanceScanController extends Controller
         ];
     }
 
-    private function scanState(?TrainingSession $session, $athlete, ?Attendance $attendance, bool $deviceAllowed): array
+    private function scanState(?TrainingSession $session, ?Athlete $athlete, ?Attendance $attendance, bool $deviceAllowed): array
     {
         if (! $deviceAllowed) {
             return ['desktop_blocked', 'QR attendance is phone-only. Open this page by scanning the QR with a mobile phone.'];
@@ -109,15 +111,35 @@ class AttendanceScanController extends Controller
             return ['invalid', 'This QR attendance code is invalid or has been closed.'];
         }
 
+        if ($session->status === SessionStatus::CANCELED) {
+            return ['invalid', 'This session has been canceled.'];
+        }
+
+        if ($session->attendance_opens_at && now()->lt($session->attendance_opens_at)) {
+            return ['not_open', 'Attendance has not opened for this session yet.'];
+        }
+
+        if ($session->attendance_closes_at && now()->gt($session->attendance_closes_at)) {
+            return ['closed', 'Attendance is closed for this session.'];
+        }
+
         if (! $athlete) {
             return ['athlete_required', 'Please log in using an athlete account before checking in.'];
+        }
+
+        if ((int) $athlete->branch_id !== (int) $session->branch_id) {
+            return ['not_eligible', 'You are not eligible for this session branch.'];
+        }
+
+        if ($session->group_id !== null && (int) $athlete->group_id !== (int) $session->group_id) {
+            return ['not_eligible', 'You are not eligible for this session group.'];
         }
 
         if ($attendance?->status === AttendanceStatus::PRESENT) {
             return ['already_present', 'You are already checked in for this session.'];
         }
 
-        return ['ready', 'Confirm the session, then tap check in.'];
+        return ['ready', 'Attendance is being saved from this QR.'];
     }
 
     private function isPhone(Request $request): bool
