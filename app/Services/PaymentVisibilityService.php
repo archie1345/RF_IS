@@ -64,8 +64,8 @@ class PaymentVisibilityService
             return false;
         }
 
-        if ($user->isAdmin()) {
-            return true;
+        if ($user->isAdmin() || $user->isCoach()) {
+            return false;
         }
 
         $directUserIds = collect([

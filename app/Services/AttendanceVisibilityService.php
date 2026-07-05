@@ -52,7 +52,7 @@ class AttendanceVisibilityService
             return $query->where(function ($sessionQuery) use ($coachId): void {
                 $sessionQuery->where('coach_id', $coachId);
                 if ($coachId && Schema::hasTable('training_session_coaches')) {
-                    $sessionQuery->orWhereHas('coaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId));
+                    $sessionQuery->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId));
                 }
             });
         }

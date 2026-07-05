@@ -68,6 +68,8 @@ class PaymentController extends Controller
 
         return Inertia::render('PaymentsPage', [
             'isAdmin' => (bool) $user?->isAdmin(),
+            'canSubmitPaymentProof' => (bool) ($user?->isAthlete() || $user?->isParent()),
+            'coachPaymentLimitation' => $user?->isCoach() ? 'Coach payment uploads are hidden. This installation only safely supports coach salary/payment history records, not coach proof uploads.' : null,
             'metrics' => [
                 ['label' => 'Approved payments', 'value' => $this->rupiah((float) $payments->sum('paid_amount')), 'detail' => 'Receipts approved or marked paid', 'tone' => 'success'],
                 ['label' => 'Outstanding balance', 'value' => $this->rupiah((float) $payments->sum('remaining_amount')), 'detail' => 'Still open across all active invoices', 'tone' => 'warning'],

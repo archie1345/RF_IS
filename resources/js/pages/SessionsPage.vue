@@ -208,7 +208,7 @@ function joinSession(row: TableRow) {
                             <Button as-child size="sm" variant="outline">
                                 <Link
                                     :href="`/sessions/${String(row.id).replace('SES-', '')}/attendance`"
-                                    >Open</Link
+                                    >Edit</Link
                                 >
                             </Button>
                             <Button
