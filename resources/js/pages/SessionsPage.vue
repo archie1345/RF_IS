@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle } from 'lucide-vue-next';
 import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -101,17 +100,16 @@ function joinSession(row: TableRow) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <Alert v-if="pendingDeleteSessionId" variant="destructive" class="shadow-sm">
-                <AlertTriangle class="size-4" />
-                <AlertTitle>Delete this session?</AlertTitle>
-                <AlertDescription>
-                    <p>This session will be removed from the training schedule.</p>
-                    <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                        <Button type="button" size="sm" variant="destructive" @click="confirmDeleteSession">Delete session</Button>
-                        <Button type="button" size="sm" variant="outline" @click="cancelDeleteSession">Cancel</Button>
-                    </div>
-                </AlertDescription>
-            </Alert>
+            <AppAlert
+                v-if="pendingDeleteSessionId"
+                tone="danger"
+                title="Delete this session?"
+                description="This session will be removed from the training schedule."
+                :primary-action="{ label: 'Delete session', variant: 'destructive' }"
+                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
+                @primary="confirmDeleteSession"
+                @secondary="cancelDeleteSession"
+            />
 
             <PageSection title="Session" description="Schedule training sessions and keep the live coaching calendar synced.">
                 <template #actions>
