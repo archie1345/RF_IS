@@ -6,21 +6,26 @@ import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
-const props = withDefaults(defineProps<{
-    eyebrow?: string | null;
-    title?: string | null;
-    description?: string | null;
-    createLabel?: string;
-    tableTitle: string;
-    tableDescription: string;
-    columns: TableColumn[];
-    rows: TableRow[];
-    emptyText?: string;
-    actionLabel?: string;
-    showCreate?: boolean;
-}>(), {
-    showCreate: true,
-});
+const props = withDefaults(
+    defineProps<{
+        eyebrow?: string | null;
+        title?: string | null;
+        description?: string | null;
+        createLabel?: string;
+        tableTitle: string;
+        tableDescription: string;
+        columns: TableColumn[];
+        rows: TableRow[];
+        emptyText?: string;
+        actionLabel?: string;
+        showCreate?: boolean;
+        searchable?: boolean;
+        searchPlaceholder?: string;
+    }>(),
+    {
+        showCreate: true,
+    },
+);
 
 defineEmits<{
     create: [];
@@ -55,6 +60,8 @@ const slots = useSlots();
             :rows="props.rows"
             :empty-text="props.emptyText"
             :action-label="props.actionLabel"
+            :searchable="props.searchable"
+            :search-placeholder="props.searchPlaceholder"
         >
             <template #row-actions="{ row }">
                 <slot name="row-actions" :row="row" />

@@ -198,3 +198,138 @@ test('admin can change the person receiving an invoice', function () {
     expect($payment->billable_user_id)->toBe($secondMember->id)
         ->and($payment->athlete_id)->toBeNull();
 });
+
+test('payment proof review rejects zero negative and over approval amounts without changing balance', function () {
+    Storage::fake('public');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $member = User::factory()->create(['role' => 'athlete']);
+    $payment = Payment::create([
+        'bill_kind' => 'INVOICE',
+        'billable_user_id' => $member->id,
+        'payment_type' => 'TUITION',
+        'amount' => 100000,
+        'total_amount' => 100000,
+        'paid_amount' => 0,
+        'remaining_amount' => 100000,
+        'payment_date' => now(),
+        'status' => 'PENDING',
+    ]);
+
+    $submitProof = function () use ($member, $payment) {
+        $this->actingAs($member)
+            ->post(route('payments.proof.submit', $payment), [
+                'notes' => 'Installment receipt',
+                'proof_file' => UploadedFile::fake()->image('receipt.jpg'),
+            ])
+            ->assertRedirect(route('payments.index'));
+
+        $payment->refresh();
+    };
+
+    foreach ([0, -1000, 100001] as $invalidAmount) {
+        $submitProof();
+
+        $this->actingAs($admin)
+            ->from(route('payments.index'))
+            ->put(route('payments.proof.review', $payment), [
+                'decision' => 'APPROVED',
+                'approved_amount' => $invalidAmount,
+                'notes' => 'Invalid approval',
+            ])
+            ->assertSessionHasErrors('approved_amount');
+
+        $payment->refresh();
+        expect((float) $payment->paid_amount)->toBe(0.0)
+            ->and((float) $payment->remaining_amount)->toBe(100000.0)
+            ->and(PaymentTransaction::query()->count())->toBe(0);
+
+        $payment->update([
+            'proof_status' => 'NONE',
+            'proof_path' => null,
+            'proof_notes' => null,
+        ]);
+    }
+});
+
+test('second partial payment approval can complete the bill', function () {
+    Storage::fake('public');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $member = User::factory()->create(['role' => 'athlete']);
+    $payment = Payment::create([
+        'bill_kind' => 'INVOICE',
+        'billable_user_id' => $member->id,
+        'payment_type' => 'TUITION',
+        'amount' => 100000,
+        'total_amount' => 100000,
+        'paid_amount' => 0,
+        'remaining_amount' => 100000,
+        'payment_date' => now(),
+        'status' => 'PENDING',
+    ]);
+
+    foreach ([50000, 50000] as $amount) {
+        $this->actingAs($member)
+            ->post(route('payments.proof.submit', $payment), [
+                'notes' => 'Installment receipt',
+                'proof_file' => UploadedFile::fake()->image('receipt.jpg'),
+            ])
+            ->assertRedirect(route('payments.index'));
+
+        $this->actingAs($admin)
+            ->put(route('payments.proof.review', $payment), [
+                'decision' => 'APPROVED',
+                'approved_amount' => $amount,
+                'notes' => 'Approved installment',
+            ])
+            ->assertRedirect(route('payments.index'));
+
+        $payment->refresh();
+    }
+
+    expect($payment->status)->toBe('COMPLETED')
+        ->and($payment->proof_status)->toBe('APPROVED')
+        ->and((float) $payment->paid_amount)->toBe(100000.0)
+        ->and((float) $payment->remaining_amount)->toBe(0.0)
+        ->and(PaymentTransaction::query()->where('payment_id', $payment->payment_id)->count())->toBe(2);
+});
+
+test('rejected payment proof does not increase paid amount or create transaction', function () {
+    Storage::fake('public');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $member = User::factory()->create(['role' => 'athlete']);
+    $payment = Payment::create([
+        'bill_kind' => 'INVOICE',
+        'billable_user_id' => $member->id,
+        'payment_type' => 'TUITION',
+        'amount' => 100000,
+        'total_amount' => 100000,
+        'paid_amount' => 0,
+        'remaining_amount' => 100000,
+        'payment_date' => now(),
+        'status' => 'PENDING',
+    ]);
+
+    $this->actingAs($member)
+        ->post(route('payments.proof.submit', $payment), [
+            'notes' => 'Unclear receipt',
+            'proof_file' => UploadedFile::fake()->image('unclear-receipt.jpg'),
+        ])
+        ->assertRedirect(route('payments.index'));
+
+    $this->actingAs($admin)
+        ->put(route('payments.proof.review', $payment), [
+            'decision' => 'REJECTED',
+            'notes' => 'Amount does not match this bill',
+        ])
+        ->assertRedirect(route('payments.index'));
+
+    $payment->refresh();
+
+    expect($payment->proof_status)->toBe('REJECTED')
+        ->and((float) $payment->paid_amount)->toBe(0.0)
+        ->and((float) $payment->remaining_amount)->toBe(100000.0)
+        ->and(PaymentTransaction::query()->where('payment_id', $payment->payment_id)->count())->toBe(0);
+});

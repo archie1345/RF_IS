@@ -65,8 +65,8 @@ function makeQrAthlete(Branch $branch, Group $group, array $overrides = []): arr
 function generateQrForSession(mixed $testCase, User $user, TrainingSession $session, array $overrides = []): string
 {
     $response = $testCase->actingAs($user)->post(route('sessions.attendance-qr.store', $session), array_merge([
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ], $overrides));
 
     $response->assertRedirect();
@@ -202,19 +202,23 @@ it('rejects invalid, early, closed, and canceled scans', function () {
         ->post(route('attendance.scan.store', 'invalid-token'))
         ->assertNotFound();
 
-    $earlyToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->addHour()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHours(2)->toDateTimeString(),
+    $session->update([
+        'session_date' => now()->toDateString(),
+        'start_time' => now()->addHour()->format('H:i:s'),
+        'end_time' => now()->addHours(2)->format('H:i:s'),
     ]);
+    $earlyToken = generateQrForSession($this, $admin, $session);
 
     $this->actingAs($athleteUser)
         ->post(route('attendance.scan.store', $earlyToken))
         ->assertSessionHasErrors('attendance');
 
-    $closedToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subHours(2)->toDateTimeString(),
-        'attendance_closes_at' => now()->subHour()->toDateTimeString(),
+    $session->update([
+        'session_date' => now()->toDateString(),
+        'start_time' => now()->subHours(2)->format('H:i:s'),
+        'end_time' => now()->subHour()->format('H:i:s'),
     ]);
+    $closedToken = generateQrForSession($this, $admin, $session);
 
     $this->actingAs($athleteUser)
         ->post(route('attendance.scan.store', $closedToken))
@@ -222,8 +226,8 @@ it('rejects invalid, early, closed, and canceled scans', function () {
 
     $session->update(['status' => SessionStatus::CANCELED]);
     $canceledToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ]);
 
     $this->actingAs($athleteUser)
@@ -266,8 +270,8 @@ it('does not overwrite locked non-present attendance through QR scans', function
     ]);
 
     $token = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ]);
 
     $this->actingAs($athleteUser)

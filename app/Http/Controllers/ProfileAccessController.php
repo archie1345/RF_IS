@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Actions\Profiles\SaveUserCertification;
 use App\Actions\Profiles\UpdateAccountProfile;
 use App\Actions\Profiles\UpdateAthleteProfile;
 use App\Actions\Profiles\UpdateUserAccount;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Profiles\SaveUserAchievementRequest;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
@@ -20,9 +20,9 @@ use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
+use App\Services\ParentChildContextService;
 use App\Support\ActivityLogger;
 use App\Support\Profile\ProfilePageData;
-use App\Services\ParentChildContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -35,8 +35,7 @@ class ProfileAccessController extends Controller
     public function __construct(
         private readonly ProfilePageData $profilePageData,
         private readonly ParentChildContextService $childContext,
-    ) {
-    }
+    ) {}
 
     public function usersIndex(Request $request): Response
     {
@@ -98,7 +97,9 @@ class ProfileAccessController extends Controller
                     'account_email' => $user->email ?? '-',
                     'parent' => $athlete?->parent?->user?->name ?? 'Not linked',
                     'branch' => $athlete?->branch?->branch_name ?? 'Unassigned',
+                    'branch_id' => $athlete?->branch_id,
                     'group' => $athlete?->group?->group_name ?? 'Unassigned',
+                    'group_id' => $athlete?->group_id,
                     'height_cm' => $athlete?->height_cm !== null ? number_format((float) $athlete->height_cm, 1).' cm' : '-',
                     'weight_kg' => $athlete?->weight_kg !== null ? number_format((float) $athlete->weight_kg, 1).' kg' : '-',
                     'nik' => $canViewSensitiveIdentifiers ? ($athlete?->displayValue('nik') ?? 'Not stored') : null,
@@ -293,5 +294,4 @@ class ProfileAccessController extends Controller
             ->where('athletes.athlete_id', $athlete->athlete_id)
             ->exists();
     }
-
 }

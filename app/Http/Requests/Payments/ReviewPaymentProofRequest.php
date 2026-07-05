@@ -17,7 +17,7 @@ class ReviewPaymentProofRequest extends FormRequest
         return [
             'decision' => ['required', Rule::in(['APPROVED', 'REJECTED'])],
             'notes' => ['nullable', 'string'],
-            'approved_amount' => ['nullable', 'numeric', 'min:0'],
+            'approved_amount' => ['nullable', 'numeric', 'gt:0'],
         ];
     }
 }
