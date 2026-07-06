@@ -28,10 +28,33 @@ class ReviewPaymentProof
             return $this->approve($payment, $reviewer, $validated);
         }
 
-        return DB::transaction(function () use ($payment, $validated): Payment {
+        return DB::transaction(function () use ($payment, $reviewer, $validated): Payment {
+            $previousPaymentStatus = $payment->status ?? PaymentStatus::PENDING;
+            $previousProofStatus = $payment->proof_status ?? PaymentStatus::PROOF_NONE;
+            $reviewedProofPath = $payment->proof_path;
+            $submittedProofNotes = $payment->proof_notes;
+
+            PaymentTransaction::query()->create([
+                'payment_id' => $payment->payment_id,
+                'verified_by' => $reviewer->id,
+                'amount' => 0,
+                'transaction_date' => now(),
+                'transaction_type' => PaymentTransaction::TYPE_PROOF_REJECTED,
+                'payment_method' => 'PROOF_REVIEW',
+                'notes' => collect([
+                    'Proof rejected.',
+                    'Previous payment status: '.$previousPaymentStatus.'.',
+                    'Previous proof status: '.$previousProofStatus.'.',
+                    filled($validated['notes'] ?? null) ? 'Admin note: '.$validated['notes'] : null,
+                ])->filter()->implode("\n"),
+                'proof_path' => $reviewedProofPath,
+                'proof_notes' => $submittedProofNotes,
+            ]);
+
             $payment->update([
                 'proof_status' => PaymentStatus::PROOF_REJECTED,
                 'proof_notes' => $validated['notes'] ?? null,
+                'proof_path' => $reviewedProofPath,
             ]);
 
             return $payment->refresh();
@@ -59,8 +82,10 @@ class ReviewPaymentProof
         $newRemaining = max($total - $newPaid, 0);
         $reviewedProofPath = $payment->proof_path;
         $submittedProofNotes = $payment->proof_notes;
+        $previousPaymentStatus = $payment->status ?? PaymentStatus::PENDING;
+        $previousProofStatus = $payment->proof_status ?? PaymentStatus::PROOF_NONE;
 
-        return DB::transaction(function () use ($payment, $reviewer, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes): Payment {
+        return DB::transaction(function () use ($payment, $reviewer, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes, $previousPaymentStatus, $previousProofStatus): Payment {
             PaymentTransaction::query()->create([
                 'payment_id' => $payment->payment_id,
                 'verified_by' => $reviewer->id,
@@ -68,7 +93,7 @@ class ReviewPaymentProof
                 'transaction_date' => now(),
                 'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
                 'payment_method' => $this->paymentRows->extractCollectionMethod($payment->notes),
-                'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes),
+                'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes, $previousPaymentStatus, $previousProofStatus, $newRemaining),
                 'proof_path' => $reviewedProofPath,
                 'proof_notes' => $submittedProofNotes,
             ]);
@@ -86,10 +111,14 @@ class ReviewPaymentProof
         });
     }
 
-    private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes): string
+    private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes, string $previousPaymentStatus, string $previousProofStatus, float $newRemaining): string
     {
         return collect([
-            filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved',
+            'Proof approved.',
+            'Previous payment status: '.$previousPaymentStatus.'.',
+            'Previous proof status: '.$previousProofStatus.'.',
+            'New payment state: '.($newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING).'.',
+            filled($adminNotes) ? 'Admin note: '.$adminNotes : null,
             filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
         ])->filter()->implode("\n");
     }
