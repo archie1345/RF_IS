@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Download, Plus, RefreshCcw, Search } from 'lucide-vue-next';
 import { computed } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -16,6 +16,13 @@ type WeeklySession = {
     date?: string;
 };
 
+type BillingSettings = {
+    invoice_day: number;
+    invoice_time: string;
+    default_amount: string;
+    is_active: boolean;
+};
+
 const props = withDefaults(
     defineProps<{
         mode: string;
@@ -27,6 +34,7 @@ const props = withDefaults(
         emptyText?: string;
         roleAccess?: string;
         todaySessions?: WeeklySession[];
+        billingSettings?: BillingSettings | null;
     }>(),
     {
         metrics: () => [],
@@ -35,6 +43,7 @@ const props = withDefaults(
         emptyText: 'Tidak ada data',
         roleAccess: 'Admin only',
         todaySessions: () => [],
+        billingSettings: null,
     },
 );
 
@@ -42,6 +51,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: props.title, href: `/admin/${props.mode}` },
 ];
+
+const billingForm = useForm({
+    invoice_day: props.billingSettings?.invoice_day ?? 1,
+    invoice_time: props.billingSettings?.invoice_time ?? '01:10',
+    default_amount: props.billingSettings?.default_amount ?? '150000',
+    is_active: props.billingSettings?.is_active ?? true,
+});
 
 const dayCards = [
     { id: 1, name: 'Senin', sub: 'Monday' },
@@ -70,8 +86,20 @@ function generateMonthlyDues() {
     router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true });
 }
 
+function saveBillingSettings() {
+    billingForm.post('/admin/monthly-dues/settings', { preserveScroll: true });
+}
+
 function generateWeeklySessions() {
     router.post('/admin/schedules/generate-week', {}, { preserveScroll: true });
+}
+
+function isExternalUrl(value: unknown): value is string {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function linkLabel(value: string) {
+    return value.includes('wa.me') ? 'Open WA' : 'Open';
 }
 </script>
 
@@ -109,6 +137,35 @@ function generateWeeklySessions() {
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
+
+            <section v-if="props.mode === 'monthly-dues' && props.billingSettings" class="rounded-xl border bg-card p-5 shadow-sm">
+                <div class="mb-4">
+                    <h3 class="text-xl font-black">Pengaturan tagihan otomatis</h3>
+                    <p class="text-sm text-muted-foreground">Atur kapan iuran bulanan dibuat, nominal default, dan apakah generator otomatis aktif.</p>
+                </div>
+                <form class="grid gap-4 md:grid-cols-5 md:items-end" @submit.prevent="saveBillingSettings">
+                    <label class="grid gap-2 text-sm font-semibold">
+                        Tanggal tagihan
+                        <input v-model="billingForm.invoice_day" type="number" min="1" max="28" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <span v-if="billingForm.errors.invoice_day" class="text-xs text-destructive">{{ billingForm.errors.invoice_day }}</span>
+                    </label>
+                    <label class="grid gap-2 text-sm font-semibold">
+                        Jam pengecekan
+                        <input v-model="billingForm.invoice_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <span v-if="billingForm.errors.invoice_time" class="text-xs text-destructive">{{ billingForm.errors.invoice_time }}</span>
+                    </label>
+                    <label class="grid gap-2 text-sm font-semibold">
+                        Nominal default
+                        <input v-model="billingForm.default_amount" type="number" min="0" step="1000" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <span v-if="billingForm.errors.default_amount" class="text-xs text-destructive">{{ billingForm.errors.default_amount }}</span>
+                    </label>
+                    <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
+                        <input v-model="billingForm.is_active" type="checkbox" /> Aktif
+                    </label>
+                    <Button type="submit" :disabled="billingForm.processing">{{ billingForm.processing ? 'Menyimpan...' : 'Simpan jadwal' }}</Button>
+                </form>
+                <p class="mt-3 text-xs text-muted-foreground">Scheduler server tetap harus berjalan. Command akan membuat tagihan hanya pada tanggal yang dipilih dan tidak membuat duplikat.</p>
+            </section>
 
             <section v-if="props.mode === 'weekly-schedule'" class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -162,7 +219,10 @@ function generateWeeklySessions() {
                                 <td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td>
                             </tr>
                             <tr v-for="(row, index) in props.rows" :key="index" class="border-b hover:bg-muted/40">
-                                <td v-for="column in props.columns" :key="column" class="px-3 py-3">{{ row[column] ?? '-' }}</td>
+                                <td v-for="column in props.columns" :key="column" class="px-3 py-3">
+                                    <a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a>
+                                    <span v-else>{{ row[column] ?? '-' }}</span>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
