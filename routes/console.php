@@ -19,4 +19,4 @@ Artisan::command('activity-logs:prune {--days=90}', function () {
 })->purpose('Delete old activity logs to reduce storage usage');
 
 Schedule::command('activity-logs:prune --days=90')->dailyAt('02:00');
-Schedule::command('tuition:generate-monthly')->monthlyOn(1, '01:10');
+Schedule::command('tuition:generate-monthly')->dailyAt('01:10');
