@@ -11,7 +11,6 @@ use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Payment;
 use App\Models\TrainingSession;
-use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
@@ -39,7 +38,7 @@ class DashboardController extends Controller
             'attendanceRows' => $this->attendanceRows($request, $role),
             'trainingDays' => $this->trainingDays($request, $role),
             'paymentRows' => $this->paymentRows($request, $role),
-            'medalRows' => $this->medalRows(),
+            'medalRows' => $this->beltDistributionRows(),
             'profileSummary' => $this->profileSummary($request, $role),
             'children' => $children,
             'activeChild' => $activeChild,
@@ -231,19 +230,20 @@ class DashboardController extends Controller
         ])->values()->all();
     }
 
-    private function medalRows(): array
+    private function beltDistributionRows(): array
     {
-        $counts = UserAchievement::query()
-            ->selectRaw('medal, COUNT(*) as total')
-            ->whereIn('medal', ['GOLD', 'SILVER', 'BRONZE'])
-            ->groupBy('medal')
-            ->pluck('total', 'medal');
-
-        return [
-            ['id' => 'MED-gold', 'type' => 'Gold', 'count' => (string) ($counts['GOLD'] ?? 0)],
-            ['id' => 'MED-silver', 'type' => 'Silver', 'count' => (string) ($counts['SILVER'] ?? 0)],
-            ['id' => 'MED-bronze', 'type' => 'Bronze', 'count' => (string) ($counts['BRONZE'] ?? 0)],
-        ];
+        return Athlete::query()
+            ->selectRaw("COALESCE(NULLIF(TRIM(geup), ''), 'Belum diisi') as belt, COUNT(*) as total")
+            ->groupBy('belt')
+            ->orderBy('belt')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => 'BELT-'.str($row->belt)->slug()->upper(),
+                'type' => $row->belt,
+                'count' => (string) $row->total,
+            ])
+            ->values()
+            ->all();
     }
 
     private function profileSummary(Request $request, string $role): array
