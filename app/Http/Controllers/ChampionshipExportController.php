@@ -33,7 +33,7 @@ class ChampionshipExportController extends Controller
                     $registration->classification ?? '',
                     $registration->division ?? '',
                     $registration->class_name ?: $registration->category,
-                    $registration->team_contingent ?: 'rhino fighter',
+                    $registration->team_contingent ?: 'Rhino Fighter',
                     $athlete?->displayValue('nik_ciphertext') ?? '',
                     $athlete?->school_origin ?? '',
                     $user?->phone ?? '',
