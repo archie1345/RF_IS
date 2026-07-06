@@ -75,7 +75,7 @@ class ChampionshipController extends Controller
             'canManageCoaches' => $user?->isAdmin() || $user?->isCoach(),
             'canRecordResult' => $user?->isAdmin() || $user?->isCoach(),
             'event' => ['id' => $event->event_id, 'name' => $event->e_name, 'date' => Carbon::parse($event->e_date)->format('d M Y'), 'location' => $event->location ?? '-', 'gmaps_url' => $event->gmaps_url, 'entry_fee' => (float) $event->entry_fee, 'status' => $event->status],
-            'athleteRows' => $event->registrations->map(fn (EventRegistration $registration) => ['id' => 'ATHREG-'.$registration->evrid, 'registration_id' => $registration->evrid, 'athlete_user_id' => $registration->athlete?->user?->id, 'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete', 'category' => $registration->category, 'classification' => $registration->classification ?? '-', 'class_name' => $registration->class_name ?? '-', 'division' => $registration->division ?? '-', 'team_contingent' => $registration->team_contingent ?? 'rhino fighter', 'status' => $registration->status])->values(),
+            'athleteRows' => $event->registrations->map(fn (EventRegistration $registration) => ['id' => 'ATHREG-'.$registration->evrid, 'registration_id' => $registration->evrid, 'athlete_user_id' => $registration->athlete?->user?->id, 'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete', 'category' => $registration->category, 'classification' => $registration->classification ?? '-', 'class_name' => $registration->class_name ?? '-', 'division' => $registration->division ?? '-', 'team_contingent' => $registration->team_contingent ?? 'Rhino Fighter', 'status' => $registration->status])->values(),
             'coachRows' => $event->coachRegistrations->map(fn (EventCoachRegistration $registration) => ['id' => 'COAREG-'.$registration->id, 'coach' => $registration->coach?->user?->name ?? 'Unknown coach', 'role' => $registration->role ?? '-'])->values(),
             'coachOptions' => Coach::query()->with('user:id,name')->where('status', 'active')->get()->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])->values(),
         ]);
@@ -101,7 +101,7 @@ class ChampionshipController extends Controller
             if (! in_array((string) $validated['athlete_id'], $childIds, true)) return back()->withErrors(['athlete_id' => 'Parent can only register linked children.']);
         }
         if ($event->registrations_count >= $event->max_slots) return back()->withErrors(['event_id' => 'This championship has reached its maximum slot capacity.']);
-        $registration = EventRegistration::create(['athlete_id' => $validated['athlete_id'], 'event_id' => $validated['event_id'], 'category' => $validated['category'], 'classification' => $validated['classification'] ?? null, 'class_name' => $validated['class_name'] ?? null, 'division' => $validated['division'] ?? null, 'team_contingent' => $validated['team_contingent'] ?: 'rhino fighter', 'status' => 'PENDING']);
+        $registration = EventRegistration::create(['athlete_id' => $validated['athlete_id'], 'event_id' => $validated['event_id'], 'category' => $validated['category'], 'classification' => $validated['classification'] ?? null, 'class_name' => $validated['class_name'] ?? null, 'division' => $validated['division'] ?? null, 'team_contingent' => $validated['team_contingent'] ?: 'Rhino Fighter', 'status' => 'PENDING']);
         Payment::query()->firstOrCreate(['reference_id' => $registration->evrid], ['athlete_id' => $registration->athlete_id, 'billable_user_id' => $registration->athlete?->id, 'bill_kind' => 'INVOICE', 'payment_type' => 'CHAMPIONSHIP', 'amount' => (float) $event->entry_fee, 'total_amount' => (float) $event->entry_fee, 'paid_amount' => 0, 'remaining_amount' => (float) $event->entry_fee, 'payment_date' => now()->toDateString(), 'status' => 'PENDING', 'notes' => 'Event registration #'.$registration->evrid]);
         ActivityLogger::log($request, 'event.registration.created', 'event', 'Created event registration', $registration, ['event_id' => $registration->event_id, 'athlete_id' => $registration->athlete_id]);
         return redirect()->route('championships.index');
@@ -111,7 +111,7 @@ class ChampionshipController extends Controller
     {
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
         $validated = $request->validate($this->registrationRules(false));
-        $validated['team_contingent'] = $validated['team_contingent'] ?: 'rhino fighter';
+        $validated['team_contingent'] = $validated['team_contingent'] ?: 'Rhino Fighter';
         $registration->update($validated);
         return back();
     }
