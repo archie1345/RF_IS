@@ -3,22 +3,40 @@
 namespace App\Console\Commands;
 
 use App\Models\Athlete;
+use App\Models\BillingSetting;
 use App\Models\Payment;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 class GenerateMonthlyTuitionBills extends Command
 {
-    protected $signature = 'tuition:generate-monthly {--month=} {--amount=}';
+    protected $signature = 'tuition:generate-monthly {--month=} {--amount=} {--force}';
 
     protected $description = 'Generate monthly tuition invoices for active athletes.';
 
     public function handle(): int
     {
+        $setting = BillingSetting::monthlyTuition();
+        $now = now();
+
+        if (! $this->option('force')) {
+            if (! $setting->is_active) {
+                $this->info('Monthly tuition generation is disabled.');
+
+                return self::SUCCESS;
+            }
+
+            if ((int) $now->day !== (int) $setting->invoice_day) {
+                $this->info('Monthly tuition generation is not scheduled for today.');
+
+                return self::SUCCESS;
+            }
+        }
+
         $month = $this->option('month')
             ? Carbon::parse((string) $this->option('month'))->startOfMonth()
-            : now()->startOfMonth();
-        $amount = (float) ($this->option('amount') ?: config('rf.tuition_monthly_amount', env('TUITION_MONTHLY_AMOUNT', 150000)));
+            : $now->startOfMonth();
+        $amount = (float) ($this->option('amount') ?: $setting->default_amount ?: 150000);
 
         if ($amount <= 0) {
             $this->error('Tuition amount must be greater than zero.');
