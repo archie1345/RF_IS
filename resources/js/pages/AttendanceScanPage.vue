@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { CheckCircle2, Loader2, QrCode, ShieldCheck, Smartphone, XCircle } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -53,6 +54,7 @@ const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
 const hasSaved = computed(() => props.state === 'already_present' || scanFlash.value?.status === 'recorded' || scanFlash.value?.status === 'already_recorded');
 const blockingError = computed(() => autoSubmitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
+const canRecordNow = computed(() => props.canSubmit && props.deviceAllowed && !hasSaved.value && !isSubmitting.value);
 
 const stepState = computed(() => {
     if (!props.deviceAllowed) return 'blocked';
@@ -75,13 +77,17 @@ const headline = computed(() => {
 
 const statusMessage = computed(() => scanFlash.value?.message ?? blockingError.value ?? props.message ?? 'Hold on while we verify your QR attendance.');
 
-function autoRecordAttendance() {
-    if (!props.canSubmit || hasSaved.value || attemptedAutoSubmit.value || isSubmitting.value) {
+function recordAttendance(manual = false) {
+    if (!props.canSubmit || hasSaved.value || isSubmitting.value) {
+        if (manual && !props.canSubmit) {
+            autoSubmitError.value = props.message ?? 'Attendance cannot be saved from this QR yet.';
+        }
         return;
     }
 
     attemptedAutoSubmit.value = true;
     isSubmitting.value = true;
+    autoSubmitError.value = null;
 
     router.post(
         `/attendance/scan/${props.token}`,
@@ -98,9 +104,20 @@ function autoRecordAttendance() {
     );
 }
 
+function autoRecordAttendance() {
+    if (attemptedAutoSubmit.value || !canRecordNow.value) {
+        return;
+    }
+
+    recordAttendance(false);
+}
+
 onMounted(() => {
-    window.setTimeout(autoRecordAttendance, 450);
+    window.setTimeout(autoRecordAttendance, 250);
+    window.setTimeout(autoRecordAttendance, 1000);
 });
+
+watch(() => props.canSubmit, () => autoRecordAttendance());
 </script>
 
 <template>
@@ -140,6 +157,11 @@ onMounted(() => {
                         </div>
                     </div>
 
+                    <Button v-if="canRecordNow" type="button" class="rounded-2xl" :disabled="isSubmitting" @click="recordAttendance(true)">
+                        <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
+                        {{ isSubmitting ? 'Saving attendance...' : 'Save attendance now' }}
+                    </Button>
+
                     <section v-if="props.session" class="rounded-3xl border bg-background p-4">
                         <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Training session</p>
                         <h2 class="mt-1 text-xl font-black">{{ props.session.title }}</h2>
@@ -157,7 +179,7 @@ onMounted(() => {
                         <p v-if="props.athlete?.current_status" class="mt-1 text-sm text-muted-foreground">Current status: {{ props.athlete.current_status }}</p>
                         <div class="mt-4 flex items-start gap-3 rounded-2xl bg-muted/70 p-3 text-xs text-muted-foreground">
                             <ShieldCheck class="mt-0.5 size-4 shrink-0" />
-                            <p>No manual attendance button is shown here. Valid phone QR links are saved automatically after verification.</p>
+                            <p>No manual attendance button is shown here. The save action only appears after a valid QR link is verified for this athlete and session.</p>
                         </div>
                     </section>
 
