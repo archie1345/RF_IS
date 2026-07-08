@@ -133,11 +133,11 @@ class AttendanceScanController extends Controller
             return ['athlete_required', 'Please log in using an athlete account before checking in.'];
         }
 
-        if ((int) $athlete->branch_id !== (int) $session->branch_id) {
+        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             return ['not_eligible', 'You are not eligible for this session branch.'];
         }
 
-        if ($session->group_id !== null && (int) $athlete->group_id !== (int) $session->group_id) {
+        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
             return ['not_eligible', 'You are not eligible for this session group.'];
         }
 
