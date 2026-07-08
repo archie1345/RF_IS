@@ -33,30 +33,39 @@ class RecordQrAttendance
                 ->lockForUpdate()
                 ->first();
 
-            if ($attendance && $attendance->trashed()) {
+            if (! $attendance) {
+                $attendance = Attendance::withTrashed()
+                    ->where('athlete_id', $athlete->athlete_id)
+                    ->whereDate('date', $session->session_date)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            $alreadyRecorded = $attendance?->status === AttendanceStatus::PRESENT
+                && (int) $attendance?->training_session_id === (int) $session->training_session_id;
+
+            if (! $attendance) {
+                $attendance = new Attendance();
+                $attendance->athlete_id = $athlete->athlete_id;
+            }
+
+            if ($attendance->trashed()) {
                 $attendance->restore();
                 $attendance->refresh();
             }
 
-            if ($attendance && $attendance->status === AttendanceStatus::PRESENT) {
-                return [$attendance->refresh(), true];
+            if (! $alreadyRecorded) {
+                $attendance->training_session_id = $session->training_session_id;
+                $attendance->date = $session->session_date;
+                $attendance->status = AttendanceStatus::PRESENT;
+                $attendance->checked_in_at = now();
+                $attendance->notes = trim((string) $attendance->notes) !== ''
+                    ? $attendance->notes
+                    : 'Recorded from QR attendance.';
+                $attendance->save();
             }
 
-            // QR attendance is the source of truth while a QR window is active.
-            // Do not block a valid phone scan just because a default ABSENT row was already created.
-            $attendance = Attendance::withTrashed()->updateOrCreate(
-                [
-                    'athlete_id' => $athlete->athlete_id,
-                    'training_session_id' => $session->training_session_id,
-                ],
-                [
-                    'date' => $session->session_date,
-                    'status' => AttendanceStatus::PRESENT,
-                    'checked_in_at' => now(),
-                ],
-            );
-
-            return [$attendance->refresh(), false];
+            return [$attendance->refresh(), $alreadyRecorded];
         });
     }
 
