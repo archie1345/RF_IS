@@ -32,7 +32,13 @@ class AttendanceScanController extends Controller
         $attendance = $session && $athlete
             ? Attendance::query()
                 ->where('athlete_id', $athlete->athlete_id)
-                ->where('training_session_id', $session->training_session_id)
+                ->where(function ($query) use ($session): void {
+                    $query->where('training_session_id', $session->training_session_id)
+                        ->orWhere(function ($legacyQuery) use ($session): void {
+                            $legacyQuery->whereNull('training_session_id')
+                                ->whereDate('date', $session->session_date);
+                        });
+                })
                 ->first()
             : null;
         $deviceAllowed = $this->isPhoneOrTablet($request);
