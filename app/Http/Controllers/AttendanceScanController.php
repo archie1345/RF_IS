@@ -14,6 +14,7 @@ use App\Support\Domain\SessionStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,20 +30,37 @@ class AttendanceScanController extends Controller
         $session = $this->tokens->findActiveSessionByToken($token);
         $user = $request->user();
         $athlete = $user?->athleteProfile;
-        $attendance = $session && $athlete
-            ? Attendance::query()
-                ->where('athlete_id', $athlete->athlete_id)
-                ->where(function ($query) use ($session): void {
-                    $query->where('training_session_id', $session->training_session_id)
-                        ->orWhere(function ($legacyQuery) use ($session): void {
-                            $legacyQuery->whereNull('training_session_id')
-                                ->whereDate('date', $session->session_date);
-                        });
-                })
-                ->first()
-            : null;
+        $attendance = $this->findAttendance($session, $athlete);
         $deviceAllowed = $this->isPhoneOrTablet($request);
         [$state, $message] = $this->scanState($session, $athlete, $attendance, $deviceAllowed);
+        $scanResult = null;
+
+        if ($state === 'ready' && $session instanceof TrainingSession && $user) {
+            try {
+                [$attendance, $alreadyRecorded] = $this->recordQrAttendance->handle($user, $session);
+
+                ActivityLogger::log(
+                    $request,
+                    $alreadyRecorded ? 'attendance_qr.duplicate' : 'attendance_qr.recorded',
+                    'attendance',
+                    $alreadyRecorded ? 'QR attendance was already recorded' : 'Recorded QR attendance check-in',
+                    $attendance,
+                    ['session_id' => $session->training_session_id, 'athlete_id' => $attendance->athlete_id],
+                );
+
+                $scanResult = [
+                    'status' => $alreadyRecorded ? 'already_recorded' : 'recorded',
+                    'message' => $alreadyRecorded ? 'Attendance was already recorded.' : 'Attendance recorded successfully.',
+                ];
+                [$state, $message] = ['already_present', $scanResult['message']];
+            } catch (ValidationException $exception) {
+                $scanResult = [
+                    'status' => 'failed',
+                    'message' => collect($exception->errors())->flatten()->first() ?? 'Unable to save attendance from this QR.',
+                ];
+                [$state, $message] = ['invalid', $scanResult['message']];
+            }
+        }
 
         return Inertia::render('AttendanceScanPage', [
             'token' => $token,
@@ -56,7 +74,8 @@ class AttendanceScanController extends Controller
                 'current_status' => $attendance?->status,
             ] : null,
             'currentStatus' => $attendance?->status,
-            'canSubmit' => $state === 'ready',
+            'canSubmit' => false,
+            'scanResult' => $scanResult,
         ]);
     }
 
@@ -84,6 +103,24 @@ class AttendanceScanController extends Controller
             'status' => $alreadyRecorded ? 'already_recorded' : 'recorded',
             'message' => $alreadyRecorded ? 'Attendance was already recorded.' : 'Attendance recorded successfully.',
         ]);
+    }
+
+    private function findAttendance(?TrainingSession $session, ?Athlete $athlete): ?Attendance
+    {
+        if (! $session || ! $athlete) {
+            return null;
+        }
+
+        return Attendance::query()
+            ->where('athlete_id', $athlete->athlete_id)
+            ->where(function ($query) use ($session): void {
+                $query->where('training_session_id', $session->training_session_id)
+                    ->orWhere(function ($legacyQuery) use ($session): void {
+                        $legacyQuery->whereNull('training_session_id')
+                            ->whereDate('date', $session->session_date);
+                    });
+            })
+            ->first();
     }
 
     private function sessionPayload(TrainingSession $session): array
