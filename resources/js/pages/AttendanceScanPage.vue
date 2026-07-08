@@ -52,7 +52,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
 const hasSaved = computed(() => props.state === 'already_present' || scanFlash.value?.status === 'recorded' || scanFlash.value?.status === 'already_recorded');
-const blockingError = computed(() => autoSubmitError.value ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
+const blockingError = computed(() => autoSubmitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
 
 const stepState = computed(() => {
     if (!props.deviceAllowed) return 'blocked';
