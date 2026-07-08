@@ -22,7 +22,7 @@ const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(
 const scanner = ref<Html5QrScannerInstance | null>(null);
 const isPortableDevice = ref(false);
 const isScanning = ref(false);
-const isPosting = ref(false);
+const isOpening = ref(false);
 const scannerError = ref<string | null>(null);
 const lastScanUrl = ref<string | null>(null);
 const manualQrUrl = ref('');
@@ -43,7 +43,7 @@ function extractAttendanceScanUrl(value: string): string | null {
 
     try {
         const parsed = new URL(raw, window.location.origin);
-        const match = parsed.pathname.match(/^\/attendance\/scan\/([^/]+)$/);
+        const match = parsed.pathname.match(/^\/attendance\/scan\/([^/]+)\/?$/);
         if (!match?.[1]) return null;
         return appRoutes.attendanceScan(match[1]);
     } catch {
@@ -52,7 +52,7 @@ function extractAttendanceScanUrl(value: string): string | null {
     }
 }
 
-function submitScanUrl(url: string) {
+async function openScanUrl(url: string) {
     const scanUrl = extractAttendanceScanUrl(url);
     if (!scanUrl) {
         scannerError.value = 'This is not an RF attendance QR code.';
@@ -64,28 +64,22 @@ function submitScanUrl(url: string) {
         return;
     }
 
-    if (lastScanUrl.value === scanUrl || isPosting.value) return;
+    if (lastScanUrl.value === scanUrl || isOpening.value) return;
     lastScanUrl.value = scanUrl;
-    isPosting.value = true;
-    void stopScanner();
+    isOpening.value = true;
+    scannerError.value = null;
+    await stopScanner();
 
-    router.post(
-        scanUrl,
-        {},
-        {
-            preserveScroll: true,
-            onError: (errors) => {
-                scannerError.value = Object.values(errors)[0] ?? 'Attendance could not be saved from this QR.';
-                lastScanUrl.value = null;
-            },
-            onSuccess: () => {
-                scannerError.value = null;
-            },
-            onFinish: () => {
-                isPosting.value = false;
-            },
+    router.visit(scanUrl, {
+        preserveScroll: false,
+        onError: (errors) => {
+            scannerError.value = Object.values(errors)[0] ?? 'Attendance QR page could not be opened.';
+            lastScanUrl.value = null;
         },
-    );
+        onFinish: () => {
+            isOpening.value = false;
+        },
+    });
 }
 
 async function loadHtml5QrCode(): Promise<Html5QrCodeConstructor> {
@@ -125,7 +119,7 @@ async function startScanner() {
                 qrbox: { width: 240, height: 240 },
                 aspectRatio: 1,
             },
-            (decodedText: string) => submitScanUrl(decodedText),
+            (decodedText: string) => void openScanUrl(decodedText),
             () => undefined,
         );
 
@@ -159,7 +153,7 @@ async function stopScanner() {
 }
 
 function submitManualQrUrl() {
-    submitScanUrl(manualQrUrl.value);
+    void openScanUrl(manualQrUrl.value);
 }
 
 onMounted(detectPhoneOrTablet);
@@ -178,7 +172,7 @@ onBeforeUnmount(() => {
             <div>
                 <p class="text-xs font-black uppercase tracking-[0.22em] text-blue-600">QR scan menu</p>
                 <h2 class="mt-1 text-2xl font-black">Scan coach QR inside this page</h2>
-                <p class="mt-2 text-sm text-muted-foreground">Stay logged in as the athlete. Scan the coach QR here and attendance will save automatically.</p>
+                <p class="mt-2 text-sm text-muted-foreground">Stay logged in as the athlete. Scan the coach QR here. The secure attendance page will open, verify eligibility, then save automatically.</p>
             </div>
         </div>
 
@@ -186,17 +180,17 @@ onBeforeUnmount(() => {
             <div :id="scannerElementId" class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
             <div v-if="!isScanning" class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
                 <Camera class="size-10" />
-                <p>Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for the saved confirmation.</p>
+                <p>Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for the attendance page.</p>
             </div>
         </div>
 
         <div class="mt-4 grid gap-2 sm:grid-cols-2">
-            <Button v-if="!isScanning" type="button" :disabled="isPosting" @click="startScanner">
-                <Loader2 v-if="isPosting" class="mr-2 size-4 animate-spin" />
+            <Button v-if="!isScanning" type="button" :disabled="isOpening" @click="startScanner">
+                <Loader2 v-if="isOpening" class="mr-2 size-4 animate-spin" />
                 Start scan
             </Button>
             <Button v-else type="button" variant="outline" @click="stopScanner">Stop scan</Button>
-            <Button type="button" variant="outline" :disabled="isPosting" @click="submitManualQrUrl">Use pasted link</Button>
+            <Button type="button" variant="outline" :disabled="isOpening" @click="submitManualQrUrl">Use pasted link</Button>
         </div>
 
         <input
