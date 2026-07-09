@@ -69,6 +69,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('locations', [AdminFeatureController::class, 'locations'])->name('locations');
         Route::get('classes', [AdminFeatureController::class, 'classes'])->name('classes');
         Route::get('schedules', [AdminFeatureController::class, 'weeklySchedules'])->name('schedules');
+        Route::post('schedules', [AdminFeatureController::class, 'storeWeeklySchedule'])->name('schedules.store');
         Route::post('schedules/generate-week', [AdminFeatureController::class, 'generateWeeklySessions'])->name('schedules.generate-week');
         Route::get('daily-schedules', [AdminFeatureController::class, 'dailySchedules'])->name('daily-schedules');
         Route::get('periodic-stats', [AdminFeatureController::class, 'periodicStats'])->name('periodic-stats');
