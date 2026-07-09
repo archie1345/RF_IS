@@ -49,10 +49,6 @@ return new class extends Migration
             $this->dropColumnsIfPresent('payment_transactions', ['payid']);
         }
 
-        if (Schema::hasColumn('activity_logs', 'actor_user_id')) {
-            $this->dropColumnsIfPresent('activity_logs', ['id']);
-        }
-
         $this->dropColumnsIfPresent('class_groups', ['capacity']);
     }
 
