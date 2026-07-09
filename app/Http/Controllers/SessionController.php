@@ -193,6 +193,8 @@ class SessionController extends Controller
                 'athlete' => $row->athlete?->user?->name ?? 'Unknown athlete',
                 'status' => $this->attendanceBadge((string) $row->status),
             ])->values(),
+            'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
+            'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
             'coachRows' => $coachAttendance->map(fn (CoachAttendance $row) => [
                 'id' => 'SCA-'.$row->coach_attendance_id,
                 'coach' => $row->coach?->user?->name ?? 'Unknown coach',
