@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Download, MapPin, Pencil, Plus, RefreshCcw, Search, Trash2, X } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Pencil, Plus, RefreshCcw, Search, Trash2, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -15,7 +15,7 @@ type WeeklySchedule = { id: number; title: string; branch: string; group: string
 type SelectOption = { value: string | number; label: string };
 type BillingSettings = { invoice_day: number; invoice_time: string; default_amount: string; is_active: boolean };
 type ManagedLocation = { id: number; name: string; location?: string | null; address?: string | null; city?: string | null; province?: string | null; latitude?: string | number | null; longitude?: string | number | null; attendance_radius_meters: number; timezone?: string | null; is_active: boolean; groups_count?: number };
-type ManagedClass = { id: number; name: string; class_type: string; coach_id?: string | null; coach: string; branch_id?: number | string | null; branch: string; day_of_week: number; schedule: string; time: string; start_time: string; end_time: string; capacity: number; athletes_count: number; min_belt?: string | null; description?: string | null; is_active: boolean };
+type ManagedClass = { id: number; name: string; class_type: string; coach_id?: string | null; coach: string; branch_id?: number | string | null; branch: string; day_of_week: number; schedule: string; time: string; start_time: string; end_time: string; athletes_count: number; min_belt?: string | null; description?: string | null; is_active: boolean };
 
 const props = withDefaults(
     defineProps<{
@@ -33,12 +33,25 @@ const props = withDefaults(
         branchOptions?: SelectOption[];
         groupOptions?: SelectOption[];
         coachOptions?: SelectOption[];
+        beltOptions?: SelectOption[];
         locations?: ManagedLocation[];
         classes?: ManagedClass[];
     }>(),
     {
-        metrics: () => [], columns: () => [], rows: () => [], emptyText: 'Tidak ada data', roleAccess: 'Admin only', todaySessions: () => [], billingSettings: null,
-        weeklySchedules: () => [], branchOptions: () => [], groupOptions: () => [], coachOptions: () => [], locations: () => [], classes: () => [],
+        metrics: () => [],
+        columns: () => [],
+        rows: () => [],
+        emptyText: 'Tidak ada data',
+        roleAccess: 'Admin only',
+        todaySessions: () => [],
+        billingSettings: null,
+        weeklySchedules: () => [],
+        branchOptions: () => [],
+        groupOptions: () => [],
+        coachOptions: () => [],
+        beltOptions: () => [],
+        locations: () => [],
+        classes: () => [],
     },
 );
 
@@ -48,8 +61,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const dayCards = [
-    { id: 1, name: 'Senin', sub: 'Monday' }, { id: 2, name: 'Selasa', sub: 'Tuesday' }, { id: 3, name: 'Rabu', sub: 'Wednesday' },
-    { id: 4, name: 'Kamis', sub: 'Thursday' }, { id: 5, name: 'Jumat', sub: 'Friday' }, { id: 6, name: 'Sabtu', sub: 'Saturday' }, { id: 7, name: 'Minggu', sub: 'Sunday' },
+    { id: 1, name: 'Senin' },
+    { id: 2, name: 'Selasa' },
+    { id: 3, name: 'Rabu' },
+    { id: 4, name: 'Kamis' },
+    { id: 5, name: 'Jumat' },
+    { id: 6, name: 'Sabtu' },
+    { id: 7, name: 'Minggu' },
 ];
 
 const showLocationForm = ref(false);
@@ -57,21 +75,16 @@ const showClassForm = ref(false);
 const editingLocationId = ref<number | null>(null);
 const editingClassId = ref<number | null>(null);
 
-const billingForm = useForm({ invoice_day: props.billingSettings?.invoice_day ?? 1, invoice_time: props.billingSettings?.invoice_time ?? '01:10', default_amount: props.billingSettings?.default_amount ?? '150000', is_active: props.billingSettings?.is_active ?? true });
+const billingForm = useForm({
+    invoice_day: props.billingSettings?.invoice_day ?? 1,
+    invoice_time: props.billingSettings?.invoice_time ?? '01:10',
+    default_amount: props.billingSettings?.default_amount ?? '150000',
+    is_active: props.billingSettings?.is_active ?? true,
+});
+
 const weeklyForm = useForm({ title: '', branch_id: '', group_id: '', coach_id: '', day_of_week: 1, start_time: '', end_time: '', location: '', is_active: true });
 const locationForm = useForm({ name: '', location: '', address: '', city: '', province: '', latitude: '-6.2088', longitude: '106.8456', attendance_radius_meters: 100, timezone: 'Asia/Jakarta', is_active: true });
-const classForm = useForm({ name: '', class_type: 'Beginner', coach_id: '', branch_id: '', day_of_week: 1, capacity: 20, start_time: '16:00', end_time: '18:00', min_belt: '10th Geup - White Belt', description: '', is_active: true });
-
-const sessionsByDay = computed(() => {
-    const grouped = new Map<number, WeeklySession[]>();
-    props.todaySessions.forEach((session) => {
-        if (!session.date) return;
-        const day = new Date(`${session.date}T00:00:00`).getDay();
-        const mondayFirstDay = day === 0 ? 7 : day;
-        grouped.set(mondayFirstDay, [...(grouped.get(mondayFirstDay) ?? []), session]);
-    });
-    return grouped;
-});
+const classForm = useForm({ name: '', class_type: 'Beginner', coach_id: '', branch_id: '', day_of_week: 1, start_time: '16:00', end_time: '18:00', min_belt: props.beltOptions[0]?.value ?? '', description: '', is_active: true });
 
 const weeklySchedulesByDay = computed(() => {
     const grouped = new Map<number, WeeklySchedule[]>();
@@ -132,10 +145,9 @@ function openClassForm(item?: ManagedClass) {
     classForm.coach_id = item?.coach_id ?? '';
     classForm.branch_id = item?.branch_id === null || item?.branch_id === undefined ? '' : String(item.branch_id);
     classForm.day_of_week = item?.day_of_week ?? 1;
-    classForm.capacity = item?.capacity ?? 20;
     classForm.start_time = item?.start_time ?? '16:00';
     classForm.end_time = item?.end_time ?? '18:00';
-    classForm.min_belt = item?.min_belt ?? '10th Geup - White Belt';
+    classForm.min_belt = item?.min_belt ?? props.beltOptions[0]?.value ?? '';
     classForm.description = item?.description ?? '';
     classForm.is_active = item?.is_active ?? true;
     showClassForm.value = true;
@@ -167,7 +179,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                         <Button v-if="props.mode === 'weekly-schedule'" type="button" size="sm" @click="generateWeeklySessions"><Plus class="mr-2 size-4" /> Generate sesi minggu ini</Button>
                         <Button v-if="props.mode === 'locations'" type="button" size="sm" @click="openLocationForm()"><Plus class="mr-2 size-4" /> Tambah Lokasi</Button>
                         <Button v-if="props.mode === 'classes'" type="button" size="sm" @click="openClassForm()"><Plus class="mr-2 size-4" /> Tambah Kelas</Button>
-                        <Button v-if="['finance-income', 'finance-output', 'payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm"><Link href="/payments">Open Payment Center</Link></Button>
+                        <Button v-if="['payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm"><Link href="/payments">Payment Center</Link></Button>
                         <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" /> Refresh</Button>
                     </div>
                 </template>
@@ -204,14 +216,15 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[920px] text-sm">
-                        <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Kelas</th><th class="px-3 py-3 font-black">Instruktur</th><th class="px-3 py-3 font-black">Jadwal</th><th class="px-3 py-3 font-black">Kapasitas</th><th class="px-3 py-3 font-black">Status</th><th class="px-3 py-3 font-black">Aksi</th></tr></thead>
+                        <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Kelas</th><th class="px-3 py-3 font-black">Instruktur</th><th class="px-3 py-3 font-black">Jadwal</th><th class="px-3 py-3 font-black">Peserta</th><th class="px-3 py-3 font-black">Minimal Sabuk</th><th class="px-3 py-3 font-black">Status</th><th class="px-3 py-3 font-black">Aksi</th></tr></thead>
                         <tbody>
-                            <tr v-if="props.classes.length === 0"><td colspan="6" class="h-36 px-3 text-center text-muted-foreground">Tidak ada data kelas</td></tr>
+                            <tr v-if="props.classes.length === 0"><td colspan="7" class="h-36 px-3 text-center text-muted-foreground">Tidak ada data kelas</td></tr>
                             <tr v-for="item in props.classes" :key="item.id" class="border-b hover:bg-muted/40">
                                 <td class="px-3 py-4"><p class="font-black">{{ item.name }}</p><span class="rounded-full border border-blue-400 px-2 py-0.5 text-xs font-bold text-blue-600">{{ item.class_type }}</span><p class="mt-1 text-xs text-muted-foreground"><MapPin class="mr-1 inline size-3" />{{ item.branch }}</p></td>
                                 <td class="px-3 py-4 text-muted-foreground">{{ item.coach }}</td>
                                 <td class="px-3 py-4"><p class="font-bold">{{ item.schedule }}</p><p class="text-xs text-muted-foreground">{{ item.time }}</p></td>
-                                <td class="px-3 py-4">{{ item.capacity }} Orang <span class="text-xs text-muted-foreground">({{ item.athletes_count }} terdaftar)</span></td>
+                                <td class="px-3 py-4">{{ item.athletes_count }} terdaftar</td>
+                                <td class="px-3 py-4">{{ item.min_belt ?? '-' }}</td>
                                 <td class="px-3 py-4"><span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span></td>
                                 <td class="px-3 py-4"><div class="flex gap-2"><Button size="sm" variant="ghost" @click="openClassForm(item)"><Pencil class="size-4 text-blue-500" /></Button><Button size="sm" variant="ghost" @click="deleteClass(item)"><Trash2 class="size-4 text-red-500" /></Button></div></td>
                             </tr>
@@ -249,7 +262,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
 
             <section v-else class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="props.rows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in props.rows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
+                <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="props.rows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in props.rows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="whitespace-pre-line px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
             </section>
 
             <FormModal :open="showLocationForm" max-width-class="max-w-3xl" @close="showLocationForm = false">
@@ -272,9 +285,8 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                     <div class="flex items-start justify-between"><h3 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas Baru' }}</h3><Button type="button" variant="ghost" size="sm" @click="showClassForm = false"><X class="size-4" /></Button></div>
                     <label class="grid gap-1 text-sm font-semibold">Nama Kelas *<input v-model="classForm.name" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Tipe Kelas<select v-model="classForm.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></label><label class="grid gap-1 text-sm font-semibold">Instruktur<select v-model="classForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih instruktur</option><option v-for="option in props.coachOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Hari<select v-model="classForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label><label class="grid gap-1 text-sm font-semibold">Maksimal Peserta<input v-model="classForm.capacity" type="number" min="1" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
+                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Hari<select v-model="classForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label><label class="grid gap-1 text-sm font-semibold">Minimal Sabuk<select v-model="classForm.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Tanpa minimal</option><option v-for="option in props.beltOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Jam Mulai *<input v-model="classForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Jam Selesai *<input v-model="classForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
-                    <label class="grid gap-1 text-sm font-semibold">Minimal Sabuk<input v-model="classForm.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                     <label class="grid gap-1 text-sm font-semibold">Lokasi Latihan<select v-model="classForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih lokasi latihan</option><option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
                     <label class="grid gap-1 text-sm font-semibold">Deskripsi<textarea v-model="classForm.description" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm" /></label>
                     <label class="grid gap-1 text-sm font-semibold">Status<select v-model="classForm.is_active" class="h-10 rounded-lg border bg-background px-3 text-sm"><option :value="true">Aktif</option><option :value="false">Nonaktif</option></select></label>
