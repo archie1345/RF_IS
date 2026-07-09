@@ -27,6 +27,7 @@ const emit = defineEmits<{
             type="datetime-local"
             required
             :error="props.opensAtError"
+            help="Must be at or after the session start and before the session ends."
             @update:model-value="emit('update:opensAt', $event)"
         />
         <FormInputField
@@ -36,6 +37,7 @@ const emit = defineEmits<{
             type="datetime-local"
             required
             :error="props.closesAtError"
+            help="Must be after opening time and no later than the session end."
             @update:model-value="emit('update:closesAt', $event)"
         />
     </div>
