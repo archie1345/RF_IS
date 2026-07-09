@@ -168,8 +168,6 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                         <Button v-if="props.mode === 'locations'" type="button" size="sm" @click="openLocationForm()"><Plus class="mr-2 size-4" /> Tambah Lokasi</Button>
                         <Button v-if="props.mode === 'classes'" type="button" size="sm" @click="openClassForm()"><Plus class="mr-2 size-4" /> Tambah Kelas</Button>
                         <Button v-if="['finance-income', 'finance-output', 'payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm"><Link href="/payments">Open Payment Center</Link></Button>
-                        <Button v-if="['members', 'instructors', 'events'].includes(props.mode)" size="sm"><Plus class="mr-2 size-4" /> Tambah</Button>
-                        <Button v-if="['attendance', 'instructor-attendance', 'payments', 'monthly-dues', 'members', 'instructors', 'daily-schedules', 'finance-income', 'finance-output'].includes(props.mode)" variant="outline" size="sm"><Download class="mr-2 size-4" /> Export Excel</Button>
                         <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" /> Refresh</Button>
                     </div>
                 </template>

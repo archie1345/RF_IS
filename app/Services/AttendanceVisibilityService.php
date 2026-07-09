@@ -87,7 +87,7 @@ class AttendanceVisibilityService
         }
 
         if ($user->isAthlete()) {
-            return false;
+            return (string) $attendance->athlete_id === (string) $user->athleteProfile?->athlete_id;
         }
 
         return false;
