@@ -6,10 +6,8 @@ import {
     CreditCard,
     FileClock,
     LayoutGrid,
-    TrendingDown,
     Trophy,
     Users,
-    WalletCards,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -46,18 +44,13 @@ const roles = computed<AppRole[]>(() => {
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
-    { title: 'Presensi Siswa', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
-    { title: 'Presensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
-    { title: 'Konfirmasi Iuran', href: appRoutes.adminPayments, icon: CreditCard },
-    { title: 'Keuangan Masuk', href: appRoutes.adminFinanceIncome, icon: CreditCard },
-    { title: 'Keuangan Keluar', href: appRoutes.adminFinanceOutput, icon: CreditCard },
-    { title: 'Input Iuran', href: appRoutes.adminMonthlyDues, icon: WalletCards },
+    { title: 'Presensi Atlet', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
+    { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
+    { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
     { title: 'Manajemen User', href: appRoutes.users, icon: Users },
     { title: 'Manajemen Latihan', href: appRoutes.adminTrainingManagement, icon: CalendarDays },
     { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
     { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
-    { title: 'Jadwal Pertandingan', href: appRoutes.adminEventSchedule, icon: CalendarDays },
-    { title: 'Laporan & Analitik', href: appRoutes.adminPeriodicStats, icon: TrendingDown },
     { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
     { title: 'Pengumuman', href: appRoutes.announcements, icon: FileClock },
     { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
