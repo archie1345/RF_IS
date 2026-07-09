@@ -12,7 +12,6 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,10 +27,7 @@ class TrainingManagementController extends Controller
         $weekStart = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
         $weekEnd = $request->date('to')?->endOfDay() ?? $weekStart->copy()->endOfWeek();
 
-        $branches = Branch::query()
-            ->withCount(['groups', 'athletes'])
-            ->orderBy('branch_name')
-            ->get();
+        $branches = Branch::query()->withCount(['groups', 'athletes'])->orderBy('branch_name')->get();
 
         $weeklySchedules = WeeklyTrainingSchedule::query()
             ->with(['branch', 'group', 'coach.user'])
@@ -42,14 +38,10 @@ class TrainingManagementController extends Controller
 
         $scheduleByGroup = $weeklySchedules->whereNotNull('group_id')->keyBy('group_id');
 
-        $groups = Group::query()
-            ->with(['branch', 'coach.user'])
-            ->withCount('athletes')
-            ->orderBy('group_name')
-            ->get();
+        $groups = Group::query()->with(['branch', 'coach.user'])->withCount('athletes')->orderBy('group_name')->get();
 
         $sessions = TrainingSession::query()
-            ->with(['branch', 'group', 'primaryCoach.user', 'weeklySchedule'])
+            ->with(['branch', 'group', 'primaryCoach.user', 'weeklyTrainingSchedule'])
             ->whereBetween('session_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
             ->where('status', '!=', 'CANCELED')
             ->orderBy('session_date')
@@ -62,10 +54,7 @@ class TrainingManagementController extends Controller
             'canManageStructure' => $canManageStructure,
             'canManageSchedule' => $canManageSchedule,
             'currentCoachId' => $coachId,
-            'weekRange' => [
-                'from' => $weekStart->toDateString(),
-                'to' => $weekEnd->toDateString(),
-            ],
+            'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],
             'branches' => $branches->map(fn (Branch $branch) => [
                 'id' => $branch->branch_id,
                 'name' => $branch->branch_name,
@@ -144,8 +133,7 @@ class TrainingManagementController extends Controller
     public function storeSchedule(Request $request): RedirectResponse
     {
         $this->authorizeScheduleWrite($request);
-        $validated = $this->validatedSchedule($request);
-        $validated = $this->normalizeScheduleForUser($request, $validated);
+        $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
         WeeklyTrainingSchedule::query()->create($validated);
         ActivityLogger::log($request, 'training_schedule.created', 'training', 'Created weekly training schedule', null, ['title' => $validated['title']]);
@@ -156,8 +144,7 @@ class TrainingManagementController extends Controller
     public function updateSchedule(Request $request, WeeklyTrainingSchedule $schedule): RedirectResponse
     {
         abort_unless($this->canManageSchedule($request, $schedule), 403);
-        $validated = $this->validatedSchedule($request);
-        $validated = $this->normalizeScheduleForUser($request, $validated);
+        $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
         $schedule->update($validated);
         ActivityLogger::log($request, 'training_schedule.updated', 'training', 'Updated weekly training schedule', $schedule, ['title' => $schedule->title]);
