@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Sessions\GenerateWeeklyTrainingSessions;
 use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\BillingSetting;
@@ -11,6 +12,7 @@ use App\Models\Event;
 use App\Models\Group;
 use App\Models\Payment;
 use App\Models\TrainingSession;
+use App\Models\WeeklyTrainingSchedule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -183,42 +185,83 @@ class AdminFeatureController extends Controller
     public function weeklySchedules(Request $request): Response
     {
         $this->authorizeAdmin($request);
-        $sessions = TrainingSession::query()->whereBetween('session_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])->where('status', '!=', 'CANCELED')->get();
+        $sessions = TrainingSession::query()
+            ->whereBetween('session_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])
+            ->where('status', '!=', 'CANCELED')
+            ->get();
+        $weeklySchedules = WeeklyTrainingSchedule::query()
+            ->with(['branch', 'group', 'coach.user'])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
 
         return Inertia::render('AdminFeaturePage', [
             'mode' => 'weekly-schedule',
             'title' => 'Jadwal Mingguan',
-            'subtitle' => 'Jadwal latihan rutin RTFCM. Generate minggu ini membuat session aktual dari pola latihan sebelumnya.',
+            'subtitle' => 'Jadwal latihan rutin RTFCM. Scheduler otomatis membuat training session aktual dari template mingguan aktif.',
             'metrics' => [
+                ['label' => 'Template Aktif', 'value' => (string) $weeklySchedules->where('is_active', true)->count(), 'tone' => 'success'],
                 ['label' => 'Sesi Minggu Ini', 'value' => (string) $sessions->count(), 'tone' => 'info'],
-                ['label' => 'Hari Latihan', 'value' => (string) $sessions->pluck('session_date')->unique()->count(), 'tone' => 'success'],
-                ['label' => 'Sesi Hari Ini', 'value' => (string) $sessions->where('session_date', now()->toDateString())->count(), 'tone' => 'warning'],
+                ['label' => 'Hari Latihan', 'value' => (string) $sessions->pluck('session_date')->unique()->count(), 'tone' => 'warning'],
+                ['label' => 'Sesi Hari Ini', 'value' => (string) $sessions->where('session_date', now()->toDateString())->count(), 'tone' => 'danger'],
             ],
-            'columns' => [], 'rows' => [], 'emptyText' => '', 'roleAccess' => 'Admin only',
+            'columns' => [],
+            'rows' => [],
+            'emptyText' => '',
+            'roleAccess' => 'Admin only',
             'todaySessions' => $sessions->map(fn (TrainingSession $session) => ['title' => $session->title, 'time' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5), 'location' => $session->location ?? 'RTFCM', 'date' => Carbon::parse((string) $session->session_date)->format('Y-m-d')])->values(),
             'billingSettings' => null,
+            'weeklySchedules' => $weeklySchedules->map(fn (WeeklyTrainingSchedule $schedule) => [
+                'id' => $schedule->weekly_training_schedule_id,
+                'title' => $schedule->title,
+                'branch' => $schedule->branch?->branch_name ?? '-',
+                'group' => $schedule->group?->group_name ?? 'All groups',
+                'coach' => $schedule->coach?->user?->name ?? '-',
+                'day_of_week' => $schedule->day_of_week,
+                'time' => substr((string) $schedule->start_time, 0, 5).' - '.substr((string) $schedule->end_time, 0, 5),
+                'location' => $schedule->location ?? $schedule->branch?->location ?? '-',
+                'is_active' => (bool) $schedule->is_active,
+            ])->values(),
+            'branchOptions' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
+            'groupOptions' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
+            'coachOptions' => Coach::query()
+                ->with('user:id,name')
+                ->orderBy('coach_id')
+                ->get()
+                ->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
+                ->values(),
         ]);
     }
 
-    public function generateWeeklySessions(Request $request): RedirectResponse
+    public function storeWeeklySchedule(Request $request): RedirectResponse
     {
         $this->authorizeAdmin($request);
-        $created = 0;
-        $templates = TrainingSession::query()->whereBetween('session_date', [now()->subWeeks(2)->toDateString(), now()->subDay()->toDateString()])->where('status', '!=', 'CANCELED')->get()->groupBy(fn (TrainingSession $s) => Carbon::parse((string) $s->session_date)->dayOfWeek);
-        foreach ($templates as $dayOfWeek => $items) {
-            $date = now()->startOfWeek()->addDays(((int) $dayOfWeek + 6) % 7)->toDateString();
-            foreach ($items->take(3) as $template) {
-                $exists = TrainingSession::query()->whereDate('session_date', $date)->where('start_time', $template->start_time)->where('group_id', $template->group_id)->exists();
-                if ($exists) continue;
-                $copy = $template->replicate(['attendance_token_hash', 'attendance_opens_at', 'attendance_closes_at', 'attendance_qr_generated_at', 'attendance_qr_revoked_at']);
-                $copy->session_date = $date;
-                $copy->status = 'CONFIRMED';
-                $copy->save();
-                $created++;
-            }
-        }
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'branch_id' => ['required', 'exists:branches,branch_id'],
+            'group_id' => ['nullable', 'exists:class_groups,group_id'],
+            'coach_id' => ['nullable', 'exists:coaches,coach_id'],
+            'day_of_week' => ['required', 'integer', 'between:1,7'],
+            'start_time' => ['required', 'date_format:H:i'],
+            'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['boolean'],
+        ]);
 
-        return back()->with('status', "Generated {$created} weekly sessions.");
+        WeeklyTrainingSchedule::query()->create([
+            ...$validated,
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ]);
+
+        return back()->with('status', 'Weekly training schedule saved. The scheduler will generate dated sessions automatically.');
+    }
+
+    public function generateWeeklySessions(Request $request, GenerateWeeklyTrainingSessions $generator): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+        $result = $generator->handle(now()->startOfWeek(), now()->endOfWeek());
+
+        return back()->with('status', "Generated {$result['created']} weekly sessions. Skipped {$result['skipped']} duplicates.");
     }
 
     public function dailySchedules(Request $request): Response { $this->authorizeAdmin($request); $sessionsToday = TrainingSession::whereDate('session_date', now()->toDateString())->where('status', '!=', 'CANCELED')->count(); return $this->renderFeature('Jadwal Latihan Harian', 'Pantau pelaksanaan kelas dan kehadiran anggota di seluruh unit hari ini.', [['label' => 'Total Kelas', 'value' => (string) $sessionsToday, 'tone' => 'info'], ['label' => 'Kelas Berjalan', 'value' => '0', 'tone' => 'success'], ['label' => 'Siswa Terlibat', 'value' => (string) Attendance::whereDate('date', now()->toDateString())->count(), 'tone' => 'warning'], ['label' => 'Pelatih Hadir', 'value' => '0', 'tone' => 'danger']], ['Waktu Sesi', 'Nama Kelas & Tipe', 'Pelatih (Check-in)', 'Siswa Hadir', 'Status'], 'Tidak ada sesi hari ini.', 'daily-schedules'); }
