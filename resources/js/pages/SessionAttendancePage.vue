@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
+import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
@@ -13,8 +15,6 @@ import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAt
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
-import FormInputField from '@/components/forms/FormInputField.vue';
-import FormModal from '@/components/shared/FormModal.vue';
 
 const props = defineProps<{
     branches: SelectOption[];
@@ -25,6 +25,10 @@ const props = defineProps<{
         date: string;
         start_time?: string | null;
         end_time?: string | null;
+        branch_id?: string | number | null;
+        group_id?: string | number | null;
+        location?: string | null;
+        status?: string | null;
         branch: string;
         group: string;
         coach: string;
@@ -125,8 +129,15 @@ function resetCoachForm() {
     coachForm.clearErrors();
 }
 
-function openCreateSessionForm() {
-    form.reset();
+function openEditSessionForm() {
+    form.title = props.session.title;
+    form.branch_id = props.session.branch_id === null || props.session.branch_id === undefined ? '' : String(props.session.branch_id);
+    form.group_id = props.session.group_id === null || props.session.group_id === undefined ? '' : String(props.session.group_id);
+    form.location = props.session.location ?? '';
+    form.session_date = props.session.date;
+    form.start_time = props.session.start_time ?? '';
+    form.end_time = props.session.end_time ?? '';
+    form.status = props.session.status ?? 'DRAFT';
     form.clearErrors();
     showSessionForm.value = true;
 }
@@ -138,15 +149,13 @@ function cancelForm() {
 }
 
 function openQrPanelForm() {
-    form.reset();
-    form.clearErrors();
     openQrPanel.value = true;
 }
 
 function submit() {
-    form.post('/sessions', {
+    form.put(`/sessions/${props.session.id}`, {
+        preserveScroll: true,
         onSuccess: () => {
-            form.reset();
             showSessionForm.value = false;
         },
     });
@@ -188,11 +197,9 @@ function submit() {
                     <div class="flex flex-wrap gap-2">
                         <Button type="button" variant="outline" @click="requestBulkUpdate('PRESENT')">Mark all present</Button>
                         <Button type="button" variant="outline" @click="requestBulkUpdate('ABSENT')">Mark all absent</Button>
-                        <!-- <Button as-child variant="outline">
-                            <a href="/sessions">Back to sessions</a>
-                        </Button> -->
-                        <Button type="button" @click="openCreateSessionForm">Edit session</Button>
+                        <Button type="button" @click="openEditSessionForm">Edit session</Button>
                         <Button type="button" @click="openQrPanelForm">Show QR panel</Button>
+                        <Button as-child variant="outline"><a href="/sessions">Back to sessions</a></Button>
                     </div>
                 </template>
             </PageSection>
@@ -231,9 +238,9 @@ function submit() {
                     </template>
                 </DataTable>
             </PageSection>
-            
+
             <FormModal :open="openQrPanel" max-width-class="max-w-2xl" @close="openQrPanel = false">
-                <SessionAttendanceQrPanel 
+                <SessionAttendanceQrPanel
                     :session-id="props.session.id"
                     :back-href="`/sessions/${props.session.id}/attendance`"
                     :qr="props.session.attendance_qr"
@@ -263,7 +270,7 @@ function submit() {
         </div>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
-            <PageSection title="Session draft" description="Create a new training session. Existing sessions are edited from their session attendance page.">
+            <PageSection title="Edit training session" description="Update this session's date, time, branch, group, location, and status.">
                 <form class="grid gap-4" @submit.prevent="submit">
                     <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
                     <div class="grid gap-4 md:grid-cols-2">
@@ -288,7 +295,7 @@ function submit() {
                         :error="form.errors.status"
                     />
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Save schedule</Button>
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save changes' }}</Button>
                         <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
                     </div>
                 </form>
