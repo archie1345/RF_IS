@@ -19,21 +19,6 @@ const emit = defineEmits<{
 
 <template>
     <div class="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <div
-            class="rounded-lg border border-border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground lg:col-span-2"
-        >
-            <p class="font-medium text-foreground">Session window</p>
-            <p>
-                {{ props.sessionDate ?? 'Session date' }}
-                <span v-if="props.sessionStartTime || props.sessionEndTime">
-                    · {{ props.sessionStartTime ?? 'start' }}–{{ props.sessionEndTime ?? 'end' }}
-                </span>
-            </p>
-            <p>
-                QR opening and closing times must stay inside this session window. Closing time must be after opening
-                time.
-            </p>
-        </div>
 
         <FormInputField
             id="attendance_opens_at"

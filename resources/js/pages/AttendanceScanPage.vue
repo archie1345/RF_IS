@@ -177,10 +177,6 @@ watch(() => props.canSubmit, () => autoRecordAttendance());
                         <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Athlete</p>
                         <p class="mt-1 text-lg font-black">{{ props.athlete?.name ?? 'Athlete login required' }}</p>
                         <p v-if="props.athlete?.current_status" class="mt-1 text-sm text-muted-foreground">Current status: {{ props.athlete.current_status }}</p>
-                        <div class="mt-4 flex items-start gap-3 rounded-2xl bg-muted/70 p-3 text-xs text-muted-foreground">
-                            <ShieldCheck class="mt-0.5 size-4 shrink-0" />
-                            <p>No manual attendance button is shown here. The save action only appears after a valid QR link is verified for this athlete and session.</p>
-                        </div>
                     </section>
 
                     <a href="/dashboard" class="rounded-2xl border px-4 py-3 text-center text-sm font-bold hover:bg-muted">
