@@ -16,6 +16,23 @@ type WeeklySession = {
     date?: string;
 };
 
+type WeeklySchedule = {
+    id: number;
+    title: string;
+    branch: string;
+    group: string;
+    coach: string;
+    day_of_week: number;
+    time: string;
+    location: string;
+    is_active: boolean;
+};
+
+type SelectOption = {
+    value: string | number;
+    label: string;
+};
+
 type BillingSettings = {
     invoice_day: number;
     invoice_time: string;
@@ -35,6 +52,10 @@ const props = withDefaults(
         roleAccess?: string;
         todaySessions?: WeeklySession[];
         billingSettings?: BillingSettings | null;
+        weeklySchedules?: WeeklySchedule[];
+        branchOptions?: SelectOption[];
+        groupOptions?: SelectOption[];
+        coachOptions?: SelectOption[];
     }>(),
     {
         metrics: () => [],
@@ -44,6 +65,10 @@ const props = withDefaults(
         roleAccess: 'Admin only',
         todaySessions: () => [],
         billingSettings: null,
+        weeklySchedules: () => [],
+        branchOptions: () => [],
+        groupOptions: () => [],
+        coachOptions: () => [],
     },
 );
 
@@ -57,6 +82,18 @@ const billingForm = useForm({
     invoice_time: props.billingSettings?.invoice_time ?? '01:10',
     default_amount: props.billingSettings?.default_amount ?? '150000',
     is_active: props.billingSettings?.is_active ?? true,
+});
+
+const weeklyForm = useForm({
+    title: '',
+    branch_id: '',
+    group_id: '',
+    coach_id: '',
+    day_of_week: 1,
+    start_time: '',
+    end_time: '',
+    location: '',
+    is_active: true,
 });
 
 const dayCards = [
@@ -82,6 +119,16 @@ const sessionsByDay = computed(() => {
     return grouped;
 });
 
+const weeklySchedulesByDay = computed(() => {
+    const grouped = new Map<number, WeeklySchedule[]>();
+    props.weeklySchedules.forEach((schedule) => {
+        const schedules = grouped.get(schedule.day_of_week) ?? [];
+        schedules.push(schedule);
+        grouped.set(schedule.day_of_week, schedules);
+    });
+    return grouped;
+});
+
 function generateMonthlyDues() {
     router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true });
 }
@@ -92,6 +139,13 @@ function saveBillingSettings() {
 
 function generateWeeklySessions() {
     router.post('/admin/schedules/generate-week', {}, { preserveScroll: true });
+}
+
+function saveWeeklySchedule() {
+    weeklyForm.post('/admin/schedules', {
+        preserveScroll: true,
+        onSuccess: () => weeklyForm.reset(),
+    });
 }
 
 function isExternalUrl(value: unknown): value is string {
@@ -170,7 +224,82 @@ function linkLabel(value: string) {
             <section v-if="props.mode === 'weekly-schedule'" class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div class="rounded-full border px-4 py-2 text-sm font-black">Today: {{ new Date().toLocaleDateString() }}</div>
-                    <p class="text-sm text-muted-foreground">Generated sessions are real training sessions and will appear in Attendance / Session pages.</p>
+                    <p class="text-sm text-muted-foreground">Weekly training templates generate real training sessions automatically. They appear in Attendance / Session pages.</p>
+                </div>
+
+                <form class="mb-6 grid gap-3 rounded-xl border bg-background p-4 md:grid-cols-4 md:items-end" @submit.prevent="saveWeeklySchedule">
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Title
+                        <input v-model="weeklyForm.title" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Junior Sparring" />
+                        <span v-if="weeklyForm.errors.title" class="text-xs text-destructive">{{ weeklyForm.errors.title }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Branch
+                        <select v-model="weeklyForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="">Select branch</option>
+                            <option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option>
+                        </select>
+                        <span v-if="weeklyForm.errors.branch_id" class="text-xs text-destructive">{{ weeklyForm.errors.branch_id }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Group
+                        <select v-model="weeklyForm.group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="">All groups</option>
+                            <option v-for="option in props.groupOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option>
+                        </select>
+                        <span v-if="weeklyForm.errors.group_id" class="text-xs text-destructive">{{ weeklyForm.errors.group_id }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Coach
+                        <select v-model="weeklyForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="">No coach</option>
+                            <option v-for="option in props.coachOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option>
+                        </select>
+                        <span v-if="weeklyForm.errors.coach_id" class="text-xs text-destructive">{{ weeklyForm.errors.coach_id }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Day
+                        <select v-model="weeklyForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option>
+                        </select>
+                        <span v-if="weeklyForm.errors.day_of_week" class="text-xs text-destructive">{{ weeklyForm.errors.day_of_week }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Start
+                        <input v-model="weeklyForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <span v-if="weeklyForm.errors.start_time" class="text-xs text-destructive">{{ weeklyForm.errors.start_time }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        End
+                        <input v-model="weeklyForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <span v-if="weeklyForm.errors.end_time" class="text-xs text-destructive">{{ weeklyForm.errors.end_time }}</span>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Location
+                        <input v-model="weeklyForm.location" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Central Dojang" />
+                        <span v-if="weeklyForm.errors.location" class="text-xs text-destructive">{{ weeklyForm.errors.location }}</span>
+                    </label>
+                    <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
+                        <input v-model="weeklyForm.is_active" type="checkbox" /> Active
+                    </label>
+                    <Button type="submit" class="md:col-span-3" :disabled="weeklyForm.processing">
+                        {{ weeklyForm.processing ? 'Saving...' : 'Save weekly training' }}
+                    </Button>
+                </form>
+
+                <div class="mb-6 grid gap-3 md:grid-cols-7">
+                    <div v-for="day in dayCards" :key="`template-${day.id}`" class="rounded-xl border bg-background p-4">
+                        <p class="text-lg font-black">{{ day.name }}</p>
+                        <div v-if="(weeklySchedulesByDay.get(day.id) ?? []).length" class="mt-3 space-y-2">
+                            <div v-for="schedule in weeklySchedulesByDay.get(day.id)" :key="schedule.id" class="rounded-lg border-l-4 border-blue-500 bg-card p-2 text-xs">
+                                <p class="font-black">{{ schedule.title }}</p>
+                                <p>{{ schedule.time }}</p>
+                                <p class="text-muted-foreground">{{ schedule.branch }} · {{ schedule.group }}</p>
+                                <p class="text-muted-foreground">{{ schedule.coach }}</p>
+                            </div>
+                        </div>
+                        <p v-else class="mt-3 text-xs text-muted-foreground">No template</p>
+                    </div>
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-7">
