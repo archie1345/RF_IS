@@ -29,7 +29,6 @@ class Group extends Model
         'day_of_week',
         'start_time',
         'end_time',
-        'capacity',
         'min_belt',
         'description',
         'is_active',
@@ -39,7 +38,6 @@ class Group extends Model
 
     protected $casts = [
         'day_of_week' => 'integer',
-        'capacity' => 'integer',
         'is_active' => 'boolean',
     ];
 
