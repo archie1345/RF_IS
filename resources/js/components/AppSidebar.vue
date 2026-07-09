@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import {
     BadgeCheck,
     CalendarCheck2,
+    CalendarDays,
     CreditCard,
     FileClock,
     LayoutGrid,
     Trophy,
     Users,
     WalletCards,
-    TrendingDown,
-    CalendarDays,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
@@ -48,22 +46,18 @@ const roles = computed<AppRole[]>(() => {
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
-    { title: 'Presensi Siswa', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
-    { title: 'Presensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
-    { title: 'Konfirmasi Iuran', href: appRoutes.adminPayments, icon: CreditCard },
-    { title: 'Input Iuran', href: appRoutes.adminMonthlyDues, icon: WalletCards },
-    { title: 'Data Anggota/Atlet', href: appRoutes.adminMembers, icon: Users },
-    { title: 'Data Pelatih/Sabeum', href: appRoutes.adminInstructors, icon: Users },
-    { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
-    { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
-    { title: 'Jadwal Pertandingan', href: appRoutes.adminEventSchedule, icon: CalendarDays },
+    { title: 'Absensi', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
+    { title: 'Absensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
+    { title: 'Keuangan & Bukti Bayar', href: appRoutes.adminPayments, icon: CreditCard },
+    { title: 'Iuran Bulanan', href: appRoutes.adminMonthlyDues, icon: WalletCards },
+    { title: 'Anggota / Atlet', href: appRoutes.adminMembers, icon: Users },
+    { title: 'Pelatih / Sabeum', href: appRoutes.adminInstructors, icon: Users },
+    { title: 'Event / UKT', href: appRoutes.adminEvents, icon: Trophy },
     { title: 'Lokasi', href: appRoutes.adminLocations, icon: BadgeCheck },
     { title: 'Kelas', href: appRoutes.adminClasses, icon: LayoutGrid },
-    { title: 'Jadwal', href: appRoutes.adminSchedules, icon: CalendarDays },
-    { title: 'Laporan & Analitik', href: appRoutes.adminPeriodicStats, icon: TrendingDown },
+    { title: 'Jadwal Latihan', href: appRoutes.adminSchedules, icon: CalendarDays },
     { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
     { title: 'Pengumuman', href: appRoutes.announcements, icon: FileClock },
-    { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
 ];
 
 const navByRole: Record<AppRole, NavItem[]> = {
