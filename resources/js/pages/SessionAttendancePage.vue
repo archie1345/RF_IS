@@ -13,8 +13,12 @@ import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAt
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import FormInputField from '@/components/forms/FormInputField.vue';
+import FormModal from '@/components/shared/FormModal.vue';
 
 const props = defineProps<{
+    branches: SelectOption[];
+    groups: SelectOption[];
     session: {
         id: number;
         title: string;
@@ -58,7 +62,21 @@ const coachColumns: TableColumn[] = [
 const coachForm = useForm({
     coach_id: '',
 });
+
+const form = useForm({
+    title: '',
+    branch_id: '',
+    group_id: '',
+    location: '',
+    session_date: '',
+    start_time: '',
+    end_time: '',
+    status: 'DRAFT',
+});
+
 const pendingBulkStatus = ref<'PRESENT' | 'ABSENT' | null>(null);
+const showSessionForm = ref(false);
+const openQrPanel = ref(false);
 const pendingCoachDeleteId = ref<string | null>(null);
 
 function updateStatus(rowId: string, status: string) {
@@ -106,6 +124,33 @@ function resetCoachForm() {
     coachForm.reset();
     coachForm.clearErrors();
 }
+
+function openCreateSessionForm() {
+    form.reset();
+    form.clearErrors();
+    showSessionForm.value = true;
+}
+
+function cancelForm() {
+    form.reset();
+    form.clearErrors();
+    showSessionForm.value = false;
+}
+
+function openQrPanelForm() {
+    form.reset();
+    form.clearErrors();
+    openQrPanel.value = true;
+}
+
+function submit() {
+    form.post('/sessions', {
+        onSuccess: () => {
+            form.reset();
+            showSessionForm.value = false;
+        },
+    });
+}
 </script>
 
 <template>
@@ -143,9 +188,11 @@ function resetCoachForm() {
                     <div class="flex flex-wrap gap-2">
                         <Button type="button" variant="outline" @click="requestBulkUpdate('PRESENT')">Mark all present</Button>
                         <Button type="button" variant="outline" @click="requestBulkUpdate('ABSENT')">Mark all absent</Button>
-                        <Button as-child variant="outline">
+                        <!-- <Button as-child variant="outline">
                             <a href="/sessions">Back to sessions</a>
-                        </Button>
+                        </Button> -->
+                        <Button type="button" @click="openCreateSessionForm">Edit session</Button>
+                        <Button type="button" @click="openQrPanelForm">Show QR panel</Button>
                     </div>
                 </template>
             </PageSection>
@@ -184,15 +231,17 @@ function resetCoachForm() {
                     </template>
                 </DataTable>
             </PageSection>
-
-            <SessionAttendanceQrPanel
-                :session-id="props.session.id"
-                :back-href="`/sessions/${props.session.id}/attendance`"
-                :qr="props.session.attendance_qr"
-                :session-date="props.session.date"
-                :session-start-time="props.session.start_time"
-                :session-end-time="props.session.end_time"
-            />
+            
+            <FormModal :open="openQrPanel" max-width-class="max-w-2xl" @close="openQrPanel = false">
+                <SessionAttendanceQrPanel 
+                    :session-id="props.session.id"
+                    :back-href="`/sessions/${props.session.id}/attendance`"
+                    :qr="props.session.attendance_qr"
+                    :session-date="props.session.date"
+                    :session-start-time="props.session.start_time"
+                    :session-end-time="props.session.end_time"
+                />
+            </FormModal>
 
             <DataTable
                 title="Athlete attendance form"
@@ -212,5 +261,38 @@ function resetCoachForm() {
                 </template>
             </DataTable>
         </div>
+
+        <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
+            <PageSection title="Session draft" description="Create a new training session. Existing sessions are edited from their session attendance page.">
+                <form class="grid gap-4" @submit.prevent="submit">
+                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
+                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
+                    </div>
+                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
+                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
+                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
+                    </div>
+                    <FormSelectField
+                        id="session-status"
+                        v-model="form.status"
+                        label="Status"
+                        :options="[
+                            { value: 'DRAFT', label: 'Draft' },
+                            { value: 'CONFIRMED', label: 'Confirmed' },
+                            { value: 'CANCELED', label: 'Canceled' },
+                        ]"
+                        :error="form.errors.status"
+                    />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Save schedule</Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
     </AppLayout>
 </template>
