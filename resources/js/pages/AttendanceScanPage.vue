@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
-import { CheckCircle2, Loader2, QrCode, ShieldCheck, Smartphone, XCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
@@ -42,8 +42,7 @@ type PagePropsWithAttendanceScan = {
 
 const page = usePage<PagePropsWithAttendanceScan>();
 const isSubmitting = ref(false);
-const attemptedAutoSubmit = ref(false);
-const autoSubmitError = ref<string | null>(null);
+const submitError = ref<string | null>(null);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -53,7 +52,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
 const hasSaved = computed(() => props.state === 'already_present' || scanFlash.value?.status === 'recorded' || scanFlash.value?.status === 'already_recorded');
-const blockingError = computed(() => autoSubmitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
+const blockingError = computed(() => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
 const canRecordNow = computed(() => props.canSubmit && props.deviceAllowed && !hasSaved.value && !isSubmitting.value);
 
 const stepState = computed(() => {
@@ -77,17 +76,14 @@ const headline = computed(() => {
 
 const statusMessage = computed(() => scanFlash.value?.message ?? blockingError.value ?? props.message ?? 'Hold on while we verify your QR attendance.');
 
-function recordAttendance(manual = false) {
-    if (!props.canSubmit || hasSaved.value || isSubmitting.value) {
-        if (manual && !props.canSubmit) {
-            autoSubmitError.value = props.message ?? 'Attendance cannot be saved from this QR yet.';
-        }
+function recordAttendance() {
+    if (!canRecordNow.value) {
+        submitError.value = props.message ?? 'Attendance cannot be saved from this QR yet.';
         return;
     }
 
-    attemptedAutoSubmit.value = true;
     isSubmitting.value = true;
-    autoSubmitError.value = null;
+    submitError.value = null;
 
     router.post(
         `/attendance/scan/${props.token}`,
@@ -95,7 +91,7 @@ function recordAttendance(manual = false) {
         {
             preserveScroll: true,
             onError: (errors) => {
-                autoSubmitError.value = Object.values(errors)[0] ?? 'Unable to save attendance from this QR.';
+                submitError.value = Object.values(errors)[0] ?? 'Unable to save attendance from this QR.';
             },
             onFinish: () => {
                 isSubmitting.value = false;
@@ -103,21 +99,6 @@ function recordAttendance(manual = false) {
         },
     );
 }
-
-function autoRecordAttendance() {
-    if (attemptedAutoSubmit.value || !canRecordNow.value) {
-        return;
-    }
-
-    recordAttendance(false);
-}
-
-onMounted(() => {
-    window.setTimeout(autoRecordAttendance, 250);
-    window.setTimeout(autoRecordAttendance, 1000);
-});
-
-watch(() => props.canSubmit, () => autoRecordAttendance());
 </script>
 
 <template>
@@ -157,7 +138,7 @@ watch(() => props.canSubmit, () => autoRecordAttendance());
                         </div>
                     </div>
 
-                    <Button v-if="canRecordNow" type="button" class="rounded-2xl" :disabled="isSubmitting" @click="recordAttendance(true)">
+                    <Button v-if="canRecordNow" type="button" class="rounded-2xl" :disabled="isSubmitting" @click="recordAttendance">
                         <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
                         {{ isSubmitting ? 'Saving attendance...' : 'Save attendance now' }}
                     </Button>
