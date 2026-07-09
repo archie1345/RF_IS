@@ -25,17 +25,79 @@ class AdminFeatureController extends Controller
     public function attendance(Request $request): Response
     {
         $this->authorizeAdmin($request);
+        $from = $request->date('from')?->startOfDay() ?? now()->startOfMonth();
+        $to = $request->date('to')?->endOfDay() ?? now()->endOfDay();
+        $attendances = Attendance::query()
+            ->with(['athlete.user', 'trainingSession.group', 'trainingSession.branch'])
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->latest('date')
+            ->latest('checked_in_at')
+            ->take(100)
+            ->get();
 
         return $this->renderFeature('Absensi Latihan', 'Kelola presensi anggota per kelas', [
-            ['label' => 'Total Absensi', 'value' => (string) Attendance::count(), 'tone' => 'neutral'],
-            ['label' => 'Total Hadir', 'value' => (string) Attendance::where('status', 'PRESENT')->count(), 'tone' => 'success'],
-            ['label' => 'Total Izin', 'value' => (string) Attendance::where('status', 'EXCUSED')->count(), 'tone' => 'info'],
-            ['label' => 'Total Sakit', 'value' => '0', 'tone' => 'warning'],
-        ], ['No', 'Tanggal', 'Member / Pelatih', 'Kelas', 'Check-In', 'Check-Out', 'Status', 'Aksi'], 'Tidak ada data absensi', 'attendance');
+            ['label' => 'Total Absensi', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
+            ['label' => 'Total Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
+            ['label' => 'Total Izin', 'value' => (string) $attendances->where('status', 'EXCUSED')->count(), 'tone' => 'info'],
+            ['label' => 'Total Sakit', 'value' => (string) $attendances->where('status', 'SICK')->count(), 'tone' => 'warning'],
+        ], ['No', 'Tanggal', 'Member / Pelatih', 'Kelas', 'Check-In', 'Check-Out', 'Status', 'Aksi'], 'Tidak ada data absensi', 'attendance', $attendances->values()->map(fn (Attendance $attendance, int $index) => [
+            'No' => (string) ($index + 1),
+            'Tanggal' => optional($attendance->date)->format('d M Y') ?? '-',
+            'Member / Pelatih' => $attendance->athlete?->user?->name ?? $attendance->athlete_id,
+            'Kelas' => $attendance->trainingSession?->group?->group_name ?? $attendance->trainingSession?->title ?? '-',
+            'Check-In' => optional($attendance->checked_in_at)->format('H:i') ?? '-',
+            'Check-Out' => '-',
+            'Status' => $attendance->status,
+            'Aksi' => '-',
+        ])->all());
     }
 
-    public function instructorAttendance(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Presensi Pelatih', 'Rekapitulasi kehadiran untuk pembayaran honor', [], ['No', 'ID', 'Tanggal', 'Pelatih', 'Kelas', 'Jam', 'Status', 'Aksi'], 'Tidak ada data presensi ditemukan', 'instructor-attendance'); }
-    public function payments(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Validasi Bukti Pembayaran', 'Halaman ini hanya untuk alur bukti bayar: upload, review, approve, reject, dan riwayat bukti.', [], ['ID & Tanggal', 'Member', 'Tipe & Keterangan', 'Nominal', 'Metode', 'Aksi'], 'Tidak ada bukti pembayaran pending.', 'payments'); }
+    public function instructorAttendance(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $sessions = TrainingSession::query()
+            ->with(['primaryCoach.user', 'group'])
+            ->whereNotNull('coach_id')
+            ->whereMonth('session_date', $request->integer('month', now()->month))
+            ->whereYear('session_date', $request->integer('year', now()->year))
+            ->latest('session_date')
+            ->take(100)
+            ->get();
+
+        return $this->renderFeature('Presensi Pelatih', 'Rekapitulasi kehadiran untuk pembayaran honor', [
+            ['label' => 'Total Jadwal', 'value' => (string) $sessions->count(), 'tone' => 'info'],
+            ['label' => 'Pelatih Terjadwal', 'value' => (string) $sessions->pluck('coach_id')->filter()->unique()->count(), 'tone' => 'success'],
+        ], ['No', 'ID', 'Tanggal', 'Pelatih', 'Kelas', 'Jam', 'Status', 'Aksi'], 'Tidak ada data presensi ditemukan', 'instructor-attendance', $sessions->values()->map(fn (TrainingSession $session, int $index) => [
+            'No' => (string) ($index + 1),
+            'ID' => (string) $session->training_session_id,
+            'Tanggal' => optional($session->session_date)->format('d M Y') ?? '-',
+            'Pelatih' => $session->primaryCoach?->user?->name ?? '-',
+            'Kelas' => $session->group?->group_name ?? $session->title,
+            'Jam' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5),
+            'Status' => $session->status,
+            'Aksi' => '-',
+        ])->all());
+    }
+
+    public function payments(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $payments = Payment::query()->with(['athlete.user', 'billableUser'])->latest('payment_date')->latest('payment_id')->take(100)->get();
+
+        return $this->renderFeature('Validasi Keuangan', 'Verifikasi bukti pembayaran yang masuk.', [
+            ['label' => 'Perlu Verifikasi', 'value' => (string) $payments->whereIn('proof_status', ['PENDING', 'SUBMITTED'])->count(), 'tone' => 'warning'],
+            ['label' => 'Data Lunas', 'value' => (string) $payments->where('remaining_amount', '<=', 0)->count(), 'tone' => 'success'],
+            ['label' => 'Ditolak/Gagal', 'value' => (string) $payments->whereIn('status', ['FAILED', 'REJECTED'])->count(), 'tone' => 'danger'],
+            ['label' => 'Total Masuk', 'value' => 'Rp '.number_format((float) $payments->sum('paid_amount'), 0, ',', '.'), 'tone' => 'info'],
+        ], ['ID & Tanggal', 'Member', 'Tipe & Keterangan', 'Nominal', 'Metode', 'Aksi'], 'Tidak ada data pembayaran pending.', 'payments', $payments->map(fn (Payment $payment) => [
+            'ID & Tanggal' => '#'.$payment->payment_id.' · '.(optional($payment->payment_date)->format('d M Y') ?? '-'),
+            'Member' => $payment->athlete?->user?->name ?? $payment->billableUser?->name ?? '-',
+            'Tipe & Keterangan' => trim($payment->payment_type.' '.$payment->notes),
+            'Nominal' => 'Rp '.number_format((float) ($payment->total_amount ?? $payment->amount), 0, ',', '.'),
+            'Metode' => $payment->reference_id ?? '-',
+            'Aksi' => $payment->proof_path ? 'Lihat bukti' : '-',
+        ])->values()->all());
+    }
 
     public function financeIncome(Request $request): Response
     {
@@ -83,15 +145,29 @@ class AdminFeatureController extends Controller
     {
         $this->authorizeAdmin($request);
         $setting = BillingSetting::monthlyTuition();
-        $total = Athlete::count();
-        $paid = Payment::whereMonth('payment_date', now()->month)->whereYear('payment_date', now()->year)->where('payment_type', 'TUITION')->where('remaining_amount', '<=', 0)->count();
+        $month = $request->integer('month', now()->month);
+        $year = $request->integer('year', now()->year);
+        $athletes = Athlete::query()->with(['user', 'payments' => fn ($query) => $query->whereMonth('payment_date', $month)->whereYear('payment_date', $year)->where('payment_type', 'TUITION')])->orderBy('created_at')->get();
+        $payments = Payment::query()->whereMonth('payment_date', $month)->whereYear('payment_date', $year)->where('payment_type', 'TUITION')->get();
+        $paidAthleteIds = $payments->where('remaining_amount', '<=', 0)->pluck('athlete_id')->filter()->unique();
 
-        return $this->renderFeature('Input Iuran', 'Input dan pantau iuran bulanan member. Admin bisa mengatur tanggal dan nominal tagihan otomatis.', [
-            ['label' => 'Total Member', 'value' => (string) $total, 'tone' => 'info'],
-            ['label' => 'Sudah Bayar', 'value' => (string) $paid, 'tone' => 'success'],
-            ['label' => 'Belum Bayar', 'value' => (string) max($total - $paid, 0), 'tone' => 'danger'],
-            ['label' => 'Jadwal Tagihan', 'value' => 'Tanggal '.$setting->invoice_day, 'tone' => 'info'],
-        ], ['Nama Member', 'No. HP', 'Tipe Iuran', 'Nominal', 'Tanggal Bayar', 'No. Transaksi', 'Aksi'], 'Belum ada data iuran bulan ini.', 'monthly-dues', [], [
+        return $this->renderFeature('Input Iuran', 'Input dan pantau iuran bulanan member langsung dari halaman ini.', [
+            ['label' => 'Total Member', 'value' => (string) $athletes->count(), 'tone' => 'info'],
+            ['label' => 'Sudah Bayar', 'value' => (string) $paidAthleteIds->count(), 'tone' => 'success'],
+            ['label' => 'Belum Bayar', 'value' => (string) max($athletes->count() - $paidAthleteIds->count(), 0), 'tone' => 'danger'],
+            ['label' => 'Total Masuk', 'value' => 'Rp '.number_format((float) $payments->sum('paid_amount'), 0, ',', '.'), 'tone' => 'info'],
+        ], ['Nama Member', 'No. HP', 'Tipe Iuran', 'Nominal', 'Tanggal Bayar', 'No. Transaksi', 'Aksi'], 'Belum ada data iuran bulan ini.', 'monthly-dues', $athletes->map(function (Athlete $athlete) use ($setting, $payments, $paidAthleteIds, $month, $year): array {
+            $payment = $payments->firstWhere('athlete_id', $athlete->athlete_id);
+            return [
+                'Nama Member' => ($athlete->user?->name ?? $athlete->athlete_id).'\n'.($athlete->athlete_id),
+                'No. HP' => $athlete->user?->phone_number ?? $athlete->user?->phone ?? '-',
+                'Tipe Iuran' => 'Iuran Bulanan '.Carbon::create($year, $month, 1)->translatedFormat('F Y'),
+                'Nominal' => 'Rp '.number_format((float) ($payment?->total_amount ?? $setting->default_amount), 0, ',', '.'),
+                'Tanggal Bayar' => optional($payment?->payment_date)->format('d M Y') ?? '-',
+                'No. Transaksi' => $payment?->reference_id ?? '-',
+                'Aksi' => $paidAthleteIds->contains($athlete->athlete_id) ? 'Lunas' : 'Input / WA',
+            ];
+        })->values()->all(), [
             'billingSettings' => [
                 'invoice_day' => $setting->invoice_day,
                 'invoice_time' => substr((string) $setting->invoice_time, 0, 5),
@@ -110,11 +186,75 @@ class AdminFeatureController extends Controller
     }
 
     public function generateMonthlyDues(Request $request): RedirectResponse { $this->authorizeAdmin($request); Artisan::call('tuition:generate-monthly --force'); return back()->with('status', trim(Artisan::output())); }
-    public function members(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Manajemen Anggota', 'DOJANG: RTFCM · Total '.Athlete::count().' anggota terdaftar', [], ['No.', 'Anggota', 'Pribadi', 'Sabuk', 'Kontak', 'Dokumen', 'Status', 'Aksi'], 'Tidak ada data anggota', 'members'); }
-    public function instructors(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Master Pelatih', 'DOJANG: RTFCM · Total '.Coach::count().' pelatih terdaftar', [], ['No.', 'Pelatih', 'Spesialisasi', 'Sabuk', 'Sertifikat', 'Kontak', 'Status', 'Aksi'], 'Data tidak ditemukan', 'instructors'); }
-    public function events(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Manajemen Event', 'DOJANG: RTFCM · Total '.Event::count().' event terdaftar', [], ['Event', 'Tanggal & Waktu', 'Batas Pendaftaran', 'Pendaftar', 'Biaya', 'Tipe & Visibilitas', 'Aksi'], 'Tidak ada data event', 'events'); }
-    public function eventHistory(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Riwayat Event & UKT', 'Menampilkan event yang pernah diikuti/diselenggarakan', [], ['Event', 'Tanggal', 'Penyelenggara', 'Peserta Anda', 'Total Peserta', 'Tipe', 'Aksi'], 'Tidak ada riwayat event', 'event-history'); }
-    public function eventSchedule(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Jadwal Pertandingan', 'Publikasi & gate display untuk jadwal pertandingan.', [], ['Mat', 'Waktu', 'Kontingen', 'Partai', 'Status', 'Aksi'], 'Pilih event terlebih dahulu untuk mengaktifkan launcher jadwal.', 'event-schedule'); }
+
+    public function members(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $athletes = Athlete::query()->with(['user', 'branch', 'group'])->latest('created_at')->take(100)->get();
+        return $this->renderFeature('Manajemen Anggota', 'DOJANG: RTFCM · Total '.$athletes->count().' anggota terdaftar', [], ['No.', 'Anggota', 'Pribadi', 'Sabuk', 'Kontak', 'Dokumen', 'Status', 'Aksi'], 'Tidak ada data anggota', 'members', $athletes->values()->map(fn (Athlete $athlete, int $index) => [
+            'No.' => (string) ($index + 1),
+            'Anggota' => ($athlete->user?->name ?? '-').'\n'.$athlete->athlete_id.'\nBergabung '.optional($athlete->created_at)->format('Y-m-d'),
+            'Pribadi' => 'BB: '.($athlete->weight_kg ?? '-').' KG · TB: '.($athlete->height_cm ?? '-').' CM',
+            'Sabuk' => $athlete->geup ?? '-',
+            'Kontak' => ($athlete->alamat ?? '-').'\n'.($athlete->user?->phone_number ?? $athlete->user?->phone ?? '-'),
+            'Dokumen' => filled($athlete->getRawOriginal('nik_hash')) || filled($athlete->getRawOriginal('nik_ciphertext')) ? 'Lengkap' : '-',
+            'Status' => $athlete->user?->status ?? 'Active',
+            'Aksi' => 'Profil',
+        ])->all());
+    }
+
+    public function instructors(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $coaches = Coach::query()->with('user')->latest('created_at')->take(100)->get();
+        return $this->renderFeature('Master Pelatih', 'DOJANG: RTFCM · Total '.$coaches->count().' pelatih terdaftar', [], ['No.', 'Pelatih', 'Spesialisasi', 'Sabuk', 'Sertifikat', 'Kontak', 'Status', 'Aksi'], 'Data tidak ditemukan', 'instructors', $coaches->values()->map(fn (Coach $coach, int $index) => [
+            'No.' => (string) ($index + 1),
+            'Pelatih' => ($coach->user?->name ?? '-').'\n'.$coach->coach_id,
+            'Spesialisasi' => $coach->specialization ?? '-',
+            'Sabuk' => $coach->belt ?? '-',
+            'Sertifikat' => '-',
+            'Kontak' => $coach->user?->email ?? '-',
+            'Status' => $coach->status ?? 'Active',
+            'Aksi' => 'Profil',
+        ])->all());
+    }
+
+    public function events(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $events = Event::query()->withCount('registrations')->latest('e_date')->take(100)->get();
+        return $this->renderFeature('Manajemen Event', 'DOJANG: RTFCM · Total '.$events->count().' event terdaftar', [], ['Event', 'Tanggal & Waktu', 'Batas Pendaftaran', 'Pendaftar', 'Biaya', 'Tipe & Visibilitas', 'Aksi'], 'Tidak ada data event', 'events', $events->map(fn (Event $event) => [
+            'Event' => $event->e_name,
+            'Tanggal & Waktu' => optional($event->e_date)->format('d M Y H:i') ?? '-',
+            'Batas Pendaftaran' => '-',
+            'Pendaftar' => (string) $event->registrations_count,
+            'Biaya' => 'Rp '.number_format((float) $event->entry_fee, 0, ',', '.'),
+            'Tipe & Visibilitas' => ($event->level ?? '-').' · '.($event->status ?? '-'),
+            'Aksi' => 'Detail',
+        ])->values()->all());
+    }
+
+    public function eventHistory(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $events = Event::query()->withCount('registrations')->whereDate('e_date', '<', now()->toDateString())->latest('e_date')->take(100)->get();
+        return $this->renderFeature('Riwayat Event & UKT', 'Menampilkan event yang pernah diikuti/diselenggarakan', [], ['Event', 'Tanggal', 'Penyelenggara', 'Peserta Anda', 'Total Peserta', 'Tipe', 'Aksi'], 'Tidak ada riwayat event', 'event-history', $events->map(fn (Event $event) => [
+            'Event' => $event->e_name,
+            'Tanggal' => optional($event->e_date)->format('d M Y') ?? '-',
+            'Penyelenggara' => $event->organizer ?? '-',
+            'Peserta Anda' => '-',
+            'Total Peserta' => (string) $event->registrations_count,
+            'Tipe' => $event->level ?? '-',
+            'Aksi' => 'Detail',
+        ])->values()->all());
+    }
+
+    public function eventSchedule(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $events = Event::query()->whereIn('status', ['ACTIVE', 'OPEN', 'PUBLISHED'])->orderBy('e_date')->get(['event_id', 'e_name']);
+        return $this->renderFeature('Jadwal Pertandingan', 'Publikasi & gate display untuk jadwal pertandingan.', [], ['Mat', 'Waktu', 'Kontingen', 'Partai', 'Status', 'Aksi'], 'Pilih event terlebih dahulu untuk mengaktifkan launcher jadwal.', 'event-schedule', [], ['eventOptions' => $events->map(fn (Event $event) => ['value' => $event->event_id, 'label' => $event->e_name])->values()]);
+    }
 
     public function locations(Request $request): Response
     {
@@ -210,8 +350,48 @@ class AdminFeatureController extends Controller
     }
 
     public function generateWeeklySessions(Request $request, GenerateWeeklyTrainingSessions $generator): RedirectResponse { $this->authorizeAdmin($request); $result = $generator->handle(now()->startOfWeek(), now()->endOfWeek()); return back()->with('status', "Generated {$result['created']} weekly sessions. Skipped {$result['skipped']} duplicates."); }
-    public function dailySchedules(Request $request): Response { $this->authorizeAdmin($request); $sessionsToday = TrainingSession::whereDate('session_date', now()->toDateString())->where('status', '!=', 'CANCELED')->count(); return $this->renderFeature('Jadwal Latihan Harian', 'Pantau pelaksanaan kelas dan kehadiran anggota di seluruh unit hari ini.', [['label' => 'Total Kelas', 'value' => (string) $sessionsToday, 'tone' => 'info'], ['label' => 'Kelas Berjalan', 'value' => '0', 'tone' => 'success'], ['label' => 'Siswa Terlibat', 'value' => (string) Attendance::whereDate('date', now()->toDateString())->count(), 'tone' => 'warning'], ['label' => 'Pelatih Hadir', 'value' => '0', 'tone' => 'danger']], ['Waktu Sesi', 'Nama Kelas & Tipe', 'Pelatih (Check-in)', 'Siswa Hadir', 'Status'], 'Tidak ada sesi hari ini.', 'daily-schedules'); }
-    public function periodicStats(Request $request): Response { $this->authorizeAdmin($request); return $this->renderFeature('Dashboard Statistik Per Periode', 'Analisis laju perkembangan Member, Pelatih, dan Dojang secara bulanan.', [['label' => 'Pertumbuhan Anggota', 'value' => '+0 Member Baru', 'tone' => 'info'], ['label' => 'Pertumbuhan Pelatih', 'value' => '+0 Pelatih Baru', 'tone' => 'warning']], ['Tanggal', 'Member Baru', 'Pelatih Baru', 'Total'], 'Belum ada pertumbuhan pada periode ini.', 'periodic-stats'); }
+
+    public function dailySchedules(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $date = $request->date('date')?->toDateString() ?? now()->toDateString();
+        $sessions = TrainingSession::query()->with(['group', 'branch', 'primaryCoach.user'])->withCount(['attendances as present_count' => fn ($query) => $query->where('status', 'PRESENT')])->whereDate('session_date', $date)->where('status', '!=', 'CANCELED')->orderBy('start_time')->get();
+        return $this->renderFeature('Jadwal Latihan Harian', 'Pantau pelaksanaan kelas dan kehadiran anggota di seluruh unit hari ini.', [
+            ['label' => 'Total Kelas', 'value' => (string) $sessions->count(), 'tone' => 'info'],
+            ['label' => 'Kelas Berjalan', 'value' => (string) $sessions->where('status', 'IN_PROGRESS')->count(), 'tone' => 'success'],
+            ['label' => 'Siswa Terlibat', 'value' => (string) $sessions->sum('present_count'), 'tone' => 'warning'],
+            ['label' => 'Pelatih Hadir', 'value' => (string) $sessions->pluck('coach_id')->filter()->unique()->count(), 'tone' => 'danger'],
+        ], ['Waktu Sesi', 'Nama Kelas & Tipe', 'Pelatih (Check-in)', 'Siswa Hadir', 'Status'], 'Tidak ada sesi hari ini.', 'daily-schedules', $sessions->map(fn (TrainingSession $session) => [
+            'Waktu Sesi' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5).'\n'.($session->location ?? $session->branch?->branch_name ?? '-'),
+            'Nama Kelas & Tipe' => ($session->group?->group_name ?? $session->title).'\n'.($session->group?->class_type ?? '-'),
+            'Pelatih (Check-in)' => $session->primaryCoach?->user?->name ?? 'Belum ada pelatih check-in',
+            'Siswa Hadir' => (string) $session->present_count.' member',
+            'Status' => $session->status,
+        ])->values()->all());
+    }
+
+    public function periodicStats(Request $request): Response
+    {
+        $this->authorizeAdmin($request);
+        $month = $request->integer('month', now()->month);
+        $year = $request->integer('year', now()->year);
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = $start->copy()->endOfMonth()->endOfDay();
+        $newAthletes = Athlete::query()->with('user')->whereBetween('created_at', [$start, $end])->get();
+        $newCoaches = Coach::query()->with('user')->whereBetween('created_at', [$start, $end])->get();
+        $rows = collect(range(1, $start->daysInMonth))->map(fn (int $day) => [
+            'Tanggal' => (string) $day,
+            'Member Baru' => (string) $newAthletes->filter(fn (Athlete $athlete) => $athlete->created_at?->day === $day)->count(),
+            'Pelatih Baru' => (string) $newCoaches->filter(fn (Coach $coach) => $coach->created_at?->day === $day)->count(),
+            'Total' => (string) (Athlete::whereDate('created_at', '<=', $start->copy()->day($day)->toDateString())->count()),
+        ])->all();
+
+        return $this->renderFeature('Dashboard Statistik Per Periode', 'Analisis laju perkembangan Member, Pelatih, dan Dojang secara bulanan dengan sistem komparasi Like-for-Like.', [
+            ['label' => 'Pertumbuhan Anggota', 'value' => '+'.$newAthletes->count().' Member Baru', 'tone' => 'info'],
+            ['label' => 'Pertumbuhan Pelatih', 'value' => '+'.$newCoaches->count().' Pelatih Baru', 'tone' => 'warning'],
+            ['label' => 'Total Akhir Periode', 'value' => Athlete::whereDate('created_at', '<=', $end->toDateString())->count().' Member', 'tone' => 'success'],
+        ], ['Tanggal', 'Member Baru', 'Pelatih Baru', 'Total'], 'Belum ada pertumbuhan pada periode ini.', 'periodic-stats', $rows);
+    }
 
     private function renderFeature(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows = [], array $extra = []): Response
     {
