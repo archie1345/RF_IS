@@ -83,7 +83,11 @@ class GroupController extends Controller
 
     private function syncWeeklySchedule(Group $group): void
     {
-        if (! $group->is_active || ! $group->branch_id || ! $group->start_time || ! $group->end_time) {
+        $existing = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
+        $isSchedulable = (bool) ($group->is_active && $group->branch_id && $group->day_of_week && $group->start_time && $group->end_time);
+
+        if (! $isSchedulable) {
+            $existing?->update(['is_active' => false]);
             return;
         }
 
@@ -96,7 +100,7 @@ class GroupController extends Controller
                 'day_of_week' => $group->day_of_week,
                 'start_time' => $group->start_time,
                 'end_time' => $group->end_time,
-                'location' => $group->branch?->location,
+                'location' => $group->branch?->location ?? $group->branch?->branch_name,
                 'is_active' => true,
             ],
         );
