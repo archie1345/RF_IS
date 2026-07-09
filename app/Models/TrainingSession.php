@@ -22,6 +22,7 @@ class TrainingSession extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
+        'weekly_training_schedule_id',
         'coach_id',
         'branch_id',
         'group_id',
@@ -46,6 +47,11 @@ class TrainingSession extends Model
         'attendance_qr_generated_at' => 'datetime',
         'attendance_qr_revoked_at' => 'datetime',
     ];
+
+    public function weeklyTrainingSchedule(): BelongsTo
+    {
+        return $this->belongsTo(WeeklyTrainingSchedule::class, 'weekly_training_schedule_id', 'weekly_training_schedule_id');
+    }
 
     public function primaryCoach(): BelongsTo
     {
