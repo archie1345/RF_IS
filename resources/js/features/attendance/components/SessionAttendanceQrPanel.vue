@@ -169,29 +169,29 @@ function toDateTimeLocal(value?: string | null): string {
             <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">Closed: {{ props.qr.revoked_at }}</p>
             <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">{{ qrStatus }}</p>
 
-            <div v-if="scanUrl" class="mt-4 grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
+            <div v-if="scanUrl" class="mt-4 flex flex-col items-center gap-4 text-center">
                 <img
                     v-if="qrDataUrl"
                     :src="qrDataUrl"
                     alt="Session attendance QR code"
-                    class="h-64 w-64 rounded border bg-white p-2"
+                    class="mx-auto h-64 w-64 rounded border bg-white p-2"
                 />
                 <div
                     v-else
-                    class="flex h-64 w-64 items-center justify-center rounded border bg-muted p-4 text-center text-sm text-muted-foreground"
+                    class="mx-auto flex h-64 w-64 items-center justify-center rounded border bg-muted p-4 text-center text-sm text-muted-foreground"
                 >
                     {{ renderError ?? 'Rendering QR code...' }}
                 </div>
-                <div class="space-y-2">
-                    <p class="text-sm font-medium">Scan URL</p>
+                <div class="w-full space-y-2 text-left">
+                    <p class="text-center text-sm font-medium">Scan URL</p>
                     <p class="rounded bg-muted p-3 text-sm break-all">{{ scanUrl }}</p>
-                    <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap justify-center gap-2">
                         <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
                         <Button v-if="props.backHref" as-child type="button" variant="secondary">
                             <a :href="props.backHref">Return to attendance</a>
                         </Button>
                     </div>
-                    <p class="text-xs text-muted-foreground">
+                    <p class="text-center text-xs text-muted-foreground">
                         Next: ask athletes to scan this QR with their phone camera and check in.
                     </p>
                 </div>
