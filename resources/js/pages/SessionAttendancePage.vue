@@ -139,6 +139,7 @@ function openEditSessionForm() {
     form.end_time = props.session.end_time ?? '';
     form.status = props.session.status ?? 'DRAFT';
     form.clearErrors();
+    openQrPanel.value = false;
     showSessionForm.value = true;
 }
 
@@ -149,6 +150,7 @@ function cancelForm() {
 }
 
 function openQrPanelForm() {
+    showSessionForm.value = false;
     openQrPanel.value = true;
 }
 
@@ -202,37 +204,6 @@ function submit() {
                         <Button as-child variant="outline"><a href="/sessions">Back to sessions</a></Button>
                     </div>
                 </template>
-            </PageSection>
-
-            <PageSection v-if="showSessionForm" title="Edit training session" description="Update this session's date, time, branch, group, location, and status.">
-                <form class="grid gap-4 rounded-xl border bg-card p-4 shadow-sm" @submit.prevent="submit">
-                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
-                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
-                    </div>
-                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
-                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
-                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
-                    </div>
-                    <FormSelectField
-                        id="session-status"
-                        v-model="form.status"
-                        label="Status"
-                        :options="[
-                            { value: 'DRAFT', label: 'Draft' },
-                            { value: 'CONFIRMED', label: 'Confirmed' },
-                            { value: 'CANCELED', label: 'Canceled' },
-                        ]"
-                        :error="form.errors.status"
-                    />
-                    <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save changes' }}</Button>
-                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
-                    </div>
-                </form>
             </PageSection>
 
             <PageSection
@@ -299,5 +270,38 @@ function submit() {
                 </template>
             </DataTable>
         </div>
+
+        <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
+            <PageSection title="Edit training session" description="Update this session's date, time, branch, group, location, and status.">
+                <form class="grid gap-4" @submit.prevent="submit">
+                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
+                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
+                    </div>
+                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
+                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
+                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
+                    </div>
+                    <FormSelectField
+                        id="session-status"
+                        v-model="form.status"
+                        label="Status"
+                        :options="[
+                            { value: 'DRAFT', label: 'Draft' },
+                            { value: 'CONFIRMED', label: 'Confirmed' },
+                            { value: 'CANCELED', label: 'Canceled' },
+                        ]"
+                        :error="form.errors.status"
+                    />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save changes' }}</Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
     </AppLayout>
 </template>
