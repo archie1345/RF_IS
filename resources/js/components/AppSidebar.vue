@@ -7,6 +7,7 @@ import {
     CreditCard,
     FileClock,
     LayoutGrid,
+    TrendingDown,
     Trophy,
     Users,
     WalletCards,
@@ -46,17 +47,23 @@ const roles = computed<AppRole[]>(() => {
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
-    { title: 'Absensi', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
-    { title: 'Absensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
-    { title: 'Keuangan & Bukti Bayar', href: appRoutes.adminPayments, icon: CreditCard },
-    { title: 'Iuran Bulanan', href: appRoutes.adminMonthlyDues, icon: WalletCards },
+    { title: 'Presensi Siswa', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
+    { title: 'Presensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
+    { title: 'Konfirmasi Iuran', href: appRoutes.adminPayments, icon: CreditCard },
+    { title: 'Keuangan Masuk', href: appRoutes.adminFinanceIncome, icon: CreditCard },
+    { title: 'Keuangan Keluar', href: appRoutes.adminFinanceOutput, icon: CreditCard },
+    { title: 'Input Iuran', href: appRoutes.adminMonthlyDues, icon: WalletCards },
     { title: 'Manajemen User', href: appRoutes.users, icon: Users },
-    { title: 'Event / UKT', href: appRoutes.adminEvents, icon: Trophy },
+    { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
+    { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
+    { title: 'Jadwal Pertandingan', href: appRoutes.adminEventSchedule, icon: CalendarDays },
     { title: 'Lokasi', href: appRoutes.adminLocations, icon: BadgeCheck },
     { title: 'Kelas', href: appRoutes.adminClasses, icon: LayoutGrid },
-    { title: 'Jadwal Latihan', href: appRoutes.adminSchedules, icon: CalendarDays },
+    { title: 'Jadwal', href: appRoutes.adminSchedules, icon: CalendarDays },
+    { title: 'Laporan & Analitik', href: appRoutes.adminPeriodicStats, icon: TrendingDown },
     { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
     { title: 'Pengumuman', href: appRoutes.announcements, icon: FileClock },
+    { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
 ];
 
 const navByRole: Record<AppRole, NavItem[]> = {
