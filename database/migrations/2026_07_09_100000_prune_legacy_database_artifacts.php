@@ -97,6 +97,10 @@ return new class extends Migration
 
     private function dropForeignKeysForColumn(string $table, string $column): void
     {
+        if (! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+            return;
+        }
+
         $database = DB::getDatabaseName();
         $constraints = DB::select(
             'select constraint_name from information_schema.key_column_usage where table_schema = ? and table_name = ? and column_name = ? and referenced_table_name is not null',
