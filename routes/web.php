@@ -25,6 +25,7 @@ use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchiev
 use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\SessionAttendanceQrController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\TrainingManagementController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
@@ -40,14 +41,20 @@ Route::middleware('guest')->group(function () {
     Route::post('invitations/{token}', [InvitationController::class, 'store'])->middleware('throttle:6,1')->name('invitations.accept');
 });
 
-Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])
-    ->middleware('throttle:30,1')
-    ->name('attendance.scan.show');
+Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->middleware('throttle:30,1')->name('attendance.scan.show');
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
     Route::redirect('my-profile', '/settings/profile');
+
+    Route::get('training-schedule', [TrainingManagementController::class, 'index'])->name('training-schedule.index');
+    Route::controller(TrainingManagementController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
+        Route::post('/', 'storeSchedule')->name('store');
+        Route::put('{schedule}', 'updateSchedule')->name('update');
+        Route::delete('{schedule}', 'destroySchedule')->name('destroy');
+        Route::post('generate', 'generateSessions')->name('generate');
+    });
 
     Route::prefix('announcements')->name('announcements.')->controller(AnnouncementController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); });
     Route::prefix('users')->group(function () { Route::get('/', [ProfileAccessController::class, 'usersIndex'])->name('users.index'); Route::get('{user}', [ParentChildProfileController::class, 'show'])->name('users.show'); Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update'); Route::patch('{user}/account', [UserAccountController::class, 'update'])->name('users.account.update'); Route::post('{user}/profile', [UserAccountController::class, 'updateProfile'])->name('users.profile.update'); Route::put('{user}/athlete-profile', [AthleteProfileController::class, 'update'])->name('users.athlete-profile.update'); Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update'); Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update'); Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store'); Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update'); Route::post('{user}/achievements', [ProfileUserAchievementController::class, 'store'])->name('users.achievements.store'); Route::put('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'update'])->name('users.achievements.update'); });
@@ -57,6 +64,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
+        Route::get('training-management', [TrainingManagementController::class, 'index'])->name('training-management');
         Route::get('attendance', [AdminFeatureController::class, 'attendance'])->name('attendance');
         Route::get('instructor-attendance', [AdminFeatureController::class, 'instructorAttendance'])->name('instructor-attendance');
         Route::get('payments', [AdminFeatureController::class, 'payments'])->name('payments');
@@ -70,11 +78,11 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('events', [AdminFeatureController::class, 'events'])->name('events');
         Route::get('events/history', [AdminFeatureController::class, 'eventHistory'])->name('events.history');
         Route::get('events/schedule', [AdminFeatureController::class, 'eventSchedule'])->name('events.schedule');
-        Route::get('locations', [AdminFeatureController::class, 'locations'])->name('locations');
-        Route::get('classes', [AdminFeatureController::class, 'classes'])->name('classes');
-        Route::get('schedules', [AdminFeatureController::class, 'weeklySchedules'])->name('schedules');
-        Route::post('schedules', [AdminFeatureController::class, 'storeWeeklySchedule'])->name('schedules.store');
-        Route::post('schedules/generate-week', [AdminFeatureController::class, 'generateWeeklySessions'])->name('schedules.generate-week');
+        Route::redirect('locations', '/admin/training-management')->name('locations');
+        Route::redirect('classes', '/admin/training-management')->name('classes');
+        Route::redirect('schedules', '/admin/training-management')->name('schedules');
+        Route::post('schedules', [TrainingManagementController::class, 'storeSchedule'])->name('schedules.store');
+        Route::post('schedules/generate-week', [TrainingManagementController::class, 'generateSessions'])->name('schedules.generate-week');
         Route::get('daily-schedules', [AdminFeatureController::class, 'dailySchedules'])->name('daily-schedules');
         Route::get('periodic-stats', [AdminFeatureController::class, 'periodicStats'])->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
