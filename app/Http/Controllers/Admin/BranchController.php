@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\TrainingSession;
+use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,6 @@ class BranchController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validatedBranch($request);
-
         $branch = Branch::create($this->payload($validated));
 
         ActivityLogger::log($request, 'admin.branch.created', 'admin', 'Created branch', $branch, ['branch_name' => $branch->branch_name]);
@@ -28,7 +29,6 @@ class BranchController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validatedBranch($request);
-
         $branch->update($this->payload($validated));
 
         ActivityLogger::log($request, 'admin.branch.updated', 'admin', 'Updated branch', $branch, ['branch_name' => $branch->branch_name]);
@@ -39,6 +39,16 @@ class BranchController extends Controller
     public function destroy(Request $request, Branch $branch): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
+
+        $hasGroups = $branch->groups()->exists();
+        $hasSchedules = WeeklyTrainingSchedule::query()->where('branch_id', $branch->branch_id)->exists();
+        $hasSessions = TrainingSession::query()->where('branch_id', $branch->branch_id)->exists();
+
+        if ($hasGroups || $hasSchedules || $hasSessions) {
+            $branch->update(['is_active' => false]);
+
+            return back()->with('status', 'Location has linked classes, schedules, or sessions, so it was deactivated instead of deleted.');
+        }
 
         ActivityLogger::log($request, 'admin.branch.deleted', 'admin', 'Deleted branch', $branch, ['branch_name' => $branch->branch_name]);
         $branch->delete();
