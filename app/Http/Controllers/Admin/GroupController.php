@@ -29,7 +29,7 @@ class GroupController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validatedGroup($request);
-        $group->update($this->payload($validated));
+        $group->update($this->payload($validated, $group));
         $this->syncWeeklySchedule($group);
 
         ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name]);
@@ -55,7 +55,7 @@ class GroupController extends Controller
             'coach_id' => ['nullable', 'exists:coaches,coach_id'],
             'branch_id' => ['nullable', 'exists:branches,branch_id'],
             'day_of_week' => ['required', 'integer', 'between:1,7'],
-            'capacity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'capacity' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
             'min_belt' => ['nullable', 'string', 'max:100'],
@@ -64,7 +64,7 @@ class GroupController extends Controller
         ]);
     }
 
-    private function payload(array $validated): array
+    private function payload(array $validated, ?Group $existing = null): array
     {
         return [
             'group_name' => $validated['name'],
@@ -72,7 +72,7 @@ class GroupController extends Controller
             'coach_id' => $validated['coach_id'] ?? null,
             'branch_id' => $validated['branch_id'] ?? null,
             'day_of_week' => $validated['day_of_week'],
-            'capacity' => $validated['capacity'],
+            'capacity' => $validated['capacity'] ?? $existing?->capacity ?? 0,
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
             'min_belt' => $validated['min_belt'] ?? null,
