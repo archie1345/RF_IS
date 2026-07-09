@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Group;
+use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +18,7 @@ class GroupController extends Controller
 
         $validated = $this->validatedGroup($request);
         $group = Group::create($this->payload($validated));
-        $this->syncWeeklySchedule($group);
+        $this->syncWeeklySchedule($group->refresh());
 
         ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created group', $group, ['group_name' => $group->group_name]);
 
@@ -30,7 +31,7 @@ class GroupController extends Controller
 
         $validated = $this->validatedGroup($request);
         $group->update($this->payload($validated, $group));
-        $this->syncWeeklySchedule($group);
+        $this->syncWeeklySchedule($group->refresh());
 
         ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name]);
 
@@ -41,6 +42,18 @@ class GroupController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
+        $hasAthletes = $group->athletes()->exists();
+        $hasSessions = TrainingSession::query()->where('group_id', $group->group_id)->exists();
+        $schedule = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
+
+        if ($hasAthletes || $hasSessions) {
+            $group->update(['is_active' => false]);
+            $schedule?->update(['is_active' => false]);
+
+            return back()->with('status', 'Class has linked athletes or sessions, so it was deactivated instead of deleted.');
+        }
+
+        $schedule?->delete();
         ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted group', $group, ['group_name' => $group->group_name]);
         $group->delete();
 
@@ -96,6 +109,7 @@ class GroupController extends Controller
             [
                 'title' => $group->group_name,
                 'branch_id' => $group->branch_id,
+                'group_id' => $group->group_id,
                 'coach_id' => $group->coach_id,
                 'day_of_week' => $group->day_of_week,
                 'start_time' => $group->start_time,
