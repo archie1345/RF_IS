@@ -40,6 +40,10 @@ Route::middleware('guest')->group(function () {
     Route::post('invitations/{token}', [InvitationController::class, 'store'])->middleware('throttle:6,1')->name('invitations.accept');
 });
 
+Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])
+    ->middleware('throttle:30,1')
+    ->name('attendance.scan.show');
+
 Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
@@ -56,23 +60,23 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('attendance', [AdminFeatureController::class, 'attendance'])->name('attendance');
         Route::get('instructor-attendance', [AdminFeatureController::class, 'instructorAttendance'])->name('instructor-attendance');
         Route::get('payments', [AdminFeatureController::class, 'payments'])->name('payments');
-        Route::get('finance-income', [AdminFeatureController::class, 'financeIncome'])->name('finance-income');
-        Route::get('finance-output', [AdminFeatureController::class, 'financeOutput'])->name('finance-output');
+        Route::redirect('finance-income', '/admin/payments')->name('finance-income');
+        Route::redirect('finance-output', '/admin/payments')->name('finance-output');
         Route::get('monthly-dues', [AdminFeatureController::class, 'monthlyDues'])->name('monthly-dues');
         Route::post('monthly-dues/settings', [AdminFeatureController::class, 'updateBillingSettings'])->name('monthly-dues.settings');
         Route::post('monthly-dues/generate', [AdminFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
         Route::get('members', [AdminFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminFeatureController::class, 'instructors'])->name('instructors');
         Route::get('events', [AdminFeatureController::class, 'events'])->name('events');
-        Route::get('events/history', [AdminFeatureController::class, 'eventHistory'])->name('events.history');
-        Route::get('events/schedule', [AdminFeatureController::class, 'eventSchedule'])->name('events.schedule');
+        Route::redirect('events/history', '/admin/events')->name('events.history');
+        Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
         Route::get('locations', [AdminFeatureController::class, 'locations'])->name('locations');
         Route::get('classes', [AdminFeatureController::class, 'classes'])->name('classes');
         Route::get('schedules', [AdminFeatureController::class, 'weeklySchedules'])->name('schedules');
         Route::post('schedules', [AdminFeatureController::class, 'storeWeeklySchedule'])->name('schedules.store');
         Route::post('schedules/generate-week', [AdminFeatureController::class, 'generateWeeklySessions'])->name('schedules.generate-week');
-        Route::get('daily-schedules', [AdminFeatureController::class, 'dailySchedules'])->name('daily-schedules');
-        Route::get('periodic-stats', [AdminFeatureController::class, 'periodicStats'])->name('periodic-stats');
+        Route::redirect('daily-schedules', '/admin/schedules')->name('daily-schedules');
+        Route::redirect('periodic-stats', '/admin/dashboard')->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
         Route::controller(AdminController::class)->group(function () { Route::post('accounts', 'store')->name('accounts.store'); Route::get('accounts/{user}', 'show')->name('accounts.show'); Route::put('accounts/{user}', 'update')->name('accounts.update'); Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend'); Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy'); Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update'); Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore'); Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete'); Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import'); Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export'); Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template'); });
@@ -81,7 +85,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     });
 
     Route::prefix('payments')->name('payments.')->controller(PaymentController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); Route::put('{payment}', 'update')->name('update'); Route::delete('{payment}', 'destroy')->name('destroy'); Route::put('{payment}/status', 'updateStatus')->name('status.update'); Route::post('{payment}/proof', 'submitProof')->name('proof.submit'); Route::put('{payment}/proof-review', 'reviewProof')->name('proof.review'); Route::get('{payment}/export', 'exportInvoice')->name('export'); });
-    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::get('scan/{token}', [AttendanceScanController::class, 'show'])->name('scan.show'); Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store'); Route::post('/', 'store')->name('store'); Route::post('bulk-update', 'bulkUpdate')->name('bulk-update'); Route::put('{attendance}', 'update')->name('update'); });
+    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store'); Route::post('/', 'store')->name('store'); Route::post('bulk-update', 'bulkUpdate')->name('bulk-update'); Route::put('{attendance}', 'update')->name('update'); });
     Route::prefix('championships')->name('championships.')->controller(ChampionshipController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('events', 'storeEvent')->name('events.store'); Route::post('registrations', 'storeRegistration')->name('registrations.store'); Route::put('registrations/{registration}', 'updateRegistration')->name('registrations.update'); Route::put('registrations/{registration}/result', 'recordResult')->name('registrations.result'); Route::put('payments/{payment}/settle', 'settleRegistrationPayment')->name('payments.settle'); Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store'); Route::get('{event}/export', ChampionshipExportController::class)->name('export'); Route::get('{event}', 'show')->name('show'); });
     Route::prefix('sessions')->name('sessions.')->controller(SessionController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); Route::put('{session}', 'update')->name('update'); Route::delete('{session}', 'destroy')->name('destroy'); Route::post('{session}/join', 'join')->name('join'); Route::get('{session}/attendance', 'attendanceSheet')->name('attendance'); Route::post('{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('attendance-qr.store'); Route::delete('{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('attendance-qr.destroy'); Route::post('{session}/coach-attendance', 'addCoachAttendance')->name('coach-attendance.store'); Route::put('coach-attendance/{coachAttendance}', 'updateCoachAttendance')->name('coach-attendance.update'); Route::delete('coach-attendance/{coachAttendance}', 'destroyCoachAttendance')->name('coach-attendance.destroy'); });
     Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('switch', 'switch')->name('switch'); Route::post('{athlete}/switch', 'switchAthlete')->name('switch-athlete'); Route::delete('switch', 'clear')->name('clear'); });
