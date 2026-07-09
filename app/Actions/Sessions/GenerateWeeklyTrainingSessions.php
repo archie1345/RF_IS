@@ -6,7 +6,7 @@ use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Services\SessionVisibilityService;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +21,7 @@ class GenerateWeeklyTrainingSessions
     /**
      * @return array{created:int, skipped:int, from:string, to:string}
      */
-    public function handle(?Carbon $from = null, ?Carbon $to = null): array
+    public function handle(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
         $from = ($from ?? now()->startOfWeek())->copy()->startOfDay();
         $to = ($to ?? $from->copy()->endOfWeek())->copy()->endOfDay();
@@ -77,9 +77,9 @@ class GenerateWeeklyTrainingSessions
     }
 
     /**
-     * @return array<int, Carbon>
+     * @return array<int, CarbonInterface>
      */
-    private function sessionDatesFor(WeeklyTrainingSchedule $schedule, Carbon $from, Carbon $to): array
+    private function sessionDatesFor(WeeklyTrainingSchedule $schedule, CarbonInterface $from, CarbonInterface $to): array
     {
         $dates = [];
         $date = $from->copy();
@@ -95,7 +95,7 @@ class GenerateWeeklyTrainingSessions
         return $dates;
     }
 
-    private function sessionExists(WeeklyTrainingSchedule $schedule, Carbon $date): bool
+    private function sessionExists(WeeklyTrainingSchedule $schedule, CarbonInterface $date): bool
     {
         $query = TrainingSession::query()->withTrashed()->whereDate('session_date', $date->toDateString());
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Athlete extends Model{
     use SoftDeletes, HasFactory, HasUlids;
@@ -84,5 +85,10 @@ class Athlete extends Model{
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class,'id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'athlete_id', 'athlete_id');
     }
 }

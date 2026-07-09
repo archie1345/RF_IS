@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TrainingSession extends Model
@@ -72,5 +73,10 @@ class TrainingSession extends Model
     {
         return $this->belongsToMany(Coach::class, 'training_session_coaches', 'training_session_id', 'coach_id')
             ->withTimestamps();
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class, 'training_session_id', 'training_session_id');
     }
 }

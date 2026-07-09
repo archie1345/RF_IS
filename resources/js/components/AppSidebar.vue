@@ -46,20 +46,28 @@ const roles = computed<AppRole[]>(() => {
     return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete' ? [userRole] : ['athlete'];
 });
 
+const adminNavItems: NavItem[] = [
+    { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
+    { title: 'Presensi Siswa', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
+    { title: 'Presensi Pelatih', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
+    { title: 'Konfirmasi Iuran', href: appRoutes.adminPayments, icon: CreditCard },
+    { title: 'Input Iuran', href: appRoutes.adminMonthlyDues, icon: WalletCards },
+    { title: 'Data Anggota/Atlet', href: appRoutes.adminMembers, icon: Users },
+    { title: 'Data Pelatih/Sabeum', href: appRoutes.adminInstructors, icon: Users },
+    { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
+    { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
+    { title: 'Jadwal Pertandingan', href: appRoutes.adminEventSchedule, icon: CalendarDays },
+    { title: 'Lokasi', href: appRoutes.adminLocations, icon: BadgeCheck },
+    { title: 'Kelas', href: appRoutes.adminClasses, icon: LayoutGrid },
+    { title: 'Jadwal', href: appRoutes.adminSchedules, icon: CalendarDays },
+    { title: 'Laporan & Analitik', href: appRoutes.adminPeriodicStats, icon: TrendingDown },
+    { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
+    { title: 'Pengumuman', href: appRoutes.announcements, icon: FileClock },
+    { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
+];
+
 const navByRole: Record<AppRole, NavItem[]> = {
-    admin: [
-        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Admin Panel', href: '/admin', icon: BadgeCheck },
-        { title: 'Users', href: appRoutes.athletes, icon: Users },
-        { title: 'Bills & Proof', href: appRoutes.payments, icon: CreditCard },
-        { title: 'Finance In', href: appRoutes.adminFinanceIncome, icon: WalletCards },
-        { title: 'Finance Out', href: appRoutes.adminFinanceOutput, icon: TrendingDown },
-        { title: 'Weekly Training', href: appRoutes.adminSchedules, icon: CalendarDays },
-        { title: 'Attendance', href: appRoutes.sessions, icon: CalendarCheck2 },
-        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
-        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
-        { title: 'User Activity Log', href: appRoutes.activityLogs, icon: FileClock },
-    ],
+    admin: adminNavItems,
     coach: [
         { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
