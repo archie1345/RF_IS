@@ -238,13 +238,12 @@ onUnmounted(() => {
                     </div>
                 </div>
                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Button as-child variant="outline"
-                        ><Link :href="appRoutes.sessions"
-                            ><CalendarDays class="mr-2 size-4" />Manajemen Latihan</Link
-                        ></Button
-                    ><Button as-child variant="outline"
-                        ><Link :href="appRoutes.attendance"><CheckCircle2 class="mr-2 size-4" />Presensi</Link></Button
-                    >
+                    <Button as-child variant="outline">
+                        <Link :href="appRoutes.attendance">
+                            <CheckCircle2 class="mr-2 size-4" />
+                            Presensi
+                        </Link>
+                    </Button>
                 </div>
             </section>
             <DataTable
