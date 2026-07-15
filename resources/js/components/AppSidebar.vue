@@ -7,6 +7,7 @@ import {
     CreditCard,
     FileClock,
     LayoutGrid,
+    MapPin,
     Trophy,
     Users,
 } from 'lucide-vue-next';
@@ -46,6 +47,8 @@ const roles = computed<AppRole[]>(() => {
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
     { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
+    { title: 'Lokasi Latihan', href: appRoutes.adminLocations, icon: MapPin },
+    { title: 'Kelas Latihan', href: appRoutes.adminClasses, icon: Users },
     { title: 'Presensi Atlet', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
     { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
