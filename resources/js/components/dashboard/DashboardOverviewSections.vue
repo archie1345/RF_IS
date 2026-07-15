@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { CalendarDays, CheckCircle2, QrCode, WalletCards } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
