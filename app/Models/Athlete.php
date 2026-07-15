@@ -6,14 +6,17 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Athlete extends Model{
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, HasUlids;
     protected $table = 'athletes';
 
     protected $primaryKey = 'athlete_id';
-    public $incrementing = true;
-    protected $keyType = 'int';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     protected $fillable = [
         'height_cm',
@@ -23,6 +26,7 @@ class Athlete extends Model{
         'bpjs_hash',
         'bpjs_ciphertext',
         'alamat',
+        'school_origin',
         'geup',
         'id',
         'group_id',
@@ -63,23 +67,28 @@ class Athlete extends Model{
         }
     }
 
-    public function group()
+    public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class,'group_id');
     }
 
-    public function branch()
+    public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class,'branch_id');
     }
 
-    public function parent()
+    public function parent(): BelongsTo
     {
-        return $this->belongsTo(Parents::class,'parent_id');
+        return $this->belongsTo(ParentProfile::class,'parent_id');
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class,'id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'athlete_id', 'athlete_id');
     }
 }

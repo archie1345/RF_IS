@@ -2,20 +2,29 @@
 
 namespace App\Models;
 
+use App\Support\RoleResolver;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
+    public const ACCOUNT_STATUS_ACTIVE = 'active';
+
+    public const ACCOUNT_STATUS_INVITED = 'invited';
+
+    public const ACCOUNT_STATUS_SUSPENDED = 'suspended';
+
     use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     protected $table = 'users';
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -27,7 +36,6 @@ class User extends Authenticatable
         'bday',
         'phone',
         'account_status',
-        // 'is-active'
     ];
 
     protected $hidden = [
@@ -47,11 +55,27 @@ class User extends Authenticatable
     }
 
     public $timestamps = true;
+
     protected $dates = ['deleted_at', 'bday'];
 
     public function getAuthPassword()
     {
         return $this->password;
+    }
+
+    public function isActiveAccount(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_ACTIVE;
+    }
+
+    public function isInvited(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_INVITED;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_SUSPENDED;
     }
 
     public function isAdmin()
@@ -81,38 +105,33 @@ class User extends Authenticatable
 
     public function assignedRoles(): array
     {
-        if (! $this->relationLoaded('roleAssignments')) {
-            $this->load('roleAssignments');
-        }
+        return app(RoleResolver::class)->rolesFor($this);
+    }
 
-        $roles = $this->roleAssignments->pluck('role')->filter()->unique()->values()->all();
-
-        if (count($roles) === 0 && ! empty($this->role)) {
-            return [$this->role];
-        }
-
-        return $roles;
+    public function primaryRole(string $default = 'athlete'): string
+    {
+        return app(RoleResolver::class)->primaryRoleFor($this, $default);
     }
 
     public function hasRole(string $role): bool
     {
-        return in_array($role, $this->assignedRoles(), true);
+        return app(RoleResolver::class)->hasRole($this, $role);
     }
 
     public function parentProfile(): HasOne
     {
-        return $this->hasOne(Parents::class, 'id', 'id');
+        return $this->hasOne(ParentProfile::class, 'id', 'id');
     }
 
     public function children(): HasManyThrough
     {
         return $this->hasManyThrough(
             Athlete::class,
-            Parents::class,
+            ParentProfile::class,
             'id',
             'parent_id',
             'id',
-            'parent_id',
+            'parent_id'
         );
     }
 
@@ -134,6 +153,11 @@ class User extends Authenticatable
     public function certifications(): HasMany
     {
         return $this->hasMany(UserCertification::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(UserInvitation::class);
     }
 
     public function achievements(): HasMany

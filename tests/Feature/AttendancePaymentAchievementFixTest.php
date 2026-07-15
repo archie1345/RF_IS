@@ -5,9 +5,9 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\Payment;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use Illuminate\Http\UploadedFile;
@@ -38,7 +38,7 @@ test('athlete can mark their own open attendance record', function () {
     $coachUser = User::factory()->create(['role' => 'coach']);
     $coach = Coach::create(['id' => $coachUser->id, 'status' => 'active']);
 
-    $session = Session::create([
+    $session = TrainingSession::create([
         'coach_id' => $coach->coach_id,
         'branch_id' => $branch->branch_id,
         'group_id' => $group->group_id,
@@ -51,7 +51,7 @@ test('athlete can mark their own open attendance record', function () {
 
     $attendance = Attendance::create([
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->csid,
+        'training_session_id' => $session->training_session_id,
         'date' => now()->toDateString(),
         'status' => 'ABSENT',
     ]);
@@ -68,7 +68,7 @@ test('parent can see and upload proof for a tuition bill issued to their child u
 
     [$childUser, $childAthlete] = makeAthleteWithProfile('Child User');
     $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = Parents::create(['id' => $parentUser->id, 'relation' => 'mother']);
+    $parent = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'mother']);
     $childAthlete->update(['parent_id' => $parent->parent_id]);
 
     $payment = Payment::create([

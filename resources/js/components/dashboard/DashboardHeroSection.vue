@@ -5,9 +5,9 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import type { ParentChild } from '@/types/auth';
-import type { AppRole, Metric } from '@/types/management';
+import type { AppRole, Metric } from '@/types/resource-table';
 
 const props = defineProps<{
     role: AppRole;
@@ -21,7 +21,6 @@ const emit = defineEmits<{
 }>();
 
 const childOptions = (children: ParentChild[]) => [
-    { value: '', label: 'All children' },
     ...children.map((child) => ({ value: String(child.athlete_id), label: child.name })),
 ];
 
@@ -46,21 +45,21 @@ const roleDescription = computed(() => {
 const quickActions = computed(() => {
     if (props.role === 'admin') {
         return [
-            { label: 'Issue bill', href: managementRoutes.payments },
-            { label: 'Post announcement', href: managementRoutes.announcements },
+            { label: 'Issue bill', href: appRoutes.payments },
+            { label: 'Post announcement', href: appRoutes.announcements },
         ];
     }
 
     if (props.role === 'coach') {
         return [
-            { label: 'Sessions', href: managementRoutes.sessions },
-            { label: 'Payments', href: managementRoutes.payments },
+            { label: 'Sessions', href: appRoutes.sessions },
+            { label: 'Payments', href: appRoutes.payments },
         ];
     }
 
     return [
-        { label: 'Payments', href: managementRoutes.payments },
-        { label: 'Championships', href: managementRoutes.championships },
+        { label: 'Payments', href: appRoutes.payments },
+        { label: 'Championships', href: appRoutes.championships },
     ];
 });
 </script>
@@ -75,17 +74,25 @@ const quickActions = computed(() => {
             </div>
         </template>
 
-        <div v-if="props.role === 'parent'" class="mt-4 max-w-sm">
+        <div  v-if="props.role === 'parent' && props.children.length > 1" class="mt-4 max-w-sm">
             <FormSelectField
+                v-if="props.children.length > 0"
                 id="dashboard-selected-child"
-                :model-value="String(props.activeChild?.athlete_id ?? '')"
+                :model-value="
+                    String(
+                        props.activeChild?.athlete_id
+                        ?? props.children[0]?.athlete_id
+                        ?? ''
+                    )
+                "
                 label="Child shown on dashboard"
                 :options="childOptions(props.children)"
+                :show-placeholder="false"
                 @update:model-value="emit('switch-child', $event)"
             />
         </div>
 
-        <div class="grid gap-4 md:grid-cols-4">
+        <div class="grid gap-4" :class="role === 'admin' ? 'md:grid-cols-4' : 'md:grid-cols-3'">
             <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
         </div>
     </PageSection>

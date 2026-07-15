@@ -8,6 +8,13 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+
+    --color-brand-coral: #E85649;
+    --color-brand-blue: #4892E8;
+    --color-brand-lime: #D0E848;
+    --color-brand-terracotta: #93635F;
+    --color-brand-slate: #555E69;
+
     --font-sans:
         Instrument Sans, ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
@@ -22,7 +29,6 @@
 
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
-
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
 
@@ -90,76 +96,83 @@
 }
 
 :root {
-    --background: hsl(0 0% 100%);
-    --foreground: hsl(0 0% 3.9%);
+    --background: hsl(210 20% 98%);
+    --foreground: hsl(215 15% 15%);
+    
     --card: hsl(0 0% 100%);
-    --card-foreground: hsl(0 0% 3.9%);
+    --card-foreground: hsl(215 15% 15%);
     --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(0 0% 3.9%);
-    --primary: hsl(0 0% 9%);
-    --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(0 0% 92.1%);
-    --secondary-foreground: hsl(0 0% 9%);
-    --muted: hsl(0 0% 96.1%);
-    --muted-foreground: hsl(0 0% 45.1%);
-    --accent: hsl(0 0% 96.1%);
-    --accent-foreground: hsl(0 0% 9%);
+    --popover-foreground: hsl(215 15% 15%);
+    
+    --primary: hsl(4 78% 60%);
+    --primary-foreground: hsl(0 0% 100%);
+    
+    --secondary: hsl(212 76% 60%);
+    --secondary-foreground: hsl(0 0% 100%);
+    
+    --muted: hsl(214 12% 92%);
+    --muted-foreground: hsl(4 15% 45%);
+    
+    --accent: hsl(68 77% 60%);
+    --accent-foreground: hsl(215 15% 15%);
+    
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 92.8%);
-    --input: hsl(0 0% 89.8%);
-    --ring: hsl(0 0% 3.9%);
-    --chart-1: hsl(12 76% 61%);
-    --chart-2: hsl(173 58% 39%);
-    --chart-3: hsl(197 37% 24%);
-    --chart-4: hsl(43 74% 66%);
-    --chart-5: hsl(27 87% 67%);
+    
+    --border: hsl(214 12% 88%);
+    --input: hsl(214 12% 84%);
+    --ring: hsl(4 78% 60%);
+    
     --radius: 0.5rem;
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(0 0% 10%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(0 0% 94%);
-    --sidebar-accent-foreground: hsl(0 0% 30%);
-    --sidebar-border: hsl(0 0% 91%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(0 0% 98%);
+    
+    --sidebar-background: hsl(0 0% 100%);
+    --sidebar-foreground: hsl(215 15% 25%);
+    --sidebar-primary: hsl(4 78% 60%);
+    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-accent: hsl(214 12% 95%);
+    --sidebar-accent-foreground: hsl(4 78% 60%);
+    --sidebar-border: hsl(214 12% 90%);
+    --sidebar-ring: hsl(4 78% 60%);
+    --sidebar: hsl(0 0% 100%);
 }
 
 .dark {
-    --background: hsl(0 0% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(0 0% 9%);
-    --secondary: hsl(0 0% 14.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(0 0% 16.08%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
-    --accent-foreground: hsl(0 0% 98%);
+    --background: hsl(215 12% 15%);
+    --foreground: hsl(210 20% 98%);
+    
+    --card: hsl(215 12% 11%);
+    --card-foreground: hsl(210 20% 98%);
+    --popover: hsl(215 12% 11%);
+    --popover-foreground: hsl(210 20% 98%);
+    
+    --primary: hsl(4 78% 60%);
+    --primary-foreground: hsl(0 0% 100%);
+    
+    --secondary: hsl(4 15% 45%);
+    --secondary-foreground: hsl(210 20% 98%);
+    
+    --muted: hsl(215 12% 20%);
+    --muted-foreground: hsl(214 10% 70%);
+    
+    --accent: hsl(68 77% 60%);
+    --accent-foreground: hsl(215 15% 10%);
+    
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
-    --ring: hsl(0 0% 83.1%);
-    --chart-1: hsl(220 70% 50%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(360, 100%, 100%);
+    
+    --border: hsl(215 12% 22%);
+    --input: hsl(215 12% 24%);
+    --ring: hsl(4 78% 60%);
+    
+    --sidebar-background: hsl(215 12% 12%);
+    --sidebar-foreground: hsl(210 20% 95%);
+    --sidebar-primary: hsl(4 78% 60%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(0 0% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(240 5.9% 10%);
+    --sidebar-accent: hsl(215 12% 18%);
+    --sidebar-accent-foreground: hsl(210 20% 98%);
+    --sidebar-border: hsl(215 12% 20%);
+    --sidebar-ring: hsl(4 78% 60%);
+    --sidebar: hsl(215 12% 12%);
 }
 
 @layer base {
@@ -168,6 +181,65 @@
     }
     body {
         @apply bg-background text-foreground;
+    }
+
+    input[type='date'],
+    input[type='time'],
+    input[type='datetime-local'],
+    input[type='month'] {
+        color-scheme: light;
+        min-height: 2.75rem;
+        border-radius: 0.9rem;
+        border: 1px solid hsl(var(--border));
+        background:
+            linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 96%, white 4%), hsl(var(--card))) padding-box,
+            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 65%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
+        box-shadow: 0 1px 2px color-mix(in oklab, hsl(var(--foreground)) 10%, transparent);
+        color: hsl(var(--foreground));
+        font-weight: 650;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease, background 150ms ease;
+    }
+
+    input[type='date']:hover,
+    input[type='time']:hover,
+    input[type='datetime-local']:hover,
+    input[type='month']:hover {
+        border-color: color-mix(in oklab, hsl(var(--primary)) 45%, hsl(var(--border)));
+        box-shadow: 0 8px 22px color-mix(in oklab, hsl(var(--primary)) 14%, transparent);
+    }
+
+    input[type='date']:focus,
+    input[type='time']:focus,
+    input[type='datetime-local']:focus,
+    input[type='month']:focus {
+        border-color: hsl(var(--primary));
+        box-shadow: 0 0 0 4px color-mix(in oklab, hsl(var(--primary)) 20%, transparent);
+    }
+
+    input[type='date']::-webkit-calendar-picker-indicator,
+    input[type='time']::-webkit-calendar-picker-indicator,
+    input[type='datetime-local']::-webkit-calendar-picker-indicator,
+    input[type='month']::-webkit-calendar-picker-indicator {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-inline-start: 0.45rem;
+        border-radius: 999px;
+        padding: 0.4rem;
+        background-color: color-mix(in oklab, hsl(var(--primary)) 12%, transparent);
+        cursor: pointer;
+        opacity: 0.9;
+    }
+
+    .dark input[type='date'],
+    .dark input[type='time'],
+    .dark input[type='datetime-local'],
+    .dark input[type='month'] {
+        color-scheme: dark;
+        background:
+            linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 88%, white 3%), hsl(var(--card))) padding-box,
+            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 70%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
     }
 }
 

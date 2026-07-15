@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsMvpData;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Announcement;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +12,7 @@ use Inertia\Response;
 
 class AnnouncementController extends Controller
 {
-    use FormatsMvpData;
+    use FormatsPresentationData;
 
     public function index(Request $request): Response
     {

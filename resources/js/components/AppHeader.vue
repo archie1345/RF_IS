@@ -43,8 +43,8 @@ import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { toUrl } from '@/lib/utils';
-import { dashboard } from '@/routes';
 import type { BreadcrumbItem, NavItem } from '@/types';
+import { dashboard } from '@/routes';
 
 type Props = {
     breadcrumbs?: BreadcrumbItem[];
@@ -111,14 +111,14 @@ watch(childSearch, () => {
     visibleChildrenCount.value = 12;
 });
 
-function switchChild(athleteId: number | string) {
+function switchChild(athleteId: string | null) {
     if (!athleteId) {
         return;
     }
 
     isChildPickerOpen.value = false;
 
-    router.post(`/parent/children/${athleteId}/switch`, {}, { preserveScroll: true });
+    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveScroll: true });
 }
 
 function clearChildContext() {

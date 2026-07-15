@@ -2,13 +2,13 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     children: Array<{
-        athlete_id: number;
+        athlete_id: string;
         user_id: number;
         name: string;
         email: string;
@@ -16,21 +16,26 @@ const props = defineProps<{
         group: string;
         is_active: boolean;
     }>;
-    activeChildId: number | null;
+    activeChildId: string | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Child Switcher', href: managementRoutes.parentChildSwitcher },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Child Switcher', href: appRoutes.parentChildSwitcher },
 ];
 
-function switchChild(athleteId: number) {
-    router.post(`/parent/children/${athleteId}/switch`, {}, { preserveScroll: true });
-}
+const switchChild = (athleteId: string) => {
+    if (!athleteId) {
+        router.delete('/parent/children/switch', { preserveState: true });
+        return;
+    }
 
-function clearChild() {
-    router.delete('/parent/children/switch', { preserveScroll: true });
-}
+    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
+};
+
+const clearChild = () => {
+    router.delete('/parent/children/switch', { preserveState: true });
+};
 
 function profileUrl(userId: number) {
     return `/users/${userId}`;
@@ -45,7 +50,7 @@ function profileUrl(userId: number) {
             <PageSection title="Choose Child Context" description="Select which child account data to view across attendance, payments, and championships.">
                 <template #actions>
                     <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(managementRoutes.dashboard)">Back to dashboard</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(appRoutes.dashboard)">Back to dashboard</Button>
                         <Button v-if="props.activeChildId" type="button" variant="outline" class="w-full sm:w-auto" @click="clearChild">Exit child view</Button>
                     </div>
                 </template>

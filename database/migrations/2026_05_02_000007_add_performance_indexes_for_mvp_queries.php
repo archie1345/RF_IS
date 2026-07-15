@@ -8,28 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('coach_sessions', function (Blueprint $table) {
-            $table->index(['session_date', 'start_time'], 'coach_sessions_schedule_idx');
-            $table->index(['branch_id', 'group_id', 'session_date'], 'coach_sessions_branch_group_date_idx');
-            $table->index(['coach_id', 'session_date'], 'coach_sessions_coach_date_idx');
-            $table->index(['status', 'session_date'], 'coach_sessions_status_date_idx');
+        Schema::table('training_sessions', function (Blueprint $table) {
+            $table->index(['session_date', 'start_time'], 'training_sessions_schedule_idx');
+            $table->index(['branch_id', 'group_id', 'session_date'], 'training_sessions_branch_group_date_idx');
+            $table->index(['coach_id', 'session_date'], 'training_sessions_coach_date_idx');
+            $table->index(['status', 'session_date'], 'training_sessions_status_date_idx');
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
             $table->index(['athlete_id', 'date'], 'athlete_attendance_athlete_date_idx');
-            $table->index(['coach_session_id', 'date', 'status'], 'athlete_attendance_session_date_status_idx');
+            $table->index(['training_session_id', 'date', 'status'], 'athlete_attendance_session_date_status_idx');
             $table->index(['date', 'status'], 'athlete_attendance_date_status_idx');
             $table->index(['checked_in_at'], 'athlete_attendance_checked_in_at_idx');
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
-            $table->index(['coach_session_id', 'status'], 'session_coach_attendance_session_status_idx');
-            $table->index(['coach_id', 'status'], 'session_coach_attendance_coach_status_idx');
-            $table->index(['checked_at'], 'session_coach_attendance_checked_at_idx');
+        Schema::table('coach_attendance', function (Blueprint $table) {
+            $table->index(['training_session_id', 'status'], 'coach_attendance_session_status_idx');
+            $table->index(['coach_id', 'status'], 'coach_attendance_coach_status_idx');
+            $table->index(['checked_at'], 'coach_attendance_checked_at_idx');
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
-            $table->index(['coach_id', 'coach_session_id'], 'coach_session_coaches_coach_session_idx');
+        Schema::table('training_session_coaches', function (Blueprint $table) {
+            $table->index(['coach_id', 'training_session_id'], 'training_session_coaches_training_session_idx');
         });
 
         Schema::table('activity_logs', function (Blueprint $table) {
@@ -91,14 +91,14 @@ return new class extends Migration
             $table->dropIndex('activity_logs_subject_created_idx');
         });
 
-        Schema::table('coach_session_coaches', function (Blueprint $table) {
-            $table->dropIndex('coach_session_coaches_coach_session_idx');
+        Schema::table('training_session_coaches', function (Blueprint $table) {
+            $table->dropIndex('training_session_coaches_training_session_idx');
         });
 
-        Schema::table('session_coach_attendance', function (Blueprint $table) {
-            $table->dropIndex('session_coach_attendance_session_status_idx');
-            $table->dropIndex('session_coach_attendance_coach_status_idx');
-            $table->dropIndex('session_coach_attendance_checked_at_idx');
+        Schema::table('coach_attendance', function (Blueprint $table) {
+            $table->dropIndex('coach_attendance_session_status_idx');
+            $table->dropIndex('coach_attendance_coach_status_idx');
+            $table->dropIndex('coach_attendance_checked_at_idx');
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
@@ -108,12 +108,11 @@ return new class extends Migration
             $table->dropIndex('athlete_attendance_checked_in_at_idx');
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
-            $table->dropIndex('coach_sessions_schedule_idx');
-            $table->dropIndex('coach_sessions_branch_group_date_idx');
-            $table->dropIndex('coach_sessions_coach_date_idx');
-            $table->dropIndex('coach_sessions_status_date_idx');
+        Schema::table('training_sessions', function (Blueprint $table) {
+            $table->dropIndex('training_sessions_schedule_idx');
+            $table->dropIndex('training_sessions_branch_group_date_idx');
+            $table->dropIndex('training_sessions_coach_date_idx');
+            $table->dropIndex('training_sessions_status_date_idx');
         });
     }
 };
-

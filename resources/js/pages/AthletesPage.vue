@@ -8,13 +8,13 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
-import ManagementTablePanel from '@/components/shared/ManagementTablePanel.vue';
 import PageSection from '@/components/shared/PageSection.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
 import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     athleteRosterBaseColumns,
@@ -23,10 +23,9 @@ import {
     genderOptions,
     geupOptions,
     parentRosterColumns,
-    sensitiveIdentifierColumns,
 } from '@/pages/profiles/profileRosterConfig';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/management';
+import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -61,24 +60,40 @@ const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
 const editingCoachId = ref<string | null>(null);
 const editingParentId = ref<string | null>(null);
-const editingParentChildrenId = ref<number | null>(null);
+const editingParentChildrenId = ref<string | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
+const athleteBranchFilter = ref('');
+const athleteGroupFilter = ref('');
+const athleteStatusFilter = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'Users', href: managementRoutes.athletes },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Users', href: appRoutes.athletes },
 ];
 
-const columns: TableColumn[] = [
+const athleteColumns: TableColumn[] = [
     ...athleteRosterBaseColumns,
-    ...(props.canViewSensitiveIdentifiers ? sensitiveIdentifierColumns : []),
     ...athleteRosterTrailingColumns,
 ];
 
 const coachColumns: TableColumn[] = coachRosterColumns;
 
 const parentColumns: TableColumn[] = parentRosterColumns;
+
+const athleteRows = computed(() =>
+    props.rows.filter((row) => {
+        const branchMatches = !athleteBranchFilter.value || String(row.branch_id ?? '') === athleteBranchFilter.value;
+        const groupMatches = !athleteGroupFilter.value || String(row.group_id ?? '') === athleteGroupFilter.value;
+        const statusText =
+            typeof row.status === 'object' && row.status !== null && 'text' in row.status
+                ? String(row.status.text)
+                : String(row.status ?? '');
+        const statusMatches = !athleteStatusFilter.value || statusText.toLowerCase() === athleteStatusFilter.value;
+
+        return branchMatches && groupMatches && statusMatches;
+    }),
+);
 const geupSelectOptions = computed(() =>
     geupOptions.map((option) => ({
         value: option,
@@ -152,19 +167,12 @@ function closeAthleteForm() {
     form.clearErrors();
 }
 
-function toNumericString(value: unknown) {
-    const numeric = String(value ?? '').match(/-?\d+(\.\d+)?/)?.[0] ?? '';
-    return numeric;
+function getUserId(row: TableRow): string {
+    return String(row.user_id ?? row.id ?? row.athlete_id ?? '');
 }
 
-function getUserId(row: TableRow) {
-    const rawValue = row.user_id ?? row.id ?? row.athlete_id;
-
-    return Number(toNumericString(rawValue));
-}
-
-function getParentId(row: TableRow) {
-    return Number(toNumericString(row.parent_id ?? row.id));
+function getParentId(row: TableRow): string {
+    return String(row.parent_id ?? row.id ?? '');
 }
 
 function viewProfile(row: TableRow) {
@@ -276,30 +284,60 @@ function saveParentChildren() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <ManagementTablePanel
-                eyebrow="Users Management"
-                title="Users Management workspace"
+            <ResourceTablePanel
+                eyebrow="User Directory"
+                title="User directory workspace"
                 description="View and edit athlete, Coach, Parent profiles. Create/delete accounts from Admin Panel only."
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
-                :columns="columns"
-                :rows="props.rows"
+                :columns="athleteColumns"
+                :rows="athleteRows"
                 action-label="Actions"
+                searchable
+                search-placeholder="Search athletes by name, email, branch, group, or status"
                 :show-create="false"
             >
+                <template #stats>
+                    <div class="grid gap-3 md:grid-cols-3">
+                        <FormSelectField
+                            id="athlete-branch-filter"
+                            v-model="athleteBranchFilter"
+                            label="Filter by branch"
+                            :options="[{ value: '', label: 'All branches' }, ...props.branches]"
+                        />
+                        <FormSelectField
+                            id="athlete-group-filter"
+                            v-model="athleteGroupFilter"
+                            label="Filter by group"
+                            :options="[{ value: '', label: 'All groups' }, ...props.groups]"
+                        />
+                        <FormSelectField
+                            id="athlete-status-filter"
+                            v-model="athleteStatusFilter"
+                            label="Filter by status"
+                            :options="[
+                                { value: '', label: 'All statuses' },
+                                { value: 'active', label: 'Active' },
+                                { value: 'profile incomplete', label: 'Profile incomplete' },
+                            ]"
+                        />
+                    </div>
+                </template>
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
                         <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
-            <ManagementTablePanel
+            </ResourceTablePanel>
+            <ResourceTablePanel
                 :columns="coachColumns"
                 :rows="props.coachRows"
                 table-title="Coach profiles"
                 table-description="Live coach profile data backed by the application database."
                 action-label="Actions"
+                searchable
+                search-placeholder="Search coaches by name, email, status, or specialization"
                 :show-create="false"
             >
                 <template #row-actions="{ row }">
@@ -307,13 +345,15 @@ function saveParentChildren() {
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
-            <ManagementTablePanel
+            </ResourceTablePanel>
+            <ResourceTablePanel
                 :columns="parentColumns"
                 :rows="props.parentRows"
                 table-title="Parent profiles"
                 table-description="Live parent profile data backed by the application database."
                 action-label="Actions"
+                searchable
+                search-placeholder="Search parents by name, email, relation, occupation, or children"
                 :show-create="false"
             >
                 <template #row-actions="{ row }">
@@ -325,7 +365,7 @@ function saveParentChildren() {
                         >
                     </ActionButtonsRow>
                 </template>
-            </ManagementTablePanel>
+            </ResourceTablePanel>
         </div>
 
         <FormModal :open="showNewAthleteForm" max-width-class="max-w-4xl" @close="closeAthleteForm">

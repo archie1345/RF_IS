@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, type PropType } from 'vue';
-import DashboardDataSections from '@/components/dashboard/DashboardDataSections.vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
+import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
-import type { AppRole, Metric, TableRow } from '@/types/management';
+import type { AppRole, Metric, TableRow, AttendanceRow, TrainingDay } from '@/types/resource-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: managementRoutes.dashboard,
+        href: appRoutes.dashboard,
     },
 ];
 
@@ -24,7 +24,8 @@ const props = defineProps({
     activityPreviewRows: { type: Array as PropType<TableRow[]>, required: true },
     announcements: { type: Array as PropType<TableRow[]>, required: true },
     upcomingEvents: { type: Array as PropType<TableRow[]>, required: true },
-    attendanceRows: { type: Array as PropType<TableRow[]>, required: true },
+    attendanceRows: { type: Array as PropType<AttendanceRow[]>, required: true },
+    trainingDays: { type: Array as PropType<TrainingDay[]>, required: true },
     paymentRows: { type: Array as PropType<TableRow[]>, required: true },
     medalRows: { type: Array as PropType<TableRow[]>, required: true },
     profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
@@ -39,14 +40,15 @@ const role = computed<AppRole>(() => {
 const children = computed(() => page.props.auth.children ?? []);
 const activeChild = computed(() => page.props.auth.activeChild ?? null);
 
-function switchChild(value: string): void {
-    if (!value) {
-        router.delete('/parent/children/switch', { preserveScroll: true });
+const switchChild = (athleteId: string) => {
+    if (!athleteId) {
+        router.delete(appRoutes.parentChildrenSwitch, { preserveState: true });
+
         return;
     }
 
-    router.post(`/parent/children/${value}/switch`, {}, { preserveScroll: true });
-}
+    router.post(appRoutes.parentChildrenSwitch, { athlete_id: athleteId }, { preserveState: true });
+};
 
 useLiveReload(
     () => role.value === 'admin',
@@ -68,7 +70,7 @@ useLiveReload(
                 @switch-child="switchChild"
             />
 
-            <DashboardDataSections
+            <DashboardOverviewSections
                 :role="role"
                 :announcements="props.announcements"
                 :upcoming-events="props.upcomingEvents"
@@ -76,6 +78,7 @@ useLiveReload(
                 :medal-rows="props.medalRows"
                 :activity-preview-rows="props.activityPreviewRows"
                 :attendance-rows="props.attendanceRows"
+                :training-days="props.trainingDays"
                 :payment-rows="props.paymentRows"
             />
 
@@ -83,4 +86,3 @@ useLiveReload(
         </div>
     </AppLayout>
 </template>
-

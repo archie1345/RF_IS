@@ -36,7 +36,7 @@ function setOpenMobile(value: boolean) {
   openMobile.value = value
 }
 
-// Helper to toggle the sidebar.
+// Toggle the sidebar from keyboard shortcuts or controls.
 function toggleSidebar() {
   return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!open.value)
 }

@@ -5,11 +5,11 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { managementRoutes } from '@/data/management';
+import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption } from '@/types/management';
-import type { TableColumn, TableRow } from '@/types/management';
+import type { SelectOption } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     rows: TableRow[];
@@ -29,8 +29,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: managementRoutes.dashboard },
-    { title: 'User Activity Log', href: managementRoutes.activityLogs },
+    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'User Activity Log', href: appRoutes.activityLogs },
 ];
 
 const columns: TableColumn[] = [
@@ -54,6 +54,7 @@ const contextOptions: SelectOption[] = [
 ];
 
 const perPageOptions: SelectOption[] = [
+    { value: '10', label: '10' },
     { value: '25', label: '25' },
     { value: '50', label: '50' },
     { value: '100', label: '100' },
@@ -83,7 +84,7 @@ function resetFilters() {
     filterForm.action = '';
     filterForm.context = '';
     filterForm.actor_email = '';
-    filterForm.per_page = '50';
+    filterForm.per_page = '10';
     applyFilters(1);
 }
 </script>
@@ -113,7 +114,7 @@ function resetFilters() {
 
             <DataTable
                 title="Log entries"
-                :description="`Total entries: ${props.total} | Page ${props.currentPage} of ${props.lastPage}`"
+                :description="`Page ${props.currentPage} of ${props.lastPage}`"
                 :columns="columns"
                 :rows="props.rows"
             />

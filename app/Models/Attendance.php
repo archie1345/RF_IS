@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
@@ -13,13 +14,15 @@ class Attendance extends Model
 
     public $timestamps = true;
 
-    protected $primaryKey = 'atid';
+    protected $primaryKey = 'athlete_attendance_id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [
         'athlete_id',
-        'coach_session_id',
+        'training_session_id',
         'date',
         'status',
         'checked_in_at',
@@ -27,16 +30,15 @@ class Attendance extends Model
         'follow_up_owner',
     ];
 
-    protected $dates = ['deleted_at','date', 'checked_in_at'];
+    protected $dates = ['deleted_at', 'date', 'checked_in_at'];
 
-    public function athlete()
+    public function athlete(): BelongsTo
     {
-        return $this->belongsTo(Athlete::class,'athlete_id');
+        return $this->belongsTo(Athlete::class, 'athlete_id');
     }
 
-    public function session()
+    public function trainingSession(): BelongsTo
     {
-        return $this->belongsTo(Session::class, 'coach_session_id', 'csid');
+        return $this->belongsTo(TrainingSession::class, 'training_session_id', 'training_session_id');
     }
-
 }

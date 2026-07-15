@@ -3,7 +3,7 @@
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\Parents;
+use App\Models\ParentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -14,7 +14,7 @@ function makeLinkedParentChildForProfileAccessTest(): array
     $group = Group::create(['group_name' => 'Profile Group']);
 
     $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = Parents::create(['id' => $parentUser->id, 'relation' => 'mother']);
+    $parent = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'mother']);
 
     $childUser = User::factory()->create([
         'name' => 'Linked Child',
@@ -41,7 +41,7 @@ test('linked parent can open the full child profile management page', function (
     [$parentUser, $childUser] = makeLinkedParentChildForProfileAccessTest();
 
     $this->actingAs($parentUser)
-        ->get(route('athletes.show', $childUser))
+        ->get(route('users.show', $childUser))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('profiles/ProfileDetailsPage')
@@ -131,6 +131,6 @@ test('parent cannot access an unlinked child profile', function () {
     [, $unlinkedChildUser] = makeLinkedParentChildForProfileAccessTest();
 
     $this->actingAs($parentUser)
-        ->get(route('athletes.show', $unlinkedChildUser))
+        ->get(route('users.show', $unlinkedChildUser))
         ->assertForbidden();
 });

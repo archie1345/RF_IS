@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->string('title', 150)->default('Training Session')->after('branch_id');
             $table->enum('status', ['DRAFT', 'CONFIRMED', 'NEEDS_ASSISTANT', 'CANCELED'])->default('DRAFT')->after('end_time');
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
-            $table->foreignId('coach_session_id')->nullable()->after('athlete_id')->constrained('coach_sessions', 'csid')->nullOnDelete();
+            $table->foreignId('training_session_id')->nullable()->after('athlete_id')->constrained('training_sessions', 'training_session_id')->nullOnDelete();
             $table->dateTime('checked_in_at')->nullable()->after('status');
             $table->text('notes')->nullable()->after('checked_in_at');
             $table->string('follow_up_owner', 120)->nullable()->after('notes');
@@ -46,11 +46,11 @@ return new class extends Migration
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('coach_session_id');
+            $table->dropConstrainedForeignId('training_session_id');
             $table->dropColumn(['checked_in_at', 'notes', 'follow_up_owner']);
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->dropColumn(['title', 'status']);
         });
     }
