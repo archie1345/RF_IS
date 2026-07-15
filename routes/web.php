@@ -52,7 +52,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
     Route::redirect('my-profile', '/settings/profile');
 
-    Route::get('training-schedule', [TrainingManagementController::class, 'index'])->name('training-schedule.index');
+    Route::get('training-schedule', [TrainingManagementController::class, 'schedule'])->name('training-schedule.index');
     Route::controller(TrainingManagementController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
         Route::post('/', 'storeSchedule')->name('store');
         Route::put('{schedule}', 'updateSchedule')->name('update');
@@ -86,7 +86,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
         Route::redirect('locations', '/admin/training-management')->name('locations');
         Route::redirect('classes', '/admin/training-management')->name('classes');
-        Route::redirect('schedules', '/admin/training-management')->name('schedules');
+        Route::redirect('schedules', '/training-schedule')->name('schedules');
         Route::post('schedules', [TrainingManagementController::class, 'storeSchedule'])->name('schedules.store');
         Route::post('schedules/generate-week', [TrainingManagementController::class, 'generateSessions'])->name('schedules.generate-week');
         Route::get('daily-schedules', [AdminScheduleFeatureController::class, 'daily'])->name('daily-schedules');
