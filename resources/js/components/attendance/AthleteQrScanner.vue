@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
 <template>
     <div v-if="isPortableDevice" class="rounded-3xl border bg-muted/40 p-5">
         <div class="flex items-start gap-3">
-            <div class="rounded-2xl bg-blue-100 p-3 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200">
+            <div class="rounded-2xl bg-brand-blue/15 p-3 text-brand-blue dark:bg-brand-blue/15 dark:text-brand-blue/80">
                 <QrCode class="size-7" />
             </div>
             <div>

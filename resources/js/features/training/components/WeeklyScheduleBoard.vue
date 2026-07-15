@@ -96,16 +96,16 @@ function typeTone(schedule: WeeklyScheduleCard): string {
 </script>
 
 <template>
-    <section class="rounded-2xl bg-slate-50 p-4 text-slate-950 shadow-sm ring-1 ring-slate-200 md:p-6">
+    <section class="rounded-2xl border bg-background p-4 text-foreground shadow-sm md:p-6">
         <div class="mb-7 grid gap-4 xl:grid-cols-[1fr_auto_1fr] xl:items-start">
             <div>
                 <h2 class="text-3xl font-black tracking-tight">{{ title }}</h2>
                 <p class="mt-1 text-xs font-black text-red-500 uppercase">DOJANG: {{ branchLabel }}</p>
-                <p class="mt-1 text-sm font-medium text-slate-500">{{ subtitle }}</p>
+                <p class="mt-1 text-sm font-medium text-muted-foreground">{{ subtitle }}</p>
             </div>
 
             <div
-                class="justify-self-start rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
+                class="justify-self-start rounded-full border bg-card px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
             >
                 <span class="mr-2 inline-flex size-2 rounded-full bg-blue-500"></span>
                 TODAY: {{ todayLabel }}
@@ -121,9 +121,9 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                 </button>
                 <div
                     v-if="showManagementHint"
-                    class="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-500 uppercase shadow-sm"
+                    class="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 text-sm font-black text-muted-foreground uppercase shadow-sm"
                 >
-                    <Info class="size-5 text-slate-400" />
+                    <Info class="size-5 text-muted-foreground" />
                     Atur jadwal di menu Master Data &gt; Kelas
                 </div>
             </div>
@@ -133,13 +133,11 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             <div
                 v-for="day in days"
                 :key="`head-${day.id}`"
-                class="rounded-xl border bg-white px-5 py-5 shadow-sm"
-                :class="
-                    day.id === todayDay ? 'border-red-500 bg-red-500 text-white' : 'border-slate-200 text-slate-950'
-                "
+                class="rounded-xl border bg-card px-5 py-5 shadow-sm"
+                :class="day.id === todayDay ? 'border-red-500 bg-red-500 text-white' : 'border-border text-foreground'"
             >
                 <p class="text-xl leading-none font-black">{{ day.name }}</p>
-                <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white' : 'text-slate-400'">
+                <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white' : 'text-muted-foreground'">
                     {{ day.english }}
                 </p>
             </div>
@@ -149,15 +147,15 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             <div
                 v-for="day in days"
                 :key="`body-${day.id}`"
-                class="min-h-[280px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                class="min-h-[280px] rounded-xl border bg-card p-4 shadow-sm"
             >
                 <template v-if="(schedulesByDay.get(day.id) ?? []).length">
                     <article
                         v-for="schedule in schedulesByDay.get(day.id)"
                         :key="schedule.id"
-                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-white p-4 shadow-md"
+                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-background p-4 shadow-md"
                     >
-                        <div class="mb-3 border-b border-slate-100 pb-3">
+                        <div class="mb-3 border-b border-border pb-3">
                             <h3 class="text-base font-black">
                                 {{
                                     schedule.group && schedule.group !== 'All groups' ? schedule.group : schedule.title
@@ -171,19 +169,19 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                             </span>
                         </div>
 
-                        <div class="space-y-4 text-xs font-black text-slate-500 uppercase">
+                        <div class="space-y-4 text-xs font-black text-muted-foreground uppercase">
                             <div class="flex gap-3">
                                 <UserRound class="mt-0.5 size-4 shrink-0 text-red-500" />
                                 <div>
                                     <p>Instruktur</p>
-                                    <p class="text-sm text-slate-950 normal-case">{{ schedule.coach || 'TBA' }}</p>
+                                    <p class="text-sm text-foreground normal-case">{{ schedule.coach || 'TBA' }}</p>
                                 </div>
                             </div>
                             <div class="flex gap-3">
                                 <Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500" />
                                 <div>
                                     <p>Waktu</p>
-                                    <p class="text-sm text-slate-950">
+                                    <p class="text-sm text-foreground">
                                         {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
                                     </p>
                                 </div>
@@ -192,14 +190,14 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                                 <UsersRound class="mt-0.5 size-4 shrink-0 text-orange-500" />
                                 <div>
                                     <p>Peserta</p>
-                                    <p class="text-sm text-slate-950">{{ schedule.athletes_count ?? '-' }}</p>
+                                    <p class="text-sm text-foreground">{{ schedule.athletes_count ?? '-' }}</p>
                                 </div>
                             </div>
                             <div class="flex gap-3">
                                 <MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500" />
                                 <div>
                                     <p>Lokasi</p>
-                                    <p class="text-sm text-slate-950 normal-case">
+                                    <p class="text-sm text-foreground normal-case">
                                         {{ schedule.location || schedule.branch || 'RTFCM' }}
                                     </p>
                                 </div>
@@ -208,11 +206,11 @@ function typeTone(schedule: WeeklyScheduleCard): string {
 
                         <div
                             v-if="canManage && schedule.can_manage"
-                            class="mt-4 flex gap-2 border-t border-slate-100 pt-3"
+                            class="mt-4 flex gap-2 border-t border-border pt-3"
                         >
                             <button
                                 type="button"
-                                class="rounded-lg border px-3 py-1 text-xs font-bold hover:bg-slate-50"
+                                class="rounded-lg border px-3 py-1 text-xs font-bold hover:bg-muted"
                                 @click="emit('edit', schedule)"
                             >
                                 Edit
@@ -229,7 +227,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                 </template>
                 <div
                     v-else
-                    class="flex h-full min-h-[240px] flex-col items-center justify-center text-xs font-black text-slate-300 uppercase"
+                    class="flex h-full min-h-[240px] flex-col items-center justify-center text-xs font-black text-muted-foreground/50 uppercase"
                 >
                     <CalendarDays class="mb-3 size-8" />
                     Libur
@@ -238,16 +236,16 @@ function typeTone(schedule: WeeklyScheduleCard): string {
         </div>
 
         <div
-            class="mx-auto mt-10 flex w-fit flex-wrap items-center justify-center gap-5 rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-bold text-slate-500 shadow-lg"
+            class="mx-auto mt-10 flex w-fit flex-wrap items-center justify-center gap-5 rounded-full border bg-card px-8 py-4 text-sm font-bold text-muted-foreground shadow-lg"
         >
             <div class="flex items-center gap-2">
                 <Info class="size-4 text-blue-500" /> Jadwal sinkron otomatis dengan Manajemen Kelas
             </div>
-            <div class="hidden h-6 w-px bg-slate-200 md:block"></div>
+            <div class="hidden h-6 w-px bg-border md:block"></div>
             <div
                 v-for="item in legendItems"
                 :key="item.label"
-                class="rounded-full border px-3 py-1 text-xs font-black text-slate-950"
+                class="rounded-full border px-3 py-1 text-xs font-black text-foreground"
             >
                 <span class="mr-1 inline-flex size-2 rounded-full" :class="item.dot"></span>{{ item.label }}
             </div>

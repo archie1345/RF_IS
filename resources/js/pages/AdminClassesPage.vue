@@ -153,7 +153,7 @@ function deleteClass(item: ClassRecord) {
             <section class="rounded-2xl border bg-card p-5 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
-                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Master Data</p>
+                        <p class="text-xs font-black tracking-wide text-brand-coral uppercase">Master Data</p>
                         <h1 class="text-3xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
                     </div>
@@ -369,14 +369,95 @@ function deleteClass(item: ClassRecord) {
                             <button
                                 type="button"
                                 class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="closeClassForm"
+                                @click="resetForm"
                             >
-                                Batal
+                                Reset
                             </button>
                         </div>
                     </div>
                 </form>
-            </FormModal>
+
+                <section class="rounded-2xl border bg-card p-5 shadow-sm">
+                    <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <h2 class="text-xl font-black">Daftar Kelas</h2>
+                        <input
+                            v-model="search"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72"
+                            placeholder="Cari kelas..."
+                        />
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[980px] text-sm">
+                            <thead>
+                                <tr class="border-b text-left">
+                                    <th class="px-3 py-3 font-black">Kelas</th>
+                                    <th class="px-3 py-3 font-black">Lokasi</th>
+                                    <th class="px-3 py-3 font-black">Coach</th>
+                                    <th class="px-3 py-3 font-black">Jadwal</th>
+                                    <th class="px-3 py-3 font-black">Peserta</th>
+                                    <th class="px-3 py-3 font-black">Schedule</th>
+                                    <th class="px-3 py-3 font-black">Status</th>
+                                    <th class="px-3 py-3 font-black">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="filteredClasses.length === 0">
+                                    <td colspan="8" class="h-32 px-3 text-center text-muted-foreground">
+                                        Belum ada kelas.
+                                    </td>
+                                </tr>
+                                <tr v-for="item in filteredClasses" :key="item.id" class="border-b hover:bg-muted/40">
+                                    <td class="px-3 py-4">
+                                        <p class="font-black">{{ item.name }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ item.class_type }} · min {{ item.min_belt || '-' }}
+                                        </p>
+                                    </td>
+                                    <td class="px-3 py-4">{{ item.branch }}</td>
+                                    <td class="px-3 py-4">{{ item.coach }}</td>
+                                    <td class="px-3 py-4">
+                                        <CalendarDays class="mr-1 inline size-3" />{{ item.day_label }}
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ item.start_time }} - {{ item.end_time }}
+                                        </p>
+                                    </td>
+                                    <td class="px-3 py-4">{{ item.athletes_count }} atlet</td>
+                                    <td class="px-3 py-4">{{ item.weekly_schedule_status }}</td>
+                                    <td class="px-3 py-4">
+                                        <span
+                                            class="rounded-full px-3 py-1 text-xs font-black"
+                                            :class="
+                                                item.is_active
+                                                    ? 'bg-brand-lime/20 text-brand-lime'
+                                                    : 'bg-brand-slate/10 text-brand-slate'
+                                            "
+                                            >{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
+                                        >
+                                    </td>
+                                    <td class="px-3 py-4">
+                                        <div class="flex gap-2">
+                                            <button
+                                                type="button"
+                                                class="rounded border px-2 py-1"
+                                                @click="editClass(item)"
+                                            >
+                                                <Pencil class="size-4" /></button
+                                            ><button
+                                                type="button"
+                                                class="rounded border px-2 py-1 text-brand-coral"
+                                                @click="deleteClass(item)"
+                                            >
+                                                <Trash2 class="size-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
         </div>
     </AppLayout>
 </template>

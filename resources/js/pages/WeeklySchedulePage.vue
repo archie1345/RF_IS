@@ -108,6 +108,8 @@ function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.end_time = schedule.end_time || '18:00';
     scheduleForm.location = schedule.location ?? '';
     scheduleForm.is_active = schedule.is_active ?? true;
+    await nextTick();
+    scheduleFormSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function saveSchedule() {
