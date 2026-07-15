@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Coach;
 use App\Models\CoachAttendance;
 use App\Models\TrainingSession;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
@@ -37,37 +38,49 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
             ->orderBy('athlete_id')
             ->get();
 
-        return $this->renderAttendanceReport('Rekap Presensi Atlet', 'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.', [
-            ['label' => 'Total Atlet', 'value' => (string) $athletes->count(), 'tone' => 'info'],
-            ['label' => 'Total Catatan', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
-            ['label' => 'Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
-            ['label' => 'Tidak Hadir', 'value' => (string) $attendances->whereIn('status', ['ABSENT', 'SICK', 'EXCUSED'])->count(), 'tone' => 'warning'],
-        ], ['No', 'Atlet', 'Kelas', 'Tipe Kelas', 'Lokasi', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'], 'Belum ada data presensi atlet.', 'attendance', $athletes->values()->map(function (Athlete $athlete, int $index) use ($attendanceByAthlete): array {
-            $records = $attendanceByAthlete->get($athlete->athlete_id, collect());
-            $total = $records->count();
-            $present = $records->where('status', 'PRESENT')->count();
-            $late = $records->where('status', 'LATE')->count();
-            $excused = $records->where('status', 'EXCUSED')->count();
-            $sick = $records->where('status', 'SICK')->count();
-            $absent = $records->where('status', 'ABSENT')->count();
-            $rate = $total > 0 ? round((($present + $late) / $total) * 100) : 0;
+        return $this->renderAttendanceReport(
+            'Rekap Presensi Atlet',
+            'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.',
+            [
+                ['label' => 'Total Atlet', 'value' => (string) $athletes->count(), 'tone' => 'info'],
+                ['label' => 'Total Catatan', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
+                ['label' => 'Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
+                ['label' => 'Tidak Hadir', 'value' => (string) $attendances->whereIn('status', ['ABSENT', 'SICK', 'EXCUSED'])->count(), 'tone' => 'warning'],
+            ],
+            ['No', 'Atlet', 'Kelas', 'Tipe Kelas', 'Lokasi', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
+            'Belum ada data presensi atlet.',
+            'attendance',
+            $athletes->values()->map(function (Athlete $athlete, int $index) use ($attendanceByAthlete): array {
+                $records = $attendanceByAthlete->get($athlete->athlete_id, collect());
+                $total = $records->count();
+                $present = $records->where('status', 'PRESENT')->count();
+                $late = $records->where('status', 'LATE')->count();
+                $excused = $records->where('status', 'EXCUSED')->count();
+                $sick = $records->where('status', 'SICK')->count();
+                $absent = $records->where('status', 'ABSENT')->count();
+                $rate = $total > 0 ? round((($present + $late) / $total) * 100) : 0;
 
-            return [
-                'No' => (string) ($index + 1),
-                'Atlet' => ($athlete->user?->name ?? 'Unknown athlete').'\n'.$athlete->athlete_id,
-                'Kelas' => $athlete->group?->group_name ?? '-',
-                'Tipe Kelas' => $athlete->group?->class_type ?? '-',
-                'Lokasi' => $athlete->branch?->branch_name ?? '-',
-                'Total' => (string) $total,
-                'Hadir' => (string) $present,
-                'Izin' => (string) $excused,
-                'Sakit' => (string) $sick,
-                'Alpha' => (string) $absent,
-                'Terlambat' => (string) $late,
-                'Persentase' => $rate.'%',
-                'Status' => $this->attendanceRateStatus($rate, $total),
-            ];
-        })->all(), $from, $to, $month, route('admin.attendance.export'));
+                return [
+                    'No' => (string) ($index + 1),
+                    'Atlet' => ($athlete->user?->name ?? 'Unknown athlete').'\n'.$athlete->athlete_id,
+                    'Kelas' => $athlete->group?->group_name ?? '-',
+                    'Tipe Kelas' => $athlete->group?->class_type ?? '-',
+                    'Lokasi' => $athlete->branch?->branch_name ?? '-',
+                    'Total' => (string) $total,
+                    'Hadir' => (string) $present,
+                    'Izin' => (string) $excused,
+                    'Sakit' => (string) $sick,
+                    'Alpha' => (string) $absent,
+                    'Terlambat' => (string) $late,
+                    'Persentase' => $rate.'%',
+                    'Status' => $this->attendanceRateStatus($rate, $total),
+                ];
+            })->all(),
+            $from,
+            $to,
+            $month,
+            route('admin.attendance.export'),
+        );
     }
 
     public function coaches(Request $request): Response
@@ -89,37 +102,49 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
             ->groupBy('coach_id');
         $coaches = Coach::query()->with('user')->orderBy('coach_id')->get();
 
-        return $this->renderAttendanceReport('Rekap Presensi Coach', 'Rekap presensi coach berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.', [
-            ['label' => 'Total Coach', 'value' => (string) $coaches->count(), 'tone' => 'info'],
-            ['label' => 'Jadwal Coach', 'value' => (string) $scheduledSessionsByCoach->flatten()->count(), 'tone' => 'neutral'],
-            ['label' => 'Mengajar', 'value' => (string) $coachAttendance->where('status', 'TEACH')->count(), 'tone' => 'success'],
-            ['label' => 'Tidak Mengajar', 'value' => (string) $coachAttendance->where('status', 'NOT_TEACH')->count(), 'tone' => 'warning'],
-        ], ['No', 'Coach', 'Kelas', 'Tipe Kelas', 'Jadwal', 'Mengajar', 'Tidak Mengajar', 'Belum Dicatat', 'Terakhir Check', 'Persentase', 'Status'], 'Belum ada data presensi coach.', 'instructor-attendance', $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach, $scheduledSessionsByCoach): array {
-            $records = $coachAttendanceByCoach->get($coach->coach_id, collect());
-            $scheduledSessions = $scheduledSessionsByCoach->get($coach->coach_id, collect());
-            $scheduled = $scheduledSessions->count();
-            $teach = $records->where('status', 'TEACH')->count();
-            $notTeach = $records->where('status', 'NOT_TEACH')->count();
-            $unrecorded = max($scheduled - $records->count(), 0);
-            $rate = $scheduled > 0 ? round(($teach / $scheduled) * 100) : 0;
-            $lastChecked = $records->sortByDesc('checked_at')->first()?->checked_at;
-            $classes = $scheduledSessions->pluck('group.group_name')->filter()->unique()->values()->all();
-            $classTypes = $scheduledSessions->pluck('group.class_type')->filter()->unique()->values()->all();
+        return $this->renderAttendanceReport(
+            'Rekap Presensi Coach',
+            'Rekap presensi coach berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.',
+            [
+                ['label' => 'Total Coach', 'value' => (string) $coaches->count(), 'tone' => 'info'],
+                ['label' => 'Jadwal Coach', 'value' => (string) $scheduledSessionsByCoach->flatten()->count(), 'tone' => 'neutral'],
+                ['label' => 'Mengajar', 'value' => (string) $coachAttendance->where('status', 'TEACH')->count(), 'tone' => 'success'],
+                ['label' => 'Tidak Mengajar', 'value' => (string) $coachAttendance->where('status', 'NOT_TEACH')->count(), 'tone' => 'warning'],
+            ],
+            ['No', 'Coach', 'Kelas', 'Tipe Kelas', 'Jadwal', 'Mengajar', 'Tidak Mengajar', 'Belum Dicatat', 'Terakhir Check', 'Persentase', 'Status'],
+            'Belum ada data presensi coach.',
+            'instructor-attendance',
+            $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach, $scheduledSessionsByCoach): array {
+                $records = $coachAttendanceByCoach->get($coach->coach_id, collect());
+                $scheduledSessions = $scheduledSessionsByCoach->get($coach->coach_id, collect());
+                $scheduled = $scheduledSessions->count();
+                $teach = $records->where('status', 'TEACH')->count();
+                $notTeach = $records->where('status', 'NOT_TEACH')->count();
+                $unrecorded = max($scheduled - $records->count(), 0);
+                $rate = $scheduled > 0 ? round(($teach / $scheduled) * 100) : 0;
+                $lastChecked = $records->sortByDesc('checked_at')->first()?->checked_at;
+                $classes = $scheduledSessions->pluck('group.group_name')->filter()->unique()->values()->all();
+                $classTypes = $scheduledSessions->pluck('group.class_type')->filter()->unique()->values()->all();
 
-            return [
-                'No' => (string) ($index + 1),
-                'Coach' => ($coach->user?->name ?? 'Unknown coach').'\n'.$coach->coach_id,
-                'Kelas' => count($classes) ? implode(', ', $classes) : '-',
-                'Tipe Kelas' => count($classTypes) ? implode(', ', $classTypes) : '-',
-                'Jadwal' => (string) $scheduled,
-                'Mengajar' => (string) $teach,
-                'Tidak Mengajar' => (string) $notTeach,
-                'Belum Dicatat' => (string) $unrecorded,
-                'Terakhir Check' => $lastChecked ? Carbon::parse((string) $lastChecked)->format('d M Y H:i') : '-',
-                'Persentase' => $rate.'%',
-                'Status' => $this->attendanceRateStatus($rate, $scheduled),
-            ];
-        })->all(), $from, $to, $month, route('admin.instructor-attendance.export'));
+                return [
+                    'No' => (string) ($index + 1),
+                    'Coach' => ($coach->user?->name ?? 'Unknown coach').'\n'.$coach->coach_id,
+                    'Kelas' => count($classes) ? implode(', ', $classes) : '-',
+                    'Tipe Kelas' => count($classTypes) ? implode(', ', $classTypes) : '-',
+                    'Jadwal' => (string) $scheduled,
+                    'Mengajar' => (string) $teach,
+                    'Tidak Mengajar' => (string) $notTeach,
+                    'Belum Dicatat' => (string) $unrecorded,
+                    'Terakhir Check' => $lastChecked ? Carbon::parse((string) $lastChecked)->format('d M Y H:i') : '-',
+                    'Persentase' => $rate.'%',
+                    'Status' => $this->attendanceRateStatus($rate, $scheduled),
+                ];
+            })->all(),
+            $from,
+            $to,
+            $month,
+            route('admin.instructor-attendance.export'),
+        );
     }
 
     public function exportAthletes(Request $request): BinaryFileResponse
@@ -174,7 +199,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return $this->downloadAttendanceWorkbook('LAPORAN ABSENSI PELATIH', $from, $to, $records, $this->exportFilename('presensi-pelatih', $from, $to));
     }
 
-    private function renderAttendanceReport(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows, Carbon $from, Carbon $to, string $month, string $exportUrl): Response
+    private function renderAttendanceReport(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows, CarbonInterface $from, CarbonInterface $to, string $month, string $exportUrl): Response
     {
         return Inertia::render('AdminAttendanceReportPage', [
             'mode' => $mode,
@@ -215,7 +240,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return [$from, $to, $from->format('Y-m')];
     }
 
-    private function downloadAttendanceWorkbook(string $title, Carbon $from, Carbon $to, array $records, string $filename): BinaryFileResponse
+    private function downloadAttendanceWorkbook(string $title, CarbonInterface $from, CarbonInterface $to, array $records, string $filename): BinaryFileResponse
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -269,9 +294,12 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return response()->download($path, $filename)->deleteFileAfterSend(true);
     }
 
-    private function exportFilename(string $prefix, Carbon $from, Carbon $to): string
+    private function exportFilename(string $prefix, CarbonInterface $from, CarbonInterface $to): string
     {
-        $period = $from->isSameDay($to->copy()->endOfMonth()) && $from->isSameDay($from->copy()->startOfMonth())
+        $isFullMonth = $from->toDateString() === $from->copy()->startOfMonth()->toDateString()
+            && $to->toDateString() === $from->copy()->endOfMonth()->toDateString();
+
+        $period = $isFullMonth
             ? $from->format('Y-m')
             : $from->format('Y-m-d').'_'.$to->format('Y-m-d');
 
