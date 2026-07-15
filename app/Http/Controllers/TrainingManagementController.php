@@ -12,6 +12,7 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,22 +25,13 @@ class TrainingManagementController extends Controller
         $user = $request->user();
         $canManageStructure = (bool) $user?->isAdmin();
         $canManageSchedule = (bool) ($user?->isAdmin() || $user?->isCoach());
-        $coachId = $user?->coachProfile?->coach_id;
 
         $weekStart = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
         $weekEnd = $request->date('to')?->endOfDay() ?? $weekStart->copy()->endOfWeek();
 
         $branches = Branch::query()->withCount(['groups', 'athletes'])->orderBy('branch_name')->get();
-
-        $weeklySchedules = WeeklyTrainingSchedule::query()
-            ->with(['branch', 'group', 'coach.user'])
-            ->withCount(['trainingSessions as generated_sessions_count' => fn ($query) => $query->whereBetween('session_date', [$weekStart->toDateString(), $weekEnd->toDateString()])])
-            ->orderBy('day_of_week')
-            ->orderBy('start_time')
-            ->get();
-
+        $weeklySchedules = $this->weeklyScheduleQuery($weekStart, $weekEnd)->get();
         $scheduleByGroup = $weeklySchedules->whereNotNull('group_id')->keyBy('group_id');
-
         $groups = Group::query()->with(['branch', 'coach.user'])->withCount('athletes')->orderBy('group_name')->get();
 
         $sessions = TrainingSession::query()
@@ -51,11 +43,10 @@ class TrainingManagementController extends Controller
             ->get();
 
         return Inertia::render('TrainingManagementPage', [
-            'title' => $canManageStructure ? 'Manajemen Latihan' : 'Jadwal Latihan',
-            'subtitle' => 'Lokasi → Kelas → Jadwal Mingguan → Sesi Latihan → Attendance / QR.',
+            'title' => 'Manajemen Latihan',
+            'subtitle' => 'Master data lokasi dan kelas. Jadwal Mingguan sekarang punya halaman khusus di menu Jadwal Latihan.',
             'canManageStructure' => $canManageStructure,
             'canManageSchedule' => $canManageSchedule,
-            'currentCoachId' => $coachId,
             'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],
             'branches' => $branches->map(fn (Branch $branch) => [
                 'id' => $branch->branch_id,
@@ -95,24 +86,7 @@ class TrainingManagementController extends Controller
                     'weekly_schedule_status' => $schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung',
                 ];
             })->values(),
-            'weeklySchedules' => $weeklySchedules->map(fn (WeeklyTrainingSchedule $schedule) => [
-                'id' => $schedule->weekly_training_schedule_id,
-                'title' => $schedule->title,
-                'branch_id' => $schedule->branch_id,
-                'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
-                'group_id' => $schedule->group_id,
-                'group' => $schedule->group?->group_name ?? 'All groups',
-                'coach_id' => $schedule->coach_id,
-                'coach' => $schedule->coach?->user?->name ?? 'Belum ada coach',
-                'day_of_week' => $schedule->day_of_week,
-                'day_label' => $this->dayName((int) $schedule->day_of_week),
-                'start_time' => $schedule->start_time ? substr((string) $schedule->start_time, 0, 5) : '',
-                'end_time' => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
-                'location' => $schedule->location,
-                'is_active' => (bool) $schedule->is_active,
-                'generated_sessions_count' => $schedule->generated_sessions_count,
-                'can_manage' => $this->canManageSchedule($request, $schedule),
-            ])->values(),
+            'weeklySchedules' => $this->weeklySchedulePayload($request, $weeklySchedules),
             'sessions' => $sessions->map(fn (TrainingSession $session) => [
                 'id' => $session->training_session_id,
                 'weekly_training_schedule_id' => $session->weekly_training_schedule_id,
@@ -127,8 +101,32 @@ class TrainingManagementController extends Controller
             ])->values(),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'groupOptions' => $groups->map(fn (Group $group) => ['value' => $group->group_id, 'label' => $group->group_name])->values(),
-            'coachOptions' => Coach::query()->with('user:id,name')->get()->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])->sortBy('label')->values(),
+            'coachOptions' => $this->coachOptions(),
             'beltOptions' => $this->beltOptions(),
+        ]);
+    }
+
+    public function schedule(Request $request): Response
+    {
+        $user = $request->user();
+        $canManageSchedule = (bool) ($user?->isAdmin() || $user?->isCoach());
+        $coachId = $user?->coachProfile?->coach_id;
+        $weekStart = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
+        $weekEnd = $request->date('to')?->endOfDay() ?? $weekStart->copy()->endOfWeek();
+        $weeklySchedules = $this->weeklyScheduleQuery($weekStart, $weekEnd)->get();
+        $branches = Branch::query()->orderBy('branch_name')->get();
+        $groups = Group::query()->orderBy('group_name')->get();
+
+        return Inertia::render('WeeklySchedulePage', [
+            'title' => 'Jadwal Latihan',
+            'subtitle' => 'Jadwal latihan rutin RTFCM',
+            'canManageSchedule' => $canManageSchedule,
+            'currentCoachId' => $coachId,
+            'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],
+            'weeklySchedules' => $this->weeklySchedulePayload($request, $weeklySchedules),
+            'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
+            'groupOptions' => $groups->map(fn (Group $group) => ['value' => $group->group_id, 'label' => $group->group_name])->values(),
+            'coachOptions' => $this->coachOptions(),
         ]);
     }
 
@@ -178,6 +176,53 @@ class TrainingManagementController extends Controller
         $result = $generator->handle($from, $to);
 
         return back()->with('status', "Generated {$result['created']} sesi latihan. Skipped {$result['skipped']} duplikat.");
+    }
+
+    private function weeklyScheduleQuery(Carbon $weekStart, Carbon $weekEnd)
+    {
+        return WeeklyTrainingSchedule::query()
+            ->with([
+                'branch',
+                'group' => fn ($query) => $query->withCount('athletes'),
+                'coach.user',
+            ])
+            ->withCount(['trainingSessions as generated_sessions_count' => fn ($query) => $query->whereBetween('session_date', [$weekStart->toDateString(), $weekEnd->toDateString()])])
+            ->orderBy('day_of_week')
+            ->orderBy('start_time');
+    }
+
+    private function weeklySchedulePayload(Request $request, Collection $weeklySchedules)
+    {
+        return $weeklySchedules->map(fn (WeeklyTrainingSchedule $schedule) => [
+            'id' => $schedule->weekly_training_schedule_id,
+            'title' => $schedule->title,
+            'branch_id' => $schedule->branch_id,
+            'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
+            'group_id' => $schedule->group_id,
+            'group' => $schedule->group?->group_name ?? 'All groups',
+            'coach_id' => $schedule->coach_id,
+            'coach' => $schedule->coach?->user?->name ?? 'Belum ada coach',
+            'day_of_week' => $schedule->day_of_week,
+            'day_label' => $this->dayName((int) $schedule->day_of_week),
+            'start_time' => $schedule->start_time ? substr((string) $schedule->start_time, 0, 5) : '',
+            'end_time' => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
+            'location' => $schedule->location,
+            'is_active' => (bool) $schedule->is_active,
+            'generated_sessions_count' => $schedule->generated_sessions_count,
+            'can_manage' => $this->canManageSchedule($request, $schedule),
+            'class_type' => $schedule->group?->class_type,
+            'athletes_count' => $schedule->group?->athletes_count,
+        ])->values();
+    }
+
+    private function coachOptions()
+    {
+        return Coach::query()
+            ->with('user:id,name')
+            ->get()
+            ->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
+            ->sortBy('label')
+            ->values();
     }
 
     private function validatedSchedule(Request $request): array
