@@ -9,6 +9,7 @@ use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -178,7 +179,7 @@ class TrainingManagementController extends Controller
         return back()->with('status', "Generated {$result['created']} sesi latihan. Skipped {$result['skipped']} duplikat.");
     }
 
-    private function weeklyScheduleQuery(Carbon $weekStart, Carbon $weekEnd)
+    private function weeklyScheduleQuery(CarbonInterface $weekStart, CarbonInterface $weekEnd)
     {
         return WeeklyTrainingSchedule::query()
             ->with([
