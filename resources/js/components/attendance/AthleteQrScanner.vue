@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
-import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 
 const scanner = ref<Html5Qrcode | null>(null);
-const cameras = ref<CameraDevice[]>([]);
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
 const isPortableDevice = ref(false);
 const isScanning = ref(false);
@@ -78,19 +77,19 @@ function isSecureCameraContext() {
 async function startScanner() {
     scannerError.value = null;
 
-    
     if (!isPortableDevice.value) {
         scannerError.value = 'QR scan menu is only available on phones and tablets.';
         return;
     }
-    
+
     if (!isSecureCameraContext()) {
         scannerError.value = 'Camera access requires HTTPS, localhost, or a trusted secure tunnel.';
         return;
     }
-    
+
     if (!navigator.mediaDevices?.getUserMedia) {
-        scannerError.value = 'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone or tablet, or paste the QR link below.';
+        scannerError.value =
+            'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone or tablet, or paste the QR link below.';
         return;
     }
 
@@ -112,9 +111,10 @@ async function startScanner() {
         isScanning.value = true;
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error ?? '');
-        scannerError.value = message.toLowerCase().includes('permission') || message.toLowerCase().includes('notallowed')
-            ? 'Camera permission was denied. Allow camera access in the browser/site settings, then try again.'
-            : 'Camera could not start. Close other apps using the camera, use a phone/tablet browser, or paste the QR link below.';
+        scannerError.value =
+            message.toLowerCase().includes('permission') || message.toLowerCase().includes('notallowed')
+                ? 'Camera permission was denied. Allow camera access in the browser/site settings, then try again.'
+                : 'Camera could not start. Close other apps using the camera, use a phone/tablet browser, or paste the QR link below.';
         await stopScanner();
     }
 }
@@ -156,17 +156,29 @@ onBeforeUnmount(() => {
                 <QrCode class="size-7" />
             </div>
             <div>
-                <p class="text-xs font-black uppercase tracking-[0.22em] text-blue-600">QR scan menu</p>
+                <p class="text-xs font-black tracking-[0.22em] text-blue-600 uppercase">QR scan menu</p>
                 <h2 class="mt-1 text-2xl font-black">Scan coach QR inside this page</h2>
-                <p class="mt-2 text-sm text-muted-foreground">Stay logged in as the athlete. Scan the coach QR here. The secure attendance page will open, verify eligibility, then save automatically.</p>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    Stay logged in as the athlete. Scan the coach QR here. The secure attendance page will open, verify
+                    eligibility, then save automatically.
+                </p>
             </div>
         </div>
 
         <div class="mt-5 overflow-hidden rounded-3xl border bg-background">
-            <div :id="scannerElementId" class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
-            <div v-if="!isScanning" class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+            <div
+                :id="scannerElementId"
+                class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
+            ></div>
+            <div
+                v-if="!isScanning"
+                class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground"
+            >
                 <Camera class="size-10" />
-                <p>Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for the attendance page.</p>
+                <p>
+                    Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for
+                    the attendance page.
+                </p>
             </div>
         </div>
 
@@ -176,7 +188,9 @@ onBeforeUnmount(() => {
                 Start scan
             </Button>
             <Button v-else type="button" variant="outline" @click="stopScanner">Stop scan</Button>
-            <Button type="button" variant="outline" :disabled="isOpening" @click="submitManualQrUrl">Use pasted link</Button>
+            <Button type="button" variant="outline" :disabled="isOpening" @click="submitManualQrUrl"
+                >Use pasted link</Button
+            >
         </div>
 
         <input
@@ -187,7 +201,10 @@ onBeforeUnmount(() => {
             class="mt-3 h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
         />
 
-        <p v-if="scannerError" class="mt-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+        <p
+            v-if="scannerError"
+            class="mt-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+        >
             <XCircle class="mt-0.5 size-4 shrink-0" />
             <span>{{ scannerError }}</span>
         </p>
@@ -197,8 +214,13 @@ onBeforeUnmount(() => {
         <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
             <Smartphone class="size-7" />
         </div>
-        <p class="mt-4 text-xs font-black uppercase tracking-[0.22em] text-muted-foreground">QR scan hidden on desktop</p>
+        <p class="mt-4 text-xs font-black tracking-[0.22em] text-muted-foreground uppercase">
+            QR scan hidden on desktop
+        </p>
         <h2 class="mt-1 text-2xl font-black">Use a phone or tablet</h2>
-        <p class="mt-2 text-sm text-muted-foreground">The QR scan menu is intentionally hidden on desktop. Open this attendance page from a phone or tablet to scan.</p>
+        <p class="mt-2 text-sm text-muted-foreground">
+            The QR scan menu is intentionally hidden on desktop. Open this attendance page from a phone or tablet to
+            scan.
+        </p>
     </div>
 </template>

@@ -151,7 +151,8 @@ class TrainingManagementController extends Controller
         $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
         $schedule = WeeklyTrainingSchedule::query()->create($validated);
-        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+        $attachScheduleCoach = $request->user()?->isCoach() === true;
+        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id], $attachScheduleCoach);
         ActivityLogger::log($request, 'training_schedule.created', 'training', 'Created weekly training schedule', $schedule, ['title' => $validated['title'], 'auto_created_sessions' => $result['created']]);
 
         return back()->with('status', "Jadwal mingguan disimpan. Auto-created {$result['created']} sesi latihan untuk 14 hari ke depan; skipped {$result['skipped']} duplikat.");
@@ -163,7 +164,8 @@ class TrainingManagementController extends Controller
         $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
         $schedule->update($validated);
-        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+        $attachScheduleCoach = $request->user()?->isCoach() === true;
+        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id], $attachScheduleCoach);
         ActivityLogger::log($request, 'training_schedule.updated', 'training', 'Updated weekly training schedule', $schedule, ['title' => $schedule->title, 'auto_created_sessions' => $result['created']]);
 
         return back()->with('status', "Jadwal mingguan diperbarui. Auto-created {$result['created']} sesi latihan untuk 14 hari ke depan; skipped {$result['skipped']} duplikat.");
@@ -188,7 +190,8 @@ class TrainingManagementController extends Controller
 
         $from = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
         $to = $request->date('to')?->endOfDay() ?? $from->copy()->endOfWeek();
-        $result = $generator->handle($from, $to);
+        $attachScheduleCoach = $request->user()?->isCoach() === true;
+        $result = $generator->handle($from, $to, null, $attachScheduleCoach);
 
         return back()->with('status', "Generated {$result['created']} sesi latihan. Skipped {$result['skipped']} duplikat.");
     }

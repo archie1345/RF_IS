@@ -22,7 +22,7 @@ class GenerateWeeklyTrainingSessions
     /**
      * @return array{created:int, skipped:int, from:string, to:string}
      */
-    public function handle(?CarbonInterface $from = null, ?CarbonInterface $to = null, array|Enumerable|null $scheduleIds = null): array
+    public function handle(?CarbonInterface $from = null, ?CarbonInterface $to = null, array|Enumerable|null $scheduleIds = null, bool $attachScheduleCoach = true): array
     {
         $from = ($from ?? now()->startOfWeek())->copy()->startOfDay();
         $to = ($to ?? $from->copy()->endOfWeek())->copy()->endOfDay();
@@ -48,10 +48,12 @@ class GenerateWeeklyTrainingSessions
                     continue;
                 }
 
-                DB::transaction(function () use ($schedule, $date, &$created): void {
+                DB::transaction(function () use ($schedule, $date, $attachScheduleCoach, &$created): void {
+                    $coachId = $attachScheduleCoach ? $schedule->coach_id : null;
+
                     $session = TrainingSession::query()->create([
                         'weekly_training_schedule_id' => $schedule->weekly_training_schedule_id,
-                        'coach_id' => $schedule->coach_id,
+                        'coach_id' => $coachId,
                         'branch_id' => $schedule->branch_id,
                         'group_id' => $schedule->group_id,
                         'title' => $schedule->title,
@@ -62,8 +64,8 @@ class GenerateWeeklyTrainingSessions
                         'status' => 'CONFIRMED',
                     ]);
 
-                    if ($schedule->coach_id && $this->sessionVisibility->hasCoachPivotTable()) {
-                        $session->assignedCoaches()->syncWithoutDetaching([$schedule->coach_id]);
+                    if ($coachId && $this->sessionVisibility->hasCoachPivotTable()) {
+                        $session->assignedCoaches()->syncWithoutDetaching([$coachId]);
                     }
 
                     $this->initializeAttendance->handle($session);
