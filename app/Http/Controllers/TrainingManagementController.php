@@ -17,6 +17,8 @@ use Inertia\Response;
 
 class TrainingManagementController extends Controller
 {
+    public function __construct(private readonly GenerateWeeklyTrainingSessions $sessionGenerator) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -135,10 +137,11 @@ class TrainingManagementController extends Controller
         $this->authorizeScheduleWrite($request);
         $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
-        WeeklyTrainingSchedule::query()->create($validated);
-        ActivityLogger::log($request, 'training_schedule.created', 'training', 'Created weekly training schedule', null, ['title' => $validated['title']]);
+        $schedule = WeeklyTrainingSchedule::query()->create($validated);
+        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+        ActivityLogger::log($request, 'training_schedule.created', 'training', 'Created weekly training schedule', $schedule, ['title' => $validated['title'], 'auto_created_sessions' => $result['created']]);
 
-        return back()->with('status', 'Jadwal mingguan disimpan. Klik Generate untuk membuat sesi latihan aktual.');
+        return back()->with('status', "Jadwal mingguan disimpan. Auto-created {$result['created']} sesi latihan untuk 14 hari ke depan; skipped {$result['skipped']} duplikat.");
     }
 
     public function updateSchedule(Request $request, WeeklyTrainingSchedule $schedule): RedirectResponse
@@ -147,9 +150,10 @@ class TrainingManagementController extends Controller
         $validated = $this->normalizeScheduleForUser($request, $this->validatedSchedule($request));
 
         $schedule->update($validated);
-        ActivityLogger::log($request, 'training_schedule.updated', 'training', 'Updated weekly training schedule', $schedule, ['title' => $schedule->title]);
+        $result = $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+        ActivityLogger::log($request, 'training_schedule.updated', 'training', 'Updated weekly training schedule', $schedule, ['title' => $schedule->title, 'auto_created_sessions' => $result['created']]);
 
-        return back()->with('status', 'Jadwal mingguan diperbarui. Generate ulang jika ingin membuat sesi baru untuk rentang tanggal lain.');
+        return back()->with('status', "Jadwal mingguan diperbarui. Auto-created {$result['created']} sesi latihan untuk 14 hari ke depan; skipped {$result['skipped']} duplikat.");
     }
 
     public function destroySchedule(Request $request, WeeklyTrainingSchedule $schedule): RedirectResponse

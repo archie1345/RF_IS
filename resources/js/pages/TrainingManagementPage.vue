@@ -215,10 +215,10 @@ function applyWeekFilter() {
                         <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Training flow</p>
                         <h1 class="text-2xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 max-w-3xl text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                        <p class="mt-3 rounded-lg bg-muted px-3 py-2 text-sm">Lokasi adalah dojang fisik. Kelas adalah grup latihan di lokasi. Jadwal Mingguan adalah template berulang. Generate Sessions membuat Sesi Latihan bertanggal. Attendance dan QR terjadi di Sesi Latihan.</p>
+                        <p class="mt-3 rounded-lg bg-muted px-3 py-2 text-sm">Lokasi adalah dojang fisik. Kelas adalah grup latihan di lokasi. Jadwal Mingguan adalah template berulang. Jadwal aktif otomatis membuat Sesi Latihan bertanggal setiap hari sesuai jadwal. Tombol Generate tetap tersedia untuk membuat sesi manual pada rentang tanggal tertentu. Attendance dan QR terjadi di Sesi Latihan.</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                        <button v-if="props.canManageSchedule" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" @click="generateSessions">Generate sessions</button>
+                        <button v-if="props.canManageSchedule" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" @click="generateSessions">Generate sessions manually</button>
                         <Link class="rounded-lg border px-4 py-2 text-sm font-bold" href="/sessions">Open Sessions</Link>
                     </div>
                 </div>
@@ -299,9 +299,9 @@ function applyWeekFilter() {
                         <div class="flex gap-2"><button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Save</button><button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="resetScheduleForm">Reset</button></div>
                     </div>
                 </form>
-                <div class="overflow-x-auto rounded-xl border bg-card shadow-sm"><table class="w-full min-w-[900px] text-sm"><thead><tr class="border-b text-left"><th class="p-3">Jadwal</th><th class="p-3">Lokasi</th><th class="p-3">Kelas</th><th class="p-3">Coach</th><th class="p-3">Generated</th><th class="p-3">Aksi</th></tr></thead><tbody>
+                <div class="overflow-x-auto rounded-xl border bg-card shadow-sm"><table class="w-full min-w-[900px] text-sm"><thead><tr class="border-b text-left"><th class="p-3">Jadwal</th><th class="p-3">Lokasi</th><th class="p-3">Kelas</th><th class="p-3">Coach</th><th class="p-3">Auto-created</th><th class="p-3">Aksi</th></tr></thead><tbody>
                     <tr v-if="props.weeklySchedules.length === 0"><td colspan="6" class="p-6 text-center text-muted-foreground">No weekly schedules yet. Create a class or schedule.</td></tr>
-                    <tr v-for="schedule in props.weeklySchedules" :key="schedule.id" class="border-b"><td class="p-3 font-bold">{{ schedule.title }}<p class="text-xs font-normal text-muted-foreground">{{ schedule.day_label }} {{ schedule.start_time }}-{{ schedule.end_time }} · {{ schedule.is_active ? 'Aktif' : 'Nonaktif' }}</p></td><td class="p-3">{{ schedule.branch }}</td><td class="p-3">{{ schedule.group }}</td><td class="p-3">{{ schedule.coach }}</td><td class="p-3">{{ schedule.generated_sessions_count }} sesi</td><td class="p-3"><div v-if="schedule.can_manage" class="flex gap-2"><button class="rounded border px-2 py-1" @click="editSchedule(schedule)">Edit</button><button class="rounded border px-2 py-1" @click="deleteSchedule(schedule)">Delete</button></div></td></tr>
+                    <tr v-for="schedule in props.weeklySchedules" :key="schedule.id" class="border-b"><td class="p-3 font-bold">{{ schedule.title }}<p class="text-xs font-normal text-muted-foreground">{{ schedule.day_label }} {{ schedule.start_time }}-{{ schedule.end_time }} · {{ schedule.is_active ? 'Aktif' : 'Nonaktif' }}</p></td><td class="p-3">{{ schedule.branch }}</td><td class="p-3">{{ schedule.group }}</td><td class="p-3">{{ schedule.coach }}</td><td class="p-3">{{ schedule.generated_sessions_count }} sesi di range</td><td class="p-3"><div v-if="schedule.can_manage" class="flex gap-2"><button class="rounded border px-2 py-1" @click="editSchedule(schedule)">Edit</button><button class="rounded border px-2 py-1" @click="deleteSchedule(schedule)">Delete</button></div></td></tr>
                 </tbody></table></div>
             </section>
 
@@ -313,7 +313,7 @@ function applyWeekFilter() {
                     <button v-if="props.canManageSchedule" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" @click="generateSessions">Generate for range</button>
                 </div>
                 <div class="overflow-x-auto"><table class="w-full min-w-[900px] text-sm"><thead><tr class="border-b text-left"><th class="p-3">Sesi</th><th class="p-3">Tanggal</th><th class="p-3">Lokasi</th><th class="p-3">Kelas</th><th class="p-3">Coach</th><th class="p-3">Status</th><th class="p-3">Attendance</th></tr></thead><tbody>
-                    <tr v-if="props.sessions.length === 0"><td colspan="7" class="p-6 text-center text-muted-foreground">No generated sessions in this range. Click Generate sessions.</td></tr>
+                    <tr v-if="props.sessions.length === 0"><td colspan="7" class="p-6 text-center text-muted-foreground">No sessions in this range yet. Active schedules are generated automatically each day, or click Generate for range to create them manually.</td></tr>
                     <tr v-for="session in props.sessions" :key="session.id" class="border-b"><td class="p-3 font-bold">{{ session.title }}<p class="text-xs font-normal text-muted-foreground">From schedule #{{ session.weekly_training_schedule_id ?? '-' }}</p></td><td class="p-3">{{ session.day_label }}<br />{{ session.date }} · {{ session.time }}</td><td class="p-3">{{ session.branch }}</td><td class="p-3">{{ session.group }}</td><td class="p-3">{{ session.coach }}</td><td class="p-3">{{ session.status }}</td><td class="p-3"><Link class="rounded border px-2 py-1" :href="`/sessions/${session.id}/attendance`">Open</Link></td></tr>
                 </tbody></table></div>
             </section>

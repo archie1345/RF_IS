@@ -8,6 +8,7 @@ use App\Models\WeeklyTrainingSchedule;
 use App\Services\SessionVisibilityService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -21,7 +22,7 @@ class GenerateWeeklyTrainingSessions
     /**
      * @return array{created:int, skipped:int, from:string, to:string}
      */
-    public function handle(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
+    public function handle(?CarbonInterface $from = null, ?CarbonInterface $to = null, array|Enumerable|null $scheduleIds = null): array
     {
         $from = ($from ?? now()->startOfWeek())->copy()->startOfDay();
         $to = ($to ?? $from->copy()->endOfWeek())->copy()->endOfDay();
@@ -29,10 +30,13 @@ class GenerateWeeklyTrainingSessions
         $created = 0;
         $skipped = 0;
 
+        $scheduleIds = $scheduleIds instanceof Enumerable ? $scheduleIds->all() : $scheduleIds;
+
         /** @var Collection<int, WeeklyTrainingSchedule> $schedules */
         $schedules = WeeklyTrainingSchedule::query()
             ->with(['branch', 'group'])
             ->where('is_active', true)
+            ->when($scheduleIds !== null, fn ($query) => $query->whereIn('weekly_training_schedule_id', $scheduleIds))
             ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
