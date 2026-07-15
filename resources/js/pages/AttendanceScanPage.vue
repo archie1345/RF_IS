@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
@@ -51,13 +51,24 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
-const hasSaved = computed(() => props.state === 'already_present' || scanFlash.value?.status === 'recorded' || scanFlash.value?.status === 'already_recorded');
-const blockingError = computed(() => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
+const hasSaved = computed(
+    () =>
+        props.state === 'already_present' ||
+        scanFlash.value?.status === 'recorded' ||
+        scanFlash.value?.status === 'already_recorded',
+);
+const blockingError = computed(
+    () => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null,
+);
 const canRecordNow = computed(() => props.canSubmit && props.deviceAllowed && !hasSaved.value && !isSubmitting.value);
 
 const stepState = computed(() => {
     if (!props.deviceAllowed) return 'blocked';
-    if (blockingError.value || ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state)) return 'blocked';
+    if (
+        blockingError.value ||
+        ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state)
+    )
+        return 'blocked';
     if (hasSaved.value) return 'done';
     if (isSubmitting.value) return 'saving';
     if (props.canSubmit) return 'prompt';
@@ -74,7 +85,13 @@ const headline = computed(() => {
     return 'QR attendance';
 });
 
-const statusMessage = computed(() => scanFlash.value?.message ?? blockingError.value ?? props.message ?? 'Hold on while we verify your QR attendance.');
+const statusMessage = computed(
+    () =>
+        scanFlash.value?.message ??
+        blockingError.value ??
+        props.message ??
+        'Hold on while we verify your QR attendance.',
+);
 
 function recordAttendance() {
     if (!canRecordNow.value) {
@@ -107,17 +124,19 @@ function recordAttendance() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex min-h-[72vh] w-full max-w-md flex-col justify-center gap-4 p-4">
             <section class="overflow-hidden rounded-[2rem] border bg-card shadow-sm">
-                <div class="bg-gradient-to-br from-red-50 via-background to-blue-50 p-5 dark:from-red-950/30 dark:via-background dark:to-blue-950/30">
+                <div
+                    class="bg-gradient-to-br from-red-50 via-background to-blue-50 p-5 dark:from-red-950/30 dark:via-background dark:to-blue-950/30"
+                >
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <p class="text-xs font-black uppercase tracking-[0.24em] text-red-500">RF Attendance</p>
+                            <p class="text-xs font-black tracking-[0.24em] text-brand-coral uppercase">RF Attendance</p>
                             <h1 class="mt-2 text-3xl font-black tracking-tight">{{ headline }}</h1>
                         </div>
                         <div class="rounded-3xl bg-background/80 p-4 shadow-sm ring-1 ring-border">
-                            <QrCode v-if="stepState === 'prompt'" class="size-8 text-blue-600" />
-                            <Loader2 v-else-if="stepState === 'saving'" class="size-8 animate-spin text-blue-600" />
-                            <CheckCircle2 v-else-if="stepState === 'done'" class="size-8 text-emerald-600" />
-                            <XCircle v-else-if="stepState === 'blocked'" class="size-8 text-red-600" />
+                            <QrCode v-if="stepState === 'prompt'" class="size-8 text-brand-blue" />
+                            <Loader2 v-else-if="stepState === 'saving'" class="size-8 animate-spin text-brand-blue" />
+                            <CheckCircle2 v-else-if="stepState === 'done'" class="size-8 text-brand-lime" />
+                            <XCircle v-else-if="stepState === 'blocked'" class="size-8 text-brand-coral" />
                             <Smartphone v-else class="size-8 text-muted-foreground" />
                         </div>
                     </div>
@@ -127,40 +146,75 @@ function recordAttendance() {
 
                 <div class="grid gap-3 p-5">
                     <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
-                        <div class="rounded-2xl border p-3" :class="stepState !== 'blocked' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'">
+                        <div
+                            class="rounded-2xl border p-3"
+                            :class="
+                                stepState !== 'blocked'
+                                    ? 'border-brand-blue/30 bg-brand-blue/10 text-brand-blue'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                        >
                             1. Scan
                         </div>
-                        <div class="rounded-2xl border p-3" :class="stepState === 'saving' || stepState === 'done' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'">
+                        <div
+                            class="rounded-2xl border p-3"
+                            :class="
+                                stepState === 'saving' || stepState === 'done'
+                                    ? 'border-brand-blue/30 bg-brand-blue/10 text-brand-blue'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                        >
                             2. Save
                         </div>
-                        <div class="rounded-2xl border p-3" :class="stepState === 'done' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'">
+                        <div
+                            class="rounded-2xl border p-3"
+                            :class="
+                                stepState === 'done'
+                                    ? 'border-brand-lime/30 bg-brand-lime/10 text-brand-lime'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                        >
                             3. Done
                         </div>
                     </div>
 
-                    <Button v-if="canRecordNow" type="button" class="rounded-2xl" :disabled="isSubmitting" @click="recordAttendance">
+                    <Button
+                        v-if="canRecordNow"
+                        type="button"
+                        class="rounded-2xl"
+                        :disabled="isSubmitting"
+                        @click="recordAttendance"
+                    >
                         <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
                         {{ isSubmitting ? 'Saving attendance...' : 'Save attendance now' }}
                     </Button>
 
                     <section v-if="props.session" class="rounded-3xl border bg-background p-4">
-                        <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Training session</p>
+                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">Training session</p>
                         <h2 class="mt-1 text-xl font-black">{{ props.session.title }}</h2>
                         <div class="mt-4 grid gap-2 text-sm">
                             <p><span class="text-muted-foreground">Date:</span> {{ props.session.date }}</p>
                             <p><span class="text-muted-foreground">Time:</span> {{ props.session.time }}</p>
-                            <p><span class="text-muted-foreground">Location:</span> {{ props.session.location ?? props.session.branch ?? '-' }}</p>
+                            <p>
+                                <span class="text-muted-foreground">Location:</span>
+                                {{ props.session.location ?? props.session.branch ?? '-' }}
+                            </p>
                             <p><span class="text-muted-foreground">Group:</span> {{ props.session.group ?? '-' }}</p>
                         </div>
                     </section>
 
                     <section class="rounded-3xl border bg-background p-4">
-                        <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Athlete</p>
+                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">Athlete</p>
                         <p class="mt-1 text-lg font-black">{{ props.athlete?.name ?? 'Athlete login required' }}</p>
-                        <p v-if="props.athlete?.current_status" class="mt-1 text-sm text-muted-foreground">Current status: {{ props.athlete.current_status }}</p>
+                        <p v-if="props.athlete?.current_status" class="mt-1 text-sm text-muted-foreground">
+                            Current status: {{ props.athlete.current_status }}
+                        </p>
                     </section>
 
-                    <a href="/dashboard" class="rounded-2xl border px-4 py-3 text-center text-sm font-bold hover:bg-muted">
+                    <a
+                        href="/dashboard"
+                        class="rounded-2xl border px-4 py-3 text-center text-sm font-bold hover:bg-muted"
+                    >
                         {{ hasSaved ? 'Done / Back to dashboard' : 'Back to dashboard' }}
                     </a>
                 </div>
