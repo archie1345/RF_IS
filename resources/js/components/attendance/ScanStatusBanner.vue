@@ -13,7 +13,8 @@ const config = computed(() => {
         return {
             icon: ShieldCheck,
             title: 'Ready for phone check-in',
-            className: 'border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100',
+            className:
+                'border-brand-blue/30 bg-brand-blue/10 text-brand-blue dark:border-brand-blue/40 dark:bg-brand-blue/15 dark:text-brand-blue/80',
         };
     }
 
@@ -21,7 +22,8 @@ const config = computed(() => {
         return {
             icon: CheckCircle2,
             title: 'Attendance recorded',
-            className: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100',
+            className:
+                'border-brand-lime/30 bg-brand-lime/10 text-brand-lime dark:border-brand-lime/40 dark:bg-brand-lime/15 dark:text-brand-lime/80',
         };
     }
 
@@ -29,7 +31,8 @@ const config = computed(() => {
         return {
             icon: Clock3,
             title: props.state === 'not_open' ? 'QR is not open yet' : 'QR is closed',
-            className: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100',
+            className:
+                'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100',
         };
     }
 
@@ -37,14 +40,16 @@ const config = computed(() => {
         return {
             icon: MonitorX,
             title: 'Phone only',
-            className: 'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100',
+            className:
+                'border-rose-200 bg-rose-50 text-rose-950 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100',
         };
     }
 
     return {
         icon: AlertCircle,
         title: 'Cannot check in',
-        className: 'border-slate-200 bg-slate-50 text-slate-950 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100',
+        className:
+            'border-brand-slate/30 bg-brand-slate/10 text-brand-slate dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100',
     };
 });
 </script>
