@@ -71,7 +71,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
-        Route::get('training-management', [TrainingManagementController::class, 'index'])->name('training-management');
         Route::get('attendance', [AdminAttendanceReportController::class, 'athletes'])->name('attendance');
         Route::get('attendance/export', [AdminAttendanceReportController::class, 'exportAthletes'])->name('attendance.export');
         Route::get('instructor-attendance', [AdminAttendanceReportController::class, 'coaches'])->name('instructor-attendance');

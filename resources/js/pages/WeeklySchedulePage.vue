@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, WeeklySchedule } from '@/types/training';
@@ -46,6 +47,7 @@ const dayOptions = [
 ];
 
 const editingScheduleId = ref<number | null>(null);
+const scheduleView = ref<'cards' | 'table'>('cards');
 
 const scheduleForm = useForm({
     title: '',
@@ -106,7 +108,41 @@ function deleteSchedule(schedule: WeeklySchedule) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <section v-if="props.canManageSchedule" class="rounded-2xl border bg-card p-5 shadow-sm">
+            <div v-if="props.canManageSchedule" class="flex flex-wrap justify-end gap-2">
+                <button
+                    type="button"
+                    class="rounded-lg border px-4 py-2 text-sm font-bold"
+                    :class="scheduleView === 'cards' ? 'bg-primary text-primary-foreground' : 'bg-card'"
+                    @click="scheduleView = 'cards'"
+                >
+                    Desain Lama
+                </button>
+                <button
+                    type="button"
+                    class="rounded-lg border px-4 py-2 text-sm font-bold"
+                    :class="scheduleView === 'table' ? 'bg-primary text-primary-foreground' : 'bg-card'"
+                    @click="scheduleView = 'table'"
+                >
+                    Tabel
+                </button>
+            </div>
+
+            <WeeklyScheduleBoard
+                v-if="!props.canManageSchedule || scheduleView === 'cards'"
+                :schedules="props.weeklySchedules"
+                :can-manage="props.canManageSchedule"
+                :show-management-hint="false"
+                :title="props.title"
+                :subtitle="props.subtitle"
+                @edit="editSchedule"
+                @delete="deleteSchedule"
+                @refresh="router.reload()"
+            />
+
+            <section
+                v-if="props.canManageSchedule && scheduleView === 'table'"
+                class="rounded-2xl border bg-card p-5 shadow-sm"
+            >
                 <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Admin / Coach only</p>
@@ -194,10 +230,6 @@ function deleteSchedule(schedule: WeeklySchedule) {
                         </tbody>
                     </table>
                 </div>
-            </section>
-
-            <section v-else class="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
-                Jadwal latihan hanya dapat dilihat oleh admin dan coach.
             </section>
 
             <section v-if="props.canManageSchedule" class="rounded-2xl border bg-card p-5 shadow-sm">

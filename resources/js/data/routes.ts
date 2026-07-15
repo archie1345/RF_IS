@@ -12,7 +12,6 @@ export const appRoutes = {
     adminEvents: '/admin/events',
     adminEventHistory: '/admin/events/history',
     adminEventSchedule: '/admin/events',
-    adminTrainingManagement: '/admin/training-management',
     adminLocations: '/admin/locations',
     adminClasses: '/admin/classes',
     adminSchedules: '/training-schedule',
