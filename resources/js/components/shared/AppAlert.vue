@@ -34,20 +34,22 @@ const emit = defineEmits<{
 
 const toneClass = computed(() => {
     return {
-        info: 'border-blue-200 bg-blue-50 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100',
-        success: 'border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100',
-        warning: 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100',
-        danger: 'border-red-200 bg-red-50 text-red-950 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-100',
+        info: 'border-brand-blue/30 bg-brand-blue/10 text-brand-blue dark:border-brand-blue/40 dark:bg-brand-blue/15 dark:text-brand-blue/80',
+        success:
+            'border-brand-lime/30 bg-brand-lime/10 text-brand-lime dark:border-brand-lime/40 dark:bg-brand-lime/15 dark:text-brand-lime/80',
+        warning:
+            'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100',
+        danger: 'border-brand-coral/30 bg-brand-coral/10 text-brand-coral dark:border-brand-coral/40 dark:bg-brand-coral/15 dark:text-brand-coral/80',
         neutral: 'border-border bg-card text-card-foreground',
     }[props.tone];
 });
 
 const iconClass = computed(() => {
     return {
-        info: 'text-blue-600 dark:text-blue-300',
-        success: 'text-emerald-600 dark:text-emerald-300',
+        info: 'text-brand-blue dark:text-brand-blue/80',
+        success: 'text-brand-lime dark:text-brand-lime/80',
         warning: 'text-amber-600 dark:text-amber-300',
-        danger: 'text-red-600 dark:text-red-300',
+        danger: 'text-brand-coral dark:text-brand-coral/70',
         neutral: 'text-muted-foreground',
     }[props.tone];
 });

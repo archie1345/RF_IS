@@ -23,18 +23,6 @@ class TrainingManagementController extends Controller
 
     public function index(Request $request): Response
     {
-        if ($request->is('training-schedule')) {
-            return $this->schedule($request);
-        }
-
-        if ($request->is('admin/locations')) {
-            return $this->locations($request);
-        }
-
-        if ($request->is('admin/classes')) {
-            return $this->classes($request);
-        }
-
         $user = $request->user();
         $canManageStructure = (bool) $user?->isAdmin();
         $canManageSchedule = (bool) ($user?->isAdmin() || $user?->isCoach());

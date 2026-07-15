@@ -10,11 +10,11 @@ const props = defineProps<{
 }>();
 
 const accentClasses = {
-    neutral: 'border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60',
-    success: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30',
+    neutral: 'border-brand-slate/30 bg-white/80 dark:border-slate-800 dark:bg-slate-950/60',
+    success: 'border-brand-lime/30 bg-brand-lime/10/70 dark:border-brand-lime/40 dark:bg-brand-lime/15',
     warning: 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30',
     danger: 'border-rose-200 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/30',
-    info: 'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30',
+    info: 'border-brand-blue/30 bg-brand-blue/10 dark:border-brand-blue/40 dark:bg-brand-blue/15/30',
 } as const;
 </script>
 
@@ -29,4 +29,3 @@ const accentClasses = {
         </CardContent>
     </Card>
 </template>
-
