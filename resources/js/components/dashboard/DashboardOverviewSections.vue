@@ -223,29 +223,6 @@ onUnmounted(() => {
                     </div>
                 </div>
             </section>
-            <section class="rounded-xl border bg-card p-6 shadow-sm">
-                <h3 class="text-lg font-black">Informasi Dojang</h3>
-                <div class="mt-4 divide-y text-sm">
-                    <div class="flex items-center justify-between py-4">
-                        <span class="text-muted-foreground">Dojang Aktif</span><strong>RTFCM</strong>
-                    </div>
-                    <div class="flex items-center justify-between py-4">
-                        <span class="text-muted-foreground">Lokasi</span><strong>Malang</strong>
-                    </div>
-                    <div class="flex items-center justify-between py-4">
-                        <span class="text-muted-foreground">Jadwal Hari Ini</span
-                        ><strong>{{ props.trainingDays.length }} Kelas</strong>
-                    </div>
-                </div>
-                <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Button as-child variant="outline">
-                        <Link :href="appRoutes.attendance">
-                            <CheckCircle2 class="mr-2 size-4" />
-                            Presensi
-                        </Link>
-                    </Button>
-                </div>
-            </section>
             <DataTable
                 class="xl:col-span-2"
                 title="Recent account activity"

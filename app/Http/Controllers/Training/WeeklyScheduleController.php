@@ -33,7 +33,7 @@ class WeeklyScheduleController extends Controller
 
         return Inertia::render('WeeklySchedulePage', [
             'title' => 'Jadwal Latihan',
-            'subtitle' => 'Jadwal latihan rutin RTFCM',
+            'subtitle' => 'Jadwal latihan rutin',
             'canManageSchedule' => $canManageSchedule,
             'currentCoachId' => $coachId,
             'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],

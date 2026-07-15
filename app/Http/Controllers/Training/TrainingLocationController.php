@@ -26,7 +26,7 @@ class TrainingLocationController extends Controller
 
         return Inertia::render('AdminLocationsPage', [
             'title' => 'Lokasi Latihan',
-            'subtitle' => 'Master data dojang / lokasi latihan RTFCM.',
+            'subtitle' => 'Master data dojang / lokasi latihan.',
             'locations' => $locations,
         ]);
     }

@@ -31,7 +31,7 @@ class TrainingManagementController extends Controller
 
         return Inertia::render('AdminLocationsPage', [
             'title' => 'Lokasi Latihan',
-            'subtitle' => 'Master data dojang / lokasi latihan RTFCM.',
+            'subtitle' => 'Master data dojang / lokasi latihan.',
             'locations' => $locations,
         ]);
     }
@@ -71,7 +71,7 @@ class TrainingManagementController extends Controller
 
         return Inertia::render('WeeklySchedulePage', [
             'title' => 'Jadwal Latihan',
-            'subtitle' => 'Jadwal latihan rutin RTFCM',
+            'subtitle' => 'Jadwal latihan',
             'canManageSchedule' => $canManageSchedule,
             'currentCoachId' => $coachId,
             'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],

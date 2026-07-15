@@ -15,7 +15,7 @@ const props = withDefaults(
     }>(),
     {
         title: 'Lokasi Latihan',
-        subtitle: 'Master data dojang / lokasi latihan RTFCM.',
+        subtitle: 'Master data dojang / lokasi latihan Rhino Fighter.',
         locations: () => [],
     },
 );
@@ -244,7 +244,7 @@ function deleteLocation(location: LocationRecord) {
                             >Label Lokasi<input
                                 v-model="form.location"
                                 class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                placeholder="Contoh: RTFCM"
+                                placeholder="Contoh: Rhino Fighter"
                         /></label>
                         <label class="grid gap-1 text-sm font-semibold"
                             >Alamat *<textarea

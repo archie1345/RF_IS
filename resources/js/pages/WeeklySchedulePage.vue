@@ -20,7 +20,7 @@ const props = withDefaults(
     }>(),
     {
         title: 'Jadwal Latihan',
-        subtitle: 'Jadwal latihan rutin RTFCM',
+        subtitle: 'Jadwal latihan rutin Rhino Fighter',
         canManageSchedule: false,
         currentCoachId: null,
         weekRange: () => ({ from: '', to: '' }),

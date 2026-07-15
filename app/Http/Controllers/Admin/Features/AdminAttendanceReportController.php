@@ -245,7 +245,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         }
 
         $sheet->setCellValue('A1', $title);
-        $sheet->setCellValue('A2', 'RTFCM');
+        $sheet->setCellValue('A2', 'Rhino Fighter');
         $sheet->setCellValue('A3', 'Periode: '.$from->format('d M Y').' - '.$to->format('d M Y'));
         $sheet->setCellValue('A4', 'Digenerate pada: '.now(config('app.timezone', 'Asia/Jakarta'))->format('d/m/Y H:i').' ('.config('app.timezone', 'Asia/Jakarta').')');
         $sheet->fromArray(['No', 'Tanggal', 'Nama', 'Kelas', 'Check In', 'Check Out', 'Status'], null, 'A6');

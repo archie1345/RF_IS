@@ -15,7 +15,7 @@ const props = withDefaults(
         canManage: false,
         showManagementHint: false,
         title: 'Jadwal Mingguan',
-        subtitle: 'Jadwal latihan rutin RTFCM',
+        subtitle: 'Jadwal latihan',
     },
 );
 
@@ -57,14 +57,8 @@ const branchLabel = computed(() => {
     const branches = [...new Set(props.schedules.map((schedule) => schedule.branch).filter(Boolean))];
     if (branches.length === 1) return branches[0];
     if (branches.length > 1) return 'Multiple Dojang';
-    return 'RTFCM';
+    return 'Rhino Fighter';
 });
-
-const legendItems = [
-    { label: 'REGULER', dot: 'bg-blue-500' },
-    { label: 'PRESTASI', dot: 'bg-red-500' },
-    { label: 'PRIVATE', dot: 'bg-violet-500' },
-];
 
 function typeLabel(schedule: WeeklyScheduleCard): string {
     return (schedule.class_type || schedule.group || 'Reguler').toString().toUpperCase();
@@ -89,7 +83,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
 
             <div
-                class="justify-self-start rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
+                class="justify-self-start rounded-full border border-slate-300  px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
             >
                 <span class="mr-2 inline-flex size-2 rounded-full bg-blue-500"></span>
                 TODAY: {{ todayLabel }}
@@ -105,7 +99,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                 </button>
                 <div
                     v-if="showManagementHint"
-                    class="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-500 uppercase shadow-sm"
+                    class="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200  px-4 text-sm font-black text-slate-500 uppercase shadow-sm"
                 >
                     <Info class="size-5 text-slate-400" />
                     Atur jadwal di menu Master Data &gt; Kelas
@@ -117,7 +111,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             <div
                 v-for="day in days"
                 :key="`head-${day.id}`"
-                class="rounded-xl border bg-white px-5 py-5 shadow-sm"
+                class="rounded-xl border  px-5 py-5 shadow-sm"
                 :class="
                     day.id === todayDay ? 'border-red-500 bg-red-500 text-white' : 'border-slate-200 text-slate-950'
                 "
@@ -133,13 +127,12 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             <div
                 v-for="day in days"
                 :key="`body-${day.id}`"
-                class="min-h-[280px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
+                class="min-h-[280px] rounded-xl border border-slate-300 from-slate-50 to-slate-200/80 p-4 shadow-sm"            >
                 <template v-if="(schedulesByDay.get(day.id) ?? []).length">
                     <article
                         v-for="schedule in schedulesByDay.get(day.id)"
                         :key="schedule.id"
-                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-background p-4 shadow-md"
+                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-card p-4 shadow-md"
                     >
                         <div class="mb-3 border-b border-slate-100 pb-3">
                             <h3 class="text-base font-black">
@@ -184,7 +177,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                                 <div>
                                     <p>Lokasi</p>
                                     <p class="text-sm text-slate-950 normal-case">
-                                        {{ schedule.location || schedule.branch || 'RTFCM' }}
+                                        {{ schedule.location || schedule.branch || 'Rhino Fighter' }}
                                     </p>
                                 </div>
                             </div>
@@ -218,22 +211,6 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                     <CalendarDays class="mb-3 size-8" />
                     Libur
                 </div>
-            </div>
-        </div>
-
-        <div
-            class="mx-auto mt-10 flex w-fit flex-wrap items-center justify-center gap-5 rounded-full border border-slate-200 bg-white px-8 py-4 text-sm font-bold text-slate-500 shadow-lg"
-        >
-            <div class="flex items-center gap-2">
-                <Info class="size-4 text-blue-500" /> Jadwal sinkron otomatis dengan Manajemen Kelas
-            </div>
-            <div class="hidden h-6 w-px bg-slate-200 md:block"></div>
-            <div
-                v-for="item in legendItems"
-                :key="item.label"
-                class="rounded-full border px-3 py-1 text-xs font-black text-slate-950"
-            >
-                <span class="mr-1 inline-flex size-2 rounded-full" :class="item.dot"></span>{{ item.label }}
             </div>
         </div>
     </section>
