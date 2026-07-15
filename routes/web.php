@@ -84,8 +84,8 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('events', [AdminEventFeatureController::class, 'index'])->name('events');
         Route::get('events/history', [AdminEventFeatureController::class, 'history'])->name('events.history');
         Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
-        Route::redirect('locations', '/admin/training-management')->name('locations');
-        Route::redirect('classes', '/admin/training-management')->name('classes');
+        Route::get('locations', [TrainingManagementController::class, 'locations'])->name('locations');
+        Route::get('classes', [TrainingManagementController::class, 'classes'])->name('classes');
         Route::redirect('schedules', '/training-schedule')->name('schedules');
         Route::post('schedules', [TrainingManagementController::class, 'storeSchedule'])->name('schedules.store');
         Route::post('schedules/generate-week', [TrainingManagementController::class, 'generateSessions'])->name('schedules.generate-week');
