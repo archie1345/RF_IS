@@ -56,7 +56,6 @@ const adminNavItems: NavItem[] = [
     { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
     { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
     { title: 'Manajemen User', href: appRoutes.users, icon: Users },
-    { title: 'Manajemen Latihan', href: appRoutes.adminTrainingManagement, icon: CalendarDays },
     { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
     { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
     { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
