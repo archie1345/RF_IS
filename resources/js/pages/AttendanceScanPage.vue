@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
