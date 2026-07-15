@@ -86,10 +86,50 @@ const weeklyForm = useForm({ title: '', branch_id: '', group_id: '', coach_id: '
 const locationForm = useForm({ name: '', location: '', address: '', city: '', province: '', latitude: '-6.2088', longitude: '106.8456', attendance_radius_meters: 100, timezone: 'Asia/Jakarta', is_active: true });
 const classForm = useForm({ name: '', class_type: 'Beginner', coach_id: '', branch_id: '', day_of_week: 1, start_time: '16:00', end_time: '18:00', min_belt: props.beltOptions[0]?.value ?? '', description: '', is_active: true });
 
+const today = new Date();
+const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const initialFrom = queryParams.get('from') || formatDate(firstDayOfMonth);
+const initialTo = queryParams.get('to') || formatDate(today);
+
+const attendanceDateRange = ref(`${initialFrom} – ${initialTo}`);
+const attendanceSearch = ref('');
+const attendanceClass = ref('');
+const attendanceClassType = ref('');
+const attendanceStatus = ref('');
+
+const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
+
 const weeklySchedulesByDay = computed(() => {
     const grouped = new Map<number, WeeklySchedule[]>();
     props.weeklySchedules.forEach((schedule) => grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]));
     return grouped;
+});
+
+const attendanceClassOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
+const attendanceClassTypeOptions = computed(() => uniqueValuesFromColumns(['Tipe Kelas', 'Tipe', 'Class Type']));
+const attendanceStatusOptions = computed(() => uniqueValuesFromColumns(['Status']));
+
+const displayedRows = computed(() => {
+    if (!isAttendanceRecap.value) return props.rows;
+
+    const keyword = attendanceSearch.value.trim().toLowerCase();
+    const classValue = attendanceClass.value.trim().toLowerCase();
+    const classTypeValue = attendanceClassType.value.trim().toLowerCase();
+    const statusValue = attendanceStatus.value.trim().toLowerCase();
+
+    return props.rows.filter((row) => {
+        const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row['Nama'], row['No']].filter(Boolean).join(' ').toLowerCase();
+        const classText = String(row.Kelas ?? row.Class ?? '').toLowerCase();
+        const classTypeText = String(row['Tipe Kelas'] ?? row.Tipe ?? row['Class Type'] ?? '').toLowerCase();
+        const statusText = String(row.Status ?? '').toLowerCase();
+
+        return (!keyword || memberText.includes(keyword))
+            && (!classValue || classText === classValue)
+            && (!classTypeValue || classTypeText === classTypeValue)
+            && (!statusValue || statusText === statusValue);
+    });
 });
 
 const mapUrl = computed(() => {
@@ -98,6 +138,36 @@ const mapUrl = computed(() => {
     const bbox = `${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}`;
     return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${lat},${lng}`)}`;
 });
+
+function uniqueValuesFromColumns(columns: string[]) {
+    const seen = new Set<string>();
+
+    props.rows.forEach((row) => {
+        const value = columns.map((column) => row[column]).find(Boolean)?.trim();
+        if (value) seen.add(value);
+    });
+
+    return [...seen].sort((a, b) => a.localeCompare(b));
+}
+
+function parseAttendanceDateRange() {
+    const matches = attendanceDateRange.value.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
+    return matches.length >= 2 ? { from: matches[0], to: matches[1] } : null;
+}
+
+function applyAttendanceDateRange() {
+    const range = parseAttendanceDateRange();
+    if (!range) return;
+
+    router.get(window.location.pathname, range, { preserveScroll: true, preserveState: true });
+}
+
+function clearAttendanceFilters() {
+    attendanceSearch.value = '';
+    attendanceClass.value = '';
+    attendanceClassType.value = '';
+    attendanceStatus.value = '';
+}
 
 function generateMonthlyDues() { router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true }); }
 function saveBillingSettings() { billingForm.post('/admin/monthly-dues/settings', { preserveScroll: true }); }
@@ -261,8 +331,43 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             </section>
 
             <section v-else class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="props.rows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in props.rows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="whitespace-pre-line px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
+                <div v-if="isAttendanceRecap" class="mb-5 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Rentang Tanggal
+                        <input v-model="attendanceDateRange" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="YYYY-MM-DD – YYYY-MM-DD" @keyup.enter="applyAttendanceDateRange" @change="applyAttendanceDateRange" />
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Cari Member
+                        <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input v-model="attendanceSearch" class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Nama atau Kode Member..." /></div>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Kelas
+                        <select v-model="attendanceClass" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
+                            <option value="">Filter per Kelas</option>
+                            <option v-for="option in attendanceClassOptions" :key="option" :value="option">{{ option }}</option>
+                        </select>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Tipe Kelas
+                        <select v-model="attendanceClassType" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
+                            <option value="">Filter per Tipe Kelas</option>
+                            <option v-for="option in attendanceClassTypeOptions" :key="option" :value="option">{{ option }}</option>
+                        </select>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Status
+                        <select v-model="attendanceStatus" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
+                            <option value="">Filter per Status</option>
+                            <option v-for="option in attendanceStatusOptions" :key="option" :value="option">{{ option }}</option>
+                        </select>
+                    </label>
+                    <div class="flex items-end gap-2">
+                        <Button type="button" variant="outline" size="sm" class="h-10" @click="clearAttendanceFilters">Reset</Button>
+                        <Button type="button" variant="secondary" size="sm" class="h-10" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat</Button>
+                    </div>
+                </div>
+                <div v-else class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
+                <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="displayedRows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in displayedRows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="whitespace-pre-line px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
             </section>
 
             <FormModal :open="showLocationForm" max-width-class="max-w-3xl" @close="showLocationForm = false">
