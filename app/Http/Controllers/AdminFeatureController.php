@@ -18,78 +18,78 @@ use Inertia\Response;
  */
 class AdminFeatureController extends Controller
 {
-    public function attendance(Request $request, AdminAttendanceReportController $controller): Response
+    public function attendance(Request $request): Response
     {
-        return $controller->athletes($request);
+        return app(AdminAttendanceReportController::class)->athletes($request);
     }
 
-    public function instructorAttendance(Request $request, AdminAttendanceReportController $controller): Response
+    public function instructorAttendance(Request $request): Response
     {
-        return $controller->coaches($request);
+        return app(AdminAttendanceReportController::class)->coaches($request);
     }
 
-    public function payments(Request $request, AdminFinanceFeatureController $controller): Response
+    public function payments(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminFinanceFeatureController::class)->index($request);
     }
 
-    public function updateBillingSettings(Request $request, AdminFinanceFeatureController $controller): RedirectResponse
+    public function updateBillingSettings(Request $request): RedirectResponse
     {
-        return $controller->updateBillingSettings($request);
+        return app(AdminFinanceFeatureController::class)->updateBillingSettings($request);
     }
 
-    public function generateMonthlyDues(Request $request, AdminFinanceFeatureController $controller): RedirectResponse
+    public function generateMonthlyDues(Request $request): RedirectResponse
     {
-        return $controller->generateMonthlyDues($request);
+        return app(AdminFinanceFeatureController::class)->generateMonthlyDues($request);
     }
 
-    public function financeIncome(Request $request, AdminFinanceFeatureController $controller): Response
+    public function financeIncome(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminFinanceFeatureController::class)->index($request);
     }
 
-    public function financeOutput(Request $request, AdminFinanceFeatureController $controller): Response
+    public function financeOutput(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminFinanceFeatureController::class)->index($request);
     }
 
-    public function monthlyDues(Request $request, AdminFinanceFeatureController $controller): Response
+    public function monthlyDues(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminFinanceFeatureController::class)->index($request);
     }
 
-    public function members(Request $request, AdminPeopleFeatureController $controller): Response
+    public function members(Request $request): Response
     {
-        return $controller->members($request);
+        return app(AdminPeopleFeatureController::class)->members($request);
     }
 
-    public function instructors(Request $request, AdminPeopleFeatureController $controller): Response
+    public function instructors(Request $request): Response
     {
-        return $controller->instructors($request);
+        return app(AdminPeopleFeatureController::class)->instructors($request);
     }
 
-    public function events(Request $request, AdminEventFeatureController $controller): Response
+    public function events(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminEventFeatureController::class)->index($request);
     }
 
-    public function eventHistory(Request $request, AdminEventFeatureController $controller): Response
+    public function eventHistory(Request $request): Response
     {
-        return $controller->history($request);
+        return app(AdminEventFeatureController::class)->history($request);
     }
 
-    public function eventSchedule(Request $request, AdminEventFeatureController $controller): Response
+    public function eventSchedule(Request $request): Response
     {
-        return $controller->index($request);
+        return app(AdminEventFeatureController::class)->index($request);
     }
 
-    public function dailySchedules(Request $request, AdminScheduleFeatureController $controller): Response
+    public function dailySchedules(Request $request): Response
     {
-        return $controller->daily($request);
+        return app(AdminScheduleFeatureController::class)->daily($request);
     }
 
-    public function periodicStats(Request $request, AdminScheduleFeatureController $controller): Response
+    public function periodicStats(Request $request): Response
     {
-        return $controller->disabledReports($request);
+        return app(AdminScheduleFeatureController::class)->disabledReports($request);
     }
 }
