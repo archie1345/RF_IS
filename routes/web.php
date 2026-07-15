@@ -47,6 +47,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
     Route::redirect('my-profile', '/settings/profile');
+    Route::get('attendance/scanner', fn () => Inertia::render('AttendanceQrScannerPage'))->name('attendance.scanner');
 
     Route::get('training-schedule', [TrainingManagementController::class, 'index'])->name('training-schedule.index');
     Route::controller(TrainingManagementController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
