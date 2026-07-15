@@ -231,11 +231,9 @@ function linkLabel(value: string) {
             <PageSection :title="props.title" :description="props.subtitle">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button as-child size="sm">
-                            <a :href="exportUrl">
-                                <Download class="mr-2 size-4" /> Export Excel
-                            </a>
-                        </Button>
+                        <a :href="exportUrl" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
+                            <Download class="mr-2 size-4" /> Export Excel
+                        </a>
                         <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })">
                             <RefreshCcw class="mr-2 size-4" /> Refresh
                         </Button>
@@ -329,6 +327,9 @@ function linkLabel(value: string) {
                     </label>
 
                     <div class="flex flex-wrap items-end gap-2">
+                        <a :href="exportUrl" class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
+                            <Download class="mr-2 size-4" /> Export
+                        </a>
                         <Button type="button" variant="outline" size="sm" class="h-10" @click="quickMonth(-1)">Bulan lalu</Button>
                         <Button type="button" variant="outline" size="sm" class="h-10" @click="applyCurrentMonth">Bulan ini</Button>
                         <Button type="button" variant="ghost" size="sm" class="h-10" @click="clearFilters">Reset</Button>
