@@ -12,25 +12,23 @@ class AttendanceRowPresenter
 {
     use FormatsPresenterData;
 
-    public function __construct(private readonly AttendanceVisibilityService $attendanceVisibility)
-    {
-    }
+    public function __construct(private readonly AttendanceVisibilityService $attendanceVisibility) {}
 
     public function row(Attendance $record, mixed $user): array
     {
         $isLocked = $this->isLocked($record);
 
         return [
-            'id' => 'ATT-'.$record->atid,
+            'id' => 'ATT-'.$record->athlete_attendance_id,
             'athlete_id' => $record->athlete_id,
             'date' => $this->formatDateYmd($record->date),
             'status_value' => $record->status,
             'athlete' => $record->athlete?->user?->name ?? 'Unknown athlete',
-            'session' => $record->session?->title ?? 'General attendance',
-            'session_href' => $record->session ? route('sessions.attendance', $record->session->csid) : '',
+            'session' => $record->trainingSession?->title ?? 'General attendance',
+            'session_href' => $record->trainingSession ? route('sessions.attendance', $record->trainingSession->training_session_id) : '',
             'is_locked' => $isLocked,
             'can_update' => ! $isLocked && $this->attendanceVisibility->userCanUpdate($user, $record),
-            'coach' => $record->session?->coach?->user?->name ?? 'Unassigned',
+            'coach' => $record->trainingSession?->primaryCoach?->user?->name ?? 'Unassigned',
             'checkin' => $this->formatTimeHm($record->checked_in_at) ?? '-',
             'status' => $this->attendanceBadge((string) $record->status),
         ];
@@ -43,9 +41,9 @@ class AttendanceRowPresenter
 
     public function isLocked(Attendance $attendance): bool
     {
-        if ($attendance->session && $attendance->session->session_date && $attendance->session->end_time) {
+        if ($attendance->trainingSession && $attendance->trainingSession->session_date && $attendance->trainingSession->end_time) {
             $deadline = Carbon::parse(
-                $this->formatDateYmd($attendance->session->session_date).' '.substr((string) $attendance->session->end_time, 0, 5)
+                $this->formatDateYmd($attendance->trainingSession->session_date).' '.substr((string) $attendance->trainingSession->end_time, 0, 5)
             );
 
             return now()->greaterThan($deadline);

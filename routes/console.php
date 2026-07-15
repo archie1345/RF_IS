@@ -1,9 +1,9 @@
 <?php
 
+use App\Models\ActivityLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-use App\Models\ActivityLog;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -19,3 +19,5 @@ Artisan::command('activity-logs:prune {--days=90}', function () {
 })->purpose('Delete old activity logs to reduce storage usage');
 
 Schedule::command('activity-logs:prune --days=90')->dailyAt('02:00');
+Schedule::command('tuition:generate-monthly')->dailyAt('01:10');
+Schedule::command('sessions:generate-from-weekly --days=14')->dailyAt('00:15');

@@ -4,9 +4,8 @@ namespace App\Actions\Attendance;
 
 use App\Models\Athlete;
 use App\Models\Attendance;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
-use App\Presenters\AttendanceRowPresenter;
 use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class RecordQrAttendance
 {
-    public function __construct(private readonly AttendanceRowPresenter $attendanceRows) {}
-
-    public function handle(User $user, Session $session): array
+    public function handle(User $user, TrainingSession $session): array
     {
         $athlete = $user->athleteProfile;
 
@@ -30,39 +27,49 @@ class RecordQrAttendance
         $this->validateEligibility($athlete, $session);
 
         return DB::transaction(function () use ($athlete, $session): array {
-            $attendance = Attendance::query()
+            $attendance = Attendance::withTrashed()
                 ->where('athlete_id', $athlete->athlete_id)
-                ->where('coach_session_id', $session->csid)
+                ->where('training_session_id', $session->training_session_id)
                 ->lockForUpdate()
                 ->first();
 
-            if ($attendance && $attendance->status === AttendanceStatus::PRESENT) {
-                return [$attendance->refresh(), true];
+            if (! $attendance) {
+                $attendance = Attendance::withTrashed()
+                    ->where('athlete_id', $athlete->athlete_id)
+                    ->whereDate('date', $session->session_date)
+                    ->lockForUpdate()
+                    ->first();
             }
 
-            if ($attendance && $this->attendanceRows->isLocked($attendance->loadMissing('session'))) {
-                throw ValidationException::withMessages([
-                    'attendance' => 'Attendance cannot be changed because the session time has passed.',
-                ]);
+            $alreadyRecorded = $attendance?->status === AttendanceStatus::PRESENT
+                && (int) $attendance?->training_session_id === (int) $session->training_session_id;
+
+            if (! $attendance) {
+                $attendance = new Attendance();
+                $attendance->athlete_id = $athlete->athlete_id;
             }
 
-            $attendance = Attendance::query()->updateOrCreate(
-                [
-                    'athlete_id' => $athlete->athlete_id,
-                    'coach_session_id' => $session->csid,
-                ],
-                [
-                    'date' => $session->session_date,
-                    'status' => AttendanceStatus::PRESENT,
-                    'checked_in_at' => now(),
-                ],
-            );
+            if ($attendance->trashed()) {
+                $attendance->restore();
+                $attendance->refresh();
+            }
 
-            return [$attendance->refresh(), false];
+            if (! $alreadyRecorded) {
+                $attendance->training_session_id = $session->training_session_id;
+                $attendance->date = $session->session_date;
+                $attendance->status = AttendanceStatus::PRESENT;
+                $attendance->checked_in_at = now();
+                $attendance->notes = trim((string) $attendance->notes) !== ''
+                    ? $attendance->notes
+                    : 'Recorded from QR attendance.';
+                $attendance->save();
+            }
+
+            return [$attendance->refresh(), $alreadyRecorded];
         });
     }
 
-    private function validateSession(Session $session): void
+    private function validateSession(TrainingSession $session): void
     {
         if ($session->status === SessionStatus::CANCELED) {
             throw ValidationException::withMessages(['attendance' => 'This session has been canceled.']);
@@ -81,13 +88,13 @@ class RecordQrAttendance
         }
     }
 
-    private function validateEligibility(Athlete $athlete, Session $session): void
+    private function validateEligibility(Athlete $athlete, TrainingSession $session): void
     {
-        if ((int) $athlete->branch_id !== (int) $session->branch_id) {
+        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session branch.']);
         }
 
-        if ($session->group_id !== null && (int) $athlete->group_id !== (int) $session->group_id) {
+        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session group.']);
         }
     }

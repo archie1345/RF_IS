@@ -10,32 +10,19 @@ class EventRegistration extends Model
     use SoftDeletes;
 
     protected $table = 'event_registrations';
-
     protected $primaryKey = 'evrid';
-
     public $incrementing = true;
-
     public $timestamps = true;
-
     protected $keyType = 'int';
 
     protected $fillable = [
-        'athlete_id',
-        'event_id',
-        'category',
-        'division',
-        'status',
-        'result_medal',
-        'result_class_name',
-        'result_division',
-        'result_category',
+        'athlete_id', 'event_id', 'category', 'classification', 'class_name', 'division', 'team_contingent', 'status',
+        'result_medal', 'result_class_name', 'result_division', 'result_category',
     ];
 
     protected function casts(): array
     {
-        return [
-            'registered_at' => 'datetime',
-        ];
+        return ['registered_at' => 'datetime'];
     }
 
     public function athlete()

@@ -344,7 +344,7 @@ Frontend entry point: `SessionsPage.vue`, `SessionAttendancePage.vue`.
 
 Authorization: `SessionPolicy` and visibility service scope coach/admin/athlete access.
 
-Database: `sessions.csid` is numeric by schema; `coach_id` is a ULID string; session pivot tables preserve their schema types.
+Database: `sessions.training_session_id` is numeric by schema; `coach_id` is a ULID string; session pivot tables preserve their schema types.
 
 Where to modify: session visibility in `SessionVisibilityService`; creation/update validation in session requests; row output in `SessionRowPresenter`; labels in `SessionStatus`.
 
@@ -777,7 +777,7 @@ Adjust database settings before migration if using MySQL or another local databa
 
 ### Purpose
 
-QR attendance lets an authorized coach or admin open a time-boxed attendance window for a training session. The system generates a random scan token, stores only its SHA-256 hash on the `coach_sessions` row, renders the plaintext token as a QR scan URL once, and lets authenticated athletes mark themselves `PRESENT` during the open window.
+QR attendance lets an authorized coach or admin open a time-boxed attendance window for a training session. The system generates a random scan token, stores only its SHA-256 hash on the `training_sessions` row, renders the plaintext token as a QR scan URL once, and lets authenticated athletes mark themselves `PRESENT` during the open window.
 
 ### Token lifecycle
 
@@ -788,7 +788,7 @@ QR attendance lets an authorized coach or admin open a time-boxed attendance win
 
 ### Database fields
 
-The QR feature adds nullable fields to `coach_sessions`:
+The QR feature adds nullable fields to `training_sessions`:
 
 - `attendance_token_hash` — unique SHA-256 token hash; plaintext tokens are not stored.
 - `attendance_opens_at` — first valid scan time.
@@ -796,7 +796,7 @@ The QR feature adds nullable fields to `coach_sessions`:
 - `attendance_qr_generated_at` — current token generation time.
 - `attendance_qr_revoked_at` — close/revocation time.
 
-It also adds a unique constraint on `athlete_attendance(athlete_id, coach_session_id)` to enforce one attendance row per athlete/session while preserving nullable general attendance rows.
+It also adds a unique constraint on `athlete_attendance(athlete_id, training_session_id)` to enforce one attendance row per athlete/session while preserving nullable general attendance rows.
 
 ### Routes and controllers
 
@@ -815,7 +815,7 @@ It also adds a unique constraint on `athlete_attendance(athlete_id, coach_sessio
 
 ### Attendance write behavior
 
-QR check-in uses the existing `athlete_attendance` table. A valid scan creates or updates the athlete/session row to `PRESENT`, sets `date` from `coach_sessions.session_date`, and records `checked_in_at`. Duplicate scans of an already-present row return idempotent success and do not create another row. Existing locked non-present rows are not overwritten.
+QR check-in uses the existing `athlete_attendance` table. A valid scan creates or updates the athlete/session row to `PRESENT`, sets `date` from `training_sessions.session_date`, and records `checked_in_at`. Duplicate scans of an already-present row return idempotent success and do not create another row. Existing locked non-present rows are not overwritten.
 
 ### Frontend files
 
@@ -853,3 +853,33 @@ The QR panel uses the `qrcode` npm package to render the scan URL in the browser
 8. Regenerate the QR and verify the old URL no longer works.
 9. Close the QR and verify the current URL no longer works.
 10. Log in as parent and verify the active-child attendance page shows the resulting record but does not expose scan write behavior.
+
+## Attendance domain naming
+
+A training session is one scheduled training occurrence. The attendance domain uses explicit table, primary-key, and relationship names so it is clear which records belong to a scheduled training occurrence and which records belong to a user profile.
+
+Text ER map:
+
+```text
+users
+  ├── athletes
+  └── coaches
+
+training_sessions
+  ├── athlete_attendance
+  ├── training_session_coaches
+  └── coach_attendance
+```
+
+Primary relationships:
+
+- `training_sessions.training_session_id` is the primary key for a scheduled training occurrence.
+- `athlete_attendance.athlete_attendance_id` is the primary key for an athlete attendance row.
+- `athlete_attendance.training_session_id` references `training_sessions.training_session_id`, so athlete attendance belongs to one athlete and one training session when it is session-scoped.
+- `training_session_coaches.training_session_coach_id` is the primary key for a coach assignment row.
+- `training_session_coaches.training_session_id` references `training_sessions.training_session_id`, and `training_session_coaches.coach_id` references `coaches.coach_id`; these rows represent assigned coaches.
+- `coach_attendance.coach_attendance_id` is the primary key for a coach attendance row.
+- `coach_attendance.training_session_id` references `training_sessions.training_session_id`, so coach attendance belongs to one coach and one training session.
+- QR token fields (`attendance_token_hash`, `attendance_opens_at`, `attendance_closes_at`, `attendance_qr_generated_at`, and `attendance_qr_revoked_at`) live on `training_sessions`, because QR tokens belong to a training session.
+
+Runtime model names mirror the schema: use `TrainingSession`, `Attendance::trainingSession()`, `TrainingSession::primaryCoach()`, `TrainingSession::assignedCoaches()`, and `CoachAttendance::trainingSession()` in new backend code.

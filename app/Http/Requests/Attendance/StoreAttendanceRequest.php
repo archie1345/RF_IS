@@ -10,14 +10,16 @@ class StoreAttendanceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $user = $this->user();
+
+        return $user !== null && ! $user->isAthlete();
     }
 
     public function rules(): array
     {
         return [
             'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
-            'coach_session_id' => ['nullable', 'exists:coach_sessions,csid'],
+            'training_session_id' => ['required', 'exists:training_sessions,training_session_id'],
             'date' => ['required', 'date'],
             'status' => ['required', Rule::in(AttendanceStatus::ALL)],
             'checked_in_time' => ['nullable', 'date_format:H:i'],

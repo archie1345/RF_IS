@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->string('attendance_token_hash', 64)->nullable()->unique()->after('status');
             $table->timestamp('attendance_opens_at')->nullable()->after('attendance_token_hash');
             $table->timestamp('attendance_closes_at')->nullable()->after('attendance_opens_at');
@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         Schema::table('athlete_attendance', function (Blueprint $table) {
-            $table->unique(['athlete_id', 'coach_session_id'], 'athlete_attendance_athlete_session_unique');
+            $table->unique(['athlete_id', 'training_session_id'], 'athlete_attendance_athlete_session_unique');
         });
     }
 
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->dropUnique('athlete_attendance_athlete_session_unique');
         });
 
-        Schema::table('coach_sessions', function (Blueprint $table) {
+        Schema::table('training_sessions', function (Blueprint $table) {
             $table->dropUnique(['attendance_token_hash']);
             $table->dropColumn([
                 'attendance_token_hash',

@@ -7,7 +7,7 @@ use App\Models\Coach;
 use App\Models\Group;
 use App\Models\ParentProfile;
 use App\Models\Payment;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use Illuminate\Http\UploadedFile;
@@ -38,7 +38,7 @@ test('athlete can mark their own open attendance record', function () {
     $coachUser = User::factory()->create(['role' => 'coach']);
     $coach = Coach::create(['id' => $coachUser->id, 'status' => 'active']);
 
-    $session = Session::create([
+    $session = TrainingSession::create([
         'coach_id' => $coach->coach_id,
         'branch_id' => $branch->branch_id,
         'group_id' => $group->group_id,
@@ -51,7 +51,7 @@ test('athlete can mark their own open attendance record', function () {
 
     $attendance = Attendance::create([
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->csid,
+        'training_session_id' => $session->training_session_id,
         'date' => now()->toDateString(),
         'status' => 'ABSENT',
     ]);

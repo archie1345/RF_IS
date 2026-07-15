@@ -2,22 +2,29 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\RoleResolver;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Fortify\TwoFactorAuthenticatable;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use App\Support\RoleResolver;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
+    public const ACCOUNT_STATUS_ACTIVE = 'active';
+
+    public const ACCOUNT_STATUS_INVITED = 'invited';
+
+    public const ACCOUNT_STATUS_SUSPENDED = 'suspended';
+
     use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     protected $table = 'users';
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -48,11 +55,27 @@ class User extends Authenticatable
     }
 
     public $timestamps = true;
+
     protected $dates = ['deleted_at', 'bday'];
 
     public function getAuthPassword()
     {
         return $this->password;
+    }
+
+    public function isActiveAccount(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_ACTIVE;
+    }
+
+    public function isInvited(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_INVITED;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->account_status === self::ACCOUNT_STATUS_SUSPENDED;
     }
 
     public function isAdmin()
@@ -130,6 +153,11 @@ class User extends Authenticatable
     public function certifications(): HasMany
     {
         return $this->hasMany(UserCertification::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(UserInvitation::class);
     }
 
     public function achievements(): HasMany

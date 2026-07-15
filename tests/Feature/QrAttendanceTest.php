@@ -6,7 +6,7 @@ use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
 use App\Models\ParentProfile;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\SessionStatus;
@@ -29,7 +29,7 @@ function makeQrSession(array $overrides = []): array
     $coachUser = makeQrUser('coach', ['name' => $overrides['coach_name'] ?? 'QR Coach']);
     $coach = Coach::create(['id' => $coachUser->id, 'status' => 'active']);
 
-    $session = Session::create([
+    $session = TrainingSession::create([
         'coach_id' => $coach->coach_id,
         'branch_id' => $branch->branch_id,
         'group_id' => $group->group_id,
@@ -62,11 +62,11 @@ function makeQrAthlete(Branch $branch, Group $group, array $overrides = []): arr
     return [$user, $athlete];
 }
 
-function generateQrForSession(mixed $testCase, User $user, Session $session, array $overrides = []): string
+function generateQrForSession(mixed $testCase, User $user, TrainingSession $session, array $overrides = []): string
 {
     $response = $testCase->actingAs($user)->post(route('sessions.attendance-qr.store', $session), array_merge([
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ], $overrides));
 
     $response->assertRedirect();
@@ -161,9 +161,36 @@ it('shows a valid scan confirmation page for an eligible athlete', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('AttendanceScanPage')
-            ->where('session.id', $session->csid)
+            ->where('session.id', $session->training_session_id)
             ->where('athlete.athlete_id', $athlete->athlete_id)
             ->where('canSubmit', true));
+});
+
+it('updates an existing default absent row during QR check in without inserting a duplicate', function () {
+    [$session, $branch, $group] = makeQrSession();
+    $admin = makeQrUser('admin');
+    [$athleteUser, $athlete] = makeQrAthlete($branch, $group);
+    $token = generateQrForSession($this, $admin, $session);
+
+    Attendance::where('athlete_id', $athlete->athlete_id)
+        ->where('training_session_id', $session->training_session_id)
+        ->update(['status' => AttendanceStatus::ABSENT, 'checked_in_at' => null]);
+
+    $this->actingAs($athleteUser)
+        ->withHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile')
+        ->post(route('attendance.scan.store', $token))
+        ->assertRedirect()
+        ->assertSessionHas('attendanceScan.status', 'recorded');
+
+    expect(Attendance::where('athlete_id', $athlete->athlete_id)
+        ->where('training_session_id', $session->training_session_id)
+        ->count())->toBe(1);
+
+    $this->assertDatabaseHas('athlete_attendance', [
+        'athlete_id' => $athlete->athlete_id,
+        'training_session_id' => $session->training_session_id,
+        'status' => AttendanceStatus::PRESENT,
+    ]);
 });
 
 it('records QR attendance as present with checked in time and is idempotent', function () {
@@ -179,18 +206,18 @@ it('records QR attendance as present with checked in time and is idempotent', fu
 
     $this->assertDatabaseHas('athlete_attendance', [
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->csid,
+        'training_session_id' => $session->training_session_id,
         'status' => AttendanceStatus::PRESENT,
     ]);
 
-    expect(Attendance::where('athlete_id', $athlete->athlete_id)->where('coach_session_id', $session->csid)->first()->checked_in_at)->not->toBeNull();
+    expect(Attendance::where('athlete_id', $athlete->athlete_id)->where('training_session_id', $session->training_session_id)->first()->checked_in_at)->not->toBeNull();
 
     $this->actingAs($athleteUser)
         ->post(route('attendance.scan.store', $token))
         ->assertRedirect()
         ->assertSessionHas('attendanceScan.status', 'already_recorded');
 
-    expect(Attendance::where('athlete_id', $athlete->athlete_id)->where('coach_session_id', $session->csid)->count())->toBe(1);
+    expect(Attendance::where('athlete_id', $athlete->athlete_id)->where('training_session_id', $session->training_session_id)->count())->toBe(1);
 });
 
 it('rejects invalid, early, closed, and canceled scans', function () {
@@ -202,19 +229,23 @@ it('rejects invalid, early, closed, and canceled scans', function () {
         ->post(route('attendance.scan.store', 'invalid-token'))
         ->assertNotFound();
 
-    $earlyToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->addHour()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHours(2)->toDateTimeString(),
+    $session->update([
+        'session_date' => now()->toDateString(),
+        'start_time' => now()->addHour()->format('H:i:s'),
+        'end_time' => now()->addHours(2)->format('H:i:s'),
     ]);
+    $earlyToken = generateQrForSession($this, $admin, $session);
 
     $this->actingAs($athleteUser)
         ->post(route('attendance.scan.store', $earlyToken))
         ->assertSessionHasErrors('attendance');
 
-    $closedToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subHours(2)->toDateTimeString(),
-        'attendance_closes_at' => now()->subHour()->toDateTimeString(),
+    $session->update([
+        'session_date' => now()->toDateString(),
+        'start_time' => now()->subHours(2)->format('H:i:s'),
+        'end_time' => now()->subHour()->format('H:i:s'),
     ]);
+    $closedToken = generateQrForSession($this, $admin, $session);
 
     $this->actingAs($athleteUser)
         ->post(route('attendance.scan.store', $closedToken))
@@ -222,8 +253,8 @@ it('rejects invalid, early, closed, and canceled scans', function () {
 
     $session->update(['status' => SessionStatus::CANCELED]);
     $canceledToken = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ]);
 
     $this->actingAs($athleteUser)
@@ -260,14 +291,14 @@ it('does not overwrite locked non-present attendance through QR scans', function
 
     Attendance::create([
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->csid,
+        'training_session_id' => $session->training_session_id,
         'date' => $session->session_date,
         'status' => AttendanceStatus::ABSENT,
     ]);
 
     $token = generateQrForSession($this, $admin, $session, [
-        'attendance_opens_at' => now()->subMinute()->toDateTimeString(),
-        'attendance_closes_at' => now()->addHour()->toDateTimeString(),
+        'attendance_opens_at' => $session->session_date.' '.$session->start_time,
+        'attendance_closes_at' => $session->session_date.' '.$session->end_time,
     ]);
 
     $this->actingAs($athleteUser)
@@ -276,7 +307,7 @@ it('does not overwrite locked non-present attendance through QR scans', function
 
     $this->assertDatabaseHas('athlete_attendance', [
         'athlete_id' => $athlete->athlete_id,
-        'coach_session_id' => $session->csid,
+        'training_session_id' => $session->training_session_id,
         'status' => AttendanceStatus::ABSENT,
     ]);
 });

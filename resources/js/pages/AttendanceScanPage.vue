@@ -1,93 +1,170 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
-import PageSection from '@/components/shared/PageSection.vue';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     token: string;
+    deviceAllowed: boolean;
+    state: string;
+    message: string | null;
+    canSubmit: boolean;
     session: {
-        id: number;
         title: string;
         date: string;
-        start_time: string;
-        end_time: string;
-        branch: string;
-        group: string;
-        status: string;
-        attendance_status: string;
-        attendance_opens_at?: string | null;
-        attendance_closes_at?: string | null;
+        time: string;
+        location: string | null;
+        branch: string | null;
+        group: string | null;
+        opens_at: string | null;
+        closes_at: string | null;
     } | null;
     athlete: {
-        athlete_id: string;
-        name: string;
+        name: string | null;
+        current_status: string | null;
     } | null;
-    currentStatus?: string | null;
-    canSubmit: boolean;
-    message?: string | null;
 }>();
 
 type AttendanceScanFlash = {
+    status?: string;
+    message?: string;
+};
+
+type PagePropsWithAttendanceScan = {
     flash?: {
-        attendanceScan?: {
-            status: string;
-            message: string;
-        };
+        attendanceScan?: AttendanceScanFlash;
     };
     errors?: Record<string, string>;
 };
 
-const page = usePage<AttendanceScanFlash>();
-const form = useForm({});
+const page = usePage<PagePropsWithAttendanceScan>();
+const isSubmitting = ref(false);
+const submitError = ref<string | null>(null);
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Attendance scan', href: `/attendance/scan/${props.token}` }];
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'QR Attendance', href: `/attendance/scan/${props.token}` },
+];
 
-function submitAttendance() {
-    form.post(`/attendance/scan/${props.token}`, { preserveScroll: true });
+const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
+const pageErrors = computed(() => page.props.errors ?? {});
+const hasSaved = computed(() => props.state === 'already_present' || scanFlash.value?.status === 'recorded' || scanFlash.value?.status === 'already_recorded');
+const blockingError = computed(() => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.device ?? pageErrors.value.token ?? null);
+const canRecordNow = computed(() => props.canSubmit && props.deviceAllowed && !hasSaved.value && !isSubmitting.value);
+
+const stepState = computed(() => {
+    if (!props.deviceAllowed) return 'blocked';
+    if (blockingError.value || ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state)) return 'blocked';
+    if (hasSaved.value) return 'done';
+    if (isSubmitting.value) return 'saving';
+    if (props.canSubmit) return 'prompt';
+
+    return 'waiting';
+});
+
+const headline = computed(() => {
+    if (stepState.value === 'done') return 'Attendance saved';
+    if (stepState.value === 'saving') return 'Saving attendance...';
+    if (stepState.value === 'prompt') return 'QR detected';
+    if (stepState.value === 'blocked') return 'Cannot record attendance';
+
+    return 'QR attendance';
+});
+
+const statusMessage = computed(() => scanFlash.value?.message ?? blockingError.value ?? props.message ?? 'Hold on while we verify your QR attendance.');
+
+function recordAttendance() {
+    if (!canRecordNow.value) {
+        submitError.value = props.message ?? 'Attendance cannot be saved from this QR yet.';
+        return;
+    }
+
+    isSubmitting.value = true;
+    submitError.value = null;
+
+    router.post(
+        `/attendance/scan/${props.token}`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                submitError.value = Object.values(errors)[0] ?? 'Unable to save attendance from this QR.';
+            },
+            onFinish: () => {
+                isSubmitting.value = false;
+            },
+        },
+    );
 }
 </script>
 
 <template>
-    <Head title="QR Attendance Scan" />
+    <Head title="QR Attendance" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection
-                title="Confirm QR attendance"
-                description="Review the session details before recording your own attendance. Parents cannot check in for a child."
-            >
-                <div v-if="props.session" class="grid gap-3 rounded-lg border p-4 text-sm md:grid-cols-2">
-                    <div><strong>Session:</strong> {{ props.session.title }}</div>
-                    <div><strong>Date:</strong> {{ props.session.date }}</div>
-                    <div><strong>Time:</strong> {{ props.session.start_time }} - {{ props.session.end_time }}</div>
-                    <div><strong>Branch:</strong> {{ props.session.branch }}</div>
-                    <div><strong>Group:</strong> {{ props.session.group }}</div>
-                    <div><strong>Athlete:</strong> {{ props.athlete?.name ?? 'Athlete account required' }}</div>
-                    <div><strong>Opens:</strong> {{ props.session.attendance_opens_at ?? 'Now' }}</div>
-                    <div><strong>Closes:</strong> {{ props.session.attendance_closes_at ?? 'Session close' }}</div>
-                    <div><strong>Current status:</strong> {{ props.currentStatus ?? 'Not recorded' }}</div>
+        <div class="mx-auto flex min-h-[72vh] w-full max-w-md flex-col justify-center gap-4 p-4">
+            <section class="overflow-hidden rounded-[2rem] border bg-card shadow-sm">
+                <div class="bg-gradient-to-br from-red-50 via-background to-blue-50 p-5 dark:from-red-950/30 dark:via-background dark:to-blue-950/30">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.24em] text-red-500">RF Attendance</p>
+                            <h1 class="mt-2 text-3xl font-black tracking-tight">{{ headline }}</h1>
+                        </div>
+                        <div class="rounded-3xl bg-background/80 p-4 shadow-sm ring-1 ring-border">
+                            <QrCode v-if="stepState === 'prompt'" class="size-8 text-blue-600" />
+                            <Loader2 v-else-if="stepState === 'saving'" class="size-8 animate-spin text-blue-600" />
+                            <CheckCircle2 v-else-if="stepState === 'done'" class="size-8 text-emerald-600" />
+                            <XCircle v-else-if="stepState === 'blocked'" class="size-8 text-red-600" />
+                            <Smartphone v-else class="size-8 text-muted-foreground" />
+                        </div>
+                    </div>
+
+                    <p class="mt-3 text-sm text-muted-foreground">{{ statusMessage }}</p>
                 </div>
 
-                <div v-else class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-                    {{ props.message ?? 'This QR attendance code is invalid.' }}
-                </div>
+                <div class="grid gap-3 p-5">
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+                        <div class="rounded-2xl border p-3" :class="stepState !== 'blocked' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'">
+                            1. Scan
+                        </div>
+                        <div class="rounded-2xl border p-3" :class="stepState === 'saving' || stepState === 'done' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'bg-muted text-muted-foreground'">
+                            2. Save
+                        </div>
+                        <div class="rounded-2xl border p-3" :class="stepState === 'done' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'">
+                            3. Done
+                        </div>
+                    </div>
 
-                <div v-if="page.props.flash?.attendanceScan" class="rounded-lg border border-green-500/40 bg-green-500/5 p-4 text-sm text-green-700">
-                    {{ page.props.flash.attendanceScan.message }}
-                </div>
-
-                <div v-if="page.props.errors?.attendance" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
-                    {{ page.props.errors.attendance }}
-                </div>
-
-                <template #actions>
-                    <Button type="button" :disabled="!props.canSubmit || form.processing" @click="submitAttendance">
-                        Confirm attendance
+                    <Button v-if="canRecordNow" type="button" class="rounded-2xl" :disabled="isSubmitting" @click="recordAttendance">
+                        <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
+                        {{ isSubmitting ? 'Saving attendance...' : 'Save attendance now' }}
                     </Button>
-                </template>
-            </PageSection>
+
+                    <section v-if="props.session" class="rounded-3xl border bg-background p-4">
+                        <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Training session</p>
+                        <h2 class="mt-1 text-xl font-black">{{ props.session.title }}</h2>
+                        <div class="mt-4 grid gap-2 text-sm">
+                            <p><span class="text-muted-foreground">Date:</span> {{ props.session.date }}</p>
+                            <p><span class="text-muted-foreground">Time:</span> {{ props.session.time }}</p>
+                            <p><span class="text-muted-foreground">Location:</span> {{ props.session.location ?? props.session.branch ?? '-' }}</p>
+                            <p><span class="text-muted-foreground">Group:</span> {{ props.session.group ?? '-' }}</p>
+                        </div>
+                    </section>
+
+                    <section class="rounded-3xl border bg-background p-4">
+                        <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Athlete</p>
+                        <p class="mt-1 text-lg font-black">{{ props.athlete?.name ?? 'Athlete login required' }}</p>
+                        <p v-if="props.athlete?.current_status" class="mt-1 text-sm text-muted-foreground">Current status: {{ props.athlete.current_status }}</p>
+                    </section>
+
+                    <a href="/dashboard" class="rounded-2xl border px-4 py-3 text-center text-sm font-bold hover:bg-muted">
+                        {{ hasSaved ? 'Done / Back to dashboard' : 'Back to dashboard' }}
+                    </a>
+                </div>
+            </section>
         </div>
     </AppLayout>
 </template>

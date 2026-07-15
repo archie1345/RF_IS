@@ -2,22 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Actions\Sessions\CreateSession;
 use App\Actions\Sessions\UpdateSession;
 use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Sessions\StoreSessionRequest;
 use App\Http\Requests\Sessions\UpdateSessionRequest;
+use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
-use App\Models\Session;
-use App\Models\Athlete;
-use App\Models\Attendance;
-use App\Models\SessionCoachAttendance;
+use App\Models\CoachAttendance;
 use App\Models\Group;
-use App\Support\ActivityLogger;
-use App\Services\SessionVisibilityService;
+use App\Models\TrainingSession;
 use App\Presenters\SessionRowPresenter;
-use App\Support\Domain\SessionStatus;
+use App\Services\SessionVisibilityService;
+use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -35,22 +34,22 @@ class SessionController extends Controller
         private readonly SessionRowPresenter $sessionRows,
         private readonly CreateSession $createSession,
         private readonly UpdateSession $updateSession,
-    ) {
-    }
+        private readonly InitializeSessionAttendance $initializeAttendance,
+    ) {}
 
     public function index(): Response
     {
         $user = request()->user();
-        $this->authorize('viewAny', Session::class);
+        $this->authorize('viewAny', TrainingSession::class);
         $currentCoachId = $this->sessionVisibility->coachProfileIdFor($user);
         $hasCoachPivot = $this->sessionVisibility->hasCoachPivotTable();
 
-        $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
+        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($hasCoachPivot) {
-            $with[] = 'coaches.user:id,name';
+            $with[] = 'assignedCoaches.user:id,name';
         }
 
-        $sessions = Session::query()
+        $sessions = TrainingSession::query()
             ->with($with)
             ->orderBy('session_date')
             ->orderBy('start_time')
@@ -62,7 +61,7 @@ class SessionController extends Controller
                 ['label' => 'Confirmed coverage', 'value' => (string) $sessions->where('status', 'CONFIRMED')->count(), 'detail' => 'Sessions fully staffed and approved', 'tone' => 'success'],
                 ['label' => 'Need support', 'value' => (string) $sessions->where('status', 'NEEDS_ASSISTANT')->count(), 'detail' => 'Still waiting for coach support', 'tone' => 'warning'],
             ],
-            'rows' => $sessions->map(fn (Session $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
+            'rows' => $sessions->map(fn (TrainingSession $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
             'coaches' => Coach::query()
@@ -90,14 +89,14 @@ class SessionController extends Controller
         return redirect()->route('sessions.index');
     }
 
-    public function update(UpdateSessionRequest $request, Session $session): RedirectResponse
+    public function update(UpdateSessionRequest $request, TrainingSession $session): RedirectResponse
     {
         $this->updateSession->handle($request->user(), $session, $request->validated());
 
         return redirect()->route('sessions.index');
     }
 
-    public function destroy(Session $session): RedirectResponse
+    public function destroy(TrainingSession $session): RedirectResponse
     {
         $this->authorize('update', $session);
         $session->delete();
@@ -105,7 +104,7 @@ class SessionController extends Controller
         return redirect()->route('sessions.index');
     }
 
-    public function join(Session $session, Request $request): RedirectResponse
+    public function join(TrainingSession $session, Request $request): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user?->isCoach(), 403);
@@ -119,68 +118,50 @@ class SessionController extends Controller
             return back()->withErrors(['coach_id' => 'Multi-coach table not ready yet. Please run migrations.']);
         }
 
-        $session->coaches()->syncWithoutDetaching([$coachId]);
+        $session->assignedCoaches()->syncWithoutDetaching([$coachId]);
 
         return back();
     }
 
-    public function attendanceSheet(Session $session): Response
+    public function attendanceSheet(TrainingSession $session): Response
     {
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
-
-        $with = ['coach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
+        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($this->sessionVisibility->hasCoachPivotTable()) {
-            $with[] = 'coaches.user:id,name';
+            $with[] = 'assignedCoaches.user:id,name';
         }
         $session->load($with);
 
-        $athletes = Athlete::query()
-            ->with('user:id,name')
-            ->where('branch_id', $session->branch_id)
-            ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
-            ->orderBy('athlete_id')
-            ->get();
-
-        foreach ($athletes as $athlete) {
-            Attendance::query()->firstOrCreate(
-                [
-                    'athlete_id' => $athlete->athlete_id,
-                    'coach_session_id' => $session->csid,
-                    'date' => $session->session_date,
-                ],
-                ['status' => 'ABSENT'],
-            );
-        }
+        $this->initializeAttendance->handle($session);
 
         $attendance = Attendance::query()
             ->with('athlete.user:id,name')
-            ->where('coach_session_id', $session->csid)
-            ->whereDate('date', $session->session_date)
+            ->where('training_session_id', $session->training_session_id)
             ->orderBy('athlete_id')
             ->get();
 
-        if (Schema::hasTable('session_coach_attendance')) {
+        if (Schema::hasTable('coach_attendance')) {
             $assignedCoachIds = collect([$session->coach_id])
                 ->filter()
-                ->when($this->sessionVisibility->hasCoachPivotTable(), fn ($collection) => $collection->merge($session->coaches->pluck('coach_id')))
+                ->when($this->sessionVisibility->hasCoachPivotTable(), fn ($collection) => $collection->merge($session->assignedCoaches->pluck('coach_id')))
                 ->unique()
                 ->values();
 
             foreach ($assignedCoachIds as $coachId) {
-                SessionCoachAttendance::query()->firstOrCreate(
-                    ['coach_session_id' => $session->csid, 'coach_id' => $coachId],
+                CoachAttendance::query()->firstOrCreate(
+                    ['training_session_id' => $session->training_session_id, 'coach_id' => $coachId],
                     ['status' => 'TEACH']
                 );
             }
         }
 
-        $coachAttendance = Schema::hasTable('session_coach_attendance')
-            ? SessionCoachAttendance::query()
+        $coachAttendance = Schema::hasTable('coach_attendance')
+            ? CoachAttendance::query()
                 ->with('coach.user:id,name')
-                ->where('coach_session_id', $session->csid)
-                ->orderBy('scaid')
+                ->where('training_session_id', $session->training_session_id)
+                ->orderBy('coach_attendance_id')
                 ->get()
             : collect();
 
@@ -189,9 +170,15 @@ class SessionController extends Controller
 
         return Inertia::render('SessionAttendancePage', [
             'session' => [
-                'id' => $session->csid,
+                'id' => $session->training_session_id,
                 'title' => $session->title,
                 'date' => $this->formatIsoDate($session->session_date),
+                'start_time' => $session->start_time ? Carbon::parse((string) $session->start_time)->format('H:i') : null,
+                'end_time' => $session->end_time ? Carbon::parse((string) $session->end_time)->format('H:i') : null,
+                'branch_id' => $session->branch_id,
+                'group_id' => $session->group_id,
+                'location' => $session->location,
+                'status' => $session->status,
                 'branch' => $session->branch?->branch_name ?? 'Unassigned',
                 'group' => $session->group?->group_name ?? 'All groups',
                 'coach' => $this->coachNames($session),
@@ -206,12 +193,14 @@ class SessionController extends Controller
                 ],
             ],
             'rows' => $attendance->map(fn (Attendance $row) => [
-                'id' => 'ATT-'.$row->atid,
+                'id' => 'ATT-'.$row->athlete_attendance_id,
                 'athlete' => $row->athlete?->user?->name ?? 'Unknown athlete',
                 'status' => $this->attendanceBadge((string) $row->status),
             ])->values(),
-            'coachRows' => $coachAttendance->map(fn (SessionCoachAttendance $row) => [
-                'id' => 'SCA-'.$row->scaid,
+            'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
+            'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
+            'coachRows' => $coachAttendance->map(fn (CoachAttendance $row) => [
+                'id' => 'SCA-'.$row->coach_attendance_id,
                 'coach' => $row->coach?->user?->name ?? 'Unknown coach',
                 'status' => $row->status === 'TEACH' ? $this->badge('Teach', 'success') : $this->badge('Not teach', 'danger'),
                 'checked_at' => $row->checked_at ? Carbon::parse((string) $row->checked_at)->format('d/m/Y H:i') : '-',
@@ -225,11 +214,11 @@ class SessionController extends Controller
         ]);
     }
 
-    public function addCoachAttendance(Session $session, Request $request): RedirectResponse
+    public function addCoachAttendance(TrainingSession $session, Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
 
-        if (! Schema::hasTable('session_coach_attendance')) {
+        if (! Schema::hasTable('coach_attendance')) {
             return back()->withErrors(['coach_id' => 'Coach attendance table not ready. Run migrations first.']);
         }
 
@@ -237,19 +226,19 @@ class SessionController extends Controller
             'coach_id' => ['required', 'exists:coaches,coach_id'],
         ]);
 
-        SessionCoachAttendance::query()->updateOrCreate(
-            ['coach_session_id' => $session->csid, 'coach_id' => $validated['coach_id']],
+        CoachAttendance::query()->updateOrCreate(
+            ['training_session_id' => $session->training_session_id, 'coach_id' => $validated['coach_id']],
             ['status' => 'TEACH', 'checked_at' => now()]
         );
 
         if ($this->sessionVisibility->hasCoachPivotTable()) {
-            $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
+            $session->assignedCoaches()->syncWithoutDetaching([$validated['coach_id']]);
         }
 
         return back();
     }
 
-    public function updateCoachAttendance(Request $request, SessionCoachAttendance $coachAttendance): RedirectResponse
+    public function updateCoachAttendance(Request $request, CoachAttendance $coachAttendance): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
 
@@ -265,7 +254,7 @@ class SessionController extends Controller
         return back();
     }
 
-    public function destroyCoachAttendance(Request $request, SessionCoachAttendance $coachAttendance): RedirectResponse
+    public function destroyCoachAttendance(Request $request, CoachAttendance $coachAttendance): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
         $coachAttendance->delete();
@@ -282,18 +271,18 @@ class SessionController extends Controller
         };
     }
 
-    private function coachNames(Session $session): string
+    private function coachNames(TrainingSession $session): string
     {
         $names = collect();
-        if ($session->coach?->user?->name) {
-            $names->push($session->coach->user->name);
+        if ($session->primaryCoach?->user?->name) {
+            $names->push($session->primaryCoach->user->name);
         }
 
         $assistantNames = $this->sessionVisibility->hasCoachPivotTable()
-            ? $session->coaches
-            ->map(fn (Coach $coach) => $coach->user?->name)
-            ->filter()
-            ->values()
+            ? $session->assignedCoaches
+                ->map(fn (Coach $coach) => $coach->user?->name)
+                ->filter()
+                ->values()
             : collect();
 
         return $names
@@ -316,7 +305,4 @@ class SessionController extends Controller
     {
         return Carbon::parse((string) $value)->format('Y-m-d');
     }
-
-
 }
-

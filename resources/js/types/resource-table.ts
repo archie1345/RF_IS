@@ -49,7 +49,18 @@ export type RoleDashboardContent = {
 };
 
 export type AttendanceRow = {
-    id?: number;
-    session_date: string;
-    status: string;
-}
+    id?: number | string;
+    date: string;
+    session_date?: string;
+    status: string | TableBadgeCell;
+    status_value?: 'PRESENT' | 'ABSENT' | 'EXCUSED' | string;
+};
+
+export type TrainingDay = {
+    id: string;
+    date: string;
+    title: string;
+    time: string;
+    branch: string;
+    group: string;
+};

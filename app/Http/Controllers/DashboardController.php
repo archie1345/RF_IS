@@ -10,9 +10,8 @@ use App\Models\Attendance;
 use App\Models\Coach;
 use App\Models\Event;
 use App\Models\Payment;
-use App\Models\Session;
+use App\Models\TrainingSession;
 use App\Models\UserCertification;
-use App\Models\UserAchievement;
 use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,14 +21,11 @@ class DashboardController extends Controller
 {
     use FormatsPresentationData;
 
-    public function __construct(private readonly ParentChildContextService $childContext)
-    {
-    }
+    public function __construct(private readonly ParentChildContextService $childContext) {}
 
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-
         $role = $user?->primaryRole() ?? 'athlete';
         $children = $role === 'parent' ? $this->childContext->sharedChildrenFor($user)->all() : [];
         $activeChild = $role === 'parent' ? $this->childContext->activeChildFor($request, true) : null;
@@ -40,8 +36,9 @@ class DashboardController extends Controller
             'announcements' => $this->announcements($request, $role),
             'upcomingEvents' => $this->upcomingEvents(),
             'attendanceRows' => $this->attendanceRows($request, $role),
+            'trainingDays' => $this->trainingDays($request, $role),
             'paymentRows' => $this->paymentRows($request, $role),
-            'medalRows' => $this->medalRows(),
+            'medalRows' => $this->beltDistributionRows(),
             'profileSummary' => $this->profileSummary($request, $role),
             'children' => $children,
             'activeChild' => $activeChild,
@@ -82,7 +79,7 @@ class DashboardController extends Controller
         return ActivityLog::query()
             ->with('actor:id,name')
             ->latest('id')
-            ->limit(8)
+            ->limit(10)
             ->get()
             ->map(fn (ActivityLog $log) => [
                 'id' => 'LOG-'.$log->id,
@@ -147,7 +144,7 @@ class DashboardController extends Controller
 
     private function attendanceRows(Request $request, string $role): array
     {
-        $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('atid');
+        $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('athlete_attendance_id');
 
         if ($role === 'parent') {
             $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
@@ -155,16 +152,64 @@ class DashboardController extends Controller
         } elseif ($role === 'athlete') {
             $athleteId = $request->user()?->athleteProfile?->athlete_id;
             $query->when($athleteId, fn ($inner) => $inner->where('athlete_id', $athleteId));
-        } 
-        // elseif ($role === 'coach' && ! $request->user()?->isAdmin()) {
-        //     $query->whereHas('session', fn ($inner) => $inner->where('coach_id', $request->user()?->coachProfile?->coach_id));
-        // }
+        }
 
-        return $query->limit(8)->get()->map(fn (Attendance $record) => [
-            'id' => 'DA-'.$record->atid,
+        return $query->limit(30)->get()->map(fn (Attendance $record) => [
+            'id' => 'DA-'.$record->athlete_attendance_id,
             'athlete' => $record->athlete?->user?->name ?? 'Unknown',
-            'date' => optional($record->date)->format('d M Y') ?? '-',
+            'date' => optional($record->date)->format('Y-m-d') ?? '-',
+            'status_value' => $record->status,
             'status' => $this->badge((string) $record->status, $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger')),
+        ])->values()->all();
+    }
+
+    private function trainingDays(Request $request, string $role): array
+    {
+        $start = now()->startOfMonth()->subMonth()->toDateString();
+        $end = now()->endOfMonth()->addMonth()->toDateString();
+        $user = $request->user();
+
+        $query = TrainingSession::query()
+            ->with(['branch:branch_id,branch_name', 'group:group_id,group_name'])
+            ->whereBetween('session_date', [$start, $end])
+            ->where('status', '!=', 'CANCELED');
+
+        if ($role === 'athlete') {
+            $athlete = $user?->athleteProfile;
+            if (! $athlete) {
+                return [];
+            }
+
+            $query->where('branch_id', $athlete->branch_id)
+                ->where(fn ($inner) => $inner->whereNull('group_id')->orWhere('group_id', $athlete->group_id));
+        } elseif ($role === 'parent') {
+            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
+            $children = Athlete::query()->whereIn('athlete_id', $childIds)->get(['branch_id', 'group_id']);
+
+            if ($children->isEmpty()) {
+                return [];
+            }
+
+            $query->where(function ($outer) use ($children) {
+                foreach ($children as $child) {
+                    $outer->orWhere(function ($inner) use ($child) {
+                        $inner->where('branch_id', $child->branch_id)
+                            ->where(fn ($groupQuery) => $groupQuery->whereNull('group_id')->orWhere('group_id', $child->group_id));
+                    });
+                }
+            });
+        } elseif ($role === 'coach' && ! $user?->isAdmin()) {
+            $coachId = $user?->coachProfile?->coach_id;
+            $query->where(fn ($inner) => $inner->where('coach_id', $coachId)->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId)));
+        }
+
+        return $query->orderBy('session_date')->get()->map(fn (TrainingSession $session) => [
+            'id' => 'TR-'.$session->training_session_id,
+            'date' => optional($session->session_date)->format('Y-m-d'),
+            'title' => $session->title,
+            'time' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5),
+            'branch' => $session->branch?->branch_name ?? 'Unassigned',
+            'group' => $session->group?->group_name ?? 'All groups',
         ])->values()->all();
     }
 
@@ -185,19 +230,20 @@ class DashboardController extends Controller
         ])->values()->all();
     }
 
-    private function medalRows(): array
+    private function beltDistributionRows(): array
     {
-        $counts = UserAchievement::query()
-            ->selectRaw('medal, COUNT(*) as total')
-            ->whereIn('medal', ['GOLD', 'SILVER', 'BRONZE'])
-            ->groupBy('medal')
-            ->pluck('total', 'medal');
-
-        return [
-            ['id' => 'MED-gold', 'type' => 'Gold', 'count' => (string) ($counts['GOLD'] ?? 0)],
-            ['id' => 'MED-silver', 'type' => 'Silver', 'count' => (string) ($counts['SILVER'] ?? 0)],
-            ['id' => 'MED-bronze', 'type' => 'Bronze', 'count' => (string) ($counts['BRONZE'] ?? 0)],
-        ];
+        return Athlete::query()
+            ->selectRaw("COALESCE(NULLIF(TRIM(geup), ''), 'Belum diisi') as belt, COUNT(*) as total")
+            ->groupBy('belt')
+            ->orderBy('belt')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => 'BELT-'.str($row->belt)->slug()->upper(),
+                'type' => $row->belt,
+                'count' => (string) $row->total,
+            ])
+            ->values()
+            ->all();
     }
 
     private function profileSummary(Request $request, string $role): array
@@ -216,65 +262,44 @@ class DashboardController extends Controller
         ];
     }
 
+    private function paymentSubject(Payment $payment): string
+    {
+        return $payment->athlete?->user?->name
+            ?? $payment->billableUser?->name
+            ?? $payment->payeeUser?->name
+            ?? 'Unassigned bill';
+    }
+
+    private function targetLabel(?string $target): string
+    {
+        return match (strtoupper((string) $target)) {
+            'ALL' => 'All roles',
+            'ADMIN' => 'Admins',
+            'ATHLETE' => 'Athletes',
+            'COACH' => 'Coaches',
+            'PARENT' => 'Parents',
+            default => $target ? str((string) $target)->headline()->toString() : 'All roles',
+        };
+    }
+
     private function visiblePaymentsQuery(Request $request, string $role)
     {
         $query = Payment::query();
         $user = $request->user();
 
-        if ($role === 'admin' || $user?->isAdmin()) {
-            return $query;
-        }
-
         if ($role === 'parent') {
-            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
-            $childUserIds = $this->childContext->visibleChildUserIds($request, true, true);
-
-            return $query->where(function ($inner) use ($user, $childIds, $childUserIds): void {
-                $inner->where('billable_user_id', $user?->id)
-                    ->orWhere('payee_user_id', $user?->id)
-                    ->when(count($childIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('athlete_id', $childIds))
-                    ->when(count($childUserIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('billable_user_id', $childUserIds));
+            $athleteIds = $this->childContext->visibleChildAthleteIds($request, true, true);
+            $childUserIds = Athlete::query()->whereIn('athlete_id', $athleteIds)->pluck('id');
+            $query->where(function ($inner) use ($athleteIds, $childUserIds, $user) {
+                $inner->whereIn('athlete_id', $athleteIds)
+                    ->orWhereIn('billable_user_id', $childUserIds)
+                    ->orWhere('payer_user_id', $user?->id);
             });
-        }
-
-        if ($role === 'athlete') {
+        } elseif ($role === 'athlete') {
             $athleteId = $user?->athleteProfile?->athlete_id;
-
-            return $query->where(function ($inner) use ($user, $athleteId): void {
-                $inner->where('billable_user_id', $user?->id)
-                    ->when($athleteId, fn ($athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
-            });
+            $query->where(fn ($inner) => $inner->where('athlete_id', $athleteId)->orWhere('billable_user_id', $user?->id));
         }
 
-        if ($role === 'coach') {
-            return $query->where(function ($inner) use ($user): void {
-                $inner->where('billable_user_id', $user?->id)
-                    ->orWhere('payee_user_id', $user?->id);
-            });
-        }
-
-        return $query->where('billable_user_id', $user?->id);
-    }
-
-    private function targetLabel(string $targetRole): string
-    {
-        return match ($targetRole) {
-            'ADMIN' => 'Admins',
-            'COACH' => 'Coaches',
-            'PARENT' => 'Parents',
-            'ATHLETE' => 'Athletes',
-            default => 'Everyone',
-        };
-    }
-
-    private function paymentSubject(Payment $payment): string
-    {
-        if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
-            return 'Payroll: '.($payment->payeeUser?->name ?? 'Unknown coach');
-        }
-
-        return $payment->athlete?->user?->name
-            ?? $payment->billableUser?->name
-            ?? 'Unknown user';
+        return $query;
     }
 }

@@ -2,20 +2,19 @@
 
 namespace App\Actions\Sessions;
 
-use App\Models\Athlete;
-use App\Models\Attendance;
-use App\Models\Session;
+use App\Actions\Attendance\InitializeSessionAttendance;
+use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
-use App\Support\Domain\AttendanceStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateSession
 {
-    public function __construct(private readonly SessionVisibilityService $sessionVisibility)
-    {
-    }
+    public function __construct(
+        private readonly SessionVisibilityService $sessionVisibility,
+        private readonly InitializeSessionAttendance $initializeAttendance,
+    ) {}
 
     public function handle(User $user, array $validated): array
     {
@@ -26,27 +25,13 @@ class CreateSession
         }
 
         return DB::transaction(function () use ($validated): array {
-            $session = Session::query()->create($validated);
+            $session = TrainingSession::query()->create($validated);
 
             if ($this->sessionVisibility->hasCoachPivotTable()) {
-                $session->coaches()->syncWithoutDetaching([$validated['coach_id']]);
+                $session->assignedCoaches()->syncWithoutDetaching([$validated['coach_id']]);
             }
 
-            $athleteIds = Athlete::query()
-                ->where('branch_id', $session->branch_id)
-                ->when($session->group_id, fn ($query) => $query->where('group_id', $session->group_id))
-                ->pluck('athlete_id');
-
-            foreach ($athleteIds as $athleteId) {
-                Attendance::query()->create([
-                    'athlete_id' => $athleteId,
-                    'coach_session_id' => $session->csid,
-                    'date' => $session->session_date,
-                    'status' => AttendanceStatus::ABSENT,
-                ]);
-            }
-
-            return [$session, $athleteIds->count()];
+            return [$session, $this->initializeAttendance->handle($session)];
         });
     }
 }

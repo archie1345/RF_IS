@@ -2,7 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { FileText, PencilLine } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import FileUploadField from '@/components/forms/FileUploadField.vue';
+import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -172,7 +172,7 @@ function saveAchievementEdit() {
                     <FormInputField id="ach-category" v-model="achievementForm.category" label="Category" />
                 </div>
                 <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Notes" />
-                <FileUploadField
+                <FormFileField
                     id="achievement-file"
                     v-model="achievementForm.file"
                     label="Supporting File"
@@ -251,7 +251,7 @@ function saveAchievementEdit() {
                     label="Notes"
                     :error="achievementEditForm.errors.notes"
                 />
-                <FileUploadField
+                <FormFileField
                     id="achievement-edit-file"
                     v-model="achievementEditForm.file"
                     label="Replace Supporting File"

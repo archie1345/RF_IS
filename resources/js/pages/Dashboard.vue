@@ -9,7 +9,7 @@ import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
-import type { AppRole, Metric, TableRow, AttendanceRow } from '@/types/resource-table';
+import type { AppRole, Metric, TableRow, AttendanceRow, TrainingDay } from '@/types/resource-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -25,6 +25,7 @@ const props = defineProps({
     announcements: { type: Array as PropType<TableRow[]>, required: true },
     upcomingEvents: { type: Array as PropType<TableRow[]>, required: true },
     attendanceRows: { type: Array as PropType<AttendanceRow[]>, required: true },
+    trainingDays: { type: Array as PropType<TrainingDay[]>, required: true },
     paymentRows: { type: Array as PropType<TableRow[]>, required: true },
     medalRows: { type: Array as PropType<TableRow[]>, required: true },
     profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
@@ -77,6 +78,7 @@ useLiveReload(
                 :medal-rows="props.medalRows"
                 :activity-preview-rows="props.activityPreviewRows"
                 :attendance-rows="props.attendanceRows"
+                :training-days="props.trainingDays"
                 :payment-rows="props.paymentRows"
             />
 
@@ -84,4 +86,3 @@ useLiveReload(
         </div>
     </AppLayout>
 </template>
-

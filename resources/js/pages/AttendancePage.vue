@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref, toRef } from 'vue';
+import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -41,7 +42,7 @@ const columns: TableColumn[] = [
 
 const form = useForm({
     athlete_id: props.activeAthleteId ? String(props.activeAthleteId) : '',
-    coach_session_id: '',
+    training_session_id: '',
     date: '',
     status: 'PRESENT',
     checked_in_time: '',
@@ -67,7 +68,7 @@ const { isAdmin, isCoach, isAthlete } = useRole(toRef(props, 'role'));
 const roleTitle = computed(() => {
     if (isAdmin.value) return 'Admin attendance management';
     if (isCoach.value) return 'Coach attendance management';
-    if (isAthlete.value) return 'Athlete self attendance';
+    if (isAthlete.value) return 'Athlete QR attendance';
     return 'Attendance tracking';
 });
 
@@ -84,29 +85,6 @@ function rowStatusText(row: AttendanceRow | TableRow) {
 
 function canUpdateRow(row: AttendanceRow | TableRow) {
     return Boolean(row.can_update);
-}
-
-function submit() {
-    form.post(appRoutes.attendance, {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.reset('checked_in_time', 'notes', 'follow_up_owner');
-            if (props.activeAthleteId) {
-                form.athlete_id = String(props.activeAthleteId);
-            }
-            if (!form.date) {
-                form.date = todayDate();
-            }
-        },
-    });
-}
-
-function submitSelfAttendance(status: 'PRESENT' | 'ABSENT') {
-    form.status = status;
-    if (!form.date) {
-        form.date = todayDate();
-    }
-    submit();
 }
 
 function setAttendanceStatus(id: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') {
@@ -141,7 +119,7 @@ function openSessionFromCoachInput() {
 }
 
 function applySessionDate(sessionValue: string) {
-    form.coach_session_id = sessionValue;
+    form.training_session_id = sessionValue;
     const selected = props.sessions.find((session) => String(session.value) === sessionValue);
     if (selected?.date) {
         form.date = selected.date;
@@ -166,8 +144,8 @@ onMounted(() => {
     }
 
     if (props.sessions.length === 1) {
-        form.coach_session_id = String(props.sessions[0].value);
-        applySessionDate(form.coach_session_id);
+        form.training_session_id = String(props.sessions[0].value);
+        applySessionDate(form.training_session_id);
     }
 });
 </script>
@@ -196,86 +174,27 @@ onMounted(() => {
             <div class="grid gap-6">
                 <PageSection
                     v-if="isAthlete"
-                    title="My attendance"
-                    description="Mark your own attendance for today or update an open session record."
+                    title="Scan QR attendance"
+                    description="Athlete attendance is QR-only. Scan the coach QR inside this page or use the phone camera QR link."
                 >
-                    <form class="grid gap-4 md:grid-cols-[1fr_auto]" @submit.prevent>
-                        <FormSelectField
-                            v-if="props.sessions.length > 1"
-                            id="attendance-session"
-                            :model-value="form.coach_session_id"
-                            label="Training session"
-                            :options="props.sessions"
-                            placeholder="General attendance"
-                            help="Choose today’s session if it is listed. Otherwise leave it as general attendance."
-                            :error="form.errors.coach_session_id"
-                            @update:model-value="applySessionDate"
-                        />
-                        <div v-else-if="props.sessions.length === 1" class="grid gap-2">
-                            <label class="text-sm font-medium">Training session</label>
-                            <input
-                                :value="props.sessions[0].label"
-                                disabled
-                                class="h-10 rounded-lg border border-input bg-muted px-3 py-2 text-sm"
-                            />
-                        </div>
-                        <div v-else class="grid gap-2">
-                            <label class="text-sm font-medium">Training session</label>
-                            <input
-                                value="General attendance"
-                                disabled
-                                class="h-10 rounded-lg border border-input bg-muted px-3 py-2 text-sm"
-                            />
-                        </div>
-                        <div class="flex items-end gap-2">
-                            <Button type="button" :disabled="form.processing" @click="submitSelfAttendance('PRESENT')"
-                                >Attend</Button
-                            >
-                            <Button
-                                type="button"
-                                variant="outline"
-                                :disabled="form.processing"
-                                @click="submitSelfAttendance('ABSENT')"
-                                >Not attend</Button
-                            >
-                        </div>
-                    </form>
+                    <div class="grid gap-4 lg:grid-cols-[24rem_1fr]">
+                        <AthleteQrScanner />
 
-                    <DataTable
-                        title="My attendance records"
-                        description="Open records can be corrected until the session closes."
-                        :columns="columns"
-                        :rows="props.rows"
-                        empty-text="No attendance records yet."
-                        searchable
-                        search-placeholder="Search session..."
-                        action-label="Attendance"
-                    >
-                        <template #row-actions="{ row }">
-                            <span v-if="row.is_locked" class="text-xs text-muted-foreground">Closed</span>
-                            <span v-else-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">View only</span>
-                            <ActionButtonsRow v-else>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    :disabled="rowStatusText(row) === 'Present'"
-                                    @click="setAttendanceStatus(String(row.id), 'PRESENT')"
-                                >
-                                    Attend
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    :disabled="rowStatusText(row) === 'Absent'"
-                                    @click="setAttendanceStatus(String(row.id), 'ABSENT')"
-                                >
-                                    Not attend
-                                </Button>
-                            </ActionButtonsRow>
-                        </template>
-                    </DataTable>
+                        <DataTable
+                            title="My attendance records"
+                            description="Records update after a valid QR scan. Athlete rows are read-only from this page."
+                            :columns="columns"
+                            :rows="props.rows"
+                            empty-text="No attendance records yet. Scan the coach QR during training."
+                            searchable
+                            search-placeholder="Search session..."
+                            action-label="Attendance"
+                        >
+                            <template #row-actions>
+                                <span class="text-xs text-muted-foreground">QR only</span>
+                            </template>
+                        </DataTable>
+                    </div>
                 </PageSection>
 
                 <PageSection

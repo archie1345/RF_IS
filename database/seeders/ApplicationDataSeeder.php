@@ -16,7 +16,7 @@ class ApplicationDataSeeder extends Seeder
     public function run(): void
     {
         $now = now();
-        
+
         $parentIdToken = (string) Str::lower(Str::ulid());
         $athleteIdToken = (string) Str::lower(Str::ulid());
         $coachIdToken = (string) Str::lower(Str::ulid());
@@ -29,7 +29,7 @@ class ApplicationDataSeeder extends Seeder
             'gender' => 'MALE',
             'role' => 'admin',
             'bday' => '2005-06-13',
-            'phone' => '08813323088',
+            'phone' => '080000000001',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -47,7 +47,7 @@ class ApplicationDataSeeder extends Seeder
             'gender' => 'MALE',
             'role' => 'coach',
             'bday' => '1988-07-21',
-            'phone' => '081200000002',
+            'phone' => '080000000002',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -65,7 +65,7 @@ class ApplicationDataSeeder extends Seeder
             'gender' => 'FEMALE',
             'role' => 'parent',
             'bday' => '1985-03-15',
-            'phone' => '081200000003',
+            'phone' => '080000000003',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -83,7 +83,7 @@ class ApplicationDataSeeder extends Seeder
             'gender' => 'MALE',
             'role' => 'athlete',
             'bday' => '2012-05-14',
-            'phone' => '081200000004',
+            'phone' => '080000000004',
             'remember_token' => Str::random(10),
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
@@ -149,15 +149,41 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ]);
 
-        DB::table('coach_sessions')->insert([
+        $trainingSessionDate = $now->copy()->addDays(1)->toDateString();
+        $trainingSessionId = DB::table('training_sessions')->insertGetId([
             'coach_id' => $coachIdToken,
             'branch_id' => $branchId,
+            'group_id' => $groupId,
+            'title' => 'Junior Sparring Demo Session',
             'location' => 'Hall A',
-            'session_date' => $now->copy()->addDays(1)->toDateString(),
+            'session_date' => $trainingSessionDate,
             'start_time' => '16:00:00',
             'end_time' => '18:00:00',
+            'status' => 'CONFIRMED',
+            'attendance_token_hash' => null,
+            'attendance_opens_at' => null,
+            'attendance_closes_at' => null,
+            'attendance_qr_generated_at' => null,
+            'attendance_qr_revoked_at' => null,
             'created_at' => $now,
             'updated_at' => $now,
+        ], 'training_session_id');
+
+        DB::table('training_session_coaches')->insert([
+            'training_session_id' => $trainingSessionId,
+            'coach_id' => $coachIdToken,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('coach_attendance')->insert([
+            'training_session_id' => $trainingSessionId,
+            'coach_id' => $coachIdToken,
+            'status' => 'TEACH',
+            'checked_at' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
         ]);
 
         DB::table('athletes')->insert([
@@ -168,10 +194,10 @@ class ApplicationDataSeeder extends Seeder
             'branch_id' => $branchId,
             'height_cm' => 150.50,
             'weight_kg' => 42.30,
-            'nik_hash' => hash('sha256', '3174001205120001'),
-            'nik_ciphertext' => Crypt::encryptString('3174001205120001'),
-            'bpjs_hash' => hash('sha256', 'BPJS-00001'),
-            'bpjs_ciphertext' => Crypt::encryptString('BPJS-00001'),
+            'nik_hash' => hash('sha256', 'DEMO-NIK-ATHLETE-001'),
+            'nik_ciphertext' => Crypt::encryptString('DEMO-NIK-ATHLETE-001'),
+            'bpjs_hash' => hash('sha256', 'DEMO-BPJS-ATHLETE-001'),
+            'bpjs_ciphertext' => Crypt::encryptString('DEMO-BPJS-ATHLETE-001'),
             'alamat' => 'Jl. Merdeka No. 10, Jakarta',
             'geup' => 'GEUP_8',
             'created_at' => $now,
@@ -180,9 +206,13 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         DB::table('athlete_attendance')->insert([
-            'athlete_id' => $athleteIdToken, 
-            'date' => $now->toDateString(),
-            'status' => 'PRESENT',
+            'athlete_id' => $athleteIdToken,
+            'training_session_id' => $trainingSessionId,
+            'date' => $trainingSessionDate,
+            'status' => 'ABSENT',
+            'checked_in_at' => null,
+            'notes' => 'Seeded pending attendance row for QR/manual attendance testing.',
+            'follow_up_owner' => null,
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
@@ -205,8 +235,8 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ], 'event_id');
 
-        DB::table('event_registrations')->insert([
-            'athlete_id' => $athleteIdToken, 
+        $registrationId = DB::table('event_registrations')->insertGetId([
+            'athlete_id' => $athleteIdToken,
             'event_id' => $eventId,
             'category' => 'KYORUGI',
             'registered_at' => $now,
@@ -214,10 +244,10 @@ class ApplicationDataSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
-        ]);
+        ], 'evrid');
 
         DB::table('event_results')->insert([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'event_id' => $eventId,
             'result' => 'PARTICIPATED',
             'created_at' => $now,
@@ -239,7 +269,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         $paymentId = DB::table('payments')->insertGetId([
-            'athlete_id' => $athleteIdToken, 
+            'athlete_id' => $athleteIdToken,
             'payment_type' => 'TUITION',
             'amount' => 300000,
             'reference_id' => 100001,
@@ -262,6 +292,59 @@ class ApplicationDataSeeder extends Seeder
             'payment_method' => 'TRANSFER',
             'transaction_type' => 'PAYMENT',
             'notes' => 'Verified by finance admin.',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
+        ]);
+
+        $partialPaymentId = DB::table('payments')->insertGetId([
+            'athlete_id' => $athleteIdToken,
+            'billable_user_id' => $athleteUserId,
+            'payer_user_id' => $parentUserId,
+            'bill_kind' => 'INVOICE',
+            'payment_type' => 'TUITION',
+            'amount' => 100000,
+            'reference_id' => 100002,
+            'total_amount' => 100000,
+            'paid_amount' => 50000,
+            'remaining_amount' => 50000,
+            'payment_date' => $now->toDateString(),
+            'status' => 'PENDING',
+            'proof_status' => 'NONE',
+            'notes' => 'Demo partial tuition bill; upload one more proof to complete it. Collection method: TRANSFER',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
+        ], 'payment_id');
+
+        DB::table('payment_transactions')->insert([
+            'payment_id' => $partialPaymentId,
+            'verified_by' => $adminUserId,
+            'amount' => 50000,
+            'transaction_date' => $now->toDateString(),
+            'payment_method' => 'TRANSFER',
+            'transaction_type' => 'PAYMENT',
+            'notes' => 'Demo first installment approved by finance admin.',
+            'proof_notes' => 'Synthetic demo proof note; no real payment document.',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
+        ]);
+
+        DB::table('payments')->insert([
+            'athlete_id' => $athleteIdToken,
+            'billable_user_id' => $athleteUserId,
+            'bill_kind' => 'INVOICE',
+            'payment_type' => 'CHAMPIONSHIP',
+            'amount' => 250000,
+            'reference_id' => $registrationId,
+            'total_amount' => 250000,
+            'paid_amount' => 0,
+            'remaining_amount' => 250000,
+            'payment_date' => $now->toDateString(),
+            'status' => 'PENDING',
+            'proof_status' => 'NONE',
+            'notes' => 'Demo championship registration bill for Jakarta Open Championship.',
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
@@ -323,7 +406,7 @@ class ApplicationDataSeeder extends Seeder
             'user_id' => $adminUserId,
             'ip_address' => '127.0.0.1',
             'user_agent' => 'RFIS Seeder',
-            'payload' => base64_encode(json_encode(['login_web_' . sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
+            'payload' => base64_encode(json_encode(['login_web_'.sha1('web') => $adminUserId], JSON_THROW_ON_ERROR)),
             'last_activity' => $now->timestamp,
         ]);
 

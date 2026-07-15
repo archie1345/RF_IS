@@ -29,7 +29,6 @@
 
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
-
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
 
@@ -182,6 +181,65 @@
     }
     body {
         @apply bg-background text-foreground;
+    }
+
+    input[type='date'],
+    input[type='time'],
+    input[type='datetime-local'],
+    input[type='month'] {
+        color-scheme: light;
+        min-height: 2.75rem;
+        border-radius: 0.9rem;
+        border: 1px solid hsl(var(--border));
+        background:
+            linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 96%, white 4%), hsl(var(--card))) padding-box,
+            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 65%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
+        box-shadow: 0 1px 2px color-mix(in oklab, hsl(var(--foreground)) 10%, transparent);
+        color: hsl(var(--foreground));
+        font-weight: 650;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease, background 150ms ease;
+    }
+
+    input[type='date']:hover,
+    input[type='time']:hover,
+    input[type='datetime-local']:hover,
+    input[type='month']:hover {
+        border-color: color-mix(in oklab, hsl(var(--primary)) 45%, hsl(var(--border)));
+        box-shadow: 0 8px 22px color-mix(in oklab, hsl(var(--primary)) 14%, transparent);
+    }
+
+    input[type='date']:focus,
+    input[type='time']:focus,
+    input[type='datetime-local']:focus,
+    input[type='month']:focus {
+        border-color: hsl(var(--primary));
+        box-shadow: 0 0 0 4px color-mix(in oklab, hsl(var(--primary)) 20%, transparent);
+    }
+
+    input[type='date']::-webkit-calendar-picker-indicator,
+    input[type='time']::-webkit-calendar-picker-indicator,
+    input[type='datetime-local']::-webkit-calendar-picker-indicator,
+    input[type='month']::-webkit-calendar-picker-indicator {
+        width: 1.15rem;
+        height: 1.15rem;
+        margin-inline-start: 0.45rem;
+        border-radius: 999px;
+        padding: 0.4rem;
+        background-color: color-mix(in oklab, hsl(var(--primary)) 12%, transparent);
+        cursor: pointer;
+        opacity: 0.9;
+    }
+
+    .dark input[type='date'],
+    .dark input[type='time'],
+    .dark input[type='datetime-local'],
+    .dark input[type='month'] {
+        color-scheme: dark;
+        background:
+            linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 88%, white 3%), hsl(var(--card))) padding-box,
+            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 70%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
     }
 }
 
