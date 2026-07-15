@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, nextTick, ref } from 'vue';
-import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
+import { computed, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -67,7 +66,6 @@ const dayOptions = [
     { value: 7, label: 'Minggu' },
 ];
 
-const scheduleFormSection = ref<HTMLElement | null>(null);
 const editingScheduleId = ref<number | null>(null);
 
 const scheduleForm = useForm({
@@ -98,7 +96,7 @@ function resetScheduleForm() {
     scheduleForm.is_active = true;
 }
 
-async function editSchedule(schedule: WeeklySchedule) {
+function editSchedule(schedule: WeeklySchedule) {
     editingScheduleId.value = schedule.id;
     scheduleForm.clearErrors();
     scheduleForm.title = schedule.title;
@@ -131,22 +129,101 @@ function deleteSchedule(schedule: WeeklySchedule) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <WeeklyScheduleBoard
-                :schedules="props.weeklySchedules"
-                :can-manage="props.canManageSchedule"
-                :show-management-hint="false"
-                :title="props.title"
-                :subtitle="props.subtitle"
-                @edit="editSchedule"
-                @delete="deleteSchedule"
-                @refresh="router.reload()"
-            />
+            <section v-if="props.canManageSchedule" class="rounded-2xl border bg-card p-5 shadow-sm">
+                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Admin / Coach only</p>
+                        <h1 class="text-3xl font-black">{{ props.title }}</h1>
+                        <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
+                    </div>
+                    <button
+                        type="button"
+                        class="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold"
+                        @click="router.reload()"
+                    >
+                        Refresh
+                    </button>
+                </div>
 
-            <section
-                v-if="props.canManageSchedule"
-                ref="scheduleFormSection"
-                class="rounded-2xl border bg-card p-5 shadow-sm"
-            >
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[980px] text-sm">
+                        <thead>
+                            <tr class="border-b text-left">
+                                <th class="px-3 py-3 font-black">Jadwal</th>
+                                <th class="px-3 py-3 font-black">Hari</th>
+                                <th class="px-3 py-3 font-black">Waktu</th>
+                                <th class="px-3 py-3 font-black">Lokasi</th>
+                                <th class="px-3 py-3 font-black">Kelas</th>
+                                <th class="px-3 py-3 font-black">Coach</th>
+                                <th class="px-3 py-3 font-black">Generated</th>
+                                <th class="px-3 py-3 font-black">Status</th>
+                                <th class="px-3 py-3 font-black">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="props.weeklySchedules.length === 0">
+                                <td colspan="9" class="h-32 px-3 text-center text-muted-foreground">
+                                    Belum ada jadwal latihan.
+                                </td>
+                            </tr>
+                            <tr
+                                v-for="schedule in props.weeklySchedules"
+                                :key="schedule.id"
+                                class="border-b hover:bg-muted/40"
+                            >
+                                <td class="px-3 py-4">
+                                    <p class="font-black">{{ schedule.title }}</p>
+                                    <p class="text-xs text-muted-foreground">{{ schedule.class_type ?? '-' }}</p>
+                                </td>
+                                <td class="px-3 py-4">{{ schedule.day_label ?? '-' }}</td>
+                                <td class="px-3 py-4">
+                                    {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
+                                </td>
+                                <td class="px-3 py-4">{{ schedule.location || schedule.branch || '-' }}</td>
+                                <td class="px-3 py-4">{{ schedule.group || 'All groups' }}</td>
+                                <td class="px-3 py-4">{{ schedule.coach || 'Belum ada coach' }}</td>
+                                <td class="px-3 py-4">{{ schedule.generated_sessions_count ?? 0 }} sesi</td>
+                                <td class="px-3 py-4">
+                                    <span
+                                        class="rounded-full px-3 py-1 text-xs font-black"
+                                        :class="
+                                            schedule.is_active === false
+                                                ? 'bg-slate-100 text-slate-500'
+                                                : 'bg-green-100 text-green-700'
+                                        "
+                                        >{{ schedule.is_active === false ? 'NONAKTIF' : 'AKTIF' }}</span
+                                    >
+                                </td>
+                                <td class="px-3 py-4">
+                                    <div class="flex gap-2">
+                                        <button
+                                            type="button"
+                                            class="rounded border px-2 py-1"
+                                            :disabled="!schedule.can_manage"
+                                            @click="editSchedule(schedule)"
+                                        >
+                                            Edit</button
+                                        ><button
+                                            type="button"
+                                            class="rounded border px-2 py-1 text-red-600"
+                                            :disabled="!schedule.can_manage"
+                                            @click="deleteSchedule(schedule)"
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section v-else class="rounded-2xl border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
+                Jadwal latihan hanya dapat dilihat oleh admin dan coach.
+            </section>
+
+            <section v-if="props.canManageSchedule" class="rounded-2xl border bg-card p-5 shadow-sm">
                 <div class="mb-5">
                     <p class="text-xs font-black tracking-wide text-red-500 uppercase">Admin / Coach only</p>
                     <h2 class="text-2xl font-black">{{ scheduleFormTitle }}</h2>
