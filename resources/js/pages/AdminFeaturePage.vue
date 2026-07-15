@@ -16,6 +16,7 @@ type SelectOption = { value: string | number; label: string };
 type BillingSettings = { invoice_day: number; invoice_time: string; default_amount: string; is_active: boolean };
 type ManagedLocation = { id: number; name: string; location?: string | null; address?: string | null; city?: string | null; province?: string | null; latitude?: string | number | null; longitude?: string | number | null; attendance_radius_meters: number; timezone?: string | null; is_active: boolean; groups_count?: number };
 type ManagedClass = { id: number; name: string; class_type: string; coach_id?: string | null; coach: string; branch_id?: number | string | null; branch: string; day_of_week: number; schedule: string; time: string; start_time: string; end_time: string; athletes_count: number; min_belt?: string | null; description?: string | null; is_active: boolean };
+type CalendarCell = { key: string; date: Date; dateString: string; day: number; isCurrentMonth: boolean; isToday: boolean; isSelectedStart: boolean; isSelectedEnd: boolean; isInRange: boolean };
 
 const props = withDefaults(
     defineProps<{
@@ -88,18 +89,28 @@ const classForm = useForm({ name: '', class_type: 'Beginner', coach_id: '', bran
 
 const today = new Date();
 const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-const formatDate = (date: Date) => date.toISOString().slice(0, 10);
+const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 const initialFrom = queryParams.get('from') || formatDate(firstDayOfMonth);
 const initialTo = queryParams.get('to') || formatDate(today);
 
-const attendanceDateRange = ref(`${initialFrom} – ${initialTo}`);
 const attendanceSearch = ref('');
 const attendanceClass = ref('');
 const attendanceClassType = ref('');
 const attendanceStatus = ref('');
+const attendanceRangeStart = ref(initialFrom);
+const attendanceRangeEnd = ref(initialTo);
+const attendanceCalendarOpen = ref(false);
+const attendanceCalendarMonth = ref(parseDate(initialFrom) ?? firstDayOfMonth);
 
 const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
+const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
+const attendanceCalendarTitle = computed(() => attendanceCalendarMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
 
 const weeklySchedulesByDay = computed(() => {
     const grouped = new Map<number, WeeklySchedule[]>();
@@ -110,6 +121,36 @@ const weeklySchedulesByDay = computed(() => {
 const attendanceClassOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
 const attendanceClassTypeOptions = computed(() => uniqueValuesFromColumns(['Tipe Kelas', 'Tipe', 'Class Type']));
 const attendanceStatusOptions = computed(() => uniqueValuesFromColumns(['Status']));
+
+const attendanceCalendarDays = computed<CalendarCell[]>(() => {
+    const month = attendanceCalendarMonth.value.getMonth();
+    const year = attendanceCalendarMonth.value.getFullYear();
+    const monthStart = new Date(year, month, 1);
+    const mondayOffset = (monthStart.getDay() + 6) % 7;
+    const gridStart = new Date(year, month, 1 - mondayOffset);
+    const rangeStart = parseDate(attendanceRangeStart.value);
+    const rangeEnd = parseDate(attendanceRangeEnd.value);
+    const normalizedStart = rangeStart && rangeEnd && rangeStart > rangeEnd ? rangeEnd : rangeStart;
+    const normalizedEnd = rangeStart && rangeEnd && rangeStart > rangeEnd ? rangeStart : rangeEnd;
+    const todayString = formatDate(today);
+
+    return Array.from({ length: 42 }, (_, index) => {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + index);
+        const dateString = formatDate(date);
+        return {
+            key: dateString,
+            date,
+            dateString,
+            day: date.getDate(),
+            isCurrentMonth: date.getMonth() === month,
+            isToday: dateString === todayString,
+            isSelectedStart: dateString === attendanceRangeStart.value,
+            isSelectedEnd: dateString === attendanceRangeEnd.value,
+            isInRange: Boolean(normalizedStart && normalizedEnd && date >= normalizedStart && date <= normalizedEnd),
+        };
+    });
+});
 
 const displayedRows = computed(() => {
     if (!isAttendanceRecap.value) return props.rows;
@@ -139,6 +180,12 @@ const mapUrl = computed(() => {
     return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${lat},${lng}`)}`;
 });
 
+function parseDate(dateString: string) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
+}
+
 function uniqueValuesFromColumns(columns: string[]) {
     const seen = new Set<string>();
 
@@ -150,16 +197,42 @@ function uniqueValuesFromColumns(columns: string[]) {
     return [...seen].sort((a, b) => a.localeCompare(b));
 }
 
-function parseAttendanceDateRange() {
-    const matches = attendanceDateRange.value.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
-    return matches.length >= 2 ? { from: matches[0], to: matches[1] } : null;
+function applyAttendanceDateRange() {
+    router.get(window.location.pathname, { from: attendanceRangeStart.value, to: attendanceRangeEnd.value }, { preserveScroll: true, preserveState: true });
 }
 
-function applyAttendanceDateRange() {
-    const range = parseAttendanceDateRange();
-    if (!range) return;
+function changeAttendanceMonth(delta: number) {
+    attendanceCalendarMonth.value = new Date(attendanceCalendarMonth.value.getFullYear(), attendanceCalendarMonth.value.getMonth() + delta, 1);
+}
 
-    router.get(window.location.pathname, range, { preserveScroll: true, preserveState: true });
+function selectAttendanceDate(dateString: string) {
+    const selected = parseDate(dateString);
+    const start = parseDate(attendanceRangeStart.value);
+    const end = parseDate(attendanceRangeEnd.value);
+    if (!selected) return;
+
+    if (!start || (start && end && attendanceRangeStart.value !== attendanceRangeEnd.value)) {
+        attendanceRangeStart.value = dateString;
+        attendanceRangeEnd.value = dateString;
+        return;
+    }
+
+    if (selected < start) {
+        attendanceRangeStart.value = dateString;
+        attendanceRangeEnd.value = formatDate(start);
+    } else {
+        attendanceRangeEnd.value = dateString;
+    }
+
+    attendanceCalendarOpen.value = false;
+    applyAttendanceDateRange();
+}
+
+function clearAttendanceDateRange() {
+    attendanceRangeStart.value = formatDate(firstDayOfMonth);
+    attendanceRangeEnd.value = formatDate(today);
+    attendanceCalendarMonth.value = firstDayOfMonth;
+    applyAttendanceDateRange();
 }
 
 function clearAttendanceFilters() {
@@ -332,10 +405,38 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
 
             <section v-else class="rounded-xl border bg-card p-5 shadow-sm">
                 <div v-if="isAttendanceRecap" class="mb-5 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
-                    <label class="grid gap-1 text-sm font-semibold">
+                    <div class="relative grid gap-1 text-sm font-semibold">
                         Rentang Tanggal
-                        <input v-model="attendanceDateRange" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="YYYY-MM-DD – YYYY-MM-DD" @keyup.enter="applyAttendanceDateRange" @change="applyAttendanceDateRange" />
-                    </label>
+                        <button type="button" class="flex h-10 items-center justify-between rounded-lg border bg-background px-3 text-left text-sm font-normal" @click="attendanceCalendarOpen = !attendanceCalendarOpen">
+                            <span>{{ attendanceDateRangeLabel }}</span>
+                            <X class="size-4 text-muted-foreground" @click.stop="clearAttendanceDateRange" />
+                        </button>
+                        <div v-if="attendanceCalendarOpen" class="absolute left-0 top-[4.75rem] z-30 w-[330px] rounded-xl border bg-background p-4 shadow-xl">
+                            <div class="mb-4 flex items-center justify-between">
+                                <button type="button" class="flex size-9 items-center justify-center rounded-lg bg-muted text-xl" @click="changeAttendanceMonth(-1)">‹</button>
+                                <p class="font-black">{{ attendanceCalendarTitle }}</p>
+                                <button type="button" class="flex size-9 items-center justify-center rounded-lg text-xl text-muted-foreground hover:bg-muted" @click="changeAttendanceMonth(1)">›</button>
+                            </div>
+                            <div class="grid grid-cols-7 text-center text-sm text-muted-foreground">
+                                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+                            </div>
+                            <div class="mt-2 grid grid-cols-7 overflow-hidden rounded-lg text-center text-sm">
+                                <button
+                                    v-for="day in attendanceCalendarDays"
+                                    :key="day.key"
+                                    type="button"
+                                    class="h-10 border border-background transition"
+                                    :class="[
+                                        day.isInRange ? 'bg-sky-100 text-sky-950' : 'bg-background',
+                                        !day.isCurrentMonth ? 'text-muted-foreground/40' : '',
+                                        (day.isSelectedStart || day.isSelectedEnd) ? 'rounded-lg bg-blue-600 font-black text-white' : '',
+                                        day.isToday && !day.isSelectedStart && !day.isSelectedEnd ? 'font-black text-red-500' : '',
+                                    ]"
+                                    @click="selectAttendanceDate(day.dateString)"
+                                >{{ day.day }}</button>
+                            </div>
+                        </div>
+                    </div>
                     <label class="grid gap-1 text-sm font-semibold">
                         Cari Member
                         <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input v-model="attendanceSearch" class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Nama atau Kode Member..." /></div>
@@ -374,7 +475,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                 <form class="grid gap-4" @submit.prevent="saveLocation">
                     <div class="flex items-start justify-between"><div><h3 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h3><p class="text-sm text-muted-foreground">Silakan lengkapi informasi lokasi latihan di bawah ini</p></div><Button type="button" variant="ghost" size="sm" @click="showLocationForm = false"><X class="size-4" /> Kembali</Button></div>
                     <label class="grid gap-1 text-sm font-semibold">Nama Lokasi *<input v-model="locationForm.name" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: GOR Pajajaran Hall A" /><span v-if="locationForm.errors.name" class="text-xs text-destructive">{{ locationForm.errors.name }}</span></label>
-                    <label class="grid gap-1 text-sm font-semibold">Alamat Lengkap *<textarea v-model="locationForm.address" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Alamat lengkap lokasi latihan" /><span v-if="locationForm.errors.address" class="text-xs text-destructive">{{ locationForm.errors.address }}</span></label>
+                    <label class="grid gap-1 text-sm font-semibold">Alamat Lengkap *<textarea v-model="locationForm.address" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Alamat lengkap lokasi latihan"></textarea><span v-if="locationForm.errors.address" class="text-xs text-destructive">{{ locationForm.errors.address }}</span></label>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Kota *<input v-model="locationForm.city" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Bogor" /></label><label class="grid gap-1 text-sm font-semibold">Provinsi *<input v-model="locationForm.province" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Jawa Barat" /></label></div>
                     <div class="grid gap-2 text-sm font-semibold">Pilih Titik Lokasi (Map)<div class="overflow-hidden rounded-lg border"><iframe :src="mapUrl" class="h-64 w-full" loading="lazy" /></div><div class="flex flex-wrap gap-2 text-xs text-muted-foreground"><span><MapPin class="mr-1 inline size-3 text-red-500" />{{ locationForm.latitude }}, {{ locationForm.longitude }}</span><Button type="button" size="sm" variant="outline" @click="useCurrentLocation">Lokasi Saya</Button></div></div>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Latitude<input v-model="locationForm.latitude" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Longitude<input v-model="locationForm.longitude" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
@@ -393,7 +494,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Hari<select v-model="classForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label><label class="grid gap-1 text-sm font-semibold">Minimal Sabuk<select v-model="classForm.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Tanpa minimal</option><option v-for="option in props.beltOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Jam Mulai *<input v-model="classForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Jam Selesai *<input v-model="classForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
                     <label class="grid gap-1 text-sm font-semibold">Lokasi Latihan<select v-model="classForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih lokasi latihan</option><option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Deskripsi<textarea v-model="classForm.description" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm" /></label>
+                    <label class="grid gap-1 text-sm font-semibold">Deskripsi<textarea v-model="classForm.description" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm"></textarea></label>
                     <label class="grid gap-1 text-sm font-semibold">Status<select v-model="classForm.is_active" class="h-10 rounded-lg border bg-background px-3 text-sm"><option :value="true">Aktif</option><option :value="false">Nonaktif</option></select></label>
                     <Button type="submit" :disabled="classForm.processing">{{ classForm.processing ? 'Menyimpan...' : 'Simpan Kelas' }}</Button>
                 </form>
