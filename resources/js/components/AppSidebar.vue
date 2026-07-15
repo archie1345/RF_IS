@@ -45,6 +45,7 @@ const roles = computed<AppRole[]>(() => {
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
+    { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
     { title: 'Presensi Atlet', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
     { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
