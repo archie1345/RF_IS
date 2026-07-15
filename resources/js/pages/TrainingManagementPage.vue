@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
+import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 
 type Option = { value: number | string; label: string };
 type Branch = { id: number; name: string; location?: string | null; address?: string | null; city?: string | null; province?: string | null; latitude?: string | number | null; longitude?: string | number | null; attendance_radius_meters: number; timezone?: string | null; is_active: boolean; groups_count: number; athletes_count: number };
 type Group = { id: number; name: string; class_type: string; branch_id?: number | null; branch: string; coach_id?: string | null; coach: string; day_of_week?: number | null; day_label: string; start_time: string; end_time: string; min_belt?: string | null; description?: string | null; athletes_count: number; is_active: boolean; weekly_schedule_id?: number | null; weekly_schedule_status: string };
-type WeeklySchedule = { id: number; title: string; branch_id?: number | null; branch: string; group_id?: number | null; group: string; coach_id?: string | null; coach: string; day_of_week: number; day_label: string; start_time: string; end_time: string; location?: string | null; is_active: boolean; generated_sessions_count: number; can_manage: boolean };
+type WeeklySchedule = { id: number; title: string; branch_id?: number | null; branch: string; group_id?: number | null; group: string; coach_id?: string | null; coach: string; day_of_week: number; day_label: string; start_time: string; end_time: string; location?: string | null; is_active: boolean; generated_sessions_count: number; can_manage: boolean; class_type?: string | null; athletes_count?: number | null };
 type Session = { id: number; weekly_training_schedule_id?: number | null; title: string; date?: string | null; day_label: string; time: string; branch: string; group: string; coach: string; status: string };
 
 const props = withDefaults(defineProps<{
@@ -70,7 +71,7 @@ const dayOptions = [
 
 const weekForm = useForm({ from: props.weekRange.from, to: props.weekRange.to });
 const branchForm = useForm({ name: '', location: '', address: '', city: '', province: '', latitude: '', longitude: '', attendance_radius_meters: 100, timezone: 'Asia/Jakarta', is_active: true });
-const groupForm = useForm({ name: '', class_type: 'General', branch_id: '', coach_id: '', day_of_week: 1, capacity: 0, start_time: '16:00', end_time: '18:00', min_belt: '', description: '', is_active: true });
+const groupForm = useForm({ name: '', class_type: 'General', branch_id: '', coach_id: '', day_of_week: 1, start_time: '16:00', end_time: '18:00', min_belt: '', description: '', is_active: true });
 const scheduleForm = useForm({ title: '', branch_id: '', group_id: '', coach_id: props.currentCoachId ?? '', day_of_week: 1, start_time: '16:00', end_time: '18:00', location: '', is_active: true });
 
 const canShowStructure = computed(() => props.canManageStructure || props.branches.length > 0 || props.groups.length > 0);
@@ -123,7 +124,6 @@ function resetGroupForm() {
     groupForm.branch_id = '';
     groupForm.coach_id = '';
     groupForm.day_of_week = 1;
-    groupForm.capacity = 0;
     groupForm.start_time = '16:00';
     groupForm.end_time = '18:00';
     groupForm.min_belt = props.beltOptions[0]?.value ? String(props.beltOptions[0].value) : '';
@@ -139,7 +139,6 @@ function editGroup(group: Group) {
     groupForm.branch_id = group.branch_id ? String(group.branch_id) : '';
     groupForm.coach_id = group.coach_id ?? '';
     groupForm.day_of_week = group.day_of_week ?? 1;
-    groupForm.capacity = 0;
     groupForm.start_time = group.start_time || '16:00';
     groupForm.end_time = group.end_time || '18:00';
     groupForm.min_belt = group.min_belt ?? '';
@@ -183,6 +182,7 @@ function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.end_time = schedule.end_time || '18:00';
     scheduleForm.location = schedule.location ?? '';
     scheduleForm.is_active = schedule.is_active;
+    activeTab.value = 'schedules';
 }
 
 function saveSchedule() {
@@ -215,7 +215,7 @@ function applyWeekFilter() {
                         <p class="text-xs font-bold uppercase tracking-wide text-muted-foreground">Training flow</p>
                         <h1 class="text-2xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 max-w-3xl text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                        <p class="mt-3 rounded-lg bg-muted px-3 py-2 text-sm">Lokasi adalah dojang fisik. Kelas adalah grup latihan di lokasi. Jadwal Mingguan adalah template berulang. Jadwal aktif otomatis membuat Sesi Latihan bertanggal setiap hari sesuai jadwal. Tombol Generate tetap tersedia untuk membuat sesi manual pada rentang tanggal tertentu. Attendance dan QR terjadi di Sesi Latihan.</p>
+                        <p class="mt-3 rounded-lg bg-muted px-3 py-2 text-sm">Lokasi adalah dojang fisik. Kelas adalah grup latihan di lokasi. Jadwal Mingguan adalah template berulang dari Master Data &gt; Kelas. Jadwal aktif otomatis membuat Sesi Latihan bertanggal. Attendance dan QR terjadi di Sesi Latihan.</p>
                     </div>
                     <div class="flex flex-wrap gap-2">
                         <button v-if="props.canManageSchedule" class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" @click="generateSessions">Generate sessions manually</button>
@@ -246,7 +246,7 @@ function applyWeekFilter() {
                     <div class="mt-4 grid gap-3">
                         <input v-model="branchForm.name" class="rounded-lg border bg-background px-3 py-2" placeholder="Nama lokasi / dojang" />
                         <input v-model="branchForm.location" class="rounded-lg border bg-background px-3 py-2" placeholder="Label lokasi" />
-                        <textarea v-model="branchForm.address" class="rounded-lg border bg-background px-3 py-2" placeholder="Alamat" />
+                        <textarea v-model="branchForm.address" class="rounded-lg border bg-background px-3 py-2" placeholder="Alamat"></textarea>
                         <div class="grid grid-cols-2 gap-2"><input v-model="branchForm.city" class="rounded-lg border bg-background px-3 py-2" placeholder="Kota" /><input v-model="branchForm.province" class="rounded-lg border bg-background px-3 py-2" placeholder="Provinsi" /></div>
                         <div class="grid grid-cols-2 gap-2"><input v-model="branchForm.latitude" class="rounded-lg border bg-background px-3 py-2" placeholder="Latitude" /><input v-model="branchForm.longitude" class="rounded-lg border bg-background px-3 py-2" placeholder="Longitude" /></div>
                         <input v-model="branchForm.attendance_radius_meters" type="number" class="rounded-lg border bg-background px-3 py-2" placeholder="Radius absensi meter" />
@@ -267,12 +267,13 @@ function applyWeekFilter() {
                     <h2 class="text-lg font-black">{{ editingGroupId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <div class="mt-4 grid gap-3">
                         <input v-model="groupForm.name" class="rounded-lg border bg-background px-3 py-2" placeholder="Nama kelas" />
+                        <input v-model="groupForm.class_type" class="rounded-lg border bg-background px-3 py-2" placeholder="Tipe kelas" />
                         <select v-model="groupForm.branch_id" class="rounded-lg border bg-background px-3 py-2"><option value="">Pilih lokasi</option><option v-for="option in props.branchOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
                         <select v-model="groupForm.coach_id" class="rounded-lg border bg-background px-3 py-2"><option value="">Pilih coach</option><option v-for="option in props.coachOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
                         <select v-model="groupForm.day_of_week" class="rounded-lg border bg-background px-3 py-2"><option v-for="day in dayOptions" :key="day.value" :value="day.value">{{ day.label }}</option></select>
                         <div class="grid grid-cols-2 gap-2"><input v-model="groupForm.start_time" type="time" class="rounded-lg border bg-background px-3 py-2" /><input v-model="groupForm.end_time" type="time" class="rounded-lg border bg-background px-3 py-2" /></div>
                         <select v-model="groupForm.min_belt" class="rounded-lg border bg-background px-3 py-2"><option value="">Minimal sabuk</option><option v-for="option in props.beltOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
-                        <textarea v-model="groupForm.description" class="rounded-lg border bg-background px-3 py-2" placeholder="Deskripsi" />
+                        <textarea v-model="groupForm.description" class="rounded-lg border bg-background px-3 py-2" placeholder="Deskripsi"></textarea>
                         <label class="flex items-center gap-2 text-sm"><input v-model="groupForm.is_active" type="checkbox" /> Aktif</label>
                         <div class="flex gap-2"><button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Save</button><button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="resetGroupForm">Reset</button></div>
                     </div>
@@ -283,9 +284,10 @@ function applyWeekFilter() {
                 </tbody></table></div>
             </section>
 
-            <section v-if="activeTab === 'schedules'" class="grid gap-4 lg:grid-cols-[380px_1fr]">
+            <section v-if="activeTab === 'schedules'" class="grid gap-4" :class="props.canManageSchedule ? 'xl:grid-cols-[380px_1fr]' : ''">
                 <form v-if="props.canManageSchedule" class="rounded-xl border bg-card p-5 shadow-sm" @submit.prevent="saveSchedule">
                     <h2 class="text-lg font-black">{{ editingScheduleId ? 'Edit Jadwal Mingguan' : 'Tambah Jadwal Mingguan' }}</h2>
+                    <p class="mt-1 text-xs text-muted-foreground">Data jadwal utama sebaiknya mengikuti Master Data &gt; Kelas. Form ini hanya untuk override / template khusus.</p>
                     <div class="mt-4 grid gap-3">
                         <input v-model="scheduleForm.title" class="rounded-lg border bg-background px-3 py-2" placeholder="Judul jadwal" />
                         <select v-model="scheduleForm.branch_id" class="rounded-lg border bg-background px-3 py-2"><option value="">Pilih lokasi</option><option v-for="option in props.branchOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
@@ -298,10 +300,17 @@ function applyWeekFilter() {
                         <div class="flex gap-2"><button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Save</button><button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="resetScheduleForm">Reset</button></div>
                     </div>
                 </form>
-                <div class="overflow-x-auto rounded-xl border bg-card shadow-sm"><table class="w-full min-w-[900px] text-sm"><thead><tr class="border-b text-left"><th class="p-3">Jadwal</th><th class="p-3">Lokasi</th><th class="p-3">Kelas</th><th class="p-3">Coach</th><th class="p-3">Auto-created</th><th class="p-3">Aksi</th></tr></thead><tbody>
-                    <tr v-if="props.weeklySchedules.length === 0"><td colspan="6" class="p-6 text-center text-muted-foreground">No weekly schedules yet. Create a class or schedule.</td></tr>
-                    <tr v-for="schedule in props.weeklySchedules" :key="schedule.id" class="border-b"><td class="p-3 font-bold">{{ schedule.title }}<p class="text-xs font-normal text-muted-foreground">{{ schedule.day_label }} {{ schedule.start_time }}-{{ schedule.end_time }} · {{ schedule.is_active ? 'Aktif' : 'Nonaktif' }}</p></td><td class="p-3">{{ schedule.branch }}</td><td class="p-3">{{ schedule.group }}</td><td class="p-3">{{ schedule.coach }}</td><td class="p-3">{{ schedule.generated_sessions_count }} sesi di range</td><td class="p-3"><div v-if="schedule.can_manage" class="flex gap-2"><button class="rounded border px-2 py-1" @click="editSchedule(schedule)">Edit</button><button class="rounded border px-2 py-1" @click="deleteSchedule(schedule)">Delete</button></div></td></tr>
-                </tbody></table></div>
+
+                <WeeklyScheduleBoard
+                    :schedules="props.weeklySchedules"
+                    :can-manage="props.canManageSchedule"
+                    :show-management-hint="true"
+                    title="Jadwal Mingguan"
+                    subtitle="Jadwal latihan rutin RTFCM"
+                    @edit="editSchedule"
+                    @delete="deleteSchedule"
+                    @refresh="router.reload()"
+                />
             </section>
 
             <section v-if="activeTab === 'sessions'" class="rounded-xl border bg-card p-5 shadow-sm">
