@@ -45,7 +45,6 @@ const props = withDefaults(
         columns: () => [],
         rows: () => [],
         emptyText: 'Tidak ada data',
-        roleAccess: 'Admin only',
     },
 );
 
@@ -66,7 +65,7 @@ const calendarOpen = ref(false);
 const calendarMonth = ref(parseDate(props.period.from) ?? today);
 
 const weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-const dateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
+// const dateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
 const calendarTitle = computed(() => calendarMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
 const exportUrl = computed(() => {
     const url = new URL(props.period.exportUrl, window.location.origin);
@@ -77,7 +76,6 @@ const exportUrl = computed(() => {
 });
 
 const classOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
-const classTypeOptions = computed(() => uniqueValuesFromColumns(['Tipe Kelas', 'Tipe', 'Class Type']));
 const statusOptions = computed(() => uniqueValuesFromColumns(['Status']));
 
 const calendarDays = computed<CalendarCell[]>(() => {
@@ -119,12 +117,11 @@ const displayedRows = computed(() => {
     return props.rows.filter((row) => {
         const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row.Nama, row.No].filter(Boolean).join(' ').toLowerCase();
         const classText = String(row.Kelas ?? row.Class ?? '').toLowerCase();
-        const classTypeText = String(row['Tipe Kelas'] ?? row.Tipe ?? row['Class Type'] ?? '').toLowerCase();
         const statusText = String(row.Status ?? '').toLowerCase();
 
         return (!keyword || memberText.includes(keyword))
             && (!classValue || classText === classValue)
-            && (!classTypeValue || classTypeText === classTypeValue)
+            // && (!classTypeValue || classTypeText === classTypeValue)
             && (!statusValue || statusText === statusValue);
     });
 });
@@ -229,7 +226,7 @@ function linkLabel(value: string) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection :title="props.title" :description="props.subtitle">
-                <template #actions>
+                <!-- <template #actions>
                     <div class="flex flex-wrap gap-2">
                         <a :href="exportUrl" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
                             <Download class="mr-2 size-4" /> Export Excel
@@ -238,7 +235,7 @@ function linkLabel(value: string) {
                             <RefreshCcw class="mr-2 size-4" /> Refresh
                         </Button>
                     </div>
-                </template>
+                </template> -->
 
                 <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-red-500">{{ props.roleAccess }}</p>
                 <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
@@ -253,7 +250,7 @@ function linkLabel(value: string) {
                         <input v-model="attendanceMonth" type="month" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyMonth()" />
                     </label>
 
-                    <div class="relative grid gap-1 text-sm font-semibold">
+                    <!-- <div class="relative grid gap-1 text-sm font-semibold">
                         Rentang Tanggal
                         <button type="button" class="flex h-10 items-center justify-between rounded-lg border bg-background px-3 text-left text-sm font-normal" @click="calendarOpen = !calendarOpen">
                             <span>{{ dateRangeLabel }}</span>
@@ -292,7 +289,7 @@ function linkLabel(value: string) {
                             </div>
                             <p class="mt-3 text-xs text-muted-foreground">Pilih tanggal awal, lalu tanggal akhir. Data akan dimuat ulang otomatis.</p>
                         </div>
-                    </div>
+                    </div> -->
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Cari Member
@@ -311,14 +308,6 @@ function linkLabel(value: string) {
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
-                        Tipe Kelas
-                        <select v-model="attendanceClassType" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
-                            <option value="">Filter per Tipe Kelas</option>
-                            <option v-for="option in classTypeOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
-
-                    <label class="grid gap-1 text-sm font-semibold">
                         Status
                         <select v-model="attendanceStatus" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
                             <option value="">Filter per Status</option>
@@ -330,8 +319,8 @@ function linkLabel(value: string) {
                         <a :href="exportUrl" class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
                             <Download class="mr-2 size-4" /> Export
                         </a>
-                        <Button type="button" variant="outline" size="sm" class="h-10" @click="quickMonth(-1)">Bulan lalu</Button>
-                        <Button type="button" variant="outline" size="sm" class="h-10" @click="applyCurrentMonth">Bulan ini</Button>
+                        <!-- <Button type="button" variant="outline" size="sm" class="h-10" @click="quickMonth(-1)">Bulan lalu</Button> -->
+                        <!-- <Button type="button" variant="outline" size="sm" class="h-10" @click="applyCurrentMonth">Bulan ini</Button> -->
                         <Button type="button" variant="ghost" size="sm" class="h-10" @click="clearFilters">Reset</Button>
                     </div>
                 </div>

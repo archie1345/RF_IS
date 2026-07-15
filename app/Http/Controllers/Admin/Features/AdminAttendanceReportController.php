@@ -40,14 +40,14 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
 
         return $this->renderAttendanceReport(
             'Rekap Presensi Atlet',
-            'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.',
+            'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama',
             [
                 ['label' => 'Total Atlet', 'value' => (string) $athletes->count(), 'tone' => 'info'],
                 ['label' => 'Total Catatan', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
                 ['label' => 'Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
                 ['label' => 'Tidak Hadir', 'value' => (string) $attendances->whereIn('status', ['ABSENT', 'SICK', 'EXCUSED'])->count(), 'tone' => 'warning'],
             ],
-            ['No', 'Atlet', 'Kelas', 'Tipe Kelas', 'Lokasi', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
+            ['No', 'Atlet', 'Kelas', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
             'Belum ada data presensi atlet.',
             'attendance',
             $athletes->values()->map(function (Athlete $athlete, int $index) use ($attendanceByAthlete): array {
@@ -64,8 +64,6 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
                     'No' => (string) ($index + 1),
                     'Atlet' => ($athlete->user?->name ?? 'Unknown athlete').'\n'.$athlete->athlete_id,
                     'Kelas' => $athlete->group?->group_name ?? '-',
-                    'Tipe Kelas' => $athlete->group?->class_type ?? '-',
-                    'Lokasi' => $athlete->branch?->branch_name ?? '-',
                     'Total' => (string) $total,
                     'Hadir' => (string) $present,
                     'Izin' => (string) $excused,
@@ -104,14 +102,14 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
 
         return $this->renderAttendanceReport(
             'Rekap Presensi Coach',
-            'Rekap presensi coach berbasis bulan. Gunakan Bulan untuk laporan utama, atau Rentang Tanggal untuk audit periode khusus.',
+            'Rekap presensi coach berbasis bulan. Gunakan Bulan untuk laporan utama.',
             [
                 ['label' => 'Total Coach', 'value' => (string) $coaches->count(), 'tone' => 'info'],
                 ['label' => 'Jadwal Coach', 'value' => (string) $scheduledSessionsByCoach->flatten()->count(), 'tone' => 'neutral'],
                 ['label' => 'Mengajar', 'value' => (string) $coachAttendance->where('status', 'TEACH')->count(), 'tone' => 'success'],
                 ['label' => 'Tidak Mengajar', 'value' => (string) $coachAttendance->where('status', 'NOT_TEACH')->count(), 'tone' => 'warning'],
             ],
-            ['No', 'Coach', 'Kelas', 'Tipe Kelas', 'Jadwal', 'Mengajar', 'Tidak Mengajar', 'Belum Dicatat', 'Terakhir Check', 'Persentase', 'Status'],
+            ['No', 'Coach', 'Kelas', 'Jadwal', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status'],
             'Belum ada data presensi coach.',
             'instructor-attendance',
             $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach, $scheduledSessionsByCoach): array {
@@ -130,12 +128,9 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
                     'No' => (string) ($index + 1),
                     'Coach' => ($coach->user?->name ?? 'Unknown coach').'\n'.$coach->coach_id,
                     'Kelas' => count($classes) ? implode(', ', $classes) : '-',
-                    'Tipe Kelas' => count($classTypes) ? implode(', ', $classTypes) : '-',
                     'Jadwal' => (string) $scheduled,
                     'Mengajar' => (string) $teach,
                     'Tidak Mengajar' => (string) $notTeach,
-                    'Belum Dicatat' => (string) $unrecorded,
-                    'Terakhir Check' => $lastChecked ? Carbon::parse((string) $lastChecked)->format('d M Y H:i') : '-',
                     'Persentase' => $rate.'%',
                     'Status' => $this->attendanceRateStatus($rate, $scheduled),
                 ];
@@ -209,7 +204,6 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
             'columns' => $columns,
             'rows' => $rows,
             'emptyText' => $emptyText,
-            'roleAccess' => 'Admin only',
             'period' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),

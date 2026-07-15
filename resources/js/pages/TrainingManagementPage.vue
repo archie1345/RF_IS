@@ -267,7 +267,6 @@ function applyWeekFilter() {
                     <h2 class="text-lg font-black">{{ editingGroupId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <div class="mt-4 grid gap-3">
                         <input v-model="groupForm.name" class="rounded-lg border bg-background px-3 py-2" placeholder="Nama kelas" />
-                        <input v-model="groupForm.class_type" class="rounded-lg border bg-background px-3 py-2" placeholder="Tipe kelas" />
                         <select v-model="groupForm.branch_id" class="rounded-lg border bg-background px-3 py-2"><option value="">Pilih lokasi</option><option v-for="option in props.branchOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
                         <select v-model="groupForm.coach_id" class="rounded-lg border bg-background px-3 py-2"><option value="">Pilih coach</option><option v-for="option in props.coachOptions" :key="option.value" :value="String(option.value)">{{ option.label }}</option></select>
                         <select v-model="groupForm.day_of_week" class="rounded-lg border bg-background px-3 py-2"><option v-for="day in dayOptions" :key="day.value" :value="day.value">{{ day.label }}</option></select>

@@ -43,7 +43,6 @@ const props = withDefaults(
         columns: () => [],
         rows: () => [],
         emptyText: 'Tidak ada data',
-        roleAccess: 'Admin only',
         todaySessions: () => [],
         billingSettings: null,
         weeklySchedules: () => [],
@@ -101,7 +100,6 @@ const initialTo = queryParams.get('to') || formatDate(today);
 
 const attendanceSearch = ref('');
 const attendanceClass = ref('');
-const attendanceClassType = ref('');
 const attendanceStatus = ref('');
 const attendanceRangeStart = ref(initialFrom);
 const attendanceRangeEnd = ref(initialTo);
@@ -109,7 +107,7 @@ const attendanceCalendarOpen = ref(false);
 const attendanceCalendarMonth = ref(parseDate(initialFrom) ?? firstDayOfMonth);
 
 const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
-const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
+// const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
 const attendanceCalendarTitle = computed(() => attendanceCalendarMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
 
 const weeklySchedulesByDay = computed(() => {
@@ -119,7 +117,6 @@ const weeklySchedulesByDay = computed(() => {
 });
 
 const attendanceClassOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
-const attendanceClassTypeOptions = computed(() => uniqueValuesFromColumns(['Tipe Kelas', 'Tipe', 'Class Type']));
 const attendanceStatusOptions = computed(() => uniqueValuesFromColumns(['Status']));
 
 const attendanceCalendarDays = computed<CalendarCell[]>(() => {
@@ -157,18 +154,15 @@ const displayedRows = computed(() => {
 
     const keyword = attendanceSearch.value.trim().toLowerCase();
     const classValue = attendanceClass.value.trim().toLowerCase();
-    const classTypeValue = attendanceClassType.value.trim().toLowerCase();
     const statusValue = attendanceStatus.value.trim().toLowerCase();
 
     return props.rows.filter((row) => {
         const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row['Nama'], row['No']].filter(Boolean).join(' ').toLowerCase();
         const classText = String(row.Kelas ?? row.Class ?? '').toLowerCase();
-        const classTypeText = String(row['Tipe Kelas'] ?? row.Tipe ?? row['Class Type'] ?? '').toLowerCase();
         const statusText = String(row.Status ?? '').toLowerCase();
 
         return (!keyword || memberText.includes(keyword))
             && (!classValue || classText === classValue)
-            && (!classTypeValue || classTypeText === classTypeValue)
             && (!statusValue || statusText === statusValue);
     });
 });
@@ -238,7 +232,6 @@ function clearAttendanceDateRange() {
 function clearAttendanceFilters() {
     attendanceSearch.value = '';
     attendanceClass.value = '';
-    attendanceClassType.value = '';
     attendanceStatus.value = '';
 }
 
@@ -323,7 +316,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                         <Button v-if="props.mode === 'locations'" type="button" size="sm" @click="openLocationForm()"><Plus class="mr-2 size-4" /> Tambah Lokasi</Button>
                         <Button v-if="props.mode === 'classes'" type="button" size="sm" @click="openClassForm()"><Plus class="mr-2 size-4" /> Tambah Kelas</Button>
                         <Button v-if="['payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm"><Link href="/payments">Payment Center</Link></Button>
-                        <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" /> Refresh</Button>
+                        <Button variant="secondary" size="sm" @click="router.reload({})"><RefreshCcw class="mr-2 size-4" /> Refresh</Button>
                     </div>
                 </template>
 
@@ -334,7 +327,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             <section v-if="props.mode === 'locations'" class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                     <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari nama lokasi..." /></div>
-                    <Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })">Refresh</Button>
+                    <Button variant="outline" size="sm" @click="router.reload({})">Refresh</Button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[760px] text-sm">
@@ -355,7 +348,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             <section v-else-if="props.mode === 'classes'" class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
                     <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari nama kelas..." /></div>
-                    <Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })">Refresh</Button>
+                    <Button variant="outline" size="sm" @click="router.reload({})">Refresh</Button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[920px] text-sm">
@@ -406,12 +399,12 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             <section v-else class="rounded-xl border bg-card p-5 shadow-sm">
                 <div v-if="isAttendanceRecap" class="mb-5 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
                     <div class="relative grid gap-1 text-sm font-semibold">
-                        Rentang Tanggal
+                        <!-- Rentang Tanggal
                         <button type="button" class="flex h-10 items-center justify-between rounded-lg border bg-background px-3 text-left text-sm font-normal" @click="attendanceCalendarOpen = !attendanceCalendarOpen">
                             <span>{{ attendanceDateRangeLabel }}</span>
                             <X class="size-4 text-muted-foreground" @click.stop="clearAttendanceDateRange" />
-                        </button>
-                        <div v-if="attendanceCalendarOpen" class="absolute left-0 top-[4.75rem] z-30 w-[330px] rounded-xl border bg-background p-4 shadow-xl">
+                        </button> -->
+                        <!-- <div v-if="attendanceCalendarOpen" class="absolute left-0 top-[4.75rem] z-30 w-[330px] rounded-xl border bg-background p-4 shadow-xl">
                             <div class="mb-4 flex items-center justify-between">
                                 <button type="button" class="flex size-9 items-center justify-center rounded-lg bg-muted text-xl" @click="changeAttendanceMonth(-1)">‹</button>
                                 <p class="font-black">{{ attendanceCalendarTitle }}</p>
@@ -435,7 +428,7 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                                     @click="selectAttendanceDate(day.dateString)"
                                 >{{ day.day }}</button>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                     <label class="grid gap-1 text-sm font-semibold">
                         Cari Member
@@ -449,13 +442,6 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                         </select>
                     </label>
                     <label class="grid gap-1 text-sm font-semibold">
-                        Tipe Kelas
-                        <select v-model="attendanceClassType" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
-                            <option value="">Filter per Tipe Kelas</option>
-                            <option v-for="option in attendanceClassTypeOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
-                    <label class="grid gap-1 text-sm font-semibold">
                         Status
                         <select v-model="attendanceStatus" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
                             <option value="">Filter per Status</option>
@@ -464,10 +450,10 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                     </label>
                     <div class="flex items-end gap-2">
                         <Button type="button" variant="outline" size="sm" class="h-10" @click="clearAttendanceFilters">Reset</Button>
-                        <Button type="button" variant="secondary" size="sm" class="h-10" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat</Button>
+                        <Button type="button" variant="secondary" size="sm" class="h-10" @click="router.reload({})"><RefreshCcw class="mr-2 size-4" />Muat</Button>
                     </div>
                 </div>
-                <div v-else class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
+                <div v-else class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({})"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
                 <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="displayedRows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in displayedRows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="whitespace-pre-line px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
             </section>
 
@@ -490,7 +476,6 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <div class="flex items-start justify-between"><h3 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas Baru' }}</h3><Button type="button" variant="ghost" size="sm" @click="showClassForm = false"><X class="size-4" /></Button></div>
                     <label class="grid gap-1 text-sm font-semibold">Nama Kelas *<input v-model="classForm.name" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Tipe Kelas<select v-model="classForm.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></label><label class="grid gap-1 text-sm font-semibold">Instruktur<select v-model="classForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih instruktur</option><option v-for="option in props.coachOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Hari<select v-model="classForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label><label class="grid gap-1 text-sm font-semibold">Minimal Sabuk<select v-model="classForm.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Tanpa minimal</option><option v-for="option in props.beltOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
                     <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Jam Mulai *<input v-model="classForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Jam Selesai *<input v-model="classForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
                     <label class="grid gap-1 text-sm font-semibold">Lokasi Latihan<select v-model="classForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih lokasi latihan</option><option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>

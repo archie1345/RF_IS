@@ -45,7 +45,6 @@ class AdminScheduleFeatureController extends BaseAdminFeatureController
             'columns' => [],
             'rows' => [],
             'emptyText' => '',
-            'roleAccess' => 'Admin only',
         ]);
     }
 }
