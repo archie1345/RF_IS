@@ -92,12 +92,53 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::controller(GroupController::class)->group(function () { Route::post('groups', 'store')->name('groups.store'); Route::put('groups/{group}', 'update')->name('groups.update'); Route::delete('groups/{group}', 'destroy')->name('groups.destroy'); });
     });
 
-    Route::prefix('payments')->name('payments.')->controller(PaymentController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); Route::put('{payment}', 'update')->name('update'); Route::delete('{payment}', 'destroy')->name('destroy'); Route::put('{payment}/status', 'updateStatus')->name('status.update'); Route::post('{payment}/proof', 'submitProof')->name('proof.submit'); Route::put('{payment}/proof-review', 'reviewProof')->name('proof.review'); Route::get('{payment}/export', 'exportInvoice')->name('export'); });
-    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::get('scanner', fn () => Inertia::render('AttendanceQrScannerPage'))->name('scanner'); Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store'); Route::post('/', 'store')->name('store'); Route::post('bulk-update', 'bulkUpdate')->name('bulk-update'); Route::put('{attendance}', 'update')->name('update'); });
-    Route::prefix('championships')->name('championships.')->controller(ChampionshipController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('events', 'storeEvent')->name('events.store'); Route::post('registrations', 'storeRegistration')->name('registrations.store'); Route::put('registrations/{registration}', 'updateRegistration')->name('registrations.update'); Route::put('registrations/{registration}/result', 'recordResult')->name('registrations.result'); Route::put('payments/{payment}/settle', 'settleRegistrationPayment')->name('payments.settle'); Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store'); Route::get('{event}/export', ChampionshipExportController::class)->name('export'); Route::get('{event}', 'show')->name('show'); });
-    Route::prefix('sessions')->name('sessions.')->controller(SessionController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); Route::put('{session}', 'update')->name('update'); Route::delete('{session}', 'destroy')->name('destroy'); Route::post('{session}/join', 'join')->name('join'); Route::get('{session}/attendance', 'attendanceSheet')->name('attendance'); Route::post('{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('attendance-qr.store'); Route::delete('{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('attendance-qr.destroy'); Route::post('{session}/coach-attendance', 'addCoachAttendance')->name('coach-attendance.store'); Route::put('coach-attendance/{coachAttendance}', 'updateCoachAttendance')->name('coach-attendance.update'); Route::delete('coach-attendance/{coachAttendance}', 'destroyCoachAttendance')->name('coach-attendance.destroy'); });
-    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('switch', 'switch')->name('switch'); Route::post('{athlete}/switch', 'switchAthlete')->name('switch-athlete'); Route::delete('switch', 'clear')->name('clear'); });
-    Route::prefix('achievements')->name('achievements.')->controller(UserAchievementController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'storeAchievement')->name('store'); });
+    Route::prefix('payments')->name('payments.')->controller(PaymentController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('/', 'store')->name('store'); 
+        Route::put('{payment}', 'update')->name('update'); 
+        Route::delete('{payment}', 'destroy')->name('destroy'); 
+        Route::put('{payment}/status', 'updateStatus')->name('status.update'); 
+        Route::post('{payment}/proof', 'submitProof')->name('proof.submit'); 
+        Route::put('{payment}/proof-review', 'reviewProof')->name('proof.review'); 
+        Route::get('{payment}/export', 'exportInvoice')->name('export'); });
+
+    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store'); 
+        Route::post('/', 'store')->name('store'); 
+        Route::post('bulk-update', 'bulkUpdate')->name('bulk-update'); 
+        Route::put('{attendance}', 'update')->whereNumber('attendance')->name('update'); });
+
+    Route::prefix('championships')->name('championships.')->controller(ChampionshipController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('events', 'storeEvent')->name('events.store'); 
+        Route::post('registrations', 'storeRegistration')->name('registrations.store'); 
+        Route::put('registrations/{registration}', 'updateRegistration')->name('registrations.update');
+        Route::put('registrations/{registration}/result', 'recordResult')->name('registrations.result'); 
+        Route::put('payments/{payment}/settle', 'settleRegistrationPayment')->name('payments.settle'); 
+        Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store'); 
+        Route::get('{event}/export', ChampionshipExportController::class)->name('export'); 
+        Route::get('{event}', 'show')->name('show'); });
+    Route::prefix('sessions')->name('sessions.')->controller(SessionController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('/', 'store')->name('store'); 
+        Route::put('{session}', 'update')->name('update'); 
+        Route::delete('{session}', 'destroy')->name('destroy'); 
+        Route::post('{session}/join', 'join')->name('join'); 
+        Route::get('{session}/attendance', 'attendanceSheet')->name('attendance'); 
+        Route::post('{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('attendance-qr.store'); 
+        Route::delete('{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('attendance-qr.destroy'); 
+        Route::post('{session}/coach-attendance', 'addCoachAttendance')->name('coach-attendance.store'); 
+        Route::put('coach-attendance/{coachAttendance}', 'updateCoachAttendance')->name('coach-attendance.update'); 
+        Route::delete('coach-attendance/{coachAttendance}', 'destroyCoachAttendance')->name('coach-attendance.destroy'); });
+    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('switch', 'switch')->name('switch'); 
+        Route::post('{athlete}/switch', 'switchAthlete')->name('switch-athlete'); 
+        Route::delete('switch', 'clear')->name('clear'); });
+    Route::prefix('achievements')->name('achievements.')->controller(UserAchievementController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('/', 'storeAchievement')->name('store'); });
 });
 
 require __DIR__.'/settings.php';

@@ -4,22 +4,11 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
+import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 
-type Html5QrScannerInstance = {
-    start: (
-        cameraIdOrConfig: string | { facingMode: string },
-        configuration: { fps?: number; qrbox?: number | { width: number; height: number }; aspectRatio?: number },
-        qrCodeSuccessCallback: (decodedText: string, decodedResult: unknown) => void,
-        qrCodeErrorCallback?: (errorMessage: string, error: unknown) => void,
-    ) => Promise<void>;
-    stop: () => Promise<void>;
-    clear: () => Promise<void>;
-};
-
-type Html5QrCodeConstructor = new (elementId: string, verbose?: boolean) => Html5QrScannerInstance;
-
+const scanner = ref<Html5Qrcode | null>(null);
+const cameras = ref<CameraDevice[]>([]);
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
-const scanner = ref<Html5QrScannerInstance | null>(null);
 const isPortableDevice = ref(false);
 const isScanning = ref(false);
 const isOpening = ref(false);
@@ -82,36 +71,33 @@ async function openScanUrl(url: string) {
     });
 }
 
-async function loadHtml5QrCode(): Promise<Html5QrCodeConstructor> {
-    const moduleName = 'html5-qrcode';
-    const importedModule = await import(/* @vite-ignore */ moduleName) as { Html5Qrcode: Html5QrCodeConstructor };
-
-    return importedModule.Html5Qrcode;
+function isSecureCameraContext() {
+    return window.isSecureContext || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 }
 
 async function startScanner() {
     scannerError.value = null;
 
+    
     if (!isPortableDevice.value) {
         scannerError.value = 'QR scan menu is only available on phones and tablets.';
         return;
     }
-
-    if (!window.isSecureContext) {
-        scannerError.value = 'Camera access requires HTTPS. Open the attendance page using https://, not http://.';
+    
+    if (!isSecureCameraContext()) {
+        scannerError.value = 'Camera access requires HTTPS, localhost, or a trusted secure tunnel.';
         return;
     }
-
+    
     if (!navigator.mediaDevices?.getUserMedia) {
         scannerError.value = 'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone or tablet, or paste the QR link below.';
         return;
     }
 
     try {
-        const Html5Qrcode = await loadHtml5QrCode();
         await nextTick();
 
-        scanner.value = new Html5Qrcode(scannerElementId, false);
+        scanner.value = new Html5Qrcode(scannerElementId, { verbose: false });
         await scanner.value.start(
             { facingMode: 'environment' },
             {

@@ -31,7 +31,6 @@ export const appRoutes = {
     achievements: '/achievements',
     championships: '/championships',
     attendance: '/attendance',
-    attendanceScanner: '/attendance/scanner',
     sessions: '/sessions',
     payments: '/payments',
     users: '/users',
