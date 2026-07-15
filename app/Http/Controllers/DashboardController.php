@@ -270,6 +270,18 @@ class DashboardController extends Controller
             ?? 'Unassigned bill';
     }
 
+    private function targetLabel(?string $target): string
+    {
+        return match (strtoupper((string) $target)) {
+            'ALL' => 'All roles',
+            'ADMIN' => 'Admins',
+            'ATHLETE' => 'Athletes',
+            'COACH' => 'Coaches',
+            'PARENT' => 'Parents',
+            default => $target ? str((string) $target)->headline()->toString() : 'All roles',
+        };
+    }
+
     private function visiblePaymentsQuery(Request $request, string $role)
     {
         $query = Payment::query();
