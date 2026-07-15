@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
                 <QrCode class="size-7" />
             </div>
             <div>
-                <p class="text-xs font-black tracking-[0.22em] text-brand-blue uppercase">QR scan menu</p>
+                <p class="text-xs font-black tracking-[0.22em] text-blue-600 uppercase">QR scan menu</p>
                 <h2 class="mt-1 text-2xl font-black">Scan coach QR inside this page</h2>
                 <p class="mt-2 text-sm text-muted-foreground">
                     Stay logged in as the athlete. Scan the coach QR here. The secure attendance page will open, verify
@@ -203,7 +203,7 @@ onBeforeUnmount(() => {
 
         <p
             v-if="scannerError"
-            class="mt-3 flex items-start gap-2 rounded-2xl border border-brand-coral/30 bg-brand-coral/10 p-3 text-xs text-brand-coral dark:border-brand-coral/40 dark:bg-brand-coral/15 dark:text-brand-coral/80"
+            class="mt-3 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
         >
             <XCircle class="mt-0.5 size-4 shrink-0" />
             <span>{{ scannerError }}</span>

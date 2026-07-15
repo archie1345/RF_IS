@@ -56,6 +56,7 @@ type ManagedClass = {
     description?: string | null;
     is_active: boolean;
 };
+
 const props = withDefaults(
     defineProps<{
         mode: string;
@@ -173,6 +174,8 @@ const attendanceClass = ref('');
 const attendanceStatus = ref('');
 const attendanceRangeStart = ref(initialFrom);
 const attendanceRangeEnd = ref(initialTo);
+const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
+// const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
 const weeklySchedulesByDay = computed(() => {
     const grouped = new Map<number, WeeklySchedule[]>();
     props.weeklySchedules.forEach((schedule) =>
@@ -379,9 +382,7 @@ function linkLabel(value: string) {
                     </div>
                 </template>
 
-                <p class="mt-1 text-xs font-semibold tracking-wide text-brand-coral uppercase">
-                    {{ props.roleAccess }}
-                </p>
+                <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
                 <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
@@ -433,7 +434,7 @@ function linkLabel(value: string) {
                                 </td>
                                 <td class="px-3 py-4">
                                     <span
-                                        class="rounded-full bg-brand-lime/20 px-3 py-1 text-xs font-bold text-brand-lime"
+                                        class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700"
                                         >{{ location.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
                                     >
                                 </td>
@@ -442,7 +443,7 @@ function linkLabel(value: string) {
                                         <Button size="sm" variant="ghost" @click="openLocationForm(location)"
                                             ><Pencil class="size-4" /></Button
                                         ><Button size="sm" variant="ghost" @click="deleteLocation(location)"
-                                            ><Trash2 class="size-4 text-brand-coral"
+                                            ><Trash2 class="size-4 text-red-500"
                                         /></Button>
                                     </div>
                                 </td>
@@ -485,7 +486,7 @@ function linkLabel(value: string) {
                                 <td class="px-3 py-4">
                                     <p class="font-black">{{ item.name }}</p>
                                     <span
-                                        class="rounded-full border border-brand-blue px-2 py-0.5 text-xs font-bold text-brand-blue"
+                                        class="rounded-full border border-blue-400 px-2 py-0.5 text-xs font-bold text-blue-600"
                                         >{{ item.class_type }}</span
                                     >
                                     <p class="mt-1 text-xs text-muted-foreground">
@@ -501,16 +502,16 @@ function linkLabel(value: string) {
                                 <td class="px-3 py-4">{{ item.min_belt ?? '-' }}</td>
                                 <td class="px-3 py-4">
                                     <span
-                                        class="rounded-full bg-brand-lime/20 px-3 py-1 text-xs font-bold text-brand-lime"
+                                        class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700"
                                         >{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
                                     >
                                 </td>
                                 <td class="px-3 py-4">
                                     <div class="flex gap-2">
                                         <Button size="sm" variant="ghost" @click="openClassForm(item)"
-                                            ><Pencil class="size-4 text-brand-blue" /></Button
+                                            ><Pencil class="size-4 text-blue-500" /></Button
                                         ><Button size="sm" variant="ghost" @click="deleteClass(item)"
-                                            ><Trash2 class="size-4 text-brand-coral"
+                                            ><Trash2 class="size-4 text-red-500"
                                         /></Button>
                                     </div>
                                 </td>
@@ -666,7 +667,7 @@ function linkLabel(value: string) {
                             ><div
                                 v-for="schedule in weeklySchedulesByDay.get(day.id)"
                                 :key="schedule.id"
-                                class="mt-3 rounded-xl border-l-4 border-brand-coral bg-card p-3 shadow-sm"
+                                class="mt-3 rounded-xl border-l-4 border-red-500 bg-card p-3 shadow-sm"
                             >
                                 <p class="font-black">{{ schedule.title }}</p>
                                 <p class="mt-2 text-sm">{{ schedule.time }}</p>
@@ -674,7 +675,7 @@ function linkLabel(value: string) {
                                     {{ schedule.coach }} · {{ schedule.location }}
                                 </p>
                                 <span
-                                    class="mt-2 inline-flex rounded-full bg-brand-lime/20 px-2 py-0.5 text-[10px] font-bold text-brand-lime uppercase"
+                                    class="mt-2 inline-flex rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700 uppercase"
                                     >{{ schedule.is_active ? 'Aktif' : 'Nonaktif' }}</span
                                 >
                             </div></template
@@ -854,7 +855,7 @@ function linkLabel(value: string) {
                         </div>
                         <div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
                             <span
-                                ><MapPin class="mr-1 inline size-3 text-brand-coral" />{{ locationForm.latitude }},
+                                ><MapPin class="mr-1 inline size-3 text-red-500" />{{ locationForm.latitude }},
                                 {{ locationForm.longitude }}</span
                             ><Button type="button" size="sm" variant="outline" @click="useCurrentLocation"
                                 >Lokasi Saya</Button

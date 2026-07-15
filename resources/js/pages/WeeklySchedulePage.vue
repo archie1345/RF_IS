@@ -10,19 +10,19 @@ type WeeklySchedule = {
     id: number;
     title: string;
     branch_id?: number | null;
-    branch: string;
+    branch?: string | null;
     group_id?: number | null;
-    group: string;
+    group?: string | null;
     coach_id?: string | null;
-    coach: string;
+    coach?: string | null;
     day_of_week: number;
-    day_label: string;
-    start_time: string;
-    end_time: string;
+    day_label?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
     location?: string | null;
-    is_active: boolean;
-    generated_sessions_count: number;
-    can_manage: boolean;
+    is_active?: boolean;
+    generated_sessions_count?: number;
+    can_manage?: boolean;
     class_type?: string | null;
     athletes_count?: number | null;
 };
@@ -109,7 +109,7 @@ async function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.start_time = schedule.start_time || '16:00';
     scheduleForm.end_time = schedule.end_time || '18:00';
     scheduleForm.location = schedule.location ?? '';
-    scheduleForm.is_active = schedule.is_active;
+    scheduleForm.is_active = schedule.is_active ?? true;
     await nextTick();
     scheduleFormSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -148,7 +148,7 @@ function deleteSchedule(schedule: WeeklySchedule) {
                 class="rounded-2xl border bg-card p-5 shadow-sm"
             >
                 <div class="mb-5">
-                    <p class="text-xs font-black tracking-wide text-brand-coral uppercase">Admin / Coach only</p>
+                    <p class="text-xs font-black tracking-wide text-red-500 uppercase">Admin / Coach only</p>
                     <h2 class="text-2xl font-black">{{ scheduleFormTitle }}</h2>
                     <p class="text-sm text-muted-foreground">
                         Form pembuatan jadwal dipindah ke bawah board agar alur tetap: lihat jadwal dulu, baru tambah

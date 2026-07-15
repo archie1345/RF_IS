@@ -153,9 +153,7 @@ function linkLabel(value: string) {
                     </div>
                 </template> -->
 
-                <p class="mt-1 text-xs font-semibold tracking-wide text-brand-coral uppercase">
-                    {{ props.roleAccess }}
-                </p>
+                <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
                 <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
