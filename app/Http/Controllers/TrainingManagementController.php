@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Sessions\GenerateWeeklyTrainingSessions;
+use App\Http\Controllers\Training\Concerns\BuildsTrainingPayloads;
 use App\Models\Branch;
-use App\Models\Coach;
 use App\Models\Group;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
@@ -12,13 +11,12 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TrainingManagementController extends Controller
 {
-    public function __construct(private readonly GenerateWeeklyTrainingSessions $sessionGenerator) {}
+    use BuildsTrainingPayloads;
 
     public function locations(Request $request): Response
     {

@@ -80,7 +80,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
 </script>
 
 <template>
-    <section class="rounded-2xl bg-slate-50 p-4 text-slate-950 shadow-sm ring-1 ring-slate-200 md:p-6">
+    <section class="rounded-2xl border bg-background p-4 text-foreground shadow-sm md:p-6">
         <div class="mb-7 grid gap-4 xl:grid-cols-[1fr_auto_1fr] xl:items-start">
             <div>
                 <h2 class="text-3xl font-black tracking-tight">{{ title }}</h2>
@@ -139,7 +139,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                     <article
                         v-for="schedule in schedulesByDay.get(day.id)"
                         :key="schedule.id"
-                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-white p-4 shadow-md"
+                        class="mb-3 rounded-xl border-l-4 border-red-500 bg-background p-4 shadow-md"
                     >
                         <div class="mb-3 border-b border-slate-100 pb-3">
                             <h3 class="text-base font-black">

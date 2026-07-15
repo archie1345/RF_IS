@@ -29,12 +29,15 @@ use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchiev
 use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\SessionAttendanceQrController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\Training\TrainingClassController;
+use App\Http\Controllers\Training\TrainingLocationController;
+use App\Http\Controllers\Training\WeeklyScheduleController;
 use App\Http\Controllers\TrainingManagementController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 use Inertia\Inertia;
+use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', ['canRegister' => Features::enabled(Features::registration())]);
@@ -52,12 +55,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::redirect('coach-parent-management', '/users')->name('coach-parent.index');
     Route::redirect('my-profile', '/settings/profile');
 
-    Route::get('training-schedule', [TrainingManagementController::class, 'schedule'])->name('training-schedule.index');
-    Route::controller(TrainingManagementController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
-        Route::post('/', 'storeSchedule')->name('store');
-        Route::put('{schedule}', 'updateSchedule')->name('update');
-        Route::delete('{schedule}', 'destroySchedule')->name('destroy');
-        Route::post('generate', 'generateSessions')->name('generate');
+    Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
+    Route::controller(WeeklyScheduleController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
+        Route::post('/', 'store')->name('store');
+        Route::put('{schedule}', 'update')->name('update');
+        Route::delete('{schedule}', 'destroy')->name('destroy');
+        Route::post('generate', 'generate')->name('generate');
     });
 
     Route::prefix('announcements')->name('announcements.')->controller(AnnouncementController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); });
@@ -83,11 +86,11 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('events', [AdminEventFeatureController::class, 'index'])->name('events');
         Route::get('events/history', [AdminEventFeatureController::class, 'history'])->name('events.history');
         Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
-        Route::get('locations', [TrainingManagementController::class, 'locations'])->name('locations');
-        Route::get('classes', [TrainingManagementController::class, 'classes'])->name('classes');
+        Route::get('locations', [TrainingLocationController::class, 'index'])->name('locations');
+        Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
         Route::redirect('schedules', '/training-schedule')->name('schedules');
-        Route::post('schedules', [TrainingManagementController::class, 'storeSchedule'])->name('schedules.store');
-        Route::post('schedules/generate-week', [TrainingManagementController::class, 'generateSessions'])->name('schedules.generate-week');
+        Route::post('schedules', [WeeklyScheduleController::class, 'store'])->name('schedules.store');
+        Route::post('schedules/generate-week', [WeeklyScheduleController::class, 'generate'])->name('schedules.generate-week');
         Route::get('daily-schedules', [AdminScheduleFeatureController::class, 'daily'])->name('daily-schedules');
         Route::redirect('periodic-stats', '/admin/dashboard')->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
