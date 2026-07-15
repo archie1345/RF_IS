@@ -5,22 +5,7 @@ import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-
-type LocationRecord = {
-    id: number;
-    name: string;
-    location?: string | null;
-    address?: string | null;
-    city?: string | null;
-    province?: string | null;
-    latitude?: string | number | null;
-    longitude?: string | number | null;
-    attendance_radius_meters: number;
-    timezone?: string | null;
-    is_active: boolean;
-    groups_count: number;
-    athletes_count: number;
-};
+import type { LocationRecord } from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -132,7 +117,7 @@ function deleteLocation(location: LocationRecord) {
             <section class="rounded-2xl border bg-card p-5 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
-                        <p class="text-xs font-black tracking-wide text-brand-coral uppercase">Master Data</p>
+                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Master Data</p>
                         <h1 class="text-3xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
                     </div>
@@ -329,97 +314,14 @@ function deleteLocation(location: LocationRecord) {
                             <button
                                 type="button"
                                 class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="resetForm"
+                                @click="closeLocationForm"
                             >
-                                Reset
+                                Batal
                             </button>
                         </div>
                     </div>
                 </form>
-
-                <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                    <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <h2 class="text-xl font-black">Daftar Lokasi</h2>
-                        <input
-                            v-model="search"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72"
-                            placeholder="Cari lokasi..."
-                        />
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[860px] text-sm">
-                            <thead>
-                                <tr class="border-b text-left">
-                                    <th class="px-3 py-3 font-black">Lokasi</th>
-                                    <th class="px-3 py-3 font-black">Alamat</th>
-                                    <th class="px-3 py-3 font-black">Kelas / Atlet</th>
-                                    <th class="px-3 py-3 font-black">Radius</th>
-                                    <th class="px-3 py-3 font-black">Status</th>
-                                    <th class="px-3 py-3 font-black">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-if="filteredLocations.length === 0">
-                                    <td colspan="6" class="h-32 px-3 text-center text-muted-foreground">
-                                        Belum ada lokasi.
-                                    </td>
-                                </tr>
-                                <tr
-                                    v-for="location in filteredLocations"
-                                    :key="location.id"
-                                    class="border-b hover:bg-muted/40"
-                                >
-                                    <td class="px-3 py-4">
-                                        <p class="font-black">{{ location.name }}</p>
-                                        <p class="text-xs text-muted-foreground">
-                                            <MapPin class="mr-1 inline size-3" />{{ location.location ?? '-' }}
-                                        </p>
-                                    </td>
-                                    <td class="px-3 py-4">
-                                        <p>{{ location.address ?? '-' }}</p>
-                                        <p class="text-xs text-muted-foreground">
-                                            {{ location.city }} {{ location.province }}
-                                        </p>
-                                    </td>
-                                    <td class="px-3 py-4">
-                                        {{ location.groups_count }} kelas · {{ location.athletes_count }} atlet
-                                    </td>
-                                    <td class="px-3 py-4">{{ location.attendance_radius_meters }}m</td>
-                                    <td class="px-3 py-4">
-                                        <span
-                                            class="rounded-full px-3 py-1 text-xs font-black"
-                                            :class="
-                                                location.is_active
-                                                    ? 'bg-brand-lime/20 text-brand-lime'
-                                                    : 'bg-brand-slate/10 text-brand-slate'
-                                            "
-                                            >{{ location.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
-                                        >
-                                    </td>
-                                    <td class="px-3 py-4">
-                                        <div class="flex gap-2">
-                                            <button
-                                                type="button"
-                                                class="rounded border px-2 py-1"
-                                                @click="editLocation(location)"
-                                            >
-                                                <Pencil class="size-4" /></button
-                                            ><button
-                                                type="button"
-                                                class="rounded border px-2 py-1 text-brand-coral"
-                                                @click="deleteLocation(location)"
-                                            >
-                                                <Trash2 class="size-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-            </section>
+            </FormModal>
         </div>
     </AppLayout>
 </template>

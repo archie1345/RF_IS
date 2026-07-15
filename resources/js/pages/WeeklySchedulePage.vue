@@ -3,28 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-
-type Option = { value: number | string; label: string };
-type WeeklySchedule = {
-    id: number;
-    title: string;
-    branch_id?: number | null;
-    branch?: string | null;
-    group_id?: number | null;
-    group?: string | null;
-    coach_id?: string | null;
-    coach?: string | null;
-    day_of_week: number;
-    day_label?: string | null;
-    start_time?: string | null;
-    end_time?: string | null;
-    location?: string | null;
-    is_active?: boolean;
-    generated_sessions_count?: number;
-    can_manage?: boolean;
-    class_type?: string | null;
-    athletes_count?: number | null;
-};
+import type { SelectOption, WeeklySchedule } from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -34,9 +13,9 @@ const props = withDefaults(
         currentCoachId?: string | null;
         weekRange?: { from: string; to: string };
         weeklySchedules?: WeeklySchedule[];
-        branchOptions?: Option[];
-        groupOptions?: Option[];
-        coachOptions?: Option[];
+        branchOptions?: SelectOption[];
+        groupOptions?: SelectOption[];
+        coachOptions?: SelectOption[];
     }>(),
     {
         title: 'Jadwal Latihan',
@@ -108,8 +87,6 @@ function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.end_time = schedule.end_time || '18:00';
     scheduleForm.location = schedule.location ?? '';
     scheduleForm.is_active = schedule.is_active ?? true;
-    await nextTick();
-    scheduleFormSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function saveSchedule() {

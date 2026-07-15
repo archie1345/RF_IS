@@ -8,54 +8,15 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
+import type {
+    AdminFeatureSelectOption,
+    AdminFeatureWeeklySchedule,
+    AdminWeeklySession,
+    BillingSettings,
+    ManagedClass,
+    ManagedLocation,
+} from '@/types/admin-feature';
 import type { Metric } from '@/types/resource-table';
-
-type WeeklySession = { title: string; time: string; location: string; date?: string };
-type WeeklySchedule = {
-    id: number;
-    title: string;
-    branch: string;
-    group: string;
-    coach: string;
-    day_of_week: number;
-    time: string;
-    location: string;
-    is_active: boolean;
-};
-type SelectOption = { value: string | number; label: string };
-type BillingSettings = { invoice_day: number; invoice_time: string; default_amount: string; is_active: boolean };
-type ManagedLocation = {
-    id: number;
-    name: string;
-    location?: string | null;
-    address?: string | null;
-    city?: string | null;
-    province?: string | null;
-    latitude?: string | number | null;
-    longitude?: string | number | null;
-    attendance_radius_meters: number;
-    timezone?: string | null;
-    is_active: boolean;
-    groups_count?: number;
-};
-type ManagedClass = {
-    id: number;
-    name: string;
-    class_type: string;
-    coach_id?: string | null;
-    coach: string;
-    branch_id?: number | string | null;
-    branch: string;
-    day_of_week: number;
-    schedule: string;
-    time: string;
-    start_time: string;
-    end_time: string;
-    athletes_count: number;
-    min_belt?: string | null;
-    description?: string | null;
-    is_active: boolean;
-};
 
 const props = withDefaults(
     defineProps<{
@@ -67,13 +28,13 @@ const props = withDefaults(
         rows?: Record<string, string>[];
         emptyText?: string;
         roleAccess?: string;
-        todaySessions?: WeeklySession[];
+        todaySessions?: AdminWeeklySession[];
         billingSettings?: BillingSettings | null;
-        weeklySchedules?: WeeklySchedule[];
-        branchOptions?: SelectOption[];
-        groupOptions?: SelectOption[];
-        coachOptions?: SelectOption[];
-        beltOptions?: SelectOption[];
+        weeklySchedules?: AdminFeatureWeeklySchedule[];
+        branchOptions?: AdminFeatureSelectOption[];
+        groupOptions?: AdminFeatureSelectOption[];
+        coachOptions?: AdminFeatureSelectOption[];
+        beltOptions?: AdminFeatureSelectOption[];
         locations?: ManagedLocation[];
         classes?: ManagedClass[];
     }>(),
@@ -177,7 +138,7 @@ const attendanceRangeEnd = ref(initialTo);
 const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
 // const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
 const weeklySchedulesByDay = computed(() => {
-    const grouped = new Map<number, WeeklySchedule[]>();
+    const grouped = new Map<number, AdminFeatureWeeklySchedule[]>();
     props.weeklySchedules.forEach((schedule) =>
         grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]),
     );

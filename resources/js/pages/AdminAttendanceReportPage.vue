@@ -7,15 +7,8 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
+import type { AttendanceReportPeriod } from '@/types/admin-feature';
 import type { Metric } from '@/types/resource-table';
-
-type Period = {
-    from: string;
-    to: string;
-    month: string;
-    label: string;
-    exportUrl: string;
-};
 
 const props = withDefaults(
     defineProps<{
@@ -27,7 +20,7 @@ const props = withDefaults(
         rows?: Record<string, string>[];
         emptyText?: string;
         roleAccess?: string;
-        period: Period;
+        period: AttendanceReportPeriod;
     }>(),
     {
         metrics: () => [],
