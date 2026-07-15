@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from 'vue';
 import { ArrowDownUp, Search } from 'lucide-vue-next';
+import { computed, ref, useSlots } from 'vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/resource-table';

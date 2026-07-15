@@ -3,7 +3,6 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     CalendarCheck2,
     CalendarDays,
-    Camera,
     CreditCard,
     FileClock,
     LayoutGrid,
@@ -34,14 +33,18 @@ const page = usePage<{ auth: Auth }>();
 
 const roles = computed<AppRole[]>(() => {
     const assignedRoles = page.props.auth?.user?.roles ?? [];
-    const validRoles = assignedRoles.filter((item): item is AppRole => ['admin', 'coach', 'parent', 'athlete'].includes(item));
+    const validRoles = assignedRoles.filter((item): item is AppRole =>
+        ['admin', 'coach', 'parent', 'athlete'].includes(item),
+    );
 
     if (validRoles.length > 0) {
         return validRoles;
     }
 
     const userRole = page.props.auth?.user?.role;
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete' ? [userRole] : ['athlete'];
+    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
+        ? [userRole]
+        : ['athlete'];
 });
 
 const adminNavItems: NavItem[] = [
@@ -61,14 +64,11 @@ const adminNavItems: NavItem[] = [
     { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
 ];
 
-const attendanceScannerItem: NavItem = { title: 'Scan QR Attendance', href: appRoutes.attendanceScanner, icon: Camera };
-
 const navByRole: Record<AppRole, NavItem[]> = {
-    admin: [attendanceScannerItem, ...adminNavItems],
+    admin: adminNavItems,
     coach: [
         { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
         { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
         { title: 'Championships', href: appRoutes.championships, icon: Trophy },
@@ -78,7 +78,6 @@ const navByRole: Record<AppRole, NavItem[]> = {
     parent: [
         { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
         { title: 'Child Profiles', href: appRoutes.parentChildSwitcher, icon: Users },
         { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
@@ -89,7 +88,6 @@ const navByRole: Record<AppRole, NavItem[]> = {
     athlete: [
         { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
         { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
         { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
         { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
         { title: 'Championships', href: appRoutes.championships, icon: Trophy },

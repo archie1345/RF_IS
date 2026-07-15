@@ -10,44 +10,47 @@ type WeeklySchedule = {
     id: number;
     title: string;
     branch_id?: number | null;
-    branch: string;
+    branch?: string | null;
     group_id?: number | null;
-    group: string;
+    group?: string | null;
     coach_id?: string | null;
-    coach: string;
+    coach?: string | null;
     day_of_week: number;
-    day_label: string;
-    start_time: string;
-    end_time: string;
+    day_label?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
     location?: string | null;
-    is_active: boolean;
-    generated_sessions_count: number;
-    can_manage: boolean;
+    is_active?: boolean;
+    generated_sessions_count?: number;
+    can_manage?: boolean;
     class_type?: string | null;
     athletes_count?: number | null;
 };
 
-const props = withDefaults(defineProps<{
-    title?: string;
-    subtitle?: string;
-    canManageSchedule?: boolean;
-    currentCoachId?: string | null;
-    weekRange?: { from: string; to: string };
-    weeklySchedules?: WeeklySchedule[];
-    branchOptions?: Option[];
-    groupOptions?: Option[];
-    coachOptions?: Option[];
-}>(), {
-    title: 'Jadwal Latihan',
-    subtitle: 'Jadwal latihan rutin RTFCM',
-    canManageSchedule: false,
-    currentCoachId: null,
-    weekRange: () => ({ from: '', to: '' }),
-    weeklySchedules: () => [],
-    branchOptions: () => [],
-    groupOptions: () => [],
-    coachOptions: () => [],
-});
+const props = withDefaults(
+    defineProps<{
+        title?: string;
+        subtitle?: string;
+        canManageSchedule?: boolean;
+        currentCoachId?: string | null;
+        weekRange?: { from: string; to: string };
+        weeklySchedules?: WeeklySchedule[];
+        branchOptions?: Option[];
+        groupOptions?: Option[];
+        coachOptions?: Option[];
+    }>(),
+    {
+        title: 'Jadwal Latihan',
+        subtitle: 'Jadwal latihan rutin RTFCM',
+        canManageSchedule: false,
+        currentCoachId: null,
+        weekRange: () => ({ from: '', to: '' }),
+        weeklySchedules: () => [],
+        branchOptions: () => [],
+        groupOptions: () => [],
+        coachOptions: () => [],
+    },
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -79,7 +82,7 @@ const scheduleForm = useForm({
     is_active: true,
 });
 
-const scheduleFormTitle = computed(() => editingScheduleId.value ? 'Edit Jadwal Mingguan' : 'Tambah Jadwal Mingguan');
+const scheduleFormTitle = computed(() => (editingScheduleId.value ? 'Edit Jadwal Mingguan' : 'Tambah Jadwal Mingguan'));
 
 function resetScheduleForm() {
     editingScheduleId.value = null;
@@ -106,7 +109,7 @@ async function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.start_time = schedule.start_time || '16:00';
     scheduleForm.end_time = schedule.end_time || '18:00';
     scheduleForm.location = schedule.location ?? '';
-    scheduleForm.is_active = schedule.is_active;
+    scheduleForm.is_active = schedule.is_active ?? true;
     await nextTick();
     scheduleFormSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -118,7 +121,8 @@ function saveSchedule() {
 }
 
 function deleteSchedule(schedule: WeeklySchedule) {
-    if (window.confirm(`Delete/deactivate jadwal ${schedule.title}?`)) router.delete(`/training-schedules/${schedule.id}`, { preserveScroll: true });
+    if (window.confirm(`Delete/deactivate jadwal ${schedule.title}?`))
+        router.delete(`/training-schedules/${schedule.id}`, { preserveScroll: true });
 }
 </script>
 
@@ -144,74 +148,146 @@ function deleteSchedule(schedule: WeeklySchedule) {
                 class="rounded-2xl border bg-card p-5 shadow-sm"
             >
                 <div class="mb-5">
-                    <p class="text-xs font-black uppercase tracking-wide text-red-500">Admin / Coach only</p>
+                    <p class="text-xs font-black tracking-wide text-red-500 uppercase">Admin / Coach only</p>
                     <h2 class="text-2xl font-black">{{ scheduleFormTitle }}</h2>
-                    <p class="text-sm text-muted-foreground">Form pembuatan jadwal dipindah ke bawah board agar alur tetap: lihat jadwal dulu, baru tambah atau edit bila punya akses.</p>
+                    <p class="text-sm text-muted-foreground">
+                        Form pembuatan jadwal dipindah ke bawah board agar alur tetap: lihat jadwal dulu, baru tambah
+                        atau edit bila punya akses.
+                    </p>
                 </div>
 
                 <form class="grid gap-3 md:grid-cols-4 md:items-end" @submit.prevent="saveSchedule">
                     <label class="grid gap-1 text-sm font-semibold md:col-span-2">
                         Judul Jadwal
-                        <input v-model="scheduleForm.title" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Junior Sparring" />
-                        <span v-if="scheduleForm.errors.title" class="text-xs text-destructive">{{ scheduleForm.errors.title }}</span>
+                        <input
+                            v-model="scheduleForm.title"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            placeholder="Contoh: Junior Sparring"
+                        />
+                        <span v-if="scheduleForm.errors.title" class="text-xs text-destructive">{{
+                            scheduleForm.errors.title
+                        }}</span>
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Lokasi
-                        <select v-model="scheduleForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                        <select
+                            v-model="scheduleForm.branch_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
                             <option value="">Pilih lokasi</option>
-                            <option v-for="option in props.branchOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            <option
+                                v-for="option in props.branchOptions"
+                                :key="String(option.value)"
+                                :value="String(option.value)"
+                            >
+                                {{ option.label }}
+                            </option>
                         </select>
-                        <span v-if="scheduleForm.errors.branch_id" class="text-xs text-destructive">{{ scheduleForm.errors.branch_id }}</span>
+                        <span v-if="scheduleForm.errors.branch_id" class="text-xs text-destructive">{{
+                            scheduleForm.errors.branch_id
+                        }}</span>
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Kelas
-                        <select v-model="scheduleForm.group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                        <select
+                            v-model="scheduleForm.group_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
                             <option value="">All groups</option>
-                            <option v-for="option in props.groupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            <option
+                                v-for="option in props.groupOptions"
+                                :key="String(option.value)"
+                                :value="String(option.value)"
+                            >
+                                {{ option.label }}
+                            </option>
                         </select>
                     </label>
 
                     <label v-if="!props.currentCoachId" class="grid gap-1 text-sm font-semibold">
                         Coach
-                        <select v-model="scheduleForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                        <select
+                            v-model="scheduleForm.coach_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
                             <option value="">Pilih coach</option>
-                            <option v-for="option in props.coachOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            <option
+                                v-for="option in props.coachOptions"
+                                :key="String(option.value)"
+                                :value="String(option.value)"
+                            >
+                                {{ option.label }}
+                            </option>
                         </select>
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Hari
-                        <select v-model="scheduleForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                            <option v-for="day in dayOptions" :key="day.value" :value="day.value">{{ day.label }}</option>
+                        <select
+                            v-model="scheduleForm.day_of_week"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option v-for="day in dayOptions" :key="day.value" :value="day.value">
+                                {{ day.label }}
+                            </option>
                         </select>
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Mulai
-                        <input v-model="scheduleForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <input
+                            v-model="scheduleForm.start_time"
+                            type="time"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        />
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Selesai
-                        <input v-model="scheduleForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                        <input
+                            v-model="scheduleForm.end_time"
+                            type="time"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        />
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold md:col-span-2">
                         Override Lokasi Opsional
-                        <input v-model="scheduleForm.location" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Kosongkan untuk pakai lokasi dojang" />
+                        <input
+                            v-model="scheduleForm.location"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            placeholder="Kosongkan untuk pakai lokasi dojang"
+                        />
                     </label>
 
-                    <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
+                    <label
+                        class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold"
+                    >
                         <input v-model="scheduleForm.is_active" type="checkbox" /> Aktif
                     </label>
 
                     <div class="flex gap-2 md:col-span-4">
-                        <button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" :disabled="scheduleForm.processing">
-                            {{ scheduleForm.processing ? 'Saving...' : editingScheduleId ? 'Update Jadwal' : 'Save Jadwal' }}
+                        <button
+                            class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+                            :disabled="scheduleForm.processing"
+                        >
+                            {{
+                                scheduleForm.processing
+                                    ? 'Saving...'
+                                    : editingScheduleId
+                                      ? 'Update Jadwal'
+                                      : 'Save Jadwal'
+                            }}
                         </button>
-                        <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="resetScheduleForm">Reset</button>
+                        <button
+                            type="button"
+                            class="rounded-lg border px-4 py-2 text-sm font-bold"
+                            @click="resetScheduleForm"
+                        >
+                            Reset
+                        </button>
                     </div>
                 </form>
             </section>
