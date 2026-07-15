@@ -339,8 +339,6 @@ function shortHash(value?: string | null) {
 
     return `${value.slice(0, 12)}...${value.slice(-8)}`;
 }
-
-
 </script>
 
 <template>
@@ -554,7 +552,7 @@ function shortHash(value?: string | null) {
                                     rows="3"
                                     class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="profileForm.errors.bio" class="text-sm text-red-500">
+                                <p v-if="profileForm.errors.bio" class="text-sm text-brand-coral">
                                     {{ profileForm.errors.bio }}
                                 </p>
                             </div>
@@ -618,7 +616,7 @@ function shortHash(value?: string | null) {
                                         <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
                                     </div>
 
-                                    <p v-if="profilePictureReady" class="text-sm text-green-600">
+                                    <p v-if="profilePictureReady" class="text-sm text-brand-lime">
                                         3x4 profile picture is ready to save.
                                     </p>
                                 </div>
@@ -826,7 +824,7 @@ function shortHash(value?: string | null) {
                                     rows="3"
                                     class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="coachForm.errors.bio" class="text-sm text-red-500">
+                                <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">
                                     {{ coachForm.errors.bio }}
                                 </p>
                             </div>
