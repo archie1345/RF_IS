@@ -121,36 +121,7 @@ function toDateTimeLocal(value?: string | null): string {
         title="QR attendance"
         description="Generate a secure one-time-display scan URL for athlete self check-in. Existing records remain visible in the attendance table."
     >
-    
-    <div class="mt-4 rounded-lg border p-4">
-        <p class="text-sm font-medium">
-            State:
-            <span :class="props.qr.is_active ? 'text-green-600' : 'text-muted-foreground'">
-                {{ props.qr.is_active ? 'Active' : 'Inactive' }}
-            </span>
-        </p>
-        <p v-if="props.qr.generated_at" class="text-sm text-muted-foreground">
-            Generated: {{ props.qr.generated_at }}
-        </p>
-        <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">Closed: {{ props.qr.revoked_at }}</p>
-        <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">{{ qrStatus }}</p>
-            
-        <div v-if="scanUrl" class="mt-4 md:items-center">
-            <img v-if="qrDataUrl" :src="qrDataUrl" alt="Session attendance QR code" class="h-64 w-64 rounded border bg-white p-2"
-            />
-            <div class="flex flex-col justify-end gap-2 sm:flex-row lg:flex-col">
-                <Button type="submit" :disabled="form.processing">
-                    {{ props.qr.is_active ? 'Regenerate QR' : 'Generate QR' }}
-                </Button>
-                <Button type="button" variant="outline" @click="resetWindow">Reset window</Button>
-                <Button v-if="props.qr.is_active" type="button" variant="outline" @click="revokeQr">Close QR</Button>
-                <Button v-if="props.backHref" as-child type="button" variant="ghost">
-                    <a :href="props.backHref">Back to attendance</a>
-                </Button>
-            </div>
-        </form>
-
-        <div class="mt-4 rounded-lg border p-4">
+        <div class="rounded-lg border p-4">
             <p class="text-sm font-medium">
                 State:
                 <span :class="props.qr.is_active ? 'text-green-600' : 'text-muted-foreground'">
@@ -160,8 +131,12 @@ function toDateTimeLocal(value?: string | null): string {
             <p v-if="props.qr.generated_at" class="text-sm text-muted-foreground">
                 Generated: {{ props.qr.generated_at }}
             </p>
-            <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">Closed: {{ props.qr.revoked_at }}</p>
-            <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">{{ qrStatus }}</p>
+            <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">
+                Closed: {{ props.qr.revoked_at }}
+            </p>
+            <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">
+                {{ qrStatus }}
+            </p>
 
             <div v-if="scanUrl" class="mt-4 flex flex-col items-center gap-4 text-center">
                 <img
@@ -176,6 +151,7 @@ function toDateTimeLocal(value?: string | null): string {
                 >
                     {{ renderError ?? 'Rendering QR code...' }}
                 </div>
+
                 <div class="w-full space-y-2 text-left">
                     <p class="text-center text-sm font-medium">Scan URL</p>
                     <p class="rounded bg-muted p-3 text-sm break-all">{{ scanUrl }}</p>
@@ -190,25 +166,13 @@ function toDateTimeLocal(value?: string | null): string {
                     </p>
                 </div>
             </div>
-            <div class="space-y-2">
-                <p class="text-sm font-medium">Scan URL</p>
-                <p class="rounded bg-muted p-3 text-sm break-all">{{ scanUrl }}</p>
-                <div class="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" @click="copyScanUrl">Copy URL</Button>
-                    <Button v-if="props.backHref" as-child type="button" variant="secondary">
-                        <a :href="props.backHref">Return to attendance</a>
-                    </Button>
-                </div>
-                <p class="text-xs text-muted-foreground">
-                    Next: ask athletes to scan this QR with their phone camera and check in.
-                </p>
-            </div>
-        </div>
+
             <p v-else-if="props.qr.is_active" class="mt-4 text-sm text-muted-foreground">
                 A QR window is active, but the plaintext token is only shown immediately after generation. Regenerate
                 the QR to display a new scan code.
             </p>
-            <form class="grid gap-4 py-2 lg:grid-cols-[1fr_auto]" @submit.prevent="generateQr">
+
+            <form class="mt-4 grid gap-4 py-2 lg:grid-cols-[1fr_auto]" @submit.prevent="generateQr">
                 <AttendanceWindowFields
                     :opens-at="form.attendance_opens_at"
                     :closes-at="form.attendance_closes_at"
@@ -225,7 +189,9 @@ function toDateTimeLocal(value?: string | null): string {
                         {{ props.qr.is_active ? 'Regenerate QR' : 'Generate QR' }}
                     </Button>
                     <Button type="button" variant="outline" @click="resetWindow">Reset window</Button>
-                    <Button v-if="props.qr.is_active" type="button" variant="outline" @click="revokeQr">Close QR</Button>
+                    <Button v-if="props.qr.is_active" type="button" variant="outline" @click="revokeQr">
+                        Close QR
+                    </Button>
                     <Button v-if="props.backHref" as-child type="button" variant="ghost">
                         <a :href="props.backHref">Back to attendance</a>
                     </Button>
