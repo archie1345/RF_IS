@@ -29,10 +29,8 @@ class TrainingManagementController extends Controller
 
         $weekStart = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
         $weekEnd = $request->date('to')?->endOfDay() ?? $weekStart->copy()->endOfWeek();
-
-        $branches = Branch::query()->withCount(['groups', 'athletes'])->orderBy('branch_name')->get();
         $weeklySchedules = $this->weeklyScheduleQuery($weekStart, $weekEnd)->get();
-        $scheduleByGroup = $weeklySchedules->whereNotNull('group_id')->keyBy('group_id');
+        $branches = Branch::query()->withCount(['groups', 'athletes'])->orderBy('branch_name')->get();
         $groups = Group::query()->with(['branch', 'coach.user'])->withCount('athletes')->orderBy('group_name')->get();
 
         $sessions = TrainingSession::query()
@@ -45,48 +43,12 @@ class TrainingManagementController extends Controller
 
         return Inertia::render('TrainingManagementPage', [
             'title' => 'Manajemen Latihan',
-            'subtitle' => 'Master data lokasi dan kelas. Jadwal Mingguan sekarang punya halaman khusus di menu Jadwal Latihan.',
+            'subtitle' => 'Ringkasan training flow. Lokasi, Kelas, dan Jadwal Latihan sudah dipisah ke halaman khusus.',
             'canManageStructure' => $canManageStructure,
             'canManageSchedule' => $canManageSchedule,
             'weekRange' => ['from' => $weekStart->toDateString(), 'to' => $weekEnd->toDateString()],
-            'branches' => $branches->map(fn (Branch $branch) => [
-                'id' => $branch->branch_id,
-                'name' => $branch->branch_name,
-                'location' => $branch->location,
-                'address' => $branch->address,
-                'city' => $branch->city,
-                'province' => $branch->province,
-                'latitude' => $branch->latitude,
-                'longitude' => $branch->longitude,
-                'attendance_radius_meters' => $branch->attendance_radius_meters ?? 100,
-                'timezone' => $branch->timezone ?? 'Asia/Jakarta',
-                'is_active' => (bool) ($branch->is_active ?? true),
-                'groups_count' => $branch->groups_count,
-                'athletes_count' => $branch->athletes_count,
-            ])->values(),
-            'groups' => $groups->map(function (Group $group) use ($scheduleByGroup): array {
-                $schedule = $scheduleByGroup->get($group->group_id);
-
-                return [
-                    'id' => $group->group_id,
-                    'name' => $group->group_name,
-                    'class_type' => $group->class_type ?? 'General',
-                    'branch_id' => $group->branch_id,
-                    'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
-                    'coach_id' => $group->coach_id,
-                    'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
-                    'day_of_week' => $group->day_of_week,
-                    'day_label' => $this->dayName((int) ($group->day_of_week ?? 1)),
-                    'start_time' => $group->start_time ? substr((string) $group->start_time, 0, 5) : '',
-                    'end_time' => $group->end_time ? substr((string) $group->end_time, 0, 5) : '',
-                    'min_belt' => $group->min_belt,
-                    'description' => $group->description,
-                    'athletes_count' => $group->athletes_count,
-                    'is_active' => (bool) ($group->is_active ?? true),
-                    'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
-                    'weekly_schedule_status' => $schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung',
-                ];
-            })->values(),
+            'branches' => $branches->map(fn (Branch $branch) => $this->branchPayload($branch))->values(),
+            'groups' => $this->groupPayload($groups, $weeklySchedules),
             'weeklySchedules' => $this->weeklySchedulePayload($request, $weeklySchedules),
             'sessions' => $sessions->map(fn (TrainingSession $session) => [
                 'id' => $session->training_session_id,
@@ -102,6 +64,46 @@ class TrainingManagementController extends Controller
             ])->values(),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'groupOptions' => $groups->map(fn (Group $group) => ['value' => $group->group_id, 'label' => $group->group_name])->values(),
+            'coachOptions' => $this->coachOptions(),
+            'beltOptions' => $this->beltOptions(),
+        ]);
+    }
+
+    public function locations(Request $request): Response
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $locations = Branch::query()
+            ->withCount(['groups', 'athletes'])
+            ->orderBy('branch_name')
+            ->get()
+            ->map(fn (Branch $branch) => $this->branchPayload($branch))
+            ->values();
+
+        return Inertia::render('AdminLocationsPage', [
+            'title' => 'Lokasi Latihan',
+            'subtitle' => 'Master data dojang / lokasi latihan RTFCM.',
+            'locations' => $locations,
+        ]);
+    }
+
+    public function classes(Request $request): Response
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $weeklySchedules = WeeklyTrainingSchedule::query()->get();
+        $groups = Group::query()
+            ->with(['branch', 'coach.user'])
+            ->withCount('athletes')
+            ->orderBy('group_name')
+            ->get();
+        $branches = Branch::query()->orderBy('branch_name')->get();
+
+        return Inertia::render('AdminClassesPage', [
+            'title' => 'Kelas Latihan',
+            'subtitle' => 'Master data kelas. Jadwal mingguan otomatis sinkron dari data kelas.',
+            'classes' => $this->groupPayload($groups, $weeklySchedules),
+            'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'coachOptions' => $this->coachOptions(),
             'beltOptions' => $this->beltOptions(),
         ]);
@@ -214,6 +216,54 @@ class TrainingManagementController extends Controller
             'class_type' => $schedule->group?->class_type,
             'athletes_count' => $schedule->group?->athletes_count,
         ])->values();
+    }
+
+    private function branchPayload(Branch $branch): array
+    {
+        return [
+            'id' => $branch->branch_id,
+            'name' => $branch->branch_name,
+            'location' => $branch->location,
+            'address' => $branch->address,
+            'city' => $branch->city,
+            'province' => $branch->province,
+            'latitude' => $branch->latitude,
+            'longitude' => $branch->longitude,
+            'attendance_radius_meters' => $branch->attendance_radius_meters ?? 100,
+            'timezone' => $branch->timezone ?? 'Asia/Jakarta',
+            'is_active' => (bool) ($branch->is_active ?? true),
+            'groups_count' => $branch->groups_count ?? 0,
+            'athletes_count' => $branch->athletes_count ?? 0,
+        ];
+    }
+
+    private function groupPayload(Collection $groups, Collection $weeklySchedules)
+    {
+        $scheduleByGroup = $weeklySchedules->whereNotNull('group_id')->keyBy('group_id');
+
+        return $groups->map(function (Group $group) use ($scheduleByGroup): array {
+            $schedule = $scheduleByGroup->get($group->group_id);
+
+            return [
+                'id' => $group->group_id,
+                'name' => $group->group_name,
+                'class_type' => $group->class_type ?? 'General',
+                'branch_id' => $group->branch_id,
+                'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
+                'coach_id' => $group->coach_id,
+                'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
+                'day_of_week' => $group->day_of_week,
+                'day_label' => $this->dayName((int) ($group->day_of_week ?? 1)),
+                'start_time' => $group->start_time ? substr((string) $group->start_time, 0, 5) : '',
+                'end_time' => $group->end_time ? substr((string) $group->end_time, 0, 5) : '',
+                'min_belt' => $group->min_belt,
+                'description' => $group->description,
+                'athletes_count' => $group->athletes_count ?? 0,
+                'is_active' => (bool) ($group->is_active ?? true),
+                'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
+                'weekly_schedule_status' => $schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung',
+            ];
+        })->values();
     }
 
     private function coachOptions()
