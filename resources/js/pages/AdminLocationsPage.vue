@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { MapPin, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
+import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { LocationRecord } from '@/types/training';
@@ -96,6 +97,11 @@ function editLocation(location: LocationRecord) {
     showLocationForm.value = true;
 }
 
+function setCoordinates(payload: { latitude: string; longitude: string }) {
+    form.latitude = payload.latitude;
+    form.longitude = payload.longitude;
+}
+
 function saveLocation() {
     const options = { preserveScroll: true, onSuccess: closeLocationForm };
     if (editingLocationId.value) form.put(`/admin/branches/${editingLocationId.value}`, options);
@@ -156,6 +162,7 @@ function deleteLocation(location: LocationRecord) {
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Lokasi</th>
                                 <th class="px-3 py-3 font-black">Alamat</th>
+                                <th class="px-3 py-3 font-black">Koordinat</th>
                                 <th class="px-3 py-3 font-black">Kelas / Atlet</th>
                                 <th class="px-3 py-3 font-black">Radius</th>
                                 <th class="px-3 py-3 font-black">Status</th>
@@ -164,7 +171,7 @@ function deleteLocation(location: LocationRecord) {
                         </thead>
                         <tbody>
                             <tr v-if="filteredLocations.length === 0">
-                                <td colspan="6" class="h-32 px-3 text-center text-muted-foreground">
+                                <td colspan="7" class="h-32 px-3 text-center text-muted-foreground">
                                     Belum ada lokasi.
                                 </td>
                             </tr>
@@ -173,17 +180,23 @@ function deleteLocation(location: LocationRecord) {
                                 :key="location.id"
                                 class="border-b hover:bg-muted/40"
                             >
-                                <td class="px-3 py-4">
-                                    <p class="font-black">{{ location.name }}</p>
-                                    <p class="text-xs text-muted-foreground">
+                                <td class="max-w-[220px] px-3 py-4">
+                                    <p class="truncate font-black">{{ location.name }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">
                                         <MapPin class="mr-1 inline size-3" />{{ location.location ?? '-' }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-4">
-                                    <p>{{ location.address ?? '-' }}</p>
-                                    <p class="text-xs text-muted-foreground">
+                                <td class="max-w-[260px] px-3 py-4">
+                                    <p class="truncate">{{ location.address ?? '-' }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">
                                         {{ location.city }} {{ location.province }}
                                     </p>
+                                </td>
+                                <td class="px-3 py-4 text-xs text-muted-foreground">
+                                    <span v-if="location.latitude && location.longitude">
+                                        {{ location.latitude }}, {{ location.longitude }}
+                                    </span>
+                                    <span v-else>-</span>
                                 </td>
                                 <td class="px-3 py-4">
                                     {{ location.groups_count }} kelas · {{ location.athletes_count }} atlet
@@ -223,87 +236,95 @@ function deleteLocation(location: LocationRecord) {
                 </div>
             </section>
 
-            <FormModal :open="showLocationForm" max-width-class="max-w-3xl" @close="closeLocationForm">
+            <FormModal :open="showLocationForm" max-width-class="max-w-4xl" @close="closeLocationForm">
                 <form class="grid gap-4" @submit.prevent="saveLocation">
                     <h2 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Lokasi dipakai oleh kelas, jadwal mingguan, sesi latihan, dan radius absensi.
+                        Klik peta untuk memilih koordinat, atau isi latitude dan longitude manual.
                     </p>
 
-                    <div class="mt-5 grid gap-3">
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Nama Lokasi *<input
+                    <LeafletLocationMap
+                        :latitude="form.latitude"
+                        :longitude="form.longitude"
+                        :marker-label="form.name || 'Lokasi latihan'"
+                        editable
+                        @change="setCoordinates"
+                    />
+
+                    <div class="mt-2 grid gap-3">
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Nama Lokasi *
+                            <input
                                 v-model="form.name"
                                 class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 placeholder="Contoh: Central Dojang"
-                            /><span v-if="form.errors.name" class="text-xs text-destructive">{{
-                                form.errors.name
-                            }}</span></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Label Lokasi<input
+                            />
+                            <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Label Lokasi
+                            <input
                                 v-model="form.location"
                                 class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 placeholder="Contoh: Rhino Fighter"
-                        /></label>
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Alamat *<textarea
+                            />
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Alamat *
+                            <textarea
                                 v-model="form.address"
                                 class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
                                 placeholder="Alamat lengkap"
-                            ></textarea
-                            ><span v-if="form.errors.address" class="text-xs text-destructive">{{
-                                form.errors.address
-                            }}</span></label
-                        >
+                            ></textarea>
+                            <span v-if="form.errors.address" class="text-xs text-destructive">{{ form.errors.address }}</span>
+                        </label>
+
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Kota *<input
-                                    v-model="form.city"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                /><span v-if="form.errors.city" class="text-xs text-destructive">{{
-                                    form.errors.city
-                                }}</span></label
-                            >
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Provinsi *<input
-                                    v-model="form.province"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                /><span v-if="form.errors.province" class="text-xs text-destructive">{{
-                                    form.errors.province
-                                }}</span></label
-                            >
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Kota *
+                                <input v-model="form.city" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                                <span v-if="form.errors.city" class="text-xs text-destructive">{{ form.errors.city }}</span>
+                            </label>
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Provinsi *
+                                <input v-model="form.province" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                                <span v-if="form.errors.province" class="text-xs text-destructive">{{ form.errors.province }}</span>
+                            </label>
                         </div>
+
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Latitude<input
-                                    v-model="form.latitude"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Longitude<input
-                                    v-model="form.longitude"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Latitude
+                                <input v-model="form.latitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                            </label>
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Longitude
+                                <input v-model="form.longitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                            </label>
                         </div>
+
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Radius Absensi<input
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Radius Absensi
+                                <input
                                     v-model="form.attendance_radius_meters"
                                     type="number"
                                     min="10"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Timezone<input
-                                    v-model="form.timezone"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
+                                />
+                            </label>
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Timezone
+                                <input v-model="form.timezone" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                            </label>
                         </div>
-                        <label
-                            class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold"
-                            ><input v-model="form.is_active" type="checkbox" /> Aktif</label
-                        >
+
+                        <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
+                            <input v-model="form.is_active" type="checkbox" /> Aktif
+                        </label>
+
                         <div class="flex gap-2">
                             <button
                                 class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
@@ -311,11 +332,7 @@ function deleteLocation(location: LocationRecord) {
                             >
                                 {{ form.processing ? 'Saving...' : 'Save Lokasi' }}
                             </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="closeLocationForm"
-                            >
+                            <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeLocationForm">
                                 Batal
                             </button>
                         </div>
