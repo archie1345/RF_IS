@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { MapPin, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -40,7 +40,7 @@ const form = useForm({
     longitude: '',
     attendance_radius_meters: 100,
     timezone: 'Asia/Jakarta',
-    is_active: true,
+    is_active: false,
 });
 
 const filteredLocations = computed(() => {
@@ -56,6 +56,35 @@ const filteredLocations = computed(() => {
     );
 });
 
+const locationCanBeActive = computed(() => {
+    return Boolean(
+        form.name.trim() &&
+            form.address.trim() &&
+            form.city.trim() &&
+            form.province.trim() &&
+            isValidCoordinate(form.latitude) &&
+            isValidCoordinate(form.longitude),
+    );
+});
+
+const activationHint = computed(() => {
+    if (locationCanBeActive.value) return 'Data lokasi lengkap. Lokasi bisa diaktifkan.';
+
+    return 'Lengkapi nama, alamat, kota, provinsi, latitude, dan longitude sebelum lokasi bisa aktif.';
+});
+
+function isValidCoordinate(value: string | number | null | undefined): boolean {
+    if (value === null || value === undefined || value === '') return false;
+
+    return Number.isFinite(Number(value));
+}
+
+function enforceActivationRules() {
+    if (form.is_active && !locationCanBeActive.value) {
+        form.is_active = false;
+    }
+}
+
 function resetForm() {
     editingLocationId.value = null;
     form.clearErrors();
@@ -68,7 +97,7 @@ function resetForm() {
     form.longitude = '';
     form.attendance_radius_meters = 100;
     form.timezone = 'Asia/Jakarta';
-    form.is_active = true;
+    form.is_active = false;
 }
 
 function openCreateLocation() {
@@ -94,6 +123,7 @@ function editLocation(location: LocationRecord) {
     form.attendance_radius_meters = location.attendance_radius_meters ?? 100;
     form.timezone = location.timezone ?? 'Asia/Jakarta';
     form.is_active = location.is_active;
+    enforceActivationRules();
     showLocationForm.value = true;
 }
 
@@ -103,6 +133,7 @@ function setCoordinates(payload: { latitude: string; longitude: string }) {
 }
 
 function saveLocation() {
+    enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeLocationForm };
     if (editingLocationId.value) form.put(`/admin/branches/${editingLocationId.value}`, options);
     else form.post('/admin/branches', options);
@@ -113,6 +144,11 @@ function deleteLocation(location: LocationRecord) {
         router.delete(`/admin/branches/${location.id}`, { preserveScroll: true });
     }
 }
+
+watch(
+    () => [form.is_active, form.name, form.address, form.city, form.province, form.latitude, form.longitude],
+    enforceActivationRules,
+);
 </script>
 
 <template>
@@ -295,11 +331,11 @@ function deleteLocation(location: LocationRecord) {
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
-                                Latitude
+                                Latitude *
                                 <input v-model="form.latitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
-                                Longitude
+                                Longitude *
                                 <input v-model="form.longitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
                             </label>
                         </div>
@@ -320,8 +356,13 @@ function deleteLocation(location: LocationRecord) {
                             </label>
                         </div>
 
-                        <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
-                            <input v-model="form.is_active" type="checkbox" /> Aktif
+                        <label class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold">
+                            <span class="flex h-7 items-center gap-2">
+                                <input v-model="form.is_active" type="checkbox" /> Aktif
+                            </span>
+                            <span class="text-xs" :class="locationCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                                {{ activationHint }}
+                            </span>
                         </label>
 
                         <div class="flex gap-2">
