@@ -18,6 +18,7 @@ trait BuildsTrainingPayloads
             ->with([
                 'branch',
                 'group' => fn ($query) => $query->withCount('athletes'),
+                'dedicatedAthlete.user',
                 'coach.user',
             ])
             ->withCount([
@@ -38,6 +39,9 @@ trait BuildsTrainingPayloads
             'branch_id' => $schedule->branch_id,
             'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
             'group_id' => $schedule->group_id,
+            'dedicated_athlete_id' => $schedule->dedicated_athlete_id,
+            'dedicated_athlete' => $schedule->dedicatedAthlete?->user?->name,
+            'session_type' => $schedule->session_type ?? 'reguler',
             'group' => $schedule->group?->group_name ?? 'All groups',
             'coach_id' => $schedule->coach_id,
             'coach' => $schedule->coach?->user?->name ?? 'Belum ada coach',
@@ -137,6 +141,7 @@ trait BuildsTrainingPayloads
 
         if ($user->isCoach()) {
             $coachId = $user->coachProfile?->coach_id;
+
             return $coachId !== null && ((string) $schedule->coach_id === (string) $coachId || $schedule->coach_id === null);
         }
 

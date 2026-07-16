@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw, UserRound, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
 import type { WeeklyScheduleCard } from '@/types/training';
 
@@ -61,7 +61,10 @@ const branchLabel = computed(() => {
 });
 
 function typeLabel(schedule: WeeklyScheduleCard): string {
-    return (schedule.class_type || schedule.group || 'Reguler').toString().toUpperCase();
+    return (schedule.session_type || schedule.class_type || schedule.group || 'Reguler')
+        .toString()
+        .replace(/_/g, ' ')
+        .toUpperCase();
 }
 
 function typeTone(schedule: WeeklyScheduleCard): string {
@@ -69,6 +72,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
     if (value.includes('prestasi') || value.includes('advanced') || value.includes('senior'))
         return 'border-red-200 bg-red-50 text-red-700';
     if (value.includes('private')) return 'border-violet-200 bg-violet-50 text-violet-700';
+    if (value.includes('dedicated')) return 'border-emerald-200 bg-emerald-50 text-emerald-700';
     return 'border-blue-200 bg-blue-50 text-blue-700';
 }
 </script>
@@ -83,7 +87,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
 
             <div
-                class="justify-self-start rounded-full border border-slate-300  px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
+                class="justify-self-start rounded-full border border-slate-300 px-5 py-2 text-sm font-black shadow-sm xl:justify-self-center"
             >
                 <span class="mr-2 inline-flex size-2 rounded-full bg-blue-500"></span>
                 TODAY: {{ todayLabel }}
@@ -99,7 +103,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                 </button>
                 <div
                     v-if="showManagementHint"
-                    class="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200  px-4 text-sm font-black text-slate-500 uppercase shadow-sm"
+                    class="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-500 uppercase shadow-sm"
                 >
                     <Info class="size-5 text-slate-400" />
                     Atur jadwal di menu Master Data &gt; Kelas
@@ -107,11 +111,11 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
         </div>
 
-        <div class="grid gap-3 md:grid-cols-7">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div
                 v-for="day in days"
                 :key="`head-${day.id}`"
-                class="rounded-xl border  px-5 py-5 shadow-sm"
+                class="rounded-xl border px-5 py-5 shadow-sm"
                 :class="
                     day.id === todayDay ? 'border-red-500 bg-red-500 text-white' : 'border-slate-200 text-slate-950'
                 "
@@ -123,11 +127,12 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
         </div>
 
-        <div class="mt-4 grid gap-3 md:grid-cols-7">
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div
                 v-for="day in days"
                 :key="`body-${day.id}`"
-                class="min-h-[280px] rounded-xl border border-slate-300 from-slate-50 to-slate-200/80 p-4 shadow-sm"            >
+                class="min-h-[280px] rounded-xl border border-slate-300 from-slate-50 to-slate-200/80 p-4 shadow-sm"
+            >
                 <template v-if="(schedulesByDay.get(day.id) ?? []).length">
                     <article
                         v-for="schedule in schedulesByDay.get(day.id)"
@@ -137,9 +142,16 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                         <div class="mb-3 border-b border-slate-100 pb-3">
                             <h3 class="text-base font-black">
                                 {{
-                                    schedule.group && schedule.group !== 'All groups' ? schedule.group : schedule.title
+                                    schedule.session_type === 'private' && schedule.dedicated_athlete
+                                        ? schedule.dedicated_athlete
+                                        : schedule.title
                                 }}
                             </h3>
+                            <p class="mt-1 text-xs font-semibold text-muted-foreground">
+                                {{
+                                    schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka'
+                                }}
+                            </p>
                             <span
                                 class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black"
                                 :class="typeTone(schedule)"
@@ -150,26 +162,12 @@ function typeTone(schedule: WeeklyScheduleCard): string {
 
                         <div class="space-y-4 text-xs font-black text-slate-500 uppercase">
                             <div class="flex gap-3">
-                                <UserRound class="mt-0.5 size-4 shrink-0 text-red-500" />
-                                <div>
-                                    <p>Instruktur</p>
-                                    <p class="text-sm text-slate-950 normal-case">{{ schedule.coach || 'TBA' }}</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-3">
                                 <Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500" />
                                 <div>
                                     <p>Waktu</p>
                                     <p class="text-sm text-slate-950">
                                         {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
                                     </p>
-                                </div>
-                            </div>
-                            <div class="flex gap-3">
-                                <UsersRound class="mt-0.5 size-4 shrink-0 text-orange-500" />
-                                <div>
-                                    <p>Peserta</p>
-                                    <p class="text-sm text-slate-950">{{ schedule.athletes_count ?? '-' }}</p>
                                 </div>
                             </div>
                             <div class="flex gap-3">

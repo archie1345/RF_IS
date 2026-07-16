@@ -3,6 +3,7 @@
 namespace App\Actions\Sessions;
 
 use App\Actions\Attendance\InitializeSessionAttendance;
+use App\Models\Coach;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Services\SessionVisibilityService;
@@ -45,17 +46,22 @@ class GenerateWeeklyTrainingSessions
             foreach ($this->sessionDatesFor($schedule, $from, $to) as $date) {
                 if ($this->sessionExists($schedule, $date)) {
                     $skipped++;
+
                     continue;
                 }
 
                 DB::transaction(function () use ($schedule, $date, $attachScheduleCoach, &$created): void {
-                    $coachId = $attachScheduleCoach ? $schedule->coach_id : null;
+                    $coachId = $attachScheduleCoach && $schedule->coach_id
+                        ? $schedule->coach_id
+                        : Coach::query()->orderBy('coach_id')->value('coach_id');
 
                     $session = TrainingSession::query()->create([
                         'weekly_training_schedule_id' => $schedule->weekly_training_schedule_id,
                         'coach_id' => $coachId,
                         'branch_id' => $schedule->branch_id,
                         'group_id' => $schedule->group_id,
+                        'session_type' => $schedule->session_type,
+                        'dedicated_athlete_id' => $schedule->dedicated_athlete_id,
                         'title' => $schedule->title,
                         'location' => $schedule->location ?? $schedule->branch?->location,
                         'session_date' => $date->toDateString(),
@@ -95,7 +101,7 @@ class GenerateWeeklyTrainingSessions
                 $dates[] = $date->copy();
             }
 
-            $date->addDay();
+            $date = $date->addDay();
         }
 
         return $dates;
@@ -106,20 +112,24 @@ class GenerateWeeklyTrainingSessions
         $query = TrainingSession::query()->withTrashed()->whereDate('session_date', $date->toDateString());
 
         if (Schema::hasColumn('training_sessions', 'weekly_training_schedule_id')) {
-            $query->where(function ($query) use ($schedule): void {
-                $query->where('weekly_training_schedule_id', $schedule->weekly_training_schedule_id)
-                    ->orWhere(function ($fallback) use ($schedule): void {
-                        $fallback->where('branch_id', $schedule->branch_id)
-                            ->where('group_id', $schedule->group_id)
-                            ->where('start_time', $schedule->start_time)
-                            ->where('end_time', $schedule->end_time);
-                    });
-            });
-        } else {
-            $query->where('branch_id', $schedule->branch_id)
-                ->where('group_id', $schedule->group_id)
-                ->where('start_time', $schedule->start_time)
-                ->where('end_time', $schedule->end_time);
+            return (clone $query)
+                ->where('weekly_training_schedule_id', $schedule->weekly_training_schedule_id)
+                ->exists();
+        }
+
+        $query->where('branch_id', $schedule->branch_id)
+            ->where('group_id', $schedule->group_id)
+            ->where('start_time', $schedule->start_time)
+            ->where('end_time', $schedule->end_time);
+
+        if (Schema::hasColumn('training_sessions', 'session_type')) {
+            $query->where('session_type', $schedule->session_type);
+        }
+
+        if (Schema::hasColumn('training_sessions', 'dedicated_athlete_id')) {
+            $schedule->dedicated_athlete_id
+                ? $query->where('dedicated_athlete_id', $schedule->dedicated_athlete_id)
+                : $query->whereNull('dedicated_athlete_id');
         }
 
         return $query->exists();
