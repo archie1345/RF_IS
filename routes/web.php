@@ -56,6 +56,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::redirect('my-profile', '/settings/profile');
 
     Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
+    
     Route::controller(WeeklyScheduleController::class)->prefix('training-schedules')->name('training-schedules.')->group(function () {
         Route::post('/', 'store')->name('store');
         Route::put('{schedule}', 'update')->name('update');
@@ -63,10 +64,34 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('generate', 'generate')->name('generate');
     });
 
-    Route::prefix('announcements')->name('announcements.')->controller(AnnouncementController::class)->group(function () { Route::get('/', 'index')->name('index'); Route::post('/', 'store')->name('store'); });
-    Route::prefix('users')->group(function () { Route::get('/', [ProfileAccessController::class, 'usersIndex'])->name('users.index'); Route::get('{user}', [ParentChildProfileController::class, 'show'])->name('users.show'); Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update'); Route::patch('{user}/account', [UserAccountController::class, 'update'])->name('users.account.update'); Route::post('{user}/profile', [UserAccountController::class, 'updateProfile'])->name('users.profile.update'); Route::put('{user}/athlete-profile', [AthleteProfileController::class, 'update'])->name('users.athlete-profile.update'); Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update'); Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update'); Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store'); Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update'); Route::post('{user}/achievements', [ProfileUserAchievementController::class, 'store'])->name('users.achievements.store'); Route::put('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'update'])->name('users.achievements.update'); });
-    Route::prefix('parents')->group(function () { Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync'); });
-    Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function () { Route::post('/', 'store')->name('athletes.store'); Route::get('{athlete}', 'show')->name('athletes.record.show'); Route::put('{athlete}', 'update')->name('athletes.update'); Route::delete('{athlete}', 'destroy')->name('athletes.destroy'); Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link'); Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show'); Route::put('user/{user}', 'upsertByUser')->name('users.update'); });
+    Route::prefix('announcements')->name('announcements.')->controller(AnnouncementController::class)->group(function () { 
+        Route::get('/', 'index')->name('index'); 
+        Route::post('/', 'store')->name('store'); });
+    
+    Route::prefix('users')->group(function () { 
+        Route::get('/', [ProfileAccessController::class, 'usersIndex'])->name('users.index'); 
+        Route::get('{user}', [ParentChildProfileController::class, 'show'])->name('users.show'); 
+        Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update'); 
+        Route::patch('{user}/account', [UserAccountController::class, 'update'])->name('users.account.update'); 
+        Route::post('{user}/profile', [UserAccountController::class, 'updateProfile'])->name('users.profile.update'); 
+        Route::put('{user}/athlete-profile', [AthleteProfileController::class, 'update'])->name('users.athlete-profile.update'); 
+        Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update'); 
+        Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update'); 
+        Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store'); 
+        Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update'); 
+        Route::post('{user}/achievements', [ProfileUserAchievementController::class, 'store'])->name('users.achievements.store'); 
+        Route::put('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'update'])->name('users.achievements.update'); });
+    
+    Route::prefix('parents')->group(function () { 
+        Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync'); });
+    
+    Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function () { 
+        Route::post('/', 'store')->name('athletes.store'); Route::get('{athlete}', 'show')->name('athletes.record.show'); 
+        Route::put('{athlete}', 'update')->name('athletes.update'); 
+        Route::delete('{athlete}', 'destroy')->name('athletes.destroy'); 
+        Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link'); 
+        Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show'); 
+        Route::put('user/{user}', 'upsertByUser')->name('users.update'); });
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
@@ -96,9 +121,28 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::redirect('periodic-stats', '/admin/dashboard')->name('periodic-stats');
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
-        Route::controller(AdminController::class)->group(function () { Route::post('accounts', 'store')->name('accounts.store'); Route::get('accounts/{user}', 'show')->name('accounts.show'); Route::put('accounts/{user}', 'update')->name('accounts.update'); Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend'); Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy'); Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update'); Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore'); Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete'); Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import'); Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export'); Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template'); });
-        Route::controller(BranchController::class)->group(function () { Route::post('branches', 'store')->name('branches.store'); Route::put('branches/{branch}', 'update')->name('branches.update'); Route::delete('branches/{branch}', 'destroy')->name('branches.destroy'); });
-        Route::controller(GroupController::class)->group(function () { Route::post('groups', 'store')->name('groups.store'); Route::put('groups/{group}', 'update')->name('groups.update'); Route::delete('groups/{group}', 'destroy')->name('groups.destroy'); });
+        
+    Route::controller(AdminController::class)->group(function () { 
+        Route::post('accounts', 'store')->name('accounts.store'); 
+        Route::get('accounts/{user}', 'show')->name('accounts.show'); 
+        Route::put('accounts/{user}', 'update')->name('accounts.update'); 
+        Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend'); 
+        Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy'); 
+        Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update'); 
+        Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore'); 
+        Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete'); 
+        Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import'); 
+        Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export'); 
+        Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template'); });
+
+    Route::controller(BranchController::class)->group(function () { 
+        Route::post('branches', 'store')->name('branches.store'); 
+        Route::put('branches/{branch}', 'update')->name('branches.update'); 
+        Route::delete('branches/{branch}', 'destroy')->name('branches.destroy'); });
+    Route::controller(GroupController::class)->group(function () { 
+        Route::post('groups', 'store')->name('groups.store'); 
+        Route::put('groups/{group}', 'update')->name('groups.update'); 
+        Route::delete('groups/{group}', 'destroy')->name('groups.destroy'); });
     });
 
     Route::prefix('payments')->name('payments.')->controller(PaymentController::class)->group(function () { 
@@ -128,6 +172,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store'); 
         Route::get('{event}/export', ChampionshipExportController::class)->name('export'); 
         Route::get('{event}', 'show')->name('show'); });
+    
     Route::prefix('sessions')->name('sessions.')->controller(SessionController::class)->group(function () { 
         Route::get('/', 'index')->name('index'); 
         Route::post('/', 'store')->name('store'); 
@@ -140,11 +185,13 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('{session}/coach-attendance', 'addCoachAttendance')->name('coach-attendance.store'); 
         Route::put('coach-attendance/{coachAttendance}', 'updateCoachAttendance')->name('coach-attendance.update'); 
         Route::delete('coach-attendance/{coachAttendance}', 'destroyCoachAttendance')->name('coach-attendance.destroy'); });
+    
     Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () { 
         Route::get('/', 'index')->name('index'); 
         Route::post('switch', 'switch')->name('switch'); 
         Route::post('{athlete}/switch', 'switchAthlete')->name('switch-athlete'); 
         Route::delete('switch', 'clear')->name('clear'); });
+    
     Route::prefix('achievements')->name('achievements.')->controller(UserAchievementController::class)->group(function () { 
         Route::get('/', 'index')->name('index'); 
         Route::post('/', 'storeAchievement')->name('store'); });
