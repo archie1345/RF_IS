@@ -29,6 +29,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 const editingLocationId = ref<number | null>(null);
 const showLocationForm = ref(false);
 const search = ref('');
+const googleLookupLoading = ref(false);
+const googleLookupMessage = ref('');
 
 const form = useForm({
     name: '',
@@ -38,6 +40,7 @@ const form = useForm({
     province: '',
     latitude: '',
     longitude: '',
+    google_maps_url: '',
     attendance_radius_meters: 100,
     timezone: 'Asia/Jakarta',
     is_active: true,
@@ -66,9 +69,11 @@ function resetForm() {
     form.province = '';
     form.latitude = '';
     form.longitude = '';
+    form.google_maps_url = '';
     form.attendance_radius_meters = 100;
     form.timezone = 'Asia/Jakarta';
     form.is_active = true;
+    googleLookupMessage.value = '';
 }
 
 function openCreateLocation() {
@@ -91,15 +96,98 @@ function editLocation(location: LocationRecord) {
     form.province = location.province ?? '';
     form.latitude = location.latitude === null || location.latitude === undefined ? '' : String(location.latitude);
     form.longitude = location.longitude === null || location.longitude === undefined ? '' : String(location.longitude);
+    form.google_maps_url = location.google_maps_url ?? '';
     form.attendance_radius_meters = location.attendance_radius_meters ?? 100;
     form.timezone = location.timezone ?? 'Asia/Jakarta';
     form.is_active = location.is_active;
+    googleLookupMessage.value = '';
     showLocationForm.value = true;
 }
 
 function setCoordinates(payload: { latitude: string; longitude: string }) {
     form.latitude = payload.latitude;
     form.longitude = payload.longitude;
+}
+
+function csrfToken(): string {
+    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+}
+
+function parseCoordinatesFromGoogleMapsUrl(url: string): { latitude: string; longitude: string } | null {
+    const decoded = decodeURIComponent(url);
+    const patterns = [
+        /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+        /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+        /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+    ];
+
+    for (const pattern of patterns) {
+        const match = decoded.match(pattern);
+        if (match) {
+            return {
+                latitude: Number(match[1]).toFixed(7),
+                longitude: Number(match[2]).toFixed(7),
+            };
+        }
+    }
+
+    return null;
+}
+
+function applyGoogleMapsDetails(details: Record<string, string | null | undefined>) {
+    if (details.google_maps_url) form.google_maps_url = details.google_maps_url;
+    if (details.latitude) form.latitude = details.latitude;
+    if (details.longitude) form.longitude = details.longitude;
+    if (details.name && !form.name) form.name = details.name;
+    if (details.address) form.address = details.address;
+    if (details.city) form.city = details.city;
+    if (details.province) form.province = details.province;
+}
+
+async function autofillFromGoogleMaps() {
+    googleLookupMessage.value = '';
+    const url = form.google_maps_url.trim();
+
+    if (!url) {
+        googleLookupMessage.value = 'Paste link Google Maps dulu.';
+        return;
+    }
+
+    const parsed = parseCoordinatesFromGoogleMapsUrl(url);
+    if (parsed) {
+        setCoordinates(parsed);
+        googleLookupMessage.value = 'Koordinat berhasil dibaca dari link.';
+    }
+
+    googleLookupLoading.value = true;
+
+    try {
+        const response = await fetch('/admin/branches/google-maps-lookup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ google_maps_url: url }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Lookup gagal.');
+        }
+
+        const details = await response.json();
+        applyGoogleMapsDetails(details);
+        googleLookupMessage.value = details.address
+            ? 'Detail lokasi berhasil diisi dari Google Maps.'
+            : 'Koordinat berhasil diisi. Tambahkan GOOGLE_MAPS_API_KEY untuk auto-fill alamat lengkap.';
+    } catch {
+        googleLookupMessage.value = parsed
+            ? 'Koordinat sudah diisi dari link, tapi detail alamat belum tersedia.'
+            : 'Link belum bisa dibaca otomatis. Isi koordinat manual atau klik peta.';
+    } finally {
+        googleLookupLoading.value = false;
+    }
 }
 
 function saveLocation() {
@@ -156,7 +244,7 @@ function deleteLocation(location: LocationRecord) {
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[860px] text-sm">
+                    <table class="w-full min-w-[980px] text-sm">
                         <thead>
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Lokasi</th>
@@ -239,8 +327,30 @@ function deleteLocation(location: LocationRecord) {
                 <form class="grid gap-4" @submit.prevent="saveLocation">
                     <h2 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Klik peta untuk memilih koordinat, atau isi latitude dan longitude manual.
+                        Paste link Google Maps untuk auto-fill, atau klik peta / isi koordinat manual.
                     </p>
+
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Google Maps Link
+                        <div class="flex flex-col gap-2 md:flex-row">
+                            <input
+                                v-model="form.google_maps_url"
+                                class="h-10 flex-1 rounded-lg border bg-background px-3 text-sm"
+                                placeholder="https://maps.app.goo.gl/... atau https://www.google.com/maps/..."
+                                @change="autofillFromGoogleMaps"
+                            />
+                            <button
+                                type="button"
+                                class="rounded-lg border px-4 py-2 text-sm font-bold"
+                                :disabled="googleLookupLoading"
+                                @click="autofillFromGoogleMaps"
+                            >
+                                {{ googleLookupLoading ? 'Membaca...' : 'Auto-fill' }}
+                            </button>
+                        </div>
+                        <span v-if="googleLookupMessage" class="text-xs text-muted-foreground">{{ googleLookupMessage }}</span>
+                        <span v-if="form.errors.google_maps_url" class="text-xs text-destructive">{{ form.errors.google_maps_url }}</span>
+                    </label>
 
                     <LeafletLocationMap
                         :latitude="form.latitude"
