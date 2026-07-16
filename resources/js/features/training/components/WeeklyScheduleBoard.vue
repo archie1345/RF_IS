@@ -79,9 +79,19 @@ function openSchedule(schedule: WeeklyScheduleCard) {
     selectedSchedule.value = schedule;
 }
 
+function googleMapsTarget(schedule: WeeklyScheduleCard | null): string | null {
+    if (!schedule) return null;
+    if (schedule.google_maps_url) return schedule.google_maps_url;
+    if (schedule.latitude && schedule.longitude) {
+        return `https://www.google.com/maps/search/?api=1&query=${schedule.latitude},${schedule.longitude}`;
+    }
+    return null;
+}
+
 function openGoogleMaps(schedule: WeeklyScheduleCard | null) {
-    if (!schedule?.latitude || !schedule?.longitude) return;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${schedule.latitude},${schedule.longitude}`, '_blank', 'noopener,noreferrer');
+    const target = googleMapsTarget(schedule);
+    if (!target) return;
+    window.open(target, '_blank', 'noopener,noreferrer');
 }
 </script>
 
@@ -178,6 +188,9 @@ function openGoogleMaps(schedule: WeeklyScheduleCard | null) {
                     <LeafletLocationMap :latitude="selectedSchedule.latitude" :longitude="selectedSchedule.longitude" :marker-label="selectedSchedule.location || selectedSchedule.branch || selectedSchedule.title" open-google-maps-on-click />
                     <span class="mt-2 inline-flex items-center gap-2 text-sm font-bold text-red-600 dark:text-red-300"><ExternalLink class="size-4" /> Klik peta untuk buka Google Maps</span>
                 </button>
+                <a v-else-if="selectedSchedule.google_maps_url" :href="selectedSchedule.google_maps_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-xl border p-4 text-sm font-bold text-red-600 dark:text-red-300">
+                    <ExternalLink class="size-4" /> Buka lokasi di Google Maps
+                </a>
                 <div v-else class="rounded-xl border border-dashed p-6 text-center text-sm font-semibold text-muted-foreground">Koordinat lokasi belum diisi.</div>
             </section>
         </FormModal>
