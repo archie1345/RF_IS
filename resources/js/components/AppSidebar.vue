@@ -52,7 +52,6 @@ const adminNavItems: NavItem[] = [
     { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
     { title: 'Lokasi Latihan', href: appRoutes.adminLocations, icon: MapPin },
     { title: 'Kelas Latihan', href: appRoutes.adminClasses, icon: Users },
-    { title: 'Manajemen Grup', href: appRoutes.adminGroups, icon: Users },
     { title: 'Presensi Atlet', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
     { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
@@ -110,8 +109,6 @@ const mainNavItems = computed(() => {
             return true;
         });
 });
-
-const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
@@ -133,9 +130,8 @@ const footerNavItems: NavItem[] = [];
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <NavFooter />
             <NavUser />
         </SidebarFooter>
     </Sidebar>
-    <slot />
 </template>
