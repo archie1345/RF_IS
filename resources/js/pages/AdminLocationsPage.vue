@@ -29,8 +29,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 const editingLocationId = ref<number | null>(null);
 const showLocationForm = ref(false);
 const search = ref('');
-const googleLookupLoading = ref(false);
-const googleLookupMessage = ref('');
+const lookupLoading = ref(false);
+const lookupMessage = ref('');
+const osmSearchQuery = ref('');
 
 const form = useForm({
     name: '',
@@ -73,7 +74,8 @@ function resetForm() {
     form.attendance_radius_meters = 100;
     form.timezone = 'Asia/Jakarta';
     form.is_active = true;
-    googleLookupMessage.value = '';
+    osmSearchQuery.value = '';
+    lookupMessage.value = '';
 }
 
 function openCreateLocation() {
@@ -100,7 +102,8 @@ function editLocation(location: LocationRecord) {
     form.attendance_radius_meters = location.attendance_radius_meters ?? 100;
     form.timezone = location.timezone ?? 'Asia/Jakarta';
     form.is_active = location.is_active;
-    googleLookupMessage.value = '';
+    osmSearchQuery.value = [location.name, location.address, location.city].filter(Boolean).join(', ');
+    lookupMessage.value = '';
     showLocationForm.value = true;
 }
 
@@ -117,8 +120,9 @@ function parseCoordinatesFromGoogleMapsUrl(url: string): { latitude: string; lon
     const decoded = decodeURIComponent(url);
     const patterns = [
         /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
-        /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+        /[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
         /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+        /[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
     ];
 
     for (const pattern of patterns) {
@@ -134,32 +138,69 @@ function parseCoordinatesFromGoogleMapsUrl(url: string): { latitude: string; lon
     return null;
 }
 
-function applyGoogleMapsDetails(details: Record<string, string | null | undefined>) {
+function applyLocationDetails(details: Record<string, string | null | undefined>) {
     if (details.google_maps_url) form.google_maps_url = details.google_maps_url;
     if (details.latitude) form.latitude = details.latitude;
     if (details.longitude) form.longitude = details.longitude;
     if (details.name && !form.name) form.name = details.name;
+    if (details.location && !form.location) form.location = details.location;
     if (details.address) form.address = details.address;
     if (details.city) form.city = details.city;
     if (details.province) form.province = details.province;
 }
 
+async function lookupOpenStreetMap() {
+    lookupMessage.value = '';
+    const query = osmSearchQuery.value.trim();
+
+    if (!query) {
+        lookupMessage.value = 'Isi nama lokasi atau alamat dulu.';
+        return;
+    }
+
+    lookupLoading.value = true;
+
+    try {
+        const response = await fetch('/admin/branches/openstreetmap-lookup', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({ query }),
+        });
+
+        const details = await response.json();
+        if (!response.ok) {
+            throw new Error(details.message || 'OpenStreetMap lookup gagal.');
+        }
+
+        applyLocationDetails(details);
+        lookupMessage.value = 'Detail lokasi berhasil diisi dari OpenStreetMap.';
+    } catch (error) {
+        lookupMessage.value = error instanceof Error ? error.message : 'OpenStreetMap lookup gagal.';
+    } finally {
+        lookupLoading.value = false;
+    }
+}
+
 async function autofillFromGoogleMaps() {
-    googleLookupMessage.value = '';
+    lookupMessage.value = '';
     const url = form.google_maps_url.trim();
 
     if (!url) {
-        googleLookupMessage.value = 'Paste link Google Maps dulu.';
+        lookupMessage.value = 'Paste link Google Maps dulu.';
         return;
     }
 
     const parsed = parseCoordinatesFromGoogleMapsUrl(url);
     if (parsed) {
         setCoordinates(parsed);
-        googleLookupMessage.value = 'Koordinat berhasil dibaca dari link.';
+        lookupMessage.value = 'Koordinat berhasil dibaca dari link.';
     }
 
-    googleLookupLoading.value = true;
+    lookupLoading.value = true;
 
     try {
         const response = await fetch('/admin/branches/google-maps-lookup', {
@@ -173,20 +214,20 @@ async function autofillFromGoogleMaps() {
         });
 
         if (!response.ok) {
-            throw new Error('Lookup gagal.');
+            throw new Error('Lookup link gagal.');
         }
 
         const details = await response.json();
-        applyGoogleMapsDetails(details);
-        googleLookupMessage.value = details.address
-            ? 'Detail lokasi berhasil diisi dari Google Maps.'
-            : 'Koordinat berhasil diisi. Tambahkan GOOGLE_MAPS_API_KEY untuk auto-fill alamat lengkap.';
+        applyLocationDetails(details);
+        lookupMessage.value = details.latitude && details.longitude
+            ? 'Koordinat berhasil diisi dari Google Maps link.'
+            : 'Link belum bisa dibaca otomatis. Gunakan OpenStreetMap Search atau klik peta.';
     } catch {
-        googleLookupMessage.value = parsed
+        lookupMessage.value = parsed
             ? 'Koordinat sudah diisi dari link, tapi detail alamat belum tersedia.'
-            : 'Link belum bisa dibaca otomatis. Isi koordinat manual atau klik peta.';
+            : 'Link belum bisa dibaca otomatis. Gunakan OpenStreetMap Search, isi koordinat manual, atau klik peta.';
     } finally {
-        googleLookupLoading.value = false;
+        lookupLoading.value = false;
     }
 }
 
@@ -327,8 +368,32 @@ function deleteLocation(location: LocationRecord) {
                 <form class="grid gap-4" @submit.prevent="saveLocation">
                     <h2 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Paste link Google Maps untuk auto-fill, atau klik peta / isi koordinat manual.
+                        Cari lokasi via OpenStreetMap, paste Google Maps link untuk koordinat, atau klik peta / isi koordinat manual.
                     </p>
+
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Search OpenStreetMap
+                        <div class="flex flex-col gap-2 md:flex-row">
+                            <input
+                                v-model="osmSearchQuery"
+                                class="h-10 flex-1 rounded-lg border bg-background px-3 text-sm"
+                                placeholder="Contoh: Central Dojang Jakarta"
+                                type="text"
+                                @keydown.enter.prevent="lookupOpenStreetMap"
+                            />
+                            <button
+                                type="button"
+                                class="rounded-lg border px-4 py-2 text-sm font-bold"
+                                :disabled="lookupLoading"
+                                @click="lookupOpenStreetMap"
+                            >
+                                {{ lookupLoading ? 'Mencari...' : 'Search' }}
+                            </button>
+                        </div>
+                        <span class="text-xs text-muted-foreground">
+                            No Google API key. Search manual saja, bukan autocomplete. Hasil dari OpenStreetMap/Nominatim.
+                        </span>
+                    </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Google Maps Link
@@ -342,13 +407,13 @@ function deleteLocation(location: LocationRecord) {
                             <button
                                 type="button"
                                 class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                :disabled="googleLookupLoading"
+                                :disabled="lookupLoading"
                                 @click="autofillFromGoogleMaps"
                             >
-                                {{ googleLookupLoading ? 'Membaca...' : 'Auto-fill' }}
+                                {{ lookupLoading ? 'Membaca...' : 'Auto-fill Link' }}
                             </button>
                         </div>
-                        <span v-if="googleLookupMessage" class="text-xs text-muted-foreground">{{ googleLookupMessage }}</span>
+                        <span v-if="lookupMessage" class="text-xs text-muted-foreground">{{ lookupMessage }}</span>
                         <span v-if="form.errors.google_maps_url" class="text-xs text-destructive">{{ form.errors.google_maps_url }}</span>
                     </label>
 

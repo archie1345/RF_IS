@@ -50,7 +50,8 @@ class BranchController extends Controller
         $url = trim($validated['google_maps_url']);
         $expandedUrl = $this->expandGoogleMapsUrl($url) ?? $url;
         $coordinates = $this->extractCoordinatesFromGoogleMapsUrl($expandedUrl) ?? $this->extractCoordinatesFromGoogleMapsUrl($url);
-        $details = [
+
+        return response()->json([
             'google_maps_url' => $expandedUrl,
             'latitude' => $coordinates['latitude'] ?? null,
             'longitude' => $coordinates['longitude'] ?? null,
@@ -58,13 +59,59 @@ class BranchController extends Controller
             'address' => null,
             'city' => null,
             'province' => null,
-        ];
+        ]);
+    }
 
-        if ($coordinates && filled(config('services.google.maps_api_key'))) {
-            $details = array_merge($details, $this->reverseGeocode($coordinates['latitude'], $coordinates['longitude']));
+    public function lookupOpenStreetMap(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'query' => ['required', 'string', 'max:255'],
+        ]);
+
+        $query = trim($validated['query']);
+
+        try {
+            $response = Http::timeout(8)
+                ->withHeaders([
+                    'User-Agent' => 'RhinoFighterManagement/1.0 (location lookup)',
+                    'Accept' => 'application/json',
+                    'Accept-Language' => 'id,en;q=0.8',
+                ])
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'format' => 'jsonv2',
+                    'q' => $query,
+                    'countrycodes' => 'id',
+                    'addressdetails' => 1,
+                    'limit' => 1,
+                ]);
+        } catch (Throwable) {
+            return response()->json(['message' => 'OpenStreetMap lookup failed.'], 422);
         }
 
-        return response()->json($details);
+        if (! $response->ok()) {
+            return response()->json(['message' => 'OpenStreetMap lookup failed.'], 422);
+        }
+
+        $result = collect($response->json())->first();
+        if (! is_array($result)) {
+            return response()->json(['message' => 'No OpenStreetMap result found.'], 404);
+        }
+
+        $address = $result['address'] ?? [];
+        $displayName = (string) ($result['display_name'] ?? '');
+        $name = (string) ($result['name'] ?? '');
+
+        return response()->json([
+            'name' => $name !== '' ? $name : str($displayName)->before(',')->toString(),
+            'location' => $name !== '' ? $name : null,
+            'address' => $displayName !== '' ? $displayName : null,
+            'city' => $this->firstAddressValue($address, ['city', 'town', 'village', 'municipality', 'county', 'state_district']),
+            'province' => $this->firstAddressValue($address, ['state', 'province', 'region']),
+            'latitude' => isset($result['lat']) ? number_format((float) $result['lat'], 7, '.', '') : null,
+            'longitude' => isset($result['lon']) ? number_format((float) $result['lon'], 7, '.', '') : null,
+        ]);
     }
 
     public function destroy(Request $request, Branch $branch): RedirectResponse
@@ -275,39 +322,14 @@ class BranchController extends Controller
         return null;
     }
 
-    private function reverseGeocode(string $latitude, string $longitude): array
+    private function firstAddressValue(array $address, array $keys): ?string
     {
-        try {
-            $response = Http::timeout(8)->get('https://maps.googleapis.com/maps/api/geocode/json', [
-                'latlng' => $latitude.','.$longitude,
-                'key' => config('services.google.maps_api_key'),
-            ]);
-
-            if (! $response->ok()) {
-                return [];
+        foreach ($keys as $key) {
+            if (isset($address[$key]) && is_string($address[$key]) && trim($address[$key]) !== '') {
+                return $address[$key];
             }
-
-            $result = collect($response->json('results'))->first();
-            if (! is_array($result)) {
-                return [];
-            }
-
-            $components = collect($result['address_components'] ?? []);
-
-            return [
-                'address' => $result['formatted_address'] ?? null,
-                'city' => $this->componentName($components, ['locality', 'administrative_area_level_2']),
-                'province' => $this->componentName($components, ['administrative_area_level_1']),
-            ];
-        } catch (Throwable) {
-            return [];
         }
-    }
 
-    private function componentName($components, array $types): ?string
-    {
-        $component = $components->first(fn ($component) => count(array_intersect($types, $component['types'] ?? [])) > 0);
-
-        return is_array($component) ? ($component['long_name'] ?? null) : null;
+        return null;
     }
 }
