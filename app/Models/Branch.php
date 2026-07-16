@@ -28,6 +28,7 @@ class Branch extends Model
         'province',
         'latitude',
         'longitude',
+        'google_maps_url',
         'attendance_radius_meters',
         'timezone',
         'is_active',
