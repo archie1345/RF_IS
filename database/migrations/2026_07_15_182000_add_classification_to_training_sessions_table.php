@@ -14,10 +14,10 @@ return new class extends Migration
             }
 
             if (! Schema::hasColumn('training_sessions', 'dedicated_athlete_id')) {
-                $table->foreignId('dedicated_athlete_id')
-                    ->nullable()
-                    ->after('session_type')
-                    ->constrained('athletes', 'athlete_id')
+                $table->ulid('dedicated_athlete_id')->nullable()->after('session_type');
+                $table->foreign('dedicated_athlete_id')
+                    ->references('athlete_id')
+                    ->on('athletes')
                     ->nullOnDelete();
             }
         });
@@ -27,7 +27,8 @@ return new class extends Migration
     {
         Schema::table('training_sessions', function (Blueprint $table): void {
             if (Schema::hasColumn('training_sessions', 'dedicated_athlete_id')) {
-                $table->dropConstrainedForeignId('dedicated_athlete_id');
+                $table->dropForeign(['dedicated_athlete_id']);
+                $table->dropColumn('dedicated_athlete_id');
             }
 
             if (Schema::hasColumn('training_sessions', 'session_type')) {
