@@ -9,9 +9,35 @@ use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
 {
+    private const CLASS_TYPES = ['reguler', 'prestasi', 'private', 'pemula', 'sparring'];
+
+    private const BELT_OPTIONS = [
+        'Geup 10',
+        'Geup 9',
+        'Geup 8',
+        'Geup 7',
+        'Geup 6',
+        'Geup 5',
+        'Geup 4',
+        'Geup 3',
+        'Geup 2',
+        'Geup 1',
+        'Dan 1',
+        'Dan 2',
+        'Dan 3',
+        'Dan 4',
+        'Dan 5',
+        'Dan 6',
+        'Dan 7',
+        'Dan 8',
+        'Dan 9',
+        'Dan 10',
+    ];
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
@@ -64,13 +90,13 @@ class GroupController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'class_type' => ['required', 'string', 'max:50'],
+            'class_type' => ['required', 'string', Rule::in(self::CLASS_TYPES)],
             'coach_id' => ['nullable', 'exists:coaches,coach_id'],
             'branch_id' => ['nullable', 'exists:branches,branch_id'],
             'day_of_week' => ['required', 'integer', 'between:1,7'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'min_belt' => ['nullable', 'string', 'max:100'],
+            'min_belt' => ['nullable', 'string', Rule::in(self::BELT_OPTIONS)],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);
@@ -78,10 +104,12 @@ class GroupController extends Controller
 
     private function payload(array $validated): array
     {
+        $classType = str($validated['class_type'] ?? 'reguler')->lower()->slug('_')->toString();
+
         return [
             'group_name' => $validated['name'],
-            'class_type' => $validated['class_type'],
-            'coach_id' => $validated['coach_id'] ?? null,
+            'class_type' => $classType,
+            'coach_id' => $classType === 'private' ? ($validated['coach_id'] ?? null) : null,
             'branch_id' => $validated['branch_id'] ?? null,
             'day_of_week' => $validated['day_of_week'],
             'start_time' => $validated['start_time'],
@@ -102,13 +130,17 @@ class GroupController extends Controller
             return;
         }
 
+        $sessionType = str($group->class_type ?? 'reguler')->lower()->slug('_')->toString();
+
         WeeklyTrainingSchedule::query()->updateOrCreate(
             ['group_id' => $group->group_id],
             [
                 'title' => $group->group_name,
                 'branch_id' => $group->branch_id,
                 'group_id' => $group->group_id,
-                'coach_id' => $group->coach_id,
+                'dedicated_athlete_id' => null,
+                'coach_id' => $sessionType === 'private' ? $group->coach_id : null,
+                'session_type' => $sessionType,
                 'day_of_week' => $group->day_of_week,
                 'start_time' => $group->start_time,
                 'end_time' => $group->end_time,

@@ -41,13 +41,21 @@ const dayOptions = [
     { value: 7, label: 'Minggu' },
 ];
 
+const classTypeOptions = [
+    { value: 'reguler', label: 'Reguler' },
+    { value: 'prestasi', label: 'Prestasi' },
+    { value: 'private', label: 'Private' },
+    { value: 'pemula', label: 'Pemula' },
+    { value: 'sparring', label: 'Sparring' },
+];
+
 const editingClassId = ref<number | null>(null);
 const showClassForm = ref(false);
 const search = ref('');
 
 const form = useForm({
     name: '',
-    class_type: 'General',
+    class_type: 'reguler',
     branch_id: '',
     coach_id: '',
     day_of_week: 1,
@@ -58,12 +66,14 @@ const form = useForm({
     is_active: true,
 });
 
+const isPrivateClass = computed(() => form.class_type === 'private');
+
 const filteredClasses = computed(() => {
     const keyword = search.value.trim().toLowerCase();
     if (!keyword) return props.classes;
 
     return props.classes.filter((item) =>
-        [item.name, item.class_type, item.branch, item.coach, item.day_label, item.min_belt]
+        [item.name, classTypeLabel(item.class_type), item.branch, item.coach, item.day_label, item.min_belt]
             .filter(Boolean)
             .join(' ')
             .toLowerCase()
@@ -71,17 +81,29 @@ const filteredClasses = computed(() => {
     );
 });
 
+function normalizeClassType(value?: string | null): string {
+    const normalized = (value || 'reguler').toString().toLowerCase().replace(/\s+/g, '_');
+    if (normalized === 'general') return 'reguler';
+    return classTypeOptions.some((item) => item.value === normalized) ? normalized : 'reguler';
+}
+
+function classTypeLabel(value?: string | null): string {
+    const normalized = normalizeClassType(value);
+    const option = classTypeOptions.find((item) => item.value === normalized);
+    return option?.label ?? '-';
+}
+
 function resetForm() {
     editingClassId.value = null;
     form.clearErrors();
     form.name = '';
-    form.class_type = 'General';
+    form.class_type = 'reguler';
     form.branch_id = '';
     form.coach_id = '';
     form.day_of_week = 1;
     form.start_time = '16:00';
     form.end_time = '18:00';
-    form.min_belt = props.beltOptions[0]?.value ? String(props.beltOptions[0].value) : '';
+    form.min_belt = '';
     form.description = '';
     form.is_active = true;
 }
@@ -97,12 +119,13 @@ function closeClassForm() {
 }
 
 function editClass(item: ClassRecord) {
+    const classType = normalizeClassType(item.class_type);
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
-    form.class_type = item.class_type;
+    form.class_type = classType;
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
-    form.coach_id = item.coach_id ?? '';
+    form.coach_id = classType === 'private' ? item.coach_id ?? '' : '';
     form.day_of_week = item.day_of_week ?? 1;
     form.start_time = item.start_time || '16:00';
     form.end_time = item.end_time || '18:00';
@@ -113,6 +136,10 @@ function editClass(item: ClassRecord) {
 }
 
 function saveClass() {
+    if (!isPrivateClass.value) {
+        form.coach_id = '';
+    }
+
     const options = { preserveScroll: true, onSuccess: closeClassForm };
     if (editingClassId.value) form.put(`/admin/groups/${editingClassId.value}`, options);
     else form.post('/admin/groups', options);
@@ -187,14 +214,16 @@ function deleteClass(item: ClassRecord) {
                                 </td>
                             </tr>
                             <tr v-for="item in filteredClasses" :key="item.id" class="border-b hover:bg-muted/40">
-                                <td class="px-3 py-4">
-                                    <p class="font-black">{{ item.name }}</p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {{ item.class_type }} · min {{ item.min_belt || '-' }}
+                                <td class="max-w-[260px] px-3 py-4">
+                                    <p class="truncate font-black">{{ item.name }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">
+                                        {{ classTypeLabel(item.class_type) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-4">{{ item.branch }}</td>
-                                <td class="px-3 py-4">{{ item.coach }}</td>
+                                <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
+                                <td class="max-w-[200px] px-3 py-4">
+                                    <p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p>
+                                </td>
                                 <td class="px-3 py-4">
                                     <CalendarDays class="mr-1 inline size-3" />{{ item.day_label }}
                                     <p class="text-xs text-muted-foreground">
@@ -237,33 +266,37 @@ function deleteClass(item: ClassRecord) {
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Data ini otomatis membuat / memperbarui jadwal mingguan terkait kelas.
+                        Tipe kelas mengikuti tipe jadwal mingguan. Coach hanya dipilih untuk kelas Private.
                     </p>
 
                     <div class="mt-5 grid gap-3">
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Nama Kelas *<input
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Nama Kelas *
+                            <input
                                 v-model="form.name"
                                 class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 placeholder="Contoh: Junior Sparring"
-                            /><span v-if="form.errors.name" class="text-xs text-destructive">{{
-                                form.errors.name
-                            }}</span></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Tipe Kelas *<input
-                                v-model="form.class_type"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                placeholder="General / Prestasi / Private"
-                            /><span v-if="form.errors.class_type" class="text-xs text-destructive">{{
-                                form.errors.class_type
-                            }}</span></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Lokasi<select
-                                v-model="form.branch_id"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            >
+                            />
+                            <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Tipe Kelas *
+                            <select v-model="form.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option
+                                    v-for="option in classTypeOptions"
+                                    :key="option.value"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Lokasi
+                            <select v-model="form.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Pilih lokasi</option>
                                 <option
                                     v-for="option in props.branchOptions"
@@ -272,14 +305,13 @@ function deleteClass(item: ClassRecord) {
                                 >
                                     {{ option.label }}
                                 </option>
-                            </select></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Coach<select
-                                v-model="form.coach_id"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            >
-                                <option value="">Pilih coach</option>
+                            </select>
+                        </label>
+
+                        <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
+                            Coach Private
+                            <select v-model="form.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option value="">Pilih coach private</option>
                                 <option
                                     v-for="option in props.coachOptions"
                                     :key="String(option.value)"
@@ -287,37 +319,41 @@ function deleteClass(item: ClassRecord) {
                                 >
                                     {{ option.label }}
                                 </option>
-                            </select></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Hari<select
-                                v-model="form.day_of_week"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            >
+                            </select>
+                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{ form.errors.coach_id }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Hari
+                            <select v-model="form.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option v-for="day in dayOptions" :key="day.value" :value="day.value">
                                     {{ day.label }}
                                 </option>
-                            </select></label
-                        >
+                            </select>
+                        </label>
+
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Mulai<input
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Mulai
+                                <input
                                     v-model="form.start_time"
                                     type="time"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
-                            <label class="grid gap-1 text-sm font-semibold"
-                                >Selesai<input
+                                />
+                            </label>
+                            <label class="grid gap-1 text-sm font-semibold">
+                                Selesai
+                                <input
                                     v-model="form.end_time"
                                     type="time"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            /></label>
+                                />
+                            </label>
                         </div>
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Minimal Sabuk<select
-                                v-model="form.min_belt"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            >
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Minimal Sabuk
+                            <select v-model="form.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Tanpa minimal</option>
                                 <option
                                     v-for="option in props.beltOptions"
@@ -326,19 +362,23 @@ function deleteClass(item: ClassRecord) {
                                 >
                                     {{ option.label }}
                                 </option>
-                            </select></label
-                        >
-                        <label class="grid gap-1 text-sm font-semibold"
-                            >Deskripsi<textarea
+                            </select>
+                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{ form.errors.min_belt }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Deskripsi
+                            <textarea
                                 v-model="form.description"
                                 class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
                                 placeholder="Deskripsi kelas"
                             ></textarea>
                         </label>
-                        <label
-                            class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold"
-                            ><input v-model="form.is_active" type="checkbox" /> Aktif</label
-                        >
+
+                        <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
+                            <input v-model="form.is_active" type="checkbox" /> Aktif
+                        </label>
+
                         <div class="flex gap-2">
                             <button
                                 class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
@@ -346,11 +386,7 @@ function deleteClass(item: ClassRecord) {
                             >
                                 {{ form.processing ? 'Saving...' : 'Save Kelas' }}
                             </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="closeClassForm"
-                            >
+                            <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeClassForm">
                                 Batal
                             </button>
                         </div>
