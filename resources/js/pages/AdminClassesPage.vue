@@ -524,7 +524,7 @@ watch(
                                         Belum ada atlet di kelas ini.
                                     </td>
                                 </tr>
-                                <tr v-for="athlete in selectedClassAthletes" v-else :key="String(athlete.id)" class="border-b last:border-b-0">
+                                <tr v-for="athlete in selectedClassAthletes" :key="String(athlete.id)" class="border-b last:border-b-0">
                                     <td class="px-3 py-3 font-bold">{{ athlete.name }}</td>
                                     <td class="px-3 py-3 text-muted-foreground">{{ athlete.geup || '-' }}</td>
                                     <td class="px-3 py-3 text-muted-foreground">{{ athlete.branch || selectedClass.branch || '-' }}</td>
