@@ -51,6 +51,8 @@ trait BuildsTrainingPayloads
             'start_time' => $schedule->start_time ? substr((string) $schedule->start_time, 0, 5) : '',
             'end_time' => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
             'location' => $schedule->location,
+            'latitude' => $schedule->branch?->latitude,
+            'longitude' => $schedule->branch?->longitude,
             'is_active' => (bool) $schedule->is_active,
             'generated_sessions_count' => $schedule->generated_sessions_count,
             'can_manage' => $this->canManageSchedule($request, $schedule),
