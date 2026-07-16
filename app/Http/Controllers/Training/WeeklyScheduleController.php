@@ -51,7 +51,7 @@ class WeeklyScheduleController extends Controller
                 ->values();
         }
 
-        $branches = Branch::query()->orderBy('branch_name')->get();
+        $branches = Branch::query()->where('is_active', true)->orderBy('branch_name')->get();
         $groups = Group::query()->orderBy('group_name')->get();
 
         return Inertia::render('WeeklySchedulePage', [
