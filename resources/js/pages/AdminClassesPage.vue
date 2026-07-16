@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
@@ -63,10 +63,30 @@ const form = useForm({
     end_time: '18:00',
     min_belt: '',
     description: '',
-    is_active: true,
+    is_active: false,
 });
 
 const isPrivateClass = computed(() => form.class_type === 'private');
+
+const classCanBeActive = computed(() => {
+    return Boolean(
+        form.name.trim() &&
+            form.class_type &&
+            form.branch_id &&
+            form.day_of_week &&
+            form.start_time &&
+            form.end_time &&
+            (!isPrivateClass.value || form.coach_id),
+    );
+});
+
+const activationHint = computed(() => {
+    if (classCanBeActive.value) return 'Data kelas lengkap. Kelas bisa diaktifkan.';
+
+    return isPrivateClass.value
+        ? 'Lengkapi nama, tipe, lokasi aktif, coach private, hari, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
+        : 'Lengkapi nama, tipe, lokasi aktif, hari, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
+});
 
 const filteredClasses = computed(() => {
     const keyword = search.value.trim().toLowerCase();
@@ -93,6 +113,12 @@ function classTypeLabel(value?: string | null): string {
     return option?.label ?? '-';
 }
 
+function enforceActivationRules() {
+    if (form.is_active && !classCanBeActive.value) {
+        form.is_active = false;
+    }
+}
+
 function resetForm() {
     editingClassId.value = null;
     form.clearErrors();
@@ -105,7 +131,7 @@ function resetForm() {
     form.end_time = '18:00';
     form.min_belt = '';
     form.description = '';
-    form.is_active = true;
+    form.is_active = false;
 }
 
 function openCreateClass() {
@@ -132,6 +158,7 @@ function editClass(item: ClassRecord) {
     form.min_belt = item.min_belt ?? '';
     form.description = item.description ?? '';
     form.is_active = item.is_active;
+    enforceActivationRules();
     showClassForm.value = true;
 }
 
@@ -140,6 +167,7 @@ function saveClass() {
         form.coach_id = '';
     }
 
+    enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeClassForm };
     if (editingClassId.value) form.put(`/admin/groups/${editingClassId.value}`, options);
     else form.post('/admin/groups', options);
@@ -150,6 +178,11 @@ function deleteClass(item: ClassRecord) {
         router.delete(`/admin/groups/${item.id}`, { preserveScroll: true });
     }
 }
+
+watch(
+    () => [form.is_active, form.name, form.class_type, form.branch_id, form.coach_id, form.day_of_week, form.start_time, form.end_time],
+    enforceActivationRules,
+);
 </script>
 
 <template>
@@ -294,9 +327,9 @@ function deleteClass(item: ClassRecord) {
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Lokasi
+                            Lokasi *
                             <select v-model="form.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih lokasi</option>
+                                <option value="">Pilih lokasi aktif</option>
                                 <option
                                     v-for="option in props.branchOptions"
                                     :key="String(option.value)"
@@ -308,7 +341,7 @@ function deleteClass(item: ClassRecord) {
                         </label>
 
                         <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
-                            Coach Private
+                            Coach Private *
                             <select v-model="form.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Pilih coach private</option>
                                 <option
@@ -323,7 +356,7 @@ function deleteClass(item: ClassRecord) {
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Hari
+                            Hari *
                             <select v-model="form.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option v-for="day in dayOptions" :key="day.value" :value="day.value">
                                     {{ day.label }}
@@ -333,7 +366,7 @@ function deleteClass(item: ClassRecord) {
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
-                                Mulai
+                                Mulai *
                                 <input
                                     v-model="form.start_time"
                                     type="time"
@@ -341,7 +374,7 @@ function deleteClass(item: ClassRecord) {
                                 />
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
-                                Selesai
+                                Selesai *
                                 <input
                                     v-model="form.end_time"
                                     type="time"
@@ -374,8 +407,13 @@ function deleteClass(item: ClassRecord) {
                             ></textarea>
                         </label>
 
-                        <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold">
-                            <input v-model="form.is_active" type="checkbox" /> Aktif
+                        <label class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold">
+                            <span class="flex h-7 items-center gap-2">
+                                <input v-model="form.is_active" type="checkbox" /> Aktif
+                            </span>
+                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                                {{ activationHint }}
+                            </span>
                         </label>
 
                         <div class="flex gap-2">
