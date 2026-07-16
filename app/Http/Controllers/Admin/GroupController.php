@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
+use App\Support\Domain\BeltRank;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,29 +15,6 @@ use Illuminate\Validation\Rule;
 class GroupController extends Controller
 {
     private const CLASS_TYPES = ['reguler', 'prestasi', 'private', 'pemula', 'sparring'];
-
-    private const BELT_OPTIONS = [
-        'Geup 10',
-        'Geup 9',
-        'Geup 8',
-        'Geup 7',
-        'Geup 6',
-        'Geup 5',
-        'Geup 4',
-        'Geup 3',
-        'Geup 2',
-        'Geup 1',
-        'Dan 1',
-        'Dan 2',
-        'Dan 3',
-        'Dan 4',
-        'Dan 5',
-        'Dan 6',
-        'Dan 7',
-        'Dan 8',
-        'Dan 9',
-        'Dan 10',
-    ];
 
     public function store(Request $request): RedirectResponse
     {
@@ -96,7 +74,7 @@ class GroupController extends Controller
             'day_of_week' => ['required', 'integer', 'between:1,7'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'min_belt' => ['nullable', 'string', Rule::in(self::BELT_OPTIONS)],
+            'min_belt' => ['nullable', 'string', Rule::in(BeltRank::values())],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);
@@ -114,7 +92,7 @@ class GroupController extends Controller
             'day_of_week' => $validated['day_of_week'],
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
-            'min_belt' => $validated['min_belt'] ?? null,
+            'min_belt' => BeltRank::normalize($validated['min_belt'] ?? null) ?: null,
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ];

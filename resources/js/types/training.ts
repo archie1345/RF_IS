@@ -29,6 +29,7 @@ export type ClassRecord = {
     start_time: string;
     end_time: string;
     min_belt?: string | null;
+    min_belt_label?: string | null;
     description?: string | null;
     athletes_count: number;
     is_active: boolean;
@@ -53,6 +54,10 @@ export type WeeklySchedule = {
     start_time?: string | null;
     end_time?: string | null;
     location?: string | null;
+    latitude?: string | number | null;
+    longitude?: string | number | null;
+    min_belt?: string | null;
+    min_belt_label?: string | null;
     is_active?: boolean;
     generated_sessions_count?: number;
     can_manage?: boolean;

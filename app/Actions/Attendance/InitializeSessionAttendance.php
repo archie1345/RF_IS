@@ -6,22 +6,23 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Support\Domain\AttendanceStatus;
+use App\Support\Domain\BeltRank;
 use Illuminate\Support\Facades\DB;
 
 class InitializeSessionAttendance
 {
     public function handle(TrainingSession $session): int
     {
+        $session->loadMissing('group');
+
         $athleteIds = Athlete::query()
             ->where('branch_id', $session->branch_id)
             ->when(
                 $session->dedicated_athlete_id !== null,
                 fn ($query) => $query->where('athlete_id', $session->dedicated_athlete_id),
-                fn ($query) => $query->when(
-                    $session->group_id !== null,
-                    fn ($query) => $query->where('group_id', $session->group_id),
-                ),
             )
+            ->get(['athlete_id', 'group_id', 'geup'])
+            ->filter(fn (Athlete $athlete) => $this->athleteCanJoinSession($athlete, $session))
             ->pluck('athlete_id');
 
         return DB::transaction(function () use ($session, $athleteIds): int {
@@ -51,5 +52,22 @@ class InitializeSessionAttendance
 
             return $created;
         });
+    }
+
+    private function athleteCanJoinSession(Athlete $athlete, TrainingSession $session): bool
+    {
+        if ($session->dedicated_athlete_id !== null) {
+            return (string) $athlete->athlete_id === (string) $session->dedicated_athlete_id;
+        }
+
+        if ($session->group_id === null) {
+            return true;
+        }
+
+        if ((string) $athlete->group_id === (string) $session->group_id) {
+            return true;
+        }
+
+        return BeltRank::eligible($athlete->geup, $session->group?->min_belt);
     }
 }
