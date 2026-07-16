@@ -5,7 +5,7 @@ import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
-import type { ClassRecord, SelectOption } from '@/types/training';
+import type { ClassAthleteRecord, ClassRecord, SelectOption } from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -51,6 +51,9 @@ const classTypeOptions = [
 
 const editingClassId = ref<number | null>(null);
 const selectedClass = ref<ClassRecord | null>(null);
+const selectedClassAthletes = ref<ClassAthleteRecord[]>([]);
+const athleteModalLoading = ref(false);
+const athleteModalError = ref('');
 const showClassForm = ref(false);
 const search = ref('');
 
@@ -145,8 +148,41 @@ function closeClassForm() {
     resetForm();
 }
 
-function openClassAthletes(item: ClassRecord) {
-    selectedClass.value = item;
+function closeAthleteModal() {
+    selectedClass.value = null;
+    selectedClassAthletes.value = [];
+    athleteModalError.value = '';
+    athleteModalLoading.value = false;
+}
+
+async function openClassAthletes(item: ClassRecord) {
+    selectedClass.value = { ...item, athletes: item.athletes ?? [] };
+    selectedClassAthletes.value = item.athletes ?? [];
+    athleteModalError.value = '';
+    athleteModalLoading.value = true;
+
+    try {
+        const response = await fetch(`/admin/groups/${item.id}/athletes`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            throw new Error('Gagal mengambil daftar atlet.');
+        }
+
+        const data = (await response.json()) as { athletes?: ClassAthleteRecord[] };
+        const athletes = data.athletes ?? [];
+        selectedClassAthletes.value = athletes;
+
+        if (selectedClass.value?.id === item.id) {
+            selectedClass.value = { ...selectedClass.value, athletes };
+        }
+    } catch (error) {
+        athleteModalError.value = error instanceof Error ? error.message : 'Gagal mengambil daftar atlet.';
+    } finally {
+        athleteModalLoading.value = false;
+    }
 }
 
 function editClass(item: ClassRecord) {
@@ -454,7 +490,7 @@ watch(
                 </form>
             </FormModal>
 
-            <FormModal :open="Boolean(selectedClass)" max-width-class="max-w-3xl" @close="selectedClass = null">
+            <FormModal :open="Boolean(selectedClass)" max-width-class="max-w-3xl" @close="closeAthleteModal">
                 <section v-if="selectedClass" class="grid gap-4">
                     <div>
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
@@ -463,6 +499,10 @@ watch(
                             {{ classTypeLabel(selectedClass.class_type) }} · {{ selectedClass.branch }} · {{ selectedClass.athletes_count }} atlet
                         </p>
                     </div>
+
+                    <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {{ athleteModalError }}
+                    </p>
 
                     <div class="overflow-hidden rounded-xl border">
                         <table class="w-full text-sm">
@@ -474,12 +514,17 @@ watch(
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-if="!selectedClass.athletes?.length">
+                                <tr v-if="athleteModalLoading">
+                                    <td colspan="3" class="h-28 px-3 text-center text-muted-foreground">
+                                        Memuat daftar atlet...
+                                    </td>
+                                </tr>
+                                <tr v-else-if="!selectedClassAthletes.length">
                                     <td colspan="3" class="h-28 px-3 text-center text-muted-foreground">
                                         Belum ada atlet di kelas ini.
                                     </td>
                                 </tr>
-                                <tr v-for="athlete in selectedClass.athletes ?? []" :key="String(athlete.id)" class="border-b last:border-b-0">
+                                <tr v-for="athlete in selectedClassAthletes" v-else :key="String(athlete.id)" class="border-b last:border-b-0">
                                     <td class="px-3 py-3 font-bold">{{ athlete.name }}</td>
                                     <td class="px-3 py-3 text-muted-foreground">{{ athlete.geup || '-' }}</td>
                                     <td class="px-3 py-3 text-muted-foreground">{{ athlete.branch || selectedClass.branch || '-' }}</td>
