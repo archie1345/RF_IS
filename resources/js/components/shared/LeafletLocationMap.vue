@@ -100,7 +100,7 @@ onMounted(async () => {
     if (!mapEl.value) return;
 
     const initial = currentLatLng() ?? defaultCenter;
-    map = L.map(mapEl.value, { scrollWheelZoom: false }).setView(initial, currentLatLng() ? props.zoom : 11);
+    map = L.map(mapEl.value, { scrollWheelZoom: true }).setView(initial, currentLatLng() ? props.zoom : 11);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
