@@ -15,6 +15,29 @@ class GroupController extends Controller
 {
     private const CLASS_TYPES = ['reguler', 'prestasi', 'private', 'pemula', 'sparring'];
 
+    private const BELT_OPTIONS = [
+        'Geup 10',
+        'Geup 9',
+        'Geup 8',
+        'Geup 7',
+        'Geup 6',
+        'Geup 5',
+        'Geup 4',
+        'Geup 3',
+        'Geup 2',
+        'Geup 1',
+        'Dan 1',
+        'Dan 2',
+        'Dan 3',
+        'Dan 4',
+        'Dan 5',
+        'Dan 6',
+        'Dan 7',
+        'Dan 8',
+        'Dan 9',
+        'Dan 10',
+    ];
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
@@ -73,7 +96,7 @@ class GroupController extends Controller
             'day_of_week' => ['required', 'integer', 'between:1,7'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
-            'min_belt' => ['nullable', 'string', 'max:100'],
+            'min_belt' => ['nullable', 'string', Rule::in(self::BELT_OPTIONS)],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);
