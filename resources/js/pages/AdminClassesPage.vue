@@ -81,9 +81,16 @@ const filteredClasses = computed(() => {
     );
 });
 
+function normalizeClassType(value?: string | null): string {
+    const normalized = (value || 'reguler').toString().toLowerCase().replace(/\s+/g, '_');
+    if (normalized === 'general') return 'reguler';
+    return classTypeOptions.some((item) => item.value === normalized) ? normalized : 'reguler';
+}
+
 function classTypeLabel(value?: string | null): string {
-    const option = classTypeOptions.find((item) => item.value === value);
-    return option?.label ?? (value ? value.replace(/_/g, ' ') : '-');
+    const normalized = normalizeClassType(value);
+    const option = classTypeOptions.find((item) => item.value === normalized);
+    return option?.label ?? '-';
 }
 
 function resetForm() {
@@ -112,12 +119,13 @@ function closeClassForm() {
 }
 
 function editClass(item: ClassRecord) {
+    const classType = normalizeClassType(item.class_type);
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
-    form.class_type = item.class_type || 'reguler';
+    form.class_type = classType;
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
-    form.coach_id = item.class_type === 'private' ? item.coach_id ?? '' : '';
+    form.coach_id = classType === 'private' ? item.coach_id ?? '' : '';
     form.day_of_week = item.day_of_week ?? 1;
     form.start_time = item.start_time || '16:00';
     form.end_time = item.end_time || '18:00';
@@ -214,7 +222,7 @@ function deleteClass(item: ClassRecord) {
                                 </td>
                                 <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
                                 <td class="max-w-[200px] px-3 py-4">
-                                    <p class="truncate">{{ item.class_type === 'private' ? item.coach : '-' }}</p>
+                                    <p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p>
                                 </td>
                                 <td class="px-3 py-4">
                                     <CalendarDays class="mr-1 inline size-3" />{{ item.day_label }}
