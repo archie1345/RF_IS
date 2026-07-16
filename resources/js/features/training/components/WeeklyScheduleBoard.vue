@@ -94,34 +94,99 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
 
             <div class="flex justify-start gap-3 xl:justify-end">
-                <button
-                    type="button"
-                    class="inline-flex size-12 items-center justify-center rounded-xl bg-red-100 text-red-600 transition hover:bg-red-200 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25"
-                    @click="emit('refresh')"
-                >
+                <button type="button" class="inline-flex size-12 items-center justify-center rounded-xl bg-red-100 text-red-600 transition hover:bg-red-200 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25" @click="emit('refresh')">
                     <RefreshCcw class="size-6" />
                 </button>
-                <div
-                    v-if="showManagementHint"
-                    class="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-4 text-sm font-black text-muted-foreground uppercase shadow-sm"
-                >
+                <div v-if="showManagementHint" class="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-4 text-sm font-black text-muted-foreground uppercase shadow-sm">
                     <Info class="size-5 text-muted-foreground" />
                     Atur jadwal di menu Master Data &gt; Kelas
                 </div>
             </div>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <div
-                v-for="day in days"
-                :key="`head-${day.id}`"
-                class="rounded-xl border px-5 py-5 shadow-sm transition"
-                :class="
+        <div class="grid gap-4 xl:hidden">
+            <section v-for="day in days" :key="`mobile-${day.id}`" class="grid gap-3">
+                <div
+                    class="rounded-xl border px-5 py-5 shadow-sm transition"
+                    :class="
+                        day.id === todayDay
+                            ? 'border-red-500 bg-red-500 text-white shadow-red-500/20 dark:border-red-400 dark:bg-red-500 dark:text-white'
+                            : 'border-border bg-card text-card-foreground'
+                    "
+                >
+                    <p class="text-xl leading-none font-black">{{ day.name }}</p>
+                    <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">
+                        {{ day.english }}
+                    </p>
+                </div>
+
+                <div class="min-h-[220px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40">
+                    <div v-if="(schedulesByDay.get(day.id) ?? []).length" class="columns-1 gap-3 space-y-3 md:columns-2 xl:columns-1">
+                        <article v-for="schedule in schedulesByDay.get(day.id)" :key="schedule.id" class="mb-3 break-inside-avoid rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md dark:border-l-red-400">
+                            <div class="mb-3 border-b border-border pb-3">
+                                <h3 class="text-base font-black text-card-foreground">
+                                    {{
+                                        schedule.session_type === 'private' && schedule.dedicated_athlete
+                                            ? schedule.dedicated_athlete
+                                            : schedule.title
+                                    }}
+                                </h3>
+                                <p class="mt-1 text-xs font-semibold text-muted-foreground">
+                                    {{
+                                        schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka'
+                                    }}
+                                </p>
+                                <span class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black" :class="typeTone(schedule)">
+                                    <Crown class="size-3" /> {{ typeLabel(schedule) }}
+                                </span>
+                            </div>
+
+                            <div class="space-y-4 text-xs font-black text-muted-foreground uppercase">
+                                <div class="flex gap-3">
+                                    <Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-400" />
+                                    <div>
+                                        <p>Waktu</p>
+                                        <p class="text-sm text-card-foreground">
+                                            {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
+                                    <div>
+                                        <p>Lokasi</p>
+                                        <p class="text-sm text-card-foreground normal-case">
+                                            {{ schedule.location || schedule.branch || 'Rhino Fighter' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="canManage && schedule.can_manage" class="mt-4 flex gap-2 border-t border-border pt-3" >
+                                <button type="button" class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-card-foreground hover:bg-muted" @click="emit('edit', schedule)">
+                                    Edit
+                                </button>
+                                <button type="button" class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/15" @click="emit('delete', schedule)" >
+                                    Delete
+                                </button>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div v-else class="flex h-full min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase">
+                        <CalendarDays class="mb-3 size-8 opacity-70" />
+                        Libur
+                    </div>
+                </div>
+            </section>
+        </div>
+
+
+        <div class="hidden gap-3 xl:grid xl:grid-cols-7">
+            <div v-for="day in days" :key="`head-${day.id}`" class="rounded-xl border px-5 py-5 shadow-sm transition" :class="
                     day.id === todayDay
                         ? 'border-red-500 bg-red-500 text-white shadow-red-500/20 dark:border-red-400 dark:bg-red-500 dark:text-white'
                         : 'border-border bg-card text-card-foreground'
-                "
-            >
+                ">
                 <p class="text-xl leading-none font-black">{{ day.name }}</p>
                 <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">
                     {{ day.english }}
@@ -129,18 +194,10 @@ function typeTone(schedule: WeeklyScheduleCard): string {
             </div>
         </div>
 
-        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <div
-                v-for="day in days"
-                :key="`body-${day.id}`"
-                class="min-h-[280px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40"
-            >
+        <div class="mt-4 hidden gap-3 xl:grid xl:grid-cols-7">
+            <div v-for="day in days" :key="`body-${day.id}`" class="min-h-[280px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 shadow-sm dark:from-card dark:to-muted/40">
                 <template v-if="(schedulesByDay.get(day.id) ?? []).length">
-                    <article
-                        v-for="schedule in schedulesByDay.get(day.id)"
-                        :key="schedule.id"
-                        class="mb-3 rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md dark:border-l-red-400"
-                    >
+                    <article v-for="schedule in schedulesByDay.get(day.id)" :key="schedule.id" class="mb-3 rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md dark:border-l-red-400">
                         <div class="mb-3 border-b border-border pb-3">
                             <h3 class="text-base font-black text-card-foreground">
                                 {{
@@ -154,10 +211,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                                     schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka'
                                 }}
                             </p>
-                            <span
-                                class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black"
-                                :class="typeTone(schedule)"
-                            >
+                            <span class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black":class="typeTone(schedule)">
                                 <Crown class="size-3" /> {{ typeLabel(schedule) }}
                             </span>
                         </div>
@@ -183,31 +237,17 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                             </div>
                         </div>
 
-                        <div
-                            v-if="canManage && schedule.can_manage"
-                            class="mt-4 flex gap-2 border-t border-border pt-3"
-                        >
-                            <button
-                                type="button"
-                                class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-card-foreground hover:bg-muted"
-                                @click="emit('edit', schedule)"
-                            >
+                        <div v-if="canManage && schedule.can_manage" class="mt-4 flex gap-2 border-t border-border pt-3">
+                            <button type="button" class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-card-foreground hover:bg-muted" @click="emit('edit', schedule)">
                                 Edit
                             </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/15"
-                                @click="emit('delete', schedule)"
-                            >
+                            <button type="button" class="rounded-lg border border-border px-3 py-1 text-xs font-bold text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-500/15" @click="emit('delete', schedule)">
                                 Delete
                             </button>
                         </div>
                     </article>
                 </template>
-                <div
-                    v-else
-                    class="flex h-full min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase"
-                >
+                <div v-else class="flex h-full min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase">
                     <CalendarDays class="mb-3 size-8 opacity-70" />
                     Libur
                 </div>
