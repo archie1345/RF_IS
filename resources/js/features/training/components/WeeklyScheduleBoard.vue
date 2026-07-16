@@ -135,11 +135,11 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                 :key="`body-${day.id}`"
                 class="min-h-[280px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40"
             >
-                <template v-if="(schedulesByDay.get(day.id) ?? []).length">
+                <div v-if="(schedulesByDay.get(day.id) ?? []).length" class="space-y-3">
                     <article
                         v-for="schedule in schedulesByDay.get(day.id)"
                         :key="schedule.id"
-                        class="mb-3 rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md dark:border-l-red-400"
+                        class="rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md dark:border-l-red-400"
                     >
                         <div class="mb-3 border-b border-border pb-3">
                             <h3 class="text-base font-black text-card-foreground">
@@ -203,7 +203,7 @@ function typeTone(schedule: WeeklyScheduleCard): string {
                             </button>
                         </div>
                     </article>
-                </template>
+                </div>
                 <div
                     v-else
                     class="flex h-full min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase"
