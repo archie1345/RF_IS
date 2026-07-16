@@ -117,7 +117,6 @@ function deleteLocation(location: LocationRecord) {
             <section class="rounded-2xl border bg-card p-5 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
-                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Master Data</p>
                         <h1 class="text-3xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
                     </div>
