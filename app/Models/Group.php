@@ -43,7 +43,7 @@ class Group extends Model
 
     public function athletes(): HasMany
     {
-        return $this->hasMany(Athlete::class, 'group_id');
+        return $this->hasMany(Athlete::class, 'group_id', 'group_id');
     }
 
     public function branch(): BelongsTo

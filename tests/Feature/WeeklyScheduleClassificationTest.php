@@ -278,3 +278,106 @@ it('prevents coaches from assigning private sessions outside their managed group
         ->post(route('training-schedules.store'), $payload + ['dedicated_athlete_id' => $managedAthlete->athlete_id])
         ->assertSessionHasNoErrors();
 });
+
+it('generates sessions for an active class schedule from today and stays idempotent', function () {
+    Carbon::setTestNow('2026-07-16 09:00:00');
+
+    $branch = weeklyScheduleTestBranch('Auto Session Branch');
+    $group = Group::create([
+        'branch_id' => $branch->branch_id,
+        'group_name' => 'Test Auto Session',
+        'class_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => true,
+    ]);
+
+    $schedule = WeeklyTrainingSchedule::create([
+        'title' => $group->group_name,
+        'branch_id' => $branch->branch_id,
+        'group_id' => $group->group_id,
+        'session_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => true,
+    ]);
+
+    $result = app(GenerateWeeklyTrainingSessions::class)->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+    $secondRun = app(GenerateWeeklyTrainingSessions::class)->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
+
+    expect($schedule->fresh()->is_active)->toBeTrue()
+        ->and($result['created'])->toBeGreaterThanOrEqual(1)
+        ->and($secondRun['created'])->toBe(0)
+        ->and($secondRun['skipped'])->toBe($result['created']);
+
+    $this->assertDatabaseHas('training_sessions', [
+        'weekly_training_schedule_id' => $schedule->weekly_training_schedule_id,
+        'session_date' => now()->toDateString(),
+        'group_id' => $group->group_id,
+        'branch_id' => $branch->branch_id,
+        'status' => 'CONFIRMED',
+    ]);
+
+    Carbon::setTestNow();
+});
+
+it('does not generate sessions for inactive branch or inactive class schedules', function () {
+    Carbon::setTestNow('2026-07-16 09:00:00');
+
+    $inactiveBranch = weeklyScheduleTestBranch('Inactive Branch');
+    $inactiveBranch->update(['is_active' => false]);
+    $activeBranch = weeklyScheduleTestBranch('Active Branch');
+
+    $activeGroup = Group::create([
+        'branch_id' => $inactiveBranch->branch_id,
+        'group_name' => 'Active Group In Inactive Branch',
+        'class_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => true,
+    ]);
+    $inactiveGroup = Group::create([
+        'branch_id' => $activeBranch->branch_id,
+        'group_name' => 'Inactive Group',
+        'class_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => false,
+    ]);
+
+    $inactiveBranchSchedule = WeeklyTrainingSchedule::create([
+        'title' => 'Inactive Branch Schedule',
+        'branch_id' => $inactiveBranch->branch_id,
+        'group_id' => $activeGroup->group_id,
+        'session_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => true,
+    ]);
+    $inactiveGroupSchedule = WeeklyTrainingSchedule::create([
+        'title' => 'Inactive Group Schedule',
+        'branch_id' => $activeBranch->branch_id,
+        'group_id' => $inactiveGroup->group_id,
+        'session_type' => 'reguler',
+        'day_of_week' => now()->isoWeekday(),
+        'start_time' => '19:00',
+        'end_time' => '20:00',
+        'is_active' => true,
+    ]);
+
+    $result = app(GenerateWeeklyTrainingSessions::class)->handle(
+        now()->startOfDay(),
+        now()->copy()->addDays(14)->endOfDay(),
+        [$inactiveBranchSchedule->weekly_training_schedule_id, $inactiveGroupSchedule->weekly_training_schedule_id]
+    );
+
+    expect($result['created'])->toBe(0)
+        ->and(TrainingSession::query()->count())->toBe(0);
+
+    Carbon::setTestNow();
+});

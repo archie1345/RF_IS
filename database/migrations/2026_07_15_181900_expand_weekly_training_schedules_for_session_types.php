@@ -79,6 +79,10 @@ return new class extends Migration
 
     private function isCompatibleAthleteIdColumn(): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return true;
+        }
+
         $database = DB::getDatabaseName();
         $column = DB::table('information_schema.COLUMNS')
             ->where('TABLE_SCHEMA', $database)
@@ -96,6 +100,11 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list('{$table}')"))
+                ->contains(fn ($row) => ($row->name ?? null) === $index);
+        }
+
         return DB::table('information_schema.STATISTICS')
             ->where('TABLE_SCHEMA', DB::getDatabaseName())
             ->where('TABLE_NAME', $table)
@@ -105,6 +114,10 @@ return new class extends Migration
 
     private function foreignKeyExists(string $table, string $constraint): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return false;
+        }
+
         return DB::table('information_schema.KEY_COLUMN_USAGE')
             ->where('TABLE_SCHEMA', DB::getDatabaseName())
             ->where('TABLE_NAME', $table)
