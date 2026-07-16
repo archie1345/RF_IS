@@ -16,6 +16,7 @@ trait BuildsTrainingPayloads
     private function weeklyScheduleQuery(CarbonInterface $weekStart, CarbonInterface $weekEnd)
     {
         return WeeklyTrainingSchedule::query()
+            ->whereHas('branch', fn ($query) => $query->where('is_active', true))
             ->with([
                 'branch',
                 'group' => fn ($query) => $query->withCount('athletes'),
