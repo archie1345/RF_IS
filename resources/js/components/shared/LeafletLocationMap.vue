@@ -33,7 +33,7 @@ let map: L.Map | null = null;
 let marker: L.Marker | null = null;
 let radiusCircle: L.Circle | null = null;
 
-const defaultCenter: L.LatLngExpression = [-6.2, 106.816666];
+const defaultCenter: L.LatLngExpression = [-7.9173211, 112.6448861];
 
 function numericCoordinate(value: LatLngValue): number | null {
     if (value === null || value === undefined || value === '') return null;
@@ -100,7 +100,7 @@ onMounted(async () => {
     if (!mapEl.value) return;
 
     const initial = currentLatLng() ?? defaultCenter;
-    map = L.map(mapEl.value, { scrollWheelZoom: true }).setView(initial, currentLatLng() ? props.zoom : 11);
+    map = L.map(mapEl.value, { scrollWheelZoom: true }).setView(initial, currentLatLng() ? props.zoom : 16);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
