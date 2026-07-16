@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Sessions\GenerateWeeklyTrainingSessions;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Group;
@@ -17,17 +18,20 @@ class GroupController extends Controller
 {
     private const CLASS_TYPES = ['reguler', 'prestasi', 'private', 'pemula', 'sparring'];
 
+    public function __construct(private readonly GenerateWeeklyTrainingSessions $sessionGenerator) {}
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $this->validatedGroup($request);
         $group = Group::create($this->payload($validated));
-        $this->syncWeeklySchedule($group->refresh());
+        $schedule = $this->syncWeeklySchedule($group->refresh());
+        $result = $this->generateSessionsForSchedule($schedule);
 
-        ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created group', $group, ['group_name' => $group->group_name]);
+        ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created group', $group, ['group_name' => $group->group_name, 'auto_created_sessions' => $result['created']]);
 
-        return back()->with('status', 'Class saved and linked to weekly schedule.');
+        return back()->with('status', "Class saved and linked to weekly schedule. Auto-created {$result['created']} sessions; skipped {$result['skipped']} duplicates.");
     }
 
     public function update(Request $request, Group $group): RedirectResponse
@@ -36,11 +40,12 @@ class GroupController extends Controller
 
         $validated = $this->validatedGroup($request);
         $group->update($this->payload($validated));
-        $this->syncWeeklySchedule($group->refresh());
+        $schedule = $this->syncWeeklySchedule($group->refresh());
+        $result = $this->generateSessionsForSchedule($schedule);
 
-        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name]);
+        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name, 'auto_created_sessions' => $result['created']]);
 
-        return back()->with('status', 'Class updated and weekly schedule synced.');
+        return back()->with('status', "Class updated and weekly schedule synced. Auto-created {$result['created']} sessions; skipped {$result['skipped']} duplicates.");
     }
 
     public function destroy(Request $request, Group $group): RedirectResponse
@@ -100,7 +105,7 @@ class GroupController extends Controller
         ];
     }
 
-    private function syncWeeklySchedule(Group $group): void
+    private function syncWeeklySchedule(Group $group): ?WeeklyTrainingSchedule
     {
         $group->loadMissing('branch');
 
@@ -117,12 +122,12 @@ class GroupController extends Controller
 
         if (! $isSchedulable) {
             $existing?->update(['is_active' => false]);
-            return;
+            return null;
         }
 
         $sessionType = str($group->class_type ?? 'reguler')->lower()->slug('_')->toString();
 
-        WeeklyTrainingSchedule::query()->updateOrCreate(
+        return WeeklyTrainingSchedule::query()->updateOrCreate(
             ['group_id' => $group->group_id],
             [
                 'title' => $group->group_name,
@@ -137,6 +142,27 @@ class GroupController extends Controller
                 'location' => $group->branch?->location ?? $group->branch?->branch_name,
                 'is_active' => true,
             ],
+        );
+    }
+
+    /**
+     * @return array{created:int, skipped:int, from:string, to:string}
+     */
+    private function generateSessionsForSchedule(?WeeklyTrainingSchedule $schedule): array
+    {
+        if (! $schedule) {
+            return [
+                'created' => 0,
+                'skipped' => 0,
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+            ];
+        }
+
+        return $this->sessionGenerator->handle(
+            now()->startOfDay(),
+            now()->copy()->addDays(14)->endOfDay(),
+            [$schedule->weekly_training_schedule_id],
         );
     }
 
