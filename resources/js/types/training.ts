@@ -9,6 +9,7 @@ export type LocationRecord = {
     province?: string | null;
     latitude?: string | number | null;
     longitude?: string | number | null;
+    google_maps_url?: string | null;
     attendance_radius_meters: number;
     timezone?: string | null;
     is_active: boolean;
@@ -56,6 +57,7 @@ export type WeeklySchedule = {
     location?: string | null;
     latitude?: string | number | null;
     longitude?: string | number | null;
+    google_maps_url?: string | null;
     min_belt?: string | null;
     min_belt_label?: string | null;
     is_active?: boolean;
