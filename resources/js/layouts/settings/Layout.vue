@@ -6,30 +6,26 @@ import { Button } from '@/components/ui/button';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { type NavItem } from '@/types';
-import { edit as editAppearance } from '@/routes/appearance';
-import { edit as editProfile } from '@/routes/profile';
-import { show } from '@/routes/two-factor';
-import { edit as editPassword } from '@/routes/user-password';
 
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
-        href: editProfile(),
+        href: '/settings/profile',
         icon: UserRound,
     },
     {
         title: 'Password',
-        href: editPassword(),
+        href: '/settings/password',
         icon: KeyRound,
     },
     {
         title: 'Two-Factor Auth',
-        href: show(),
+        href: '/settings/two-factor',
         icon: ShieldCheck,
     },
     {
         title: 'Appearance',
-        href: editAppearance(),
+        href: '/settings/appearance',
         icon: Palette,
     },
 ];
