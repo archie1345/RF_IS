@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
 use App\Models\WeeklyTrainingSchedule;
+use App\Support\Domain\BeltRank;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -54,6 +55,8 @@ trait BuildsTrainingPayloads
             'generated_sessions_count' => $schedule->generated_sessions_count,
             'can_manage' => $this->canManageSchedule($request, $schedule),
             'class_type' => $schedule->group?->class_type,
+            'min_belt' => $schedule->group?->min_belt,
+            'min_belt_label' => BeltRank::label($schedule->group?->min_belt),
             'athletes_count' => $schedule->group?->athletes_count,
         ])->values();
     }
@@ -97,6 +100,7 @@ trait BuildsTrainingPayloads
                 'start_time' => $group->start_time ? substr((string) $group->start_time, 0, 5) : '',
                 'end_time' => $group->end_time ? substr((string) $group->end_time, 0, 5) : '',
                 'min_belt' => $group->min_belt,
+                'min_belt_label' => BeltRank::label($group->min_belt),
                 'description' => $group->description,
                 'athletes_count' => $group->athletes_count ?? 0,
                 'is_active' => (bool) ($group->is_active ?? true),
@@ -118,28 +122,7 @@ trait BuildsTrainingPayloads
 
     private function beltOptions()
     {
-        return collect([
-            'Geup 10',
-            'Geup 9',
-            'Geup 8',
-            'Geup 7',
-            'Geup 6',
-            'Geup 5',
-            'Geup 4',
-            'Geup 3',
-            'Geup 2',
-            'Geup 1',
-            'Dan 1',
-            'Dan 2',
-            'Dan 3',
-            'Dan 4',
-            'Dan 5',
-            'Dan 6',
-            'Dan 7',
-            'Dan 8',
-            'Dan 9',
-            'Dan 10',
-        ])->map(fn (string $belt) => ['value' => $belt, 'label' => $belt])->values();
+        return collect(BeltRank::options())->values();
     }
 
     private function canManageSchedule(Request $request, WeeklyTrainingSchedule $schedule): bool
