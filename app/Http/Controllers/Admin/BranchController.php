@@ -123,18 +123,134 @@ class BranchController extends Controller
 
     private function expandGoogleMapsUrl(string $url): ?string
     {
-        if (! str_contains($url, 'maps.app.goo.gl') && ! str_contains($url, 'goo.gl/maps')) {
+        if (! $this->looksLikeGoogleMapsUrl($url)) {
             return null;
         }
 
-        try {
-            $response = Http::timeout(6)->withOptions(['allow_redirects' => false])->get($url);
-            $location = $response->header('Location');
+        $current = $url;
+        $visited = [];
 
-            return is_string($location) && $location !== '' ? $location : null;
+        for ($attempt = 0; $attempt < 8; $attempt++) {
+            if (isset($visited[$current])) {
+                break;
+            }
+
+            $visited[$current] = true;
+
+            try {
+                $response = Http::timeout(8)
+                    ->withHeaders([
+                        'User-Agent' => 'Mozilla/5.0 RhinoFighterLocationLookup/1.0',
+                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    ])
+                    ->withOptions([
+                        'allow_redirects' => false,
+                        'http_errors' => false,
+                    ])
+                    ->get($current);
+            } catch (Throwable) {
+                break;
+            }
+
+            $location = $response->header('Location');
+            if (! is_string($location) || trim($location) === '') {
+                break;
+            }
+
+            $next = $this->absoluteRedirectUrl($location, $current);
+            if (! $next || $next === $current) {
+                break;
+            }
+
+            $current = $next;
+
+            if ($this->extractCoordinatesFromGoogleMapsUrl($current)) {
+                return $current;
+            }
+        }
+
+        if ($current !== $url) {
+            return $current;
+        }
+
+        return $this->expandGoogleMapsUrlWithRedirectHistory($url);
+    }
+
+    private function expandGoogleMapsUrlWithRedirectHistory(string $url): ?string
+    {
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 RhinoFighterLocationLookup/1.0',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                ])
+                ->withOptions([
+                    'allow_redirects' => [
+                        'max' => 8,
+                        'track_redirects' => true,
+                    ],
+                    'http_errors' => false,
+                ])
+                ->get($url);
+
+            $history = $response->header('X-Guzzle-Redirect-History');
+            if (! is_string($history) || trim($history) === '') {
+                return null;
+            }
+
+            $redirects = collect(explode(',', $history))
+                ->map(fn (string $item) => trim($item))
+                ->filter()
+                ->values();
+
+            return $redirects->last() ?: null;
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function looksLikeGoogleMapsUrl(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($host)) {
+            return false;
+        }
+
+        $host = strtolower($host);
+
+        return str_contains($host, 'google.')
+            || $host === 'maps.app.goo.gl'
+            || $host === 'goo.gl';
+    }
+
+    private function absoluteRedirectUrl(string $location, string $baseUrl): ?string
+    {
+        $location = html_entity_decode(trim($location));
+        if ($location === '') {
+            return null;
+        }
+
+        if (str_starts_with($location, 'http://') || str_starts_with($location, 'https://')) {
+            return $location;
+        }
+
+        $scheme = parse_url($baseUrl, PHP_URL_SCHEME) ?: 'https';
+        $host = parse_url($baseUrl, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return null;
+        }
+
+        if (str_starts_with($location, '//')) {
+            return $scheme.':'.$location;
+        }
+
+        if (str_starts_with($location, '/')) {
+            return $scheme.'://'.$host.$location;
+        }
+
+        return $scheme.'://'.$host.'/'.ltrim($location, '/');
     }
 
     private function extractCoordinatesFromGoogleMapsUrl(string $url): ?array
@@ -142,8 +258,9 @@ class BranchController extends Controller
         $decoded = urldecode($url);
         $patterns = [
             '/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
-            '/[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
+            '/[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
             '/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/',
+            '/[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/',
         ];
 
         foreach ($patterns as $pattern) {
