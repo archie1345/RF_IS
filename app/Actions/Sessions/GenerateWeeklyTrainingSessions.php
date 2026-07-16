@@ -3,7 +3,6 @@
 namespace App\Actions\Sessions;
 
 use App\Actions\Attendance\InitializeSessionAttendance;
-use App\Models\Coach;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Services\SessionVisibilityService;
@@ -37,6 +36,11 @@ class GenerateWeeklyTrainingSessions
         $schedules = WeeklyTrainingSchedule::query()
             ->with(['branch', 'group'])
             ->where('is_active', true)
+            ->whereHas('branch', fn ($query) => $query->where('is_active', true))
+            ->where(function ($query): void {
+                $query->whereNull('group_id')
+                    ->orWhereHas('group', fn ($groupQuery) => $groupQuery->where('is_active', true));
+            })
             ->when($scheduleIds !== null, fn ($query) => $query->whereIn('weekly_training_schedule_id', $scheduleIds))
             ->orderBy('day_of_week')
             ->orderBy('start_time')
@@ -53,7 +57,7 @@ class GenerateWeeklyTrainingSessions
                 DB::transaction(function () use ($schedule, $date, $attachScheduleCoach, &$created): void {
                     $coachId = $attachScheduleCoach && $schedule->coach_id
                         ? $schedule->coach_id
-                        : Coach::query()->orderBy('coach_id')->value('coach_id');
+                        : null;
 
                     $session = TrainingSession::query()->create([
                         'weekly_training_schedule_id' => $schedule->weekly_training_schedule_id,
