@@ -25,7 +25,7 @@ class TrainingClassController extends Controller
             ->withCount('athletes')
             ->orderBy('group_name')
             ->get();
-        $branches = Branch::query()->orderBy('branch_name')->get();
+        $branches = Branch::query()->where('is_active', true)->orderBy('branch_name')->get();
 
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',
