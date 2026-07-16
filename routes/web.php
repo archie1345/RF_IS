@@ -133,12 +133,9 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
             Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete'); 
             Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import'); 
             Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export'); 
-            Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template');
-        });
+            Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template'); });
 
         Route::controller(BranchController::class)->group(function () { 
-            Route::post('branches/openstreetmap-lookup', 'lookupOpenStreetMap')->name('branches.openstreetmap-lookup');
-            Route::post('branches/google-maps-lookup', 'lookupGoogleMaps')->name('branches.google-maps-lookup');
             Route::post('branches', 'store')->name('branches.store'); 
             Route::put('branches/{branch}', 'update')->name('branches.update'); 
             Route::delete('branches/{branch}', 'destroy')->name('branches.destroy'); });
