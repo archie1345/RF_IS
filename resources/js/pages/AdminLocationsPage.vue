@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { MapPin, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { LocationRecord } from '@/types/training';
+
+declare global {
+    interface Window {
+        google?: any;
+        __rfGoogleMapsPromise?: Promise<void>;
+    }
+}
 
 const props = withDefaults(
     defineProps<{
@@ -26,11 +33,14 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.title, href: '/admin/locations' },
 ];
 
+const googleMapsBrowserKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
 const editingLocationId = ref<number | null>(null);
 const showLocationForm = ref(false);
 const search = ref('');
 const googleLookupLoading = ref(false);
 const googleLookupMessage = ref('');
+const googlePlaceInput = ref<HTMLInputElement | null>(null);
+let autocomplete: any = null;
 
 const form = useForm({
     name: '',
@@ -74,11 +84,13 @@ function resetForm() {
     form.timezone = 'Asia/Jakarta';
     form.is_active = true;
     googleLookupMessage.value = '';
+    if (googlePlaceInput.value) googlePlaceInput.value.value = '';
 }
 
-function openCreateLocation() {
+async function openCreateLocation() {
     resetForm();
     showLocationForm.value = true;
+    await initGooglePlacesAutocomplete();
 }
 
 function closeLocationForm() {
@@ -86,7 +98,7 @@ function closeLocationForm() {
     resetForm();
 }
 
-function editLocation(location: LocationRecord) {
+async function editLocation(location: LocationRecord) {
     editingLocationId.value = location.id;
     form.clearErrors();
     form.name = location.name;
@@ -102,6 +114,7 @@ function editLocation(location: LocationRecord) {
     form.is_active = location.is_active;
     googleLookupMessage.value = '';
     showLocationForm.value = true;
+    await initGooglePlacesAutocomplete();
 }
 
 function setCoordinates(payload: { latitude: string; longitude: string }) {
@@ -117,8 +130,9 @@ function parseCoordinatesFromGoogleMapsUrl(url: string): { latitude: string; lon
     const decoded = decodeURIComponent(url);
     const patterns = [
         /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
-        /[?&](?:q|query)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
+        /[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
         /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,
+        /[?&]center=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
     ];
 
     for (const pattern of patterns) {
@@ -142,6 +156,93 @@ function applyGoogleMapsDetails(details: Record<string, string | null | undefine
     if (details.address) form.address = details.address;
     if (details.city) form.city = details.city;
     if (details.province) form.province = details.province;
+}
+
+function componentValue(components: any[] | undefined, types: string[]): string {
+    const component = components?.find((item) => types.some((type) => item.types?.includes(type)));
+    return component?.long_name ?? '';
+}
+
+function applyGooglePlace(place: any) {
+    const lat = place.geometry?.location?.lat?.();
+    const lng = place.geometry?.location?.lng?.();
+
+    if (place.name) form.name = place.name;
+    if (place.formatted_address) form.address = place.formatted_address;
+    if (place.url) form.google_maps_url = place.url;
+
+    const city = componentValue(place.address_components, ['locality', 'administrative_area_level_2']);
+    const province = componentValue(place.address_components, ['administrative_area_level_1']);
+    if (city) form.city = city;
+    if (province) form.province = province;
+
+    if (typeof lat === 'number' && typeof lng === 'number') {
+        form.latitude = lat.toFixed(7);
+        form.longitude = lng.toFixed(7);
+    }
+
+    googleLookupMessage.value = 'Detail lokasi berhasil diisi dari Google Places.';
+}
+
+function loadGoogleMapsScript(): Promise<void> {
+    if (window.google?.maps?.places) return Promise.resolve();
+    if (window.__rfGoogleMapsPromise) return window.__rfGoogleMapsPromise;
+
+    if (!googleMapsBrowserKey) {
+        return Promise.reject(new Error('VITE_GOOGLE_MAPS_API_KEY belum diset.'));
+    }
+
+    window.__rfGoogleMapsPromise = new Promise<void>((resolve, reject) => {
+        const existing = document.querySelector<HTMLScriptElement>('script[data-rf-google-maps="true"]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('Google Maps script gagal dimuat.')), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsBrowserKey)}&libraries=places&loading=async`;
+        script.async = true;
+        script.defer = true;
+        script.dataset.rfGoogleMaps = 'true';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Google Maps script gagal dimuat.'));
+        document.head.appendChild(script);
+    });
+
+    return window.__rfGoogleMapsPromise;
+}
+
+async function initGooglePlacesAutocomplete() {
+    await nextTick();
+    if (!showLocationForm.value || !googlePlaceInput.value) return;
+
+    try {
+        await loadGoogleMapsScript();
+    } catch (error) {
+        googleLookupMessage.value = error instanceof Error ? error.message : 'Google Places belum tersedia.';
+        return;
+    }
+
+    if (!window.google?.maps?.places) {
+        googleLookupMessage.value = 'Google Places belum aktif di API key ini.';
+        return;
+    }
+
+    autocomplete = new window.google.maps.places.Autocomplete(googlePlaceInput.value, {
+        fields: ['address_components', 'formatted_address', 'geometry', 'name', 'url'],
+        componentRestrictions: { country: 'id' },
+    });
+
+    autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place?.geometry?.location) {
+            googleLookupMessage.value = 'Pilih lokasi dari dropdown Google Places, bukan hanya mengetik.';
+            return;
+        }
+
+        applyGooglePlace(place);
+    });
 }
 
 async function autofillFromGoogleMaps() {
@@ -180,11 +281,11 @@ async function autofillFromGoogleMaps() {
         applyGoogleMapsDetails(details);
         googleLookupMessage.value = details.address
             ? 'Detail lokasi berhasil diisi dari Google Maps.'
-            : 'Koordinat berhasil diisi. Tambahkan GOOGLE_MAPS_API_KEY untuk auto-fill alamat lengkap.';
+            : 'Koordinat berhasil diisi. Untuk link pendek yang tidak terbaca, gunakan Search Google Places.';
     } catch {
         googleLookupMessage.value = parsed
             ? 'Koordinat sudah diisi dari link, tapi detail alamat belum tersedia.'
-            : 'Link belum bisa dibaca otomatis. Isi koordinat manual atau klik peta.';
+            : 'Link belum bisa dibaca otomatis. Gunakan Search Google Places, isi koordinat manual, atau klik peta.';
     } finally {
         googleLookupLoading.value = false;
     }
@@ -201,6 +302,10 @@ function deleteLocation(location: LocationRecord) {
         router.delete(`/admin/branches/${location.id}`, { preserveScroll: true });
     }
 }
+
+watch(showLocationForm, (isOpen) => {
+    if (isOpen) void initGooglePlacesAutocomplete();
+});
 </script>
 
 <template>
@@ -327,8 +432,21 @@ function deleteLocation(location: LocationRecord) {
                 <form class="grid gap-4" @submit.prevent="saveLocation">
                     <h2 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Paste link Google Maps untuk auto-fill, atau klik peta / isi koordinat manual.
+                        Search Google Places untuk auto-fill lengkap. Google Maps link, Leaflet, dan koordinat manual tetap bisa dipakai sebagai fallback.
                     </p>
+
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Search Google Places
+                        <input
+                            ref="googlePlaceInput"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            placeholder="Cari nama dojang / gedung / alamat, lalu pilih dari dropdown Google"
+                            type="text"
+                        />
+                        <span class="text-xs text-muted-foreground">
+                            Butuh VITE_GOOGLE_MAPS_API_KEY dan Places API aktif. Ini paling akurat dibanding paste short link.
+                        </span>
+                    </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Google Maps Link
@@ -345,7 +463,7 @@ function deleteLocation(location: LocationRecord) {
                                 :disabled="googleLookupLoading"
                                 @click="autofillFromGoogleMaps"
                             >
-                                {{ googleLookupLoading ? 'Membaca...' : 'Auto-fill' }}
+                                {{ googleLookupLoading ? 'Membaca...' : 'Auto-fill Link' }}
                             </button>
                         </div>
                         <span v-if="googleLookupMessage" class="text-xs text-muted-foreground">{{ googleLookupMessage }}</span>
