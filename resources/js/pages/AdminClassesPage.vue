@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
+import { CalendarDays, Pencil, RefreshCcw, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -50,6 +50,7 @@ const classTypeOptions = [
 ];
 
 const editingClassId = ref<number | null>(null);
+const selectedClass = ref<ClassRecord | null>(null);
 const showClassForm = ref(false);
 const search = ref('');
 
@@ -142,6 +143,10 @@ function openCreateClass() {
 function closeClassForm() {
     showClassForm.value = false;
     resetForm();
+}
+
+function openClassAthletes(item: ClassRecord) {
+    selectedClass.value = item;
 }
 
 function editClass(item: ClassRecord) {
@@ -245,7 +250,12 @@ watch(
                                     Belum ada kelas.
                                 </td>
                             </tr>
-                            <tr v-for="item in filteredClasses" :key="item.id" class="border-b hover:bg-muted/40">
+                            <tr
+                                v-for="item in filteredClasses"
+                                :key="item.id"
+                                class="cursor-pointer border-b hover:bg-muted/40"
+                                @click="openClassAthletes(item)"
+                            >
                                 <td class="max-w-[260px] px-3 py-4">
                                     <p class="truncate font-black">{{ item.name }}</p>
                                     <p class="truncate text-xs text-muted-foreground">
@@ -262,7 +272,11 @@ watch(
                                         {{ item.start_time }} - {{ item.end_time }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-4">{{ item.athletes_count }} atlet</td>
+                                <td class="px-3 py-4">
+                                    <span class="inline-flex items-center gap-1 font-bold">
+                                        <Users class="size-3" /> {{ item.athletes_count }} atlet
+                                    </span>
+                                </td>
                                 <td class="px-3 py-4">{{ item.weekly_schedule_status }}</td>
                                 <td class="px-3 py-4">
                                     <span
@@ -277,12 +291,12 @@ watch(
                                 </td>
                                 <td class="px-3 py-4">
                                     <div class="flex gap-2">
-                                        <button type="button" class="rounded border px-2 py-1" @click="editClass(item)">
+                                        <button type="button" class="rounded border px-2 py-1" @click.stop="editClass(item)">
                                             <Pencil class="size-4" /></button
                                         ><button
                                             type="button"
                                             class="rounded border px-2 py-1 text-red-600"
-                                            @click="deleteClass(item)"
+                                            @click.stop="deleteClass(item)"
                                         >
                                             <Trash2 class="size-4" />
                                         </button>
@@ -438,6 +452,42 @@ watch(
                         </div>
                     </div>
                 </form>
+            </FormModal>
+
+            <FormModal :open="Boolean(selectedClass)" max-width-class="max-w-3xl" @close="selectedClass = null">
+                <section v-if="selectedClass" class="grid gap-4">
+                    <div>
+                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
+                        <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
+                        <p class="text-sm text-muted-foreground">
+                            {{ classTypeLabel(selectedClass.class_type) }} · {{ selectedClass.branch }} · {{ selectedClass.athletes_count }} atlet
+                        </p>
+                    </div>
+
+                    <div class="overflow-hidden rounded-xl border">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b bg-muted/40 text-left">
+                                    <th class="px-3 py-3 font-black">Nama Atlet</th>
+                                    <th class="px-3 py-3 font-black">Sabuk / Geup</th>
+                                    <th class="px-3 py-3 font-black">Cabang</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="!selectedClass.athletes?.length">
+                                    <td colspan="3" class="h-28 px-3 text-center text-muted-foreground">
+                                        Belum ada atlet di kelas ini.
+                                    </td>
+                                </tr>
+                                <tr v-for="athlete in selectedClass.athletes" :key="String(athlete.id)" class="border-b last:border-b-0">
+                                    <td class="px-3 py-3 font-bold">{{ athlete.name }}</td>
+                                    <td class="px-3 py-3 text-muted-foreground">{{ athlete.geup || '-' }}</td>
+                                    <td class="px-3 py-3 text-muted-foreground">{{ athlete.branch || selectedClass.branch || '-' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </FormModal>
         </div>
     </AppLayout>
