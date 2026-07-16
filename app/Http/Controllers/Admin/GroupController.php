@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Sessions\GenerateWeeklyTrainingSessions;
 use App\Http\Controllers\Controller;
+use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
 use App\Support\Domain\BeltRank;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -46,6 +48,17 @@ class GroupController extends Controller
         ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name, 'auto_created_sessions' => $result['created']]);
 
         return back()->with('status', "Class updated and weekly schedule synced. Auto-created {$result['created']} sessions; skipped {$result['skipped']} duplicates.");
+    }
+
+    public function athletes(Request $request, Group $group): JsonResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $group->load(['athletes.user:id,name', 'athletes.branch:branch_id,branch_name']);
+
+        return response()->json([
+            'athletes' => $this->athletePayload($group),
+        ]);
     }
 
     public function destroy(Request $request, Group $group): RedirectResponse
@@ -164,6 +177,20 @@ class GroupController extends Controller
             now()->copy()->addDays(14)->endOfDay(),
             [$schedule->weekly_training_schedule_id],
         );
+    }
+
+    private function athletePayload(Group $group): array
+    {
+        return $group->athletes
+            ->sortBy(fn (Athlete $athlete) => $athlete->user?->name ?? '')
+            ->map(fn (Athlete $athlete) => [
+                'id' => $athlete->athlete_id,
+                'name' => $athlete->user?->name ?? ('Atlet #'.$athlete->athlete_id),
+                'geup' => $athlete->geup,
+                'branch' => $athlete->branch?->branch_name,
+            ])
+            ->values()
+            ->all();
     }
 
     private function canActivate(array $validated): bool
