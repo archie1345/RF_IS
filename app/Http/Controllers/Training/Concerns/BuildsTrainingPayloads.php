@@ -17,6 +17,10 @@ trait BuildsTrainingPayloads
     {
         return WeeklyTrainingSchedule::query()
             ->whereHas('branch', fn ($query) => $query->where('is_active', true))
+            ->where(function ($query): void {
+                $query->whereNull('group_id')
+                    ->orWhereHas('group', fn ($groupQuery) => $groupQuery->where('is_active', true));
+            })
             ->with([
                 'branch',
                 'group' => fn ($query) => $query->withCount('athletes'),
