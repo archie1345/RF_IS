@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
@@ -83,6 +84,7 @@ class GroupController extends Controller
     private function payload(array $validated): array
     {
         $classType = str($validated['class_type'] ?? 'reguler')->lower()->slug('_')->toString();
+        $validated['class_type'] = $classType;
 
         return [
             'group_name' => $validated['name'],
@@ -94,14 +96,24 @@ class GroupController extends Controller
             'end_time' => $validated['end_time'],
             'min_belt' => BeltRank::normalize($validated['min_belt'] ?? null) ?: null,
             'description' => $validated['description'] ?? null,
-            'is_active' => (bool) ($validated['is_active'] ?? true),
+            'is_active' => (bool) ($validated['is_active'] ?? true) && $this->canActivate($validated),
         ];
     }
 
     private function syncWeeklySchedule(Group $group): void
     {
+        $group->loadMissing('branch');
+
         $existing = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
-        $isSchedulable = (bool) ($group->is_active && $group->branch_id && $group->day_of_week && $group->start_time && $group->end_time);
+        $isSchedulable = (bool) (
+            $group->is_active
+            && $group->branch?->is_active
+            && $group->branch_id
+            && $group->day_of_week
+            && $group->start_time
+            && $group->end_time
+            && (($group->class_type ?? null) !== 'private' || filled($group->coach_id))
+        );
 
         if (! $isSchedulable) {
             $existing?->update(['is_active' => false]);
@@ -126,5 +138,20 @@ class GroupController extends Controller
                 'is_active' => true,
             ],
         );
+    }
+
+    private function canActivate(array $validated): bool
+    {
+        $classType = $validated['class_type'] ?? null;
+        $branchId = $validated['branch_id'] ?? null;
+
+        return filled($validated['name'] ?? null)
+            && in_array($classType, self::CLASS_TYPES, true)
+            && filled($branchId)
+            && Branch::query()->where('branch_id', $branchId)->where('is_active', true)->exists()
+            && filled($validated['day_of_week'] ?? null)
+            && filled($validated['start_time'] ?? null)
+            && filled($validated['end_time'] ?? null)
+            && ($classType !== 'private' || filled($validated['coach_id'] ?? null));
     }
 }
