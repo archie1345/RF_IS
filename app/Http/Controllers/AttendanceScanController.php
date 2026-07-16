@@ -150,6 +150,10 @@ class AttendanceScanController extends Controller
             return ['not_eligible', 'You are not eligible for this session branch.'];
         }
 
+        if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
+            return ['not_eligible', 'You are not the assigned athlete for this private session.'];
+        }
+
         if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
             return ['not_eligible', 'You are not eligible for this session group.'];
         }
