@@ -10,6 +10,7 @@ use App\Models\TrainingSession;
 use App\Services\AttendanceQrTokenService;
 use App\Support\ActivityLogger;
 use App\Support\Domain\AttendanceStatus;
+use App\Support\Domain\BeltRank;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,6 +112,7 @@ class AttendanceScanController extends Controller
             'location' => $session->branch?->location,
             'branch' => $session->branch?->branch_name ?? 'Unassigned',
             'group' => $session->group?->group_name ?? 'All groups',
+            'minimum_belt' => BeltRank::label($session->group?->min_belt),
             'status' => $session->status,
             'attendance_status' => AttendanceStatus::PRESENT,
             'opens_at' => $session->attendance_opens_at?->format('Y-m-d H:i'),
@@ -125,6 +127,8 @@ class AttendanceScanController extends Controller
         if (! $session) {
             return ['invalid', 'This QR attendance code is invalid or has been closed.'];
         }
+
+        $session->loadMissing('group');
 
         if (! $deviceAllowed) {
             return ['desktop_blocked', 'QR attendance is only available on phones and tablets.'];
@@ -154,8 +158,10 @@ class AttendanceScanController extends Controller
             return ['not_eligible', 'You are not the assigned athlete for this private session.'];
         }
 
-        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
-            return ['not_eligible', 'You are not eligible for this session group.'];
+        if ($session->group_id !== null
+            && (string) $athlete->group_id !== (string) $session->group_id
+            && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
+            return ['not_eligible', 'Your belt level is not eligible for this session.'];
         }
 
         if ($attendance?->status === AttendanceStatus::PRESENT) {
