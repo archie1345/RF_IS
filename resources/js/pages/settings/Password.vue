@@ -8,13 +8,11 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { type BreadcrumbItem } from '@/types';
-import PasswordController from '@/actions/App/Http/Controllers/Settings/PasswordController';
-import { edit } from '@/routes/user-password';
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
         title: 'Password settings',
-        href: edit().url,
+        href: '/settings/password',
     },
 ];
 </script>
@@ -34,7 +32,8 @@ const breadcrumbItems: BreadcrumbItem[] = [
                 />
 
                 <Form
-                    v-bind="PasswordController.update.form()"
+                    action="/settings/password"
+                    method="put"
                     :options="{
                         preserveScroll: true,
                     }"
@@ -114,4 +113,3 @@ const breadcrumbItems: BreadcrumbItem[] = [
         </SettingsLayout>
     </AppLayout>
 </template>
-
