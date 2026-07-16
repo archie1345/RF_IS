@@ -21,7 +21,7 @@ class TrainingClassController extends Controller
 
         $weeklySchedules = WeeklyTrainingSchedule::query()->get();
         $groups = Group::query()
-            ->with(['branch', 'coach.user'])
+            ->with(['branch', 'coach.user', 'athletes.user', 'athletes.branch'])
             ->withCount('athletes')
             ->orderBy('group_name')
             ->get();
