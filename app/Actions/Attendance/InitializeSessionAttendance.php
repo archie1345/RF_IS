@@ -15,8 +15,12 @@ class InitializeSessionAttendance
         $athleteIds = Athlete::query()
             ->where('branch_id', $session->branch_id)
             ->when(
-                $session->group_id !== null,
-                fn ($query) => $query->where('group_id', $session->group_id),
+                $session->dedicated_athlete_id !== null,
+                fn ($query) => $query->where('athlete_id', $session->dedicated_athlete_id),
+                fn ($query) => $query->when(
+                    $session->group_id !== null,
+                    fn ($query) => $query->where('group_id', $session->group_id),
+                ),
             )
             ->pluck('athlete_id');
 

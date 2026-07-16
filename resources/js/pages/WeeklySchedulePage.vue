@@ -17,6 +17,7 @@ const props = withDefaults(
         branchOptions?: SelectOption[];
         groupOptions?: SelectOption[];
         coachOptions?: SelectOption[];
+        athleteOptions?: SelectOption[];
     }>(),
     {
         title: 'Jadwal Latihan',
@@ -28,6 +29,7 @@ const props = withDefaults(
         branchOptions: () => [],
         groupOptions: () => [],
         coachOptions: () => [],
+        athleteOptions: () => [],
     },
 );
 
@@ -54,6 +56,8 @@ const scheduleForm = useForm({
     branch_id: '',
     group_id: '',
     coach_id: props.currentCoachId ?? '',
+    session_type: 'reguler',
+    dedicated_athlete_id: '',
     day_of_week: 1,
     start_time: '16:00',
     end_time: '18:00',
@@ -62,6 +66,8 @@ const scheduleForm = useForm({
 });
 
 const scheduleFormTitle = computed(() => (editingScheduleId.value ? 'Edit Jadwal Mingguan' : 'Tambah Jadwal Mingguan'));
+const requiresDedicatedAthlete = computed(() => scheduleForm.session_type === 'private');
+const canSubmitSchedule = computed(() => !requiresDedicatedAthlete.value || Boolean(scheduleForm.dedicated_athlete_id));
 
 function resetScheduleForm() {
     editingScheduleId.value = null;
@@ -70,6 +76,8 @@ function resetScheduleForm() {
     scheduleForm.branch_id = '';
     scheduleForm.group_id = '';
     scheduleForm.coach_id = props.currentCoachId ?? '';
+    scheduleForm.session_type = 'reguler';
+    scheduleForm.dedicated_athlete_id = '';
     scheduleForm.day_of_week = 1;
     scheduleForm.start_time = '16:00';
     scheduleForm.end_time = '18:00';
@@ -84,6 +92,8 @@ function editSchedule(schedule: WeeklySchedule) {
     scheduleForm.branch_id = schedule.branch_id ? String(schedule.branch_id) : '';
     scheduleForm.group_id = schedule.group_id ? String(schedule.group_id) : '';
     scheduleForm.coach_id = schedule.coach_id ?? props.currentCoachId ?? '';
+    scheduleForm.session_type = schedule.session_type ?? 'reguler';
+    scheduleForm.dedicated_athlete_id = schedule.dedicated_athlete_id ? String(schedule.dedicated_athlete_id) : '';
     scheduleForm.day_of_week = schedule.day_of_week;
     scheduleForm.start_time = schedule.start_time || '16:00';
     scheduleForm.end_time = schedule.end_time || '18:00';
@@ -92,6 +102,14 @@ function editSchedule(schedule: WeeklySchedule) {
 }
 
 function saveSchedule() {
+    if (!canSubmitSchedule.value) {
+        scheduleForm.setError('dedicated_athlete_id', 'Pilih atlet untuk sesi private/dedicated.');
+        return;
+    }
+
+    if (!requiresDedicatedAthlete.value) scheduleForm.dedicated_athlete_id = '';
+    if (requiresDedicatedAthlete.value) scheduleForm.group_id = '';
+
     const options = { preserveScroll: true, onSuccess: resetScheduleForm };
     if (editingScheduleId.value) scheduleForm.put(`/training-schedules/${editingScheduleId.value}`, options);
     else scheduleForm.post('/training-schedules', options);
@@ -166,7 +184,8 @@ function deleteSchedule(schedule: WeeklySchedule) {
                                 <th class="px-3 py-3 font-black">Hari</th>
                                 <th class="px-3 py-3 font-black">Waktu</th>
                                 <th class="px-3 py-3 font-black">Lokasi</th>
-                                <th class="px-3 py-3 font-black">Kelas</th>
+                                <th class="px-3 py-3 font-black">Tipe</th>
+                                <th class="px-3 py-3 font-black">Kelas / Atlet</th>
                                 <th class="px-3 py-3 font-black">Coach</th>
                                 <th class="px-3 py-3 font-black">Generated</th>
                                 <th class="px-3 py-3 font-black">Status</th>
@@ -175,7 +194,7 @@ function deleteSchedule(schedule: WeeklySchedule) {
                         </thead>
                         <tbody>
                             <tr v-if="props.weeklySchedules.length === 0">
-                                <td colspan="9" class="h-32 px-3 text-center text-muted-foreground">
+                                <td colspan="10" class="h-32 px-3 text-center text-muted-foreground">
                                     Belum ada jadwal latihan.
                                 </td>
                             </tr>
@@ -193,7 +212,16 @@ function deleteSchedule(schedule: WeeklySchedule) {
                                     {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
                                 </td>
                                 <td class="px-3 py-4">{{ schedule.location || schedule.branch || '-' }}</td>
-                                <td class="px-3 py-4">{{ schedule.group || 'All groups' }}</td>
+                                <td class="px-3 py-4 font-bold capitalize">
+                                    {{ (schedule.session_type ?? 'reguler').replace('_', ' ') }}
+                                </td>
+                                <td class="px-3 py-4">
+                                    {{
+                                        schedule.session_type === 'private'
+                                            ? schedule.dedicated_athlete || '-'
+                                            : schedule.group || 'All groups'
+                                    }}
+                                </td>
                                 <td class="px-3 py-4">{{ schedule.coach || 'Belum ada coach' }}</td>
                                 <td class="px-3 py-4">{{ schedule.generated_sessions_count ?? 0 }} sesi</td>
                                 <td class="px-3 py-4">
@@ -292,6 +320,41 @@ function deleteSchedule(schedule: WeeklySchedule) {
                         </select>
                     </label>
 
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Tipe Sesi
+                        <select
+                            v-model="scheduleForm.session_type"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="reguler">Reguler</option>
+                            <option value="prestasi">Prestasi</option>
+                            <option value="private">Private / Dedicated</option>
+                            <option value="pemula">Pemula</option>
+                            <option value="sparring">Sparring</option>
+                        </select>
+                    </label>
+
+                    <label v-if="requiresDedicatedAthlete" class="grid gap-1 text-sm font-semibold">
+                        Atlet Dedicated
+                        <select
+                            v-model="scheduleForm.dedicated_athlete_id"
+                            required
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="">Pilih atlet</option>
+                            <option
+                                v-for="option in props.athleteOptions"
+                                :key="String(option.value)"
+                                :value="String(option.value)"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <span v-if="scheduleForm.errors.dedicated_athlete_id" class="text-xs text-destructive">{{
+                            scheduleForm.errors.dedicated_athlete_id
+                        }}</span>
+                    </label>
+
                     <label v-if="!props.currentCoachId" class="grid gap-1 text-sm font-semibold">
                         Coach
                         <select
@@ -357,7 +420,7 @@ function deleteSchedule(schedule: WeeklySchedule) {
                     <div class="flex gap-2 md:col-span-4">
                         <button
                             class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-                            :disabled="scheduleForm.processing"
+                            :disabled="scheduleForm.processing || !canSubmitSchedule"
                         >
                             {{
                                 scheduleForm.processing

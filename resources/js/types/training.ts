@@ -43,6 +43,9 @@ export type WeeklySchedule = {
     branch?: string | null;
     group_id?: number | null;
     group?: string | null;
+    dedicated_athlete_id?: number | string | null;
+    dedicated_athlete?: string | null;
+    session_type?: string | null;
     coach_id?: string | null;
     coach?: string | null;
     day_of_week: number;

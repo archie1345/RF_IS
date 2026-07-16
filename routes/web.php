@@ -88,6 +88,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
         Route::get('locations', [TrainingLocationController::class, 'index'])->name('locations');
         Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
+        Route::redirect('groups', '/admin/classes')->name('groups');
         Route::redirect('schedules', '/training-schedule')->name('schedules');
         Route::post('schedules', [WeeklyScheduleController::class, 'store'])->name('schedules.store');
         Route::post('schedules/generate-week', [WeeklyScheduleController::class, 'generate'])->name('schedules.generate-week');

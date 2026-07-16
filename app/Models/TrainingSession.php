@@ -27,6 +27,8 @@ class TrainingSession extends Model
         'coach_id',
         'branch_id',
         'group_id',
+        'session_type',
+        'dedicated_athlete_id',
         'title',
         'location',
         'session_date',
@@ -67,6 +69,11 @@ class TrainingSession extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
+    }
+
+    public function dedicatedAthlete(): BelongsTo
+    {
+        return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
     }
 
     public function assignedCoaches(): BelongsToMany
