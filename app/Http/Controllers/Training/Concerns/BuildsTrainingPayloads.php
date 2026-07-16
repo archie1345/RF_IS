@@ -87,7 +87,7 @@ trait BuildsTrainingPayloads
             return [
                 'id' => $group->group_id,
                 'name' => $group->group_name,
-                'class_type' => $group->class_type ?? 'General',
+                'class_type' => $group->class_type ?? 'reguler',
                 'branch_id' => $group->branch_id,
                 'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
                 'coach_id' => $group->coach_id,
@@ -118,14 +118,28 @@ trait BuildsTrainingPayloads
 
     private function beltOptions()
     {
-        $groupBelts = Group::query()
-            ->whereNotNull('min_belt')
-            ->where('min_belt', '!=', '')
-            ->distinct()
-            ->orderBy('min_belt')
-            ->pluck('min_belt');
-
-        return $groupBelts->filter()->unique()->values()->map(fn ($belt) => ['value' => (string) $belt, 'label' => (string) $belt]);
+        return collect([
+            'Geup 10',
+            'Geup 9',
+            'Geup 8',
+            'Geup 7',
+            'Geup 6',
+            'Geup 5',
+            'Geup 4',
+            'Geup 3',
+            'Geup 2',
+            'Geup 1',
+            'Dan 1',
+            'Dan 2',
+            'Dan 3',
+            'Dan 4',
+            'Dan 5',
+            'Dan 6',
+            'Dan 7',
+            'Dan 8',
+            'Dan 9',
+            'Dan 10',
+        ])->map(fn (string $belt) => ['value' => $belt, 'label' => $belt])->values();
     }
 
     private function canManageSchedule(Request $request, WeeklyTrainingSchedule $schedule): bool
