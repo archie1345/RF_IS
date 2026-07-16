@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Training\Concerns;
 
+use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
@@ -112,11 +113,25 @@ trait BuildsTrainingPayloads
                 'min_belt_label' => BeltRank::label($group->min_belt),
                 'description' => $group->description,
                 'athletes_count' => $group->athletes_count ?? 0,
+                'athletes' => $this->classAthletePayload($group->athletes ?? collect()),
                 'is_active' => (bool) ($group->is_active ?? true),
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
                 'weekly_schedule_status' => $schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung',
             ];
         })->values();
+    }
+
+    private function classAthletePayload(Collection $athletes): Collection
+    {
+        return $athletes
+            ->sortBy(fn (Athlete $athlete) => $athlete->user?->name ?? '')
+            ->map(fn (Athlete $athlete) => [
+                'id' => $athlete->athlete_id,
+                'name' => $athlete->user?->name ?? ('Atlet #'.$athlete->athlete_id),
+                'geup' => $athlete->geup,
+                'branch' => $athlete->branch?->branch_name,
+            ])
+            ->values();
     }
 
     private function coachOptions()
