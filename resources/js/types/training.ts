@@ -17,6 +17,13 @@ export type LocationRecord = {
     athletes_count: number;
 };
 
+export type ClassAthleteRecord = {
+    id: string | number;
+    name: string;
+    geup?: string | null;
+    branch?: string | null;
+};
+
 export type ClassRecord = {
     id: number;
     name: string;
@@ -33,6 +40,7 @@ export type ClassRecord = {
     min_belt_label?: string | null;
     description?: string | null;
     athletes_count: number;
+    athletes?: ClassAthleteRecord[];
     is_active: boolean;
     weekly_schedule_id?: number | null;
     weekly_schedule_status: string;
