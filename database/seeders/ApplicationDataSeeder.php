@@ -16,6 +16,8 @@ class ApplicationDataSeeder extends Seeder
     public function run(): void
     {
         $now = now();
+        $seedTrainingDay = $now->copy()->startOfDay();
+        $seedDayOfWeek = $seedTrainingDay->isoWeekday();
 
         $parentIdToken = (string) Str::lower(Str::ulid());
         $athleteIdToken = (string) Str::lower(Str::ulid());
@@ -113,19 +115,52 @@ class ApplicationDataSeeder extends Seeder
 
         $branchId = DB::table('branches')->insertGetId([
             'branch_name' => 'Central Dojang',
-            'location' => 'Jakarta Selatan',
+            'location' => 'Hall A',
+            'address' => 'Jl. Merdeka No. 10',
+            'city' => 'Malang',
+            'province' => 'Jawa Timur',
+            'latitude' => -7.9666204,
+            'longitude' => 112.6326321,
+            'attendance_radius_meters' => 100,
+            'timezone' => 'Asia/Jakarta',
+            'is_active' => true,
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
         ], 'branch_id');
 
         $groupId = DB::table('class_groups')->insertGetId([
+            'branch_id' => $branchId,
+            'coach_id' => null,
             'group_name' => 'Junior Sparring',
+            'class_type' => 'reguler',
+            'day_of_week' => $seedDayOfWeek,
+            'start_time' => '16:00:00',
+            'end_time' => '18:00:00',
+            'min_belt' => null,
             'description' => 'Fundamental technique and sparring preparation.',
+            'is_active' => true,
             'created_at' => $now,
             'updated_at' => $now,
             'deleted_at' => null,
         ], 'group_id');
+
+        $weeklyScheduleId = DB::table('weekly_training_schedules')->insertGetId([
+            'title' => 'Junior Sparring',
+            'branch_id' => $branchId,
+            'group_id' => $groupId,
+            'dedicated_athlete_id' => null,
+            'coach_id' => null,
+            'session_type' => 'reguler',
+            'day_of_week' => $seedDayOfWeek,
+            'start_time' => '16:00:00',
+            'end_time' => '18:00:00',
+            'location' => 'Hall A',
+            'is_active' => true,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
+        ], 'weekly_training_schedule_id');
 
         DB::table('parents')->insert([
             'parent_id' => $parentIdToken,
@@ -149,12 +184,34 @@ class ApplicationDataSeeder extends Seeder
             'deleted_at' => null,
         ]);
 
-        $trainingSessionDate = $now->copy()->addDays(1)->toDateString();
+        DB::table('athletes')->insert([
+            'athlete_id' => $athleteIdToken,
+            'id' => $athleteUserId,
+            'group_id' => $groupId,
+            'parent_id' => $parentIdToken,
+            'branch_id' => $branchId,
+            'height_cm' => 150.50,
+            'weight_kg' => 42.30,
+            'nik_hash' => hash('sha256', 'DEMO-NIK-ATHLETE-001'),
+            'nik_ciphertext' => Crypt::encryptString('DEMO-NIK-ATHLETE-001'),
+            'bpjs_hash' => hash('sha256', 'DEMO-BPJS-ATHLETE-001'),
+            'bpjs_ciphertext' => Crypt::encryptString('DEMO-BPJS-ATHLETE-001'),
+            'alamat' => 'Jl. Merdeka No. 10, Malang',
+            'geup' => 'GEUP_8',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'deleted_at' => null,
+        ]);
+
+        $trainingSessionDate = $seedTrainingDay->toDateString();
         $trainingSessionId = DB::table('training_sessions')->insertGetId([
-            'coach_id' => $coachIdToken,
+            'weekly_training_schedule_id' => $weeklyScheduleId,
+            'coach_id' => null,
             'branch_id' => $branchId,
             'group_id' => $groupId,
-            'title' => 'Junior Sparring Demo Session',
+            'session_type' => 'reguler',
+            'dedicated_athlete_id' => null,
+            'title' => 'Junior Sparring',
             'location' => 'Hall A',
             'session_date' => $trainingSessionDate,
             'start_time' => '16:00:00',
@@ -168,42 +225,6 @@ class ApplicationDataSeeder extends Seeder
             'created_at' => $now,
             'updated_at' => $now,
         ], 'training_session_id');
-
-        DB::table('training_session_coaches')->insert([
-            'training_session_id' => $trainingSessionId,
-            'coach_id' => $coachIdToken,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        DB::table('coach_attendance')->insert([
-            'training_session_id' => $trainingSessionId,
-            'coach_id' => $coachIdToken,
-            'status' => 'TEACH',
-            'checked_at' => null,
-            'created_at' => $now,
-            'updated_at' => $now,
-            'deleted_at' => null,
-        ]);
-
-        DB::table('athletes')->insert([
-            'athlete_id' => $athleteIdToken,
-            'id' => $athleteUserId,
-            'group_id' => $groupId,
-            'parent_id' => $parentIdToken,
-            'branch_id' => $branchId,
-            'height_cm' => 150.50,
-            'weight_kg' => 42.30,
-            'nik_hash' => hash('sha256', 'DEMO-NIK-ATHLETE-001'),
-            'nik_ciphertext' => Crypt::encryptString('DEMO-NIK-ATHLETE-001'),
-            'bpjs_hash' => hash('sha256', 'DEMO-BPJS-ATHLETE-001'),
-            'bpjs_ciphertext' => Crypt::encryptString('DEMO-BPJS-ATHLETE-001'),
-            'alamat' => 'Jl. Merdeka No. 10, Jakarta',
-            'geup' => 'GEUP_8',
-            'created_at' => $now,
-            'updated_at' => $now,
-            'deleted_at' => null,
-        ]);
 
         DB::table('athlete_attendance')->insert([
             'athlete_id' => $athleteIdToken,
@@ -354,7 +375,7 @@ class ApplicationDataSeeder extends Seeder
             'queue' => 'default',
             'payload' => json_encode([
                 'displayName' => 'SeededJob',
-                'job' => 'Illuminate\Queue\CallQueuedHandler@call',
+                'job' => 'Illuminate\\Queue\\CallQueuedHandler@call',
                 'data' => ['commandName' => 'SeededJob'],
             ], JSON_THROW_ON_ERROR),
             'attempts' => 0,
@@ -382,7 +403,7 @@ class ApplicationDataSeeder extends Seeder
             'queue' => 'default',
             'payload' => json_encode([
                 'displayName' => 'FailedSeededJob',
-                'job' => 'Illuminate\Queue\CallQueuedHandler@call',
+                'job' => 'Illuminate\\Queue\\CallQueuedHandler@call',
                 'data' => ['commandName' => 'FailedSeededJob'],
             ], JSON_THROW_ON_ERROR),
             'exception' => 'Seeded example failure for local testing.',
@@ -390,7 +411,7 @@ class ApplicationDataSeeder extends Seeder
         ]);
 
         DB::table('personal_access_tokens')->insert([
-            'tokenable_type' => 'App\Models\User',
+            'tokenable_type' => 'App\\Models\\User',
             'tokenable_id' => $adminUserId,
             'name' => 'seeded-admin-token',
             'token' => hash('sha256', 'seeded-admin-token'),
