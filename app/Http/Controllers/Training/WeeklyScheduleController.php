@@ -10,6 +10,7 @@ use App\Models\Branch;
 use App\Models\Group;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
+use App\Support\Domain\BeltRank;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,20 +31,26 @@ class WeeklyScheduleController extends Controller
         $weekStart = $request->date('from')?->startOfDay() ?? now()->startOfWeek();
         $weekEnd = $request->date('to')?->endOfDay() ?? $weekStart->copy()->endOfWeek();
         $weeklySchedulesQuery = $this->weeklyScheduleQuery($weekStart, $weekEnd);
-        if ($user?->isAthlete()) {
-            $athlete = $user->athleteProfile;
+        $athlete = $user?->isAthlete() ? $user->athleteProfile : null;
+
+        if ($athlete) {
             $weeklySchedulesQuery
                 ->where('is_active', true)
+                ->where('branch_id', $athlete->branch_id)
                 ->where(function ($query) use ($athlete): void {
                     $query->whereNull('dedicated_athlete_id')
-                        ->where(function ($query) use ($athlete): void {
-                            $query->whereNull('group_id')
-                                ->orWhere('group_id', $athlete?->group_id);
-                        })
-                        ->orWhere('dedicated_athlete_id', $athlete?->athlete_id);
+                        ->orWhere('dedicated_athlete_id', $athlete->athlete_id);
                 });
         }
+
         $weeklySchedules = $weeklySchedulesQuery->get();
+
+        if ($athlete) {
+            $weeklySchedules = $weeklySchedules
+                ->filter(fn (WeeklyTrainingSchedule $schedule) => $this->athleteCanJoinSchedule($athlete, $schedule))
+                ->values();
+        }
+
         $branches = Branch::query()->orderBy('branch_name')->get();
         $groups = Group::query()->orderBy('group_name')->get();
 
@@ -220,6 +227,27 @@ class WeeklyScheduleController extends Controller
         }
 
         return $query->whereRaw('1 = 0');
+    }
+
+    private function athleteCanJoinSchedule(Athlete $athlete, WeeklyTrainingSchedule $schedule): bool
+    {
+        if ((string) $athlete->branch_id !== (string) $schedule->branch_id) {
+            return false;
+        }
+
+        if ($schedule->dedicated_athlete_id !== null) {
+            return (string) $athlete->athlete_id === (string) $schedule->dedicated_athlete_id;
+        }
+
+        if ($schedule->group_id === null) {
+            return true;
+        }
+
+        if ((string) $athlete->group_id === (string) $schedule->group_id) {
+            return true;
+        }
+
+        return BeltRank::eligible($athlete->geup, $schedule->group?->min_belt);
     }
 
     private function scheduleWindowExists(array $validated, ?int $ignoreId = null): bool
