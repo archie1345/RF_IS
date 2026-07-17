@@ -30,6 +30,7 @@ class Athlete extends Model{
         'geup',
         'id',
         'group_id',
+        'training_group_id',
         'parent_id',
         'branch_id',
     ];
@@ -70,6 +71,11 @@ class Athlete extends Model{
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
+    }
+
+    public function trainingGroup(): BelongsTo
+    {
+        return $this->belongsTo(TrainingGroup::class, 'training_group_id', 'id');
     }
 
     public function branch(): BelongsTo
