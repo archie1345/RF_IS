@@ -43,7 +43,6 @@ import { index as parentChildrenIndex } from '@/routes/parent/children';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
-import { index as usersIndex } from '@/routes/users';
 import { type NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
@@ -75,7 +74,7 @@ const adminNavItems: NavItem[] = [
     { title: 'Presensi Atlet', href: adminAttendance.url(), icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: adminInstructorAttendance.url(), icon: CalendarCheck2 },
     { title: 'Keuangan', href: adminPayments.url(), icon: CreditCard },
-    { title: 'Manajemen User', href: usersIndex.url(), icon: Users },
+    { title: 'Manajemen User', href: '/admin', icon: Users },
     { title: 'Event Internal / UKT', href: adminEvents.url(), icon: Trophy },
     { title: 'Riwayat Event & UKT', href: adminEventHistory.url(), icon: FileClock },
     { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
