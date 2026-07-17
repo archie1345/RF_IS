@@ -96,17 +96,23 @@ trait BuildsTrainingPayloads
 
         return $groups->map(function (Group $group) use ($scheduleByGroup): array {
             $schedule = $scheduleByGroup->get($group->group_id);
+            $scheduleMode = $group->schedule_mode ?? 'weekly';
+            $singleSessionDate = $group->single_session_date?->format('Y-m-d');
 
             return [
                 'id' => $group->group_id,
                 'name' => $group->group_name,
                 'class_type' => $group->class_type ?? 'reguler',
+                'schedule_mode' => $scheduleMode,
+                'single_session_date' => $singleSessionDate,
                 'branch_id' => $group->branch_id,
                 'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
                 'coach_id' => $group->coach_id,
                 'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
                 'day_of_week' => $group->day_of_week,
-                'day_label' => $this->dayName((int) ($group->day_of_week ?? 1)),
+                'day_label' => $scheduleMode === 'one_day' && $singleSessionDate
+                    ? $this->dayName((int) ($group->day_of_week ?? 1)).' · '.$singleSessionDate
+                    : $this->dayName((int) ($group->day_of_week ?? 1)),
                 'start_time' => $group->start_time ? substr((string) $group->start_time, 0, 5) : '',
                 'end_time' => $group->end_time ? substr((string) $group->end_time, 0, 5) : '',
                 'min_belt' => $group->min_belt,
@@ -116,7 +122,9 @@ trait BuildsTrainingPayloads
                 'athletes' => $this->classAthletePayload($group->athletes ?? collect()),
                 'is_active' => (bool) ($group->is_active ?? true),
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
-                'weekly_schedule_status' => $schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung',
+                'weekly_schedule_status' => $scheduleMode === 'one_day'
+                    ? 'Sekali jalan'
+                    : ($schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung'),
             ];
         })->values();
     }
