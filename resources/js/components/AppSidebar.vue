@@ -129,6 +129,8 @@ const mainNavItems = computed(() => {
             return true;
         });
 });
+
+const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
@@ -150,7 +152,7 @@ const mainNavItems = computed(() => {
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter />
+            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>
