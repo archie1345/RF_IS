@@ -33,21 +33,31 @@ class GroupController extends Controller
 
         ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created group', $group, ['group_name' => $group->group_name, 'auto_created_sessions' => $result['created']]);
 
-        return back()->with('status', "Class saved and linked to weekly schedule. Auto-created {$result['created']} sessions; skipped {$result['skipped']} duplicates.");
+        return back()->with('status', "Class saved and linked to weekly schedule. Auto-created {$result['created']} sessions; updated {$result['updated']} future sessions; removed {$result['removed']} obsolete future sessions; skipped {$result['skipped']} past/duplicate sessions.");
     }
 
     public function update(Request $request, Group $group): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
+        $existingSchedule = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
         $validated = $this->validatedGroup($request);
         $group->update($this->payload($validated));
         $schedule = $this->syncWeeklySchedule($group->refresh());
         $result = $this->generateSessionsForSchedule($schedule);
 
-        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, ['group_name' => $group->group_name, 'auto_created_sessions' => $result['created']]);
+        if (! $schedule && $existingSchedule) {
+            $result['removed'] += $this->sessionGenerator->removeFutureSessionsForSchedule($existingSchedule);
+        }
 
-        return back()->with('status', "Class updated and weekly schedule synced. Auto-created {$result['created']} sessions; skipped {$result['skipped']} duplicates.");
+        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, [
+            'group_name' => $group->group_name,
+            'auto_created_sessions' => $result['created'],
+            'updated_future_sessions' => $result['updated'],
+            'removed_future_sessions' => $result['removed'],
+        ]);
+
+        return back()->with('status', "Class updated and weekly schedule synced. Auto-created {$result['created']} sessions; updated {$result['updated']} future sessions; removed {$result['removed']} obsolete future sessions; skipped {$result['skipped']} past/duplicate sessions.");
     }
 
     public function athletes(Request $request, Group $group): JsonResponse
@@ -72,10 +82,12 @@ class GroupController extends Controller
         if ($hasAthletes || $hasSessions) {
             $group->update(['is_active' => false]);
             $schedule?->update(['is_active' => false]);
+            $removed = $this->sessionGenerator->removeFutureSessionsForSchedule($schedule);
 
-            return back()->with('status', 'Class has linked athletes or sessions, so it was deactivated instead of deleted.');
+            return back()->with('status', "Class has linked athletes or sessions, so it was deactivated instead of deleted. Removed {$removed} future generated sessions; past sessions were kept.");
         }
 
+        $this->sessionGenerator->removeFutureSessionsForSchedule($schedule);
         $schedule?->delete();
         ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted group', $group, ['group_name' => $group->group_name]);
         $group->delete();
@@ -159,7 +171,7 @@ class GroupController extends Controller
     }
 
     /**
-     * @return array{created:int, skipped:int, from:string, to:string}
+     * @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string}
      */
     private function generateSessionsForSchedule(?WeeklyTrainingSchedule $schedule): array
     {
@@ -167,6 +179,8 @@ class GroupController extends Controller
             return [
                 'created' => 0,
                 'skipped' => 0,
+                'updated' => 0,
+                'removed' => 0,
                 'from' => now()->toDateString(),
                 'to' => now()->toDateString(),
             ];
