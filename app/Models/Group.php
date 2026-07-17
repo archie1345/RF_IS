@@ -26,6 +26,8 @@ class Group extends Model
         'coach_id',
         'group_name',
         'class_type',
+        'schedule_mode',
+        'single_session_date',
         'day_of_week',
         'start_time',
         'end_time',
@@ -34,10 +36,11 @@ class Group extends Model
         'is_active',
     ];
 
-    protected $dates = ['deleted_at'];
+    protected $dates = ['deleted_at', 'single_session_date'];
 
     protected $casts = [
         'day_of_week' => 'integer',
+        'single_session_date' => 'date',
         'is_active' => 'boolean',
     ];
 
