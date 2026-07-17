@@ -45,13 +45,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const dayOptions = [
-    { value: 1, label: 'Senin' },
-    { value: 2, label: 'Selasa' },
-    { value: 3, label: 'Rabu' },
-    { value: 4, label: 'Kamis' },
-    { value: 5, label: 'Jumat' },
-    { value: 6, label: 'Sabtu' },
-    { value: 7, label: 'Minggu' },
+    { value: '1', label: 'Senin' },
+    { value: '2', label: 'Selasa' },
+    { value: '3', label: 'Rabu' },
+    { value: '4', label: 'Kamis' },
+    { value: '5', label: 'Jumat' },
+    { value: '6', label: 'Sabtu' },
+    { value: '7', label: 'Minggu' },
 ];
 
 const classTypeOptions = [
@@ -75,6 +75,13 @@ const athleteModalError = ref('');
 const showClassForm = ref(false);
 const search = ref('');
 
+const athleteNameOptions = computed<SelectOption[]>(() =>
+    props.athleteOptions.map((option) => ({
+        ...option,
+        label: option.label.split(' · ')[0]?.trim() || option.label,
+    })),
+);
+
 const form = useForm({
     name: '',
     class_type: 'reguler',
@@ -84,7 +91,7 @@ const form = useForm({
     single_session_date: '',
     branch_id: '',
     coach_id: '',
-    day_of_week: 1,
+    day_of_week: '1',
     start_time: '16:00',
     end_time: '18:00',
     min_belt: '',
@@ -116,8 +123,8 @@ const activationHint = computed(() => {
     }
 
     return isPrivateClass.value
-        ? 'Lengkapi nama, grup, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
-        : 'Lengkapi nama, grup, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
+        ? 'Lengkapi nama, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
+        : 'Lengkapi nama, tipe kelas, kategori atlet, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
 });
 
 const filteredClasses = computed(() => {
@@ -161,7 +168,7 @@ function classTypeLabel(value?: string | null): string {
 
 function scheduleModeLabel(value?: string | null): string {
     const normalized = normalizeScheduleMode(value);
-    return scheduleModeOptions.find((item) => item.value === normalized)?.label ?? 'Mingguan';
+    return scheduleModeOptions.find((option) => option.value === normalized)?.label ?? 'Mingguan';
 }
 
 function privateAthleteLabel(item: ClassRecord): string {
@@ -183,7 +190,7 @@ function resetForm() {
     form.single_session_date = '';
     form.branch_id = '';
     form.coach_id = '';
-    form.day_of_week = 1;
+    form.day_of_week = '1';
     form.start_time = '16:00';
     form.end_time = '18:00';
     form.min_belt = '';
@@ -246,7 +253,7 @@ function editClass(item: ClassRecord) {
     form.single_session_date = item.single_session_date ?? '';
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
     form.coach_id = classType === 'private' ? (item.coach_id ?? '') : '';
-    form.day_of_week = item.day_of_week ?? 1;
+    form.day_of_week = String(item.day_of_week ?? 1);
     form.start_time = item.start_time || '16:00';
     form.end_time = item.end_time || '18:00';
     form.min_belt = item.min_belt ?? '';
@@ -259,6 +266,7 @@ function editClass(item: ClassRecord) {
 function saveClass() {
     if (isPrivateClass.value) {
         form.training_group_id = '';
+        form.min_belt = '';
     } else {
         form.coach_id = '';
         form.dedicated_athlete_ids = [];
@@ -330,7 +338,7 @@ watch(
                         <thead>
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Kelas</th>
-                                <th class="px-3 py-3 font-black">grup</th>
+                                <th class="px-3 py-3 font-black">Kategori</th>
                                 <th class="px-3 py-3 font-black">Atlet Private</th>
                                 <th class="px-3 py-3 font-black">Lokasi</th>
                                 <th class="px-3 py-3 font-black">Coach</th>
@@ -383,7 +391,7 @@ watch(
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        grup membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih Atlet Private khusus.
+                        Kategori membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih satu atau beberapa atlet private.
                     </p>
 
                     <div class="mt-5 grid gap-3">
@@ -393,30 +401,36 @@ watch(
                             <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
                         </label>
 
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Tipe Kelas *
-                            <select v-model="form.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                            </select>
-                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
-                        </label>
+                        <FormSelectField
+                            id="class-type"
+                            v-model="form.class_type"
+                            label="Tipe Kelas"
+                            :options="classTypeOptions"
+                            placeholder="Pilih tipe kelas"
+                            search-placeholder="Cari tipe kelas..."
+                            :error="form.errors.class_type"
+                            required
+                        />
 
-                        <label v-if="!isPrivateClass" class="grid gap-1 text-sm font-semibold">
-                            Kategori Atlet *
-                            <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih kategori atlet</option>
-                                <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                            <span class="text-xs text-muted-foreground">Hanya atlet dari kategori ini yang dibuatkan presensi dan boleh scan QR kelas ini.</span>
-                            <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
-                        </label>
+                        <FormSelectField
+                            v-if="!isPrivateClass"
+                            id="training-group"
+                            v-model="form.training_group_id"
+                            label="Kategori Atlet"
+                            :options="props.trainingGroupOptions"
+                            placeholder="Pilih kategori atlet"
+                            search-placeholder="Cari kategori..."
+                            help="Hanya atlet dari kategori ini yang dibuatkan presensi dan boleh scan QR kelas ini."
+                            :error="form.errors.training_group_id"
+                            required
+                        />
 
                         <FormSelectField
                             v-if="isPrivateClass"
                             id="private-athletes"
                             v-model="form.dedicated_athlete_ids"
                             label="Atlet Private"
-                            :options="props.athleteOptions"
+                            :options="athleteNameOptions"
                             placeholder="Pilih atlet private"
                             search-placeholder="Cari atlet..."
                             help="Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private."
@@ -425,31 +439,40 @@ watch(
                             multiple
                         />
 
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Pola Jadwal *
-                            <select v-model="form.schedule_mode" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option v-for="option in scheduleModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                            </select>
-                            <span class="text-xs text-muted-foreground">{{ scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail }}</span>
-                            <span v-if="form.errors.schedule_mode" class="text-xs text-destructive">{{ form.errors.schedule_mode }}</span>
-                        </label>
+                        <FormSelectField
+                            id="schedule-mode"
+                            v-model="form.schedule_mode"
+                            label="Pola Jadwal"
+                            :options="scheduleModeOptions"
+                            placeholder="Pilih pola jadwal"
+                            search-placeholder="Cari pola..."
+                            :help="scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail"
+                            :error="form.errors.schedule_mode"
+                            required
+                        />
 
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Lokasi *
-                            <select v-model="form.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih lokasi aktif</option>
-                                <option v-for="option in props.branchOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                        </label>
+                        <FormSelectField
+                            id="branch"
+                            v-model="form.branch_id"
+                            label="Lokasi"
+                            :options="props.branchOptions"
+                            placeholder="Pilih lokasi aktif"
+                            search-placeholder="Cari lokasi..."
+                            :error="form.errors.branch_id"
+                            required
+                        />
 
-                        <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
-                            Coach Private *
-                            <select v-model="form.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih coach private</option>
-                                <option v-for="option in props.coachOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{ form.errors.coach_id }}</span>
-                        </label>
+                        <FormSelectField
+                            v-if="isPrivateClass"
+                            id="private-coach"
+                            v-model="form.coach_id"
+                            label="Coach Private"
+                            :options="props.coachOptions"
+                            placeholder="Pilih coach private"
+                            search-placeholder="Cari coach..."
+                            :error="form.errors.coach_id"
+                            required
+                        />
 
                         <label v-if="isOneDayClass" class="grid gap-1 text-sm font-semibold">
                             Tanggal Sesi *
@@ -457,26 +480,33 @@ watch(
                             <span v-if="form.errors.single_session_date" class="text-xs text-destructive">{{ form.errors.single_session_date }}</span>
                         </label>
 
-                        <label v-else class="grid gap-1 text-sm font-semibold">
-                            Hari *
-                            <select v-model="form.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option v-for="day in dayOptions" :key="day.value" :value="day.value">{{ day.label }}</option>
-                            </select>
-                        </label>
+                        <FormSelectField
+                            v-else
+                            id="day-of-week"
+                            v-model="form.day_of_week"
+                            label="Hari"
+                            :options="dayOptions"
+                            placeholder="Pilih hari"
+                            search-placeholder="Cari hari..."
+                            :error="form.errors.day_of_week"
+                            required
+                        />
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">Mulai *<input v-model="form.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                             <label class="grid gap-1 text-sm font-semibold">Selesai *<input v-model="form.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                         </div>
 
-                        <label v-if="!isPrivateClass" class="grid gap-1 text-sm font-semibold">
-                            Minimal Sabuk
-                            <select v-model="form.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Tanpa minimal</option>
-                                <option v-for="option in props.beltOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{ form.errors.min_belt }}</span>
-                        </label>
+                        <FormSelectField
+                            v-if="!isPrivateClass"
+                            id="minimum-belt"
+                            v-model="form.min_belt"
+                            label="Minimal Sabuk"
+                            :options="props.beltOptions"
+                            placeholder="Tanpa minimal"
+                            search-placeholder="Cari sabuk..."
+                            :error="form.errors.min_belt"
+                        />
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Deskripsi
