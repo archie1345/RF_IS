@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
@@ -351,7 +351,7 @@ function confirmPendingAction() {
         
         <ResourceTablePanel
             eyebrow="Admin panel"
-            title="User Account Directory"
+            title="User Management"
             description="Create accounts here only. User, coach, parent, and athlete pages edit profile data after the account exists."
             create-label="Create user"
             table-title="Account roster"
@@ -364,6 +364,12 @@ function confirmPendingAction() {
             search-placeholder="Search users by name, email, role, branch, or status"
             @create="openCreate"
         >
+            <template #actions>
+                <Button type="button" class="gap-2" @click="openCreate">
+                    <Plus class="size-4" />
+                    Add new user
+                </Button>
+            </template>
 
             <template #row-actions="{ row }">
                 <div class="flex justify-end gap-2">
