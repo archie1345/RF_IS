@@ -121,6 +121,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('attendance', [AdminAttendanceReportController::class, 'athletes'])->name('attendance');
         Route::get('attendance/export', [AdminAttendanceReportController::class, 'exportAthletes'])->name('attendance.export');
         Route::get('instructor-attendance', [AdminAttendanceReportController::class, 'coaches'])->name('instructor-attendance');
+        Route::post('instructor-attendance/manual', [AdminAttendanceReportController::class, 'storeCoachAttendance'])->name('instructor-attendance.manual');
         Route::get('instructor-attendance/export', [AdminAttendanceReportController::class, 'exportCoaches'])->name('instructor-attendance.export');
         Route::get('payments', [AdminFinanceFeatureController::class, 'index'])->name('payments');
         Route::redirect('finance-income', '/admin/payments')->name('finance-income');
