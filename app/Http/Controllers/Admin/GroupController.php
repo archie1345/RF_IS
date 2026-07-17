@@ -39,12 +39,13 @@ class GroupController extends Controller
 
         $validated = $this->validatedGroup($request);
         $group = Group::create($this->payload($validated));
+        $this->syncPrivateAthletes($group, $validated);
         $result = $this->syncSessionsForGroup($group->refresh());
 
         ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created class', $group, [
             'group_name' => $group->group_name,
             'training_group_id' => $group->training_group_id,
-            'dedicated_athlete_id' => $group->dedicated_athlete_id,
+            'private_athlete_ids' => $this->privateAthleteIds($validated),
             'schedule_mode' => $group->schedule_mode,
             'auto_created_sessions' => $result['created'],
         ]);
@@ -59,12 +60,13 @@ class GroupController extends Controller
         $existingSchedule = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
         $validated = $this->validatedGroup($request);
         $group->update($this->payload($validated));
+        $this->syncPrivateAthletes($group, $validated);
         $result = $this->syncSessionsForGroup($group->refresh(), $existingSchedule);
 
         ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated class', $group, [
             'group_name' => $group->group_name,
             'training_group_id' => $group->training_group_id,
-            'dedicated_athlete_id' => $group->dedicated_athlete_id,
+            'private_athlete_ids' => $this->privateAthleteIds($validated),
             'schedule_mode' => $group->schedule_mode,
             'auto_created_sessions' => $result['created'],
             'updated_future_sessions' => $result['updated'],
@@ -78,6 +80,14 @@ class GroupController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
+        if (($group->class_type ?? null) === 'private') {
+            $group->load(['privateAthletes.user:id,name', 'privateAthletes.branch:branch_id,branch_name', 'privateAthletes.trainingGroup']);
+
+            return response()->json([
+                'athletes' => $this->athletePayloadFromCollection($group->privateAthletes),
+            ]);
+        }
+
         $group->load(['athletes.user:id,name', 'athletes.branch:branch_id,branch_name', 'athletes.trainingGroup']);
 
         return response()->json([
@@ -89,7 +99,7 @@ class GroupController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        $hasAthletes = $group->athletes()->exists();
+        $hasAthletes = $group->athletes()->exists() || $group->privateAthletes()->exists();
         $hasSessions = TrainingSession::query()->where('group_id', $group->group_id)->exists();
         $schedule = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
 
@@ -105,6 +115,7 @@ class GroupController extends Controller
         $this->sessionGenerator->removeFutureSessionsForSchedule($schedule);
         $this->removeFutureOneDaySessions($group);
         $schedule?->delete();
+        $group->privateAthletes()->detach();
         ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted class', $group, ['group_name' => $group->group_name]);
         $group->delete();
 
@@ -115,12 +126,13 @@ class GroupController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'training_group_id' => ['required', 'exists:training_groups,id'],
+            'training_group_id' => ['nullable', 'required_unless:class_type,private', 'exists:training_groups,id'],
             'class_type' => ['required', 'string', Rule::in(self::CLASS_TYPES)],
             'schedule_mode' => ['required', 'string', Rule::in(self::SCHEDULE_MODES)],
             'single_session_date' => ['nullable', 'required_if:schedule_mode,one_day', 'date'],
             'coach_id' => ['nullable', 'exists:coaches,coach_id'],
-            'dedicated_athlete_id' => ['nullable', 'required_if:class_type,private', 'exists:athletes,athlete_id'],
+            'dedicated_athlete_ids' => ['nullable', 'required_if:class_type,private', 'array', 'min:1'],
+            'dedicated_athlete_ids.*' => ['string', 'distinct', 'exists:athletes,athlete_id'],
             'branch_id' => ['nullable', 'exists:branches,branch_id'],
             'day_of_week' => ['required', 'integer', 'between:1,7'],
             'start_time' => ['required', 'date_format:H:i'],
@@ -138,7 +150,8 @@ class GroupController extends Controller
             ? $validated['schedule_mode']
             : 'weekly';
         $singleSessionDate = $scheduleMode === 'one_day' ? ($validated['single_session_date'] ?? null) : null;
-        $dedicatedAthleteId = $classType === 'private' ? ($validated['dedicated_athlete_id'] ?? null) : null;
+        $privateAthleteIds = $this->privateAthleteIds($validated);
+        $primaryPrivateAthleteId = $classType === 'private' ? ($privateAthleteIds[0] ?? null) : null;
 
         if ($scheduleMode === 'one_day' && $singleSessionDate) {
             $validated['day_of_week'] = Carbon::parse($singleSessionDate)->isoWeekday();
@@ -147,16 +160,16 @@ class GroupController extends Controller
         $validated['class_type'] = $classType;
         $validated['schedule_mode'] = $scheduleMode;
         $validated['single_session_date'] = $singleSessionDate;
-        $validated['dedicated_athlete_id'] = $dedicatedAthleteId;
+        $validated['dedicated_athlete_id'] = $primaryPrivateAthleteId;
 
         return [
             'group_name' => $validated['name'],
-            'training_group_id' => $validated['training_group_id'],
+            'training_group_id' => $classType === 'private' ? null : ($validated['training_group_id'] ?? null),
             'class_type' => $classType,
             'schedule_mode' => $scheduleMode,
             'single_session_date' => $singleSessionDate,
             'coach_id' => $classType === 'private' ? ($validated['coach_id'] ?? null) : null,
-            'dedicated_athlete_id' => $dedicatedAthleteId,
+            'dedicated_athlete_id' => $primaryPrivateAthleteId,
             'branch_id' => $validated['branch_id'] ?? null,
             'day_of_week' => $validated['day_of_week'],
             'start_time' => $validated['start_time'],
@@ -165,6 +178,26 @@ class GroupController extends Controller
             'description' => $validated['description'] ?? null,
             'is_active' => (bool) ($validated['is_active'] ?? true) && $this->canActivate($validated),
         ];
+    }
+
+    private function syncPrivateAthletes(Group $group, array $validated): void
+    {
+        if (($validated['class_type'] ?? null) !== 'private') {
+            $group->privateAthletes()->detach();
+            return;
+        }
+
+        $group->privateAthletes()->sync($this->privateAthleteIds($validated));
+    }
+
+    private function privateAthleteIds(array $validated): array
+    {
+        return collect($validated['dedicated_athlete_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /** @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string} */
@@ -191,20 +224,20 @@ class GroupController extends Controller
 
     private function syncWeeklySchedule(Group $group): ?WeeklyTrainingSchedule
     {
-        $group->loadMissing('branch', 'trainingGroup', 'dedicatedAthlete');
+        $group->loadMissing('branch', 'trainingGroup', 'privateAthletes');
         $existing = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
         $isPrivate = ($group->class_type ?? null) === 'private';
+        $privateAthleteIds = $group->privateAthletes->pluck('athlete_id')->filter()->values();
         $isSchedulable = (bool) (
             ($group->schedule_mode ?? 'weekly') === 'weekly'
             && $group->is_active
-            && $group->training_group_id
-            && $group->trainingGroup?->is_active
+            && ($isPrivate || ($group->training_group_id && $group->trainingGroup?->is_active))
             && $group->branch?->is_active
             && $group->branch_id
             && $group->day_of_week
             && $group->start_time
             && $group->end_time
-            && (! $isPrivate || (filled($group->coach_id) && filled($group->dedicated_athlete_id)))
+            && (! $isPrivate || (filled($group->coach_id) && $privateAthleteIds->isNotEmpty()))
         );
 
         if (! $isSchedulable) {
@@ -220,7 +253,7 @@ class GroupController extends Controller
                 'title' => $group->group_name,
                 'branch_id' => $group->branch_id,
                 'group_id' => $group->group_id,
-                'dedicated_athlete_id' => $sessionType === 'private' ? $group->dedicated_athlete_id : null,
+                'dedicated_athlete_id' => $sessionType === 'private' ? $privateAthleteIds->first() : null,
                 'coach_id' => $sessionType === 'private' ? $group->coach_id : null,
                 'session_type' => $sessionType,
                 'day_of_week' => $group->day_of_week,
@@ -246,7 +279,7 @@ class GroupController extends Controller
     private function syncOneDaySession(Group $group): array
     {
         $result = $this->emptySessionSyncResult();
-        $group->loadMissing('branch', 'trainingGroup', 'dedicatedAthlete');
+        $group->loadMissing('branch', 'trainingGroup', 'privateAthletes');
 
         if (! $this->isOneDaySchedulable($group)) {
             $result['removed'] += $this->removeFutureOneDaySessions($group);
@@ -313,28 +346,30 @@ class GroupController extends Controller
     private function isOneDaySchedulable(Group $group): bool
     {
         $isPrivate = ($group->class_type ?? null) === 'private';
+        $privateAthleteIds = $group->privateAthletes->pluck('athlete_id')->filter();
 
         return (bool) (($group->schedule_mode ?? 'weekly') === 'one_day'
             && $group->is_active
-            && $group->training_group_id
-            && $group->trainingGroup?->is_active
+            && ($isPrivate || ($group->training_group_id && $group->trainingGroup?->is_active))
             && $group->single_session_date
             && $group->branch?->is_active
             && $group->branch_id
             && $group->start_time
             && $group->end_time
-            && (! $isPrivate || (filled($group->coach_id) && filled($group->dedicated_athlete_id))));
+            && (! $isPrivate || (filled($group->coach_id) && $privateAthleteIds->isNotEmpty())));
     }
 
     private function oneDaySessionPayload(Group $group, CarbonInterface $date): array
     {
+        $privateAthleteIds = $group->privateAthletes->pluck('athlete_id')->filter()->values();
+
         return [
             'weekly_training_schedule_id' => null,
             'coach_id' => $this->coachIdFor($group),
             'branch_id' => $group->branch_id,
             'group_id' => $group->group_id,
             'session_type' => $group->class_type,
-            'dedicated_athlete_id' => ($group->class_type ?? null) === 'private' ? $group->dedicated_athlete_id : null,
+            'dedicated_athlete_id' => ($group->class_type ?? null) === 'private' ? $privateAthleteIds->first() : null,
             'title' => $group->group_name,
             'location' => $group->branch?->location ?? $group->branch?->branch_name,
             'session_date' => $date->toDateString(),
@@ -379,7 +414,12 @@ class GroupController extends Controller
 
     private function athletePayload(Group $group): array
     {
-        return $group->athletes
+        return $this->athletePayloadFromCollection($group->athletes);
+    }
+
+    private function athletePayloadFromCollection($athletes): array
+    {
+        return $athletes
             ->sortBy(fn (Athlete $athlete) => $athlete->user?->name ?? '')
             ->map(fn (Athlete $athlete) => [
                 'id' => $athlete->athlete_id,
@@ -398,17 +438,17 @@ class GroupController extends Controller
         $branchId = $validated['branch_id'] ?? null;
         $scheduleMode = $validated['schedule_mode'] ?? 'weekly';
         $trainingGroupId = $validated['training_group_id'] ?? null;
+        $privateAthleteIds = $this->privateAthleteIds($validated);
 
         return filled($validated['name'] ?? null)
             && in_array($classType, self::CLASS_TYPES, true)
             && in_array($scheduleMode, self::SCHEDULE_MODES, true)
-            && filled($trainingGroupId)
-            && TrainingGroup::query()->where('id', $trainingGroupId)->where('is_active', true)->exists()
+            && ($classType === 'private' || (filled($trainingGroupId) && TrainingGroup::query()->where('id', $trainingGroupId)->where('is_active', true)->exists()))
             && filled($branchId)
             && Branch::query()->where('branch_id', $branchId)->where('is_active', true)->exists()
             && filled($validated['start_time'] ?? null)
             && filled($validated['end_time'] ?? null)
             && ($scheduleMode === 'weekly' ? filled($validated['day_of_week'] ?? null) : filled($validated['single_session_date'] ?? null))
-            && ($classType !== 'private' || (filled($validated['coach_id'] ?? null) && filled($validated['dedicated_athlete_id'] ?? null)));
+            && ($classType !== 'private' || (filled($validated['coach_id'] ?? null) && count($privateAthleteIds) > 0));
     }
 }

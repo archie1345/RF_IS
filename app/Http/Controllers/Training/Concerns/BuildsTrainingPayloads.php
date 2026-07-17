@@ -24,7 +24,7 @@ trait BuildsTrainingPayloads
             })
             ->with([
                 'branch',
-                'group' => fn ($query) => $query->with(['trainingGroup', 'dedicatedAthlete.user'])->withCount('athletes'),
+                'group' => fn ($query) => $query->with(['trainingGroup', 'privateAthletes.user'])->withCount('athletes'),
                 'dedicatedAthlete.user',
                 'coach.user',
             ])
@@ -47,7 +47,9 @@ trait BuildsTrainingPayloads
             'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
             'group_id' => $schedule->group_id,
             'dedicated_athlete_id' => $schedule->dedicated_athlete_id,
-            'dedicated_athlete' => $schedule->dedicatedAthlete?->user?->name,
+            'dedicated_athlete' => $schedule->group && ($schedule->group->class_type ?? null) === 'private'
+                ? $schedule->group->privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', ')
+                : $schedule->dedicatedAthlete?->user?->name,
             'session_type' => $schedule->session_type ?? 'reguler',
             'group' => $schedule->group?->group_name ?? 'All groups',
             'training_group_id' => $schedule->group?->training_group_id,
@@ -100,12 +102,13 @@ trait BuildsTrainingPayloads
             $schedule = $scheduleByGroup->get($group->group_id);
             $scheduleMode = $group->schedule_mode ?? 'weekly';
             $singleSessionDate = $group->single_session_date?->format('Y-m-d');
+            $privateAthletes = $group->privateAthletes ?? collect();
 
             return [
                 'id' => $group->group_id,
                 'name' => $group->group_name,
                 'training_group_id' => $group->training_group_id,
-                'training_group' => $group->trainingGroup?->name ?? 'Belum ada grup',
+                'training_group' => $group->trainingGroup?->name,
                 'class_type' => $group->class_type ?? 'reguler',
                 'schedule_mode' => $scheduleMode,
                 'single_session_date' => $singleSessionDate,
@@ -113,8 +116,8 @@ trait BuildsTrainingPayloads
                 'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
                 'coach_id' => $group->coach_id,
                 'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
-                'dedicated_athlete_id' => $group->dedicated_athlete_id,
-                'dedicated_athlete' => $group->dedicatedAthlete?->user?->name,
+                'dedicated_athlete_ids' => $privateAthletes->pluck('athlete_id')->map(fn ($id) => (string) $id)->values(),
+                'dedicated_athlete' => $privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', '),
                 'day_of_week' => $group->day_of_week,
                 'day_label' => $scheduleMode === 'one_day' && $singleSessionDate
                     ? $this->dayName((int) ($group->day_of_week ?? 1)).' · '.$singleSessionDate
@@ -124,8 +127,12 @@ trait BuildsTrainingPayloads
                 'min_belt' => $group->min_belt,
                 'min_belt_label' => BeltRank::label($group->min_belt),
                 'description' => $group->description,
-                'athletes_count' => $group->athletes_count ?? 0,
-                'athletes' => $this->classAthletePayload($group->athletes ?? collect()),
+                'athletes_count' => ($group->class_type ?? null) === 'private'
+                    ? $privateAthletes->count()
+                    : ($group->athletes_count ?? 0),
+                'athletes' => ($group->class_type ?? null) === 'private'
+                    ? $this->classAthletePayload($privateAthletes)
+                    : $this->classAthletePayload($group->athletes ?? collect()),
                 'is_active' => (bool) ($group->is_active ?? true),
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
                 'weekly_schedule_status' => $scheduleMode === 'one_day'

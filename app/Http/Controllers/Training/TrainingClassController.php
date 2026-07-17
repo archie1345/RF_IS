@@ -23,7 +23,17 @@ class TrainingClassController extends Controller
 
         $weeklySchedules = WeeklyTrainingSchedule::query()->get();
         $groups = Group::query()
-            ->with(['branch', 'trainingGroup', 'coach.user', 'dedicatedAthlete.user', 'athletes.user', 'athletes.branch', 'athletes.trainingGroup'])
+            ->with([
+                'branch',
+                'trainingGroup',
+                'coach.user',
+                'privateAthletes.user:id,name',
+                'privateAthletes.branch:branch_id,branch_name',
+                'privateAthletes.trainingGroup',
+                'athletes.user',
+                'athletes.branch',
+                'athletes.trainingGroup',
+            ])
             ->withCount('athletes')
             ->orderBy('group_name')
             ->get();
@@ -40,13 +50,13 @@ class TrainingClassController extends Controller
 
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',
-            'subtitle' => 'Master data kelas. Grup atlet adalah kategori peserta; Private adalah tipe kelas dengan atlet khusus.',
+            'subtitle' => 'Master data kelas. Tipe private memilih atlet khusus, bukan kategori grup atlet.',
             'classes' => $this->groupPayload($groups, $weeklySchedules),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'trainingGroupOptions' => $trainingGroups->map(fn (TrainingGroup $group) => ['value' => $group->id, 'label' => $group->name])->values(),
             'athleteOptions' => $athletes->map(fn (Athlete $athlete) => [
                 'value' => $athlete->athlete_id,
-                'label' => trim(($athlete->user?->name ?? 'Unknown athlete').' · '.($athlete->trainingGroup?->name ?? 'No group').' · '.($athlete->branch?->branch_name ?? 'No branch')),
+                'label' => trim(($athlete->user?->name ?? 'Unknown athlete').' · '.($athlete->trainingGroup?->name ?? 'No category').' · '.($athlete->branch?->branch_name ?? 'No branch')),
             ])->values(),
             'coachOptions' => $this->coachOptions(),
             'beltOptions' => $this->beltOptions(),

@@ -28,7 +28,7 @@ const props = withDefaults(
     }>(),
     {
         title: 'Kelas Latihan',
-        subtitle: 'Master data kelas. Private adalah tipe kelas, bukan kategori grup atlet.',
+        subtitle: 'Master data kelas. Private adalah tipe kelas dengan satu atau beberapa atlet khusus.',
         classes: () => [],
         branchOptions: () => [],
         trainingGroupOptions: () => [],
@@ -76,9 +76,9 @@ const search = ref('');
 
 const form = useForm({
     name: '',
-    training_group_id: '',
     class_type: 'reguler',
-    dedicated_athlete_id: '',
+    training_group_id: '',
+    dedicated_athlete_ids: [] as string[],
     schedule_mode: 'weekly' as ClassScheduleMode,
     single_session_date: '',
     branch_id: '',
@@ -97,21 +97,21 @@ const isOneDayClass = computed(() => form.schedule_mode === 'one_day');
 const classCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-            form.training_group_id &&
             form.class_type &&
+            (isPrivateClass.value ? form.dedicated_athlete_ids.length > 0 : form.training_group_id) &&
             form.branch_id &&
             form.start_time &&
             form.end_time &&
             (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
-            (!isPrivateClass.value || (form.coach_id && form.dedicated_athlete_id)),
+            (!isPrivateClass.value || form.coach_id),
     );
 });
 
 const activationHint = computed(() => {
     if (classCanBeActive.value) {
         return isPrivateClass.value
-            ? 'Data lengkap. Kelas private hanya membuat presensi untuk atlet khusus yang dipilih.'
-            : 'Data lengkap. Kelas hanya bisa diikuti atlet dari kategori grup yang dipilih.';
+            ? 'Data lengkap. Kelas private hanya membuat presensi untuk atlet-atlet khusus yang dipilih.'
+            : 'Data lengkap. Kelas hanya bisa diikuti atlet dari kategori yang dipilih.';
     }
 
     return isPrivateClass.value
@@ -124,7 +124,17 @@ const filteredClasses = computed(() => {
     if (!keyword) return props.classes;
 
     return props.classes.filter((item) =>
-        [item.name, item.training_group, item.dedicated_athlete, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
+        [
+            item.name,
+            item.training_group,
+            item.dedicated_athlete,
+            classTypeLabel(item.class_type),
+            scheduleModeLabel(item.schedule_mode),
+            item.branch,
+            item.coach,
+            item.day_label,
+            item.min_belt,
+        ]
             .filter(Boolean)
             .join(' ')
             .toLowerCase()
@@ -153,6 +163,10 @@ function scheduleModeLabel(value?: string | null): string {
     return scheduleModeOptions.find((item) => item.value === normalized)?.label ?? 'Mingguan';
 }
 
+function privateAthleteLabel(item: ClassRecord): string {
+    return normalizeClassType(item.class_type) === 'private' ? item.dedicated_athlete || '-' : '-';
+}
+
 function enforceActivationRules() {
     if (form.is_active && !classCanBeActive.value) form.is_active = false;
 }
@@ -161,9 +175,9 @@ function resetForm() {
     editingClassId.value = null;
     form.clearErrors();
     form.name = '';
-    form.training_group_id = '';
     form.class_type = 'reguler';
-    form.dedicated_athlete_id = '';
+    form.training_group_id = '';
+    form.dedicated_athlete_ids = [];
     form.schedule_mode = 'weekly';
     form.single_session_date = '';
     form.branch_id = '';
@@ -222,9 +236,11 @@ function editClass(item: ClassRecord) {
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
-    form.training_group_id = item.training_group_id ? String(item.training_group_id) : '';
     form.class_type = classType;
-    form.dedicated_athlete_id = classType === 'private' ? String(item.dedicated_athlete_id ?? '') : '';
+    form.training_group_id = classType === 'private' ? '' : item.training_group_id ? String(item.training_group_id) : '';
+    form.dedicated_athlete_ids = classType === 'private'
+        ? (item.dedicated_athlete_ids ?? []).map((id) => String(id))
+        : [];
     form.schedule_mode = scheduleMode;
     form.single_session_date = item.single_session_date ?? '';
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
@@ -240,9 +256,11 @@ function editClass(item: ClassRecord) {
 }
 
 function saveClass() {
-    if (!isPrivateClass.value) {
+    if (isPrivateClass.value) {
+        form.training_group_id = '';
+    } else {
         form.coach_id = '';
-        form.dedicated_athlete_id = '';
+        form.dedicated_athlete_ids = [];
     }
 
     if (!isOneDayClass.value) form.single_session_date = '';
@@ -263,9 +281,9 @@ watch(
     () => [
         form.is_active,
         form.name,
-        form.training_group_id,
         form.class_type,
-        form.dedicated_athlete_id,
+        form.training_group_id,
+        form.dedicated_athlete_ids.join(','),
         form.schedule_mode,
         form.single_session_date,
         form.branch_id,
@@ -333,8 +351,10 @@ watch(
                                         {{ classTypeLabel(item.class_type) }} · {{ scheduleModeLabel(item.schedule_mode) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-4 font-semibold">{{ item.training_group || 'Belum ada kategori' }}</td>
-                                <td class="px-3 py-4">{{ normalizeClassType(item.class_type) === 'private' ? item.dedicated_athlete || '-' : '-' }}</td>
+                                <td class="px-3 py-4 font-semibold">
+                                    {{ normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori' }}
+                                </td>
+                                <td class="px-3 py-4">{{ privateAthleteLabel(item) }}</td>
                                 <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
                                 <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p></td>
                                 <td class="px-3 py-4">
@@ -373,15 +393,6 @@ watch(
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            grup *
-                            <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih grup</option>
-                                <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                            <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
-                        </label>
-
-                        <label class="grid gap-1 text-sm font-semibold">
                             Tipe Kelas *
                             <select v-model="form.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -389,14 +400,23 @@ watch(
                             <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
                         </label>
 
+                        <label v-if="!isPrivateClass" class="grid gap-1 text-sm font-semibold">
+                            Kategori Atlet *
+                            <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option value="">Pilih kategori atlet</option>
+                                <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            </select>
+                            <span class="text-xs text-muted-foreground">Hanya atlet dari kategori ini yang dibuatkan presensi dan boleh scan QR kelas ini.</span>
+                            <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
+                        </label>
+
                         <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
                             Atlet Private *
-                            <select v-model="form.dedicated_athlete_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih atlet private</option>
+                            <select v-model="form.dedicated_athlete_ids" multiple class="min-h-32 rounded-lg border bg-background px-3 py-2 text-sm">
                                 <option v-for="option in props.athleteOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
-                            <span class="text-xs text-muted-foreground">Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private.</span>
-                            <span v-if="form.errors.dedicated_athlete_id" class="text-xs text-destructive">{{ form.errors.dedicated_athlete_id }}</span>
+                            <span class="text-xs text-muted-foreground">Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private.</span>
+                            <span v-if="form.errors.dedicated_athlete_ids" class="text-xs text-destructive">{{ form.errors.dedicated_athlete_ids }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -443,7 +463,7 @@ watch(
                             <label class="grid gap-1 text-sm font-semibold">Selesai *<input v-model="form.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                         </div>
 
-                        <label class="grid gap-1 text-sm font-semibold">
+                        <label v-if="!isPrivateClass" class="grid gap-1 text-sm font-semibold">
                             Minimal Sabuk
                             <select v-model="form.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Tanpa minimal</option>
@@ -477,8 +497,9 @@ watch(
                     <div>
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
-                        <p class="text-sm text-muted-foreground">Kategori: {{ selectedClass.training_group || 'Belum ada kategori' }}</p>
-                        <p v-if="normalizeClassType(selectedClass.class_type) === 'private'" class="text-sm text-muted-foreground">Atlet private: {{ selectedClass.dedicated_athlete || '-' }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ normalizeClassType(selectedClass.class_type) === 'private' ? 'Atlet private' : `Kategori: ${selectedClass.training_group || 'Belum ada kategori'}` }}
+                        </p>
                     </div>
                     <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ athleteModalError }}</p>
                     <p v-if="athleteModalLoading" class="text-sm text-muted-foreground">Loading athletes...</p>

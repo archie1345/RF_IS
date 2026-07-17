@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -69,5 +70,11 @@ class Group extends Model
     public function dedicatedAthlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
+    }
+
+    public function privateAthletes(): BelongsToMany
+    {
+        return $this->belongsToMany(Athlete::class, 'class_group_private_athletes', 'group_id', 'athlete_id', 'group_id', 'athlete_id')
+            ->withTimestamps();
     }
 }
