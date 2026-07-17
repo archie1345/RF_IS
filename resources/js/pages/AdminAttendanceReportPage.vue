@@ -6,6 +6,7 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { AttendanceReportPeriod } from '@/types/admin-feature';
 import type { Metric } from '@/types/resource-table';
@@ -31,7 +32,7 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Dashboard', href: dashboard.url() },
     { title: props.title, href: window.location.pathname },
 ];
 

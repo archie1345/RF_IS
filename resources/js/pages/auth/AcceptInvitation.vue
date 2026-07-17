@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
+import { accept as invitationAccept } from '@/routes/invitations';
 
 const props = defineProps<{
     token: string;
@@ -22,7 +23,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.post(`/invitations/${props.token}`, {
+    form.post(invitationAccept.url(props.token), {
         preserveScroll: true,
         onSuccess: () => form.reset('password', 'password_confirmation'),
     });

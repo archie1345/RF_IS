@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { edit as passwordEdit, update as passwordUpdate } from '@/routes/user-password';
 import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbItems: BreadcrumbItem[] = [
     {
         title: 'Password settings',
-        href: '/settings/password',
+        href: passwordEdit.url(),
     },
 ];
 </script>
@@ -32,17 +33,12 @@ const breadcrumbItems: BreadcrumbItem[] = [
                 />
 
                 <Form
-                    action="/settings/password"
-                    method="put"
+                    v-bind="passwordUpdate.form()"
                     :options="{
                         preserveScroll: true,
                     }"
                     reset-on-success
-                    :reset-on-error="[
-                        'password',
-                        'password_confirmation',
-                        'current_password',
-                    ]"
+                    :reset-on-error="['password', 'password_confirmation', 'current_password']"
                     class="space-y-6"
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
@@ -73,9 +69,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="password_confirmation"
-                            >Confirm password</Label
-                        >
+                        <Label for="password_confirmation">Confirm password</Label>
                         <Input
                             id="password_confirmation"
                             name="password_confirmation"
@@ -88,11 +82,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                     </div>
 
                     <div class="flex items-center gap-4">
-                        <Button
-                            :disabled="processing"
-                            data-test="update-password-button"
-                            >Save password</Button
-                        >
+                        <Button :disabled="processing" data-test="update-password-button">Save password</Button>
 
                         <Transition
                             enter-active-class="transition ease-in-out"
@@ -100,12 +90,7 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             leave-active-class="transition ease-in-out"
                             leave-to-class="opacity-0"
                         >
-                            <p
-                                v-show="recentlySuccessful"
-                                class="text-sm text-neutral-600"
-                            >
-                                Saved.
-                            </p>
+                            <p v-show="recentlySuccessful" class="text-sm text-neutral-600">Saved.</p>
                         </Transition>
                     </div>
                 </Form>

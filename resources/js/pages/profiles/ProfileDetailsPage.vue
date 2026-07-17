@@ -16,6 +16,9 @@ import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorA
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
 import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
+import { dashboard } from '@/routes';
+import { edit as profileEdit } from '@/routes/profile';
+import { index as usersIndex, show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import 'vue-advanced-cropper/dist/style.css';
 
@@ -64,11 +67,11 @@ const {
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() =>
     isSettingsContext.value
-        ? [{ title: 'Profile settings', href: '/settings/profile' }]
+        ? [{ title: 'Profile settings', href: profileEdit.url() }]
         : [
-              { title: 'Dashboard', href: '/dashboard' },
-              { title: 'Users', href: '/users' },
-              { title: props.user.name, href: `/users/${props.user.id}` },
+              { title: 'Dashboard', href: dashboard.url() },
+              { title: 'Users', href: usersIndex.url() },
+              { title: props.user.name, href: userShow.url(props.user.id) },
           ],
 );
 

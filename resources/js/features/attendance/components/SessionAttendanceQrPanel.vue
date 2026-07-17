@@ -4,8 +4,8 @@ import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AttendanceWindowFields from '@/features/attendance/components/AttendanceWindowFields.vue';
+import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/sessions/attendance-qr';
 
 const props = defineProps<{
     sessionId: number;
@@ -74,7 +74,7 @@ watch(
 );
 
 function generateQr() {
-    form.post(appRoutes.sessionAttendanceQr(props.sessionId), {
+    form.post(storeSessionQr.url(props.sessionId), {
         preserveScroll: true,
     });
 }
@@ -84,7 +84,7 @@ function revokeQr() {
         return;
     }
 
-    router.delete(appRoutes.sessionAttendanceQr(props.sessionId), { preserveScroll: true });
+    router.delete(destroySessionQr.url(props.sessionId), { preserveScroll: true });
 }
 
 function resetWindow() {
@@ -131,9 +131,7 @@ function toDateTimeLocal(value?: string | null): string {
             <p v-if="props.qr.generated_at" class="text-sm text-muted-foreground">
                 Generated: {{ props.qr.generated_at }}
             </p>
-            <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">
-                Closed: {{ props.qr.revoked_at }}
-            </p>
+            <p v-if="props.qr.revoked_at" class="text-sm text-muted-foreground">Closed: {{ props.qr.revoked_at }}</p>
             <p v-if="qrStatus" class="mt-2 text-sm text-muted-foreground">
                 {{ qrStatus }}
             </p>

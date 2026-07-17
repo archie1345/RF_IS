@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { CalendarDays, CheckCircle2, QrCode, WalletCards } from 'lucide-vue-next';
+import { CheckCircle2, QrCode, WalletCards } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
 import { dashboardColumns } from '@/data/dashboard';
-import { appRoutes } from '@/data/routes';
+import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
+import { index as attendanceIndex } from '@/routes/attendance';
 import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
 
 type DashboardAttendanceRow = {
@@ -231,7 +232,7 @@ onUnmounted(() => {
                 :rows="props.activityPreviewRows"
                 ><template #row-actions
                     ><Button as-child variant="outline" size="sm"
-                        ><Link :href="appRoutes.activityLogs">Open full log</Link></Button
+                        ><Link :href="activityLogsIndex.url()">Open full log</Link></Button
                     ></template
                 ></DataTable
             >
@@ -378,7 +379,7 @@ onUnmounted(() => {
                     </div>
                 </div>
                 <Button as-child class="mt-4 w-full rounded-2xl"
-                    ><Link :href="appRoutes.attendance">Open QR scan menu</Link></Button
+                    ><Link :href="attendanceIndex.url()">Open QR scan menu</Link></Button
                 >
             </div>
         </div>

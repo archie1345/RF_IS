@@ -3,8 +3,11 @@ import { Head, router } from '@inertiajs/vue3';
 import AdminUserAccountPanel from '@/components/admin/AdminUserAccountPanel.vue';
 import BranchAdministrationPanel from '@/components/admin/BranchAdministrationPanel.vue';
 import GroupAdministrationPanel from '@/components/admin/GroupAdministrationPanel.vue';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as adminIndex } from '@/routes/admin';
+import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
+import { destroy as groupDestroy, store as groupStore, update as groupUpdate } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
 import type { AdminAccountRow } from '@/types/admin';
 import type { Branch } from '@/types/branch';
@@ -26,34 +29,33 @@ const { users, branches, groups } = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Admin Panel', href: '/admin' },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Admin Panel', href: adminIndex.url() },
 ];
 
 function createBranch(payload: { name: string; location: string }) {
-    router.post('/admin/branches', payload, { preserveScroll: true });
+    router.post(branchStore.url(), payload, { preserveScroll: true });
 }
 
 function updateBranch(payload: { id: string; name: string; location: string }) {
-    router.put(`/admin/branches/${payload.id}`, payload, { preserveScroll: true });
+    router.put(branchUpdate.url(payload.id), payload, { preserveScroll: true });
 }
 
 function deleteBranch(id: string) {
-    router.delete(`/admin/branches/${id}`, { preserveScroll: true });
+    router.delete(branchDestroy.url(id), { preserveScroll: true });
 }
 
 function createGroup(payload: { name: string; description: string | null }) {
-    router.post('/admin/groups', payload, { preserveScroll: true });
+    router.post(groupStore.url(), payload, { preserveScroll: true });
 }
 
 function updateGroup(payload: { id: string; name: string; description: string | null }) {
-    router.put(`/admin/groups/${payload.id}`, payload, { preserveScroll: true });
+    router.put(groupUpdate.url(payload.id), payload, { preserveScroll: true });
 }
 
 function deleteGroup(id: string) {
-    router.delete(`/admin/groups/${id}`, { preserveScroll: true });
+    router.delete(groupDestroy.url(id), { preserveScroll: true });
 }
-
 </script>
 
 <template>
@@ -61,7 +63,6 @@ function deleteGroup(id: string) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-
             <AdminUserAccountPanel :initial-users="users" />
             <BranchAdministrationPanel
                 :branches="branches ?? []"

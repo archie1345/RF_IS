@@ -14,7 +14,6 @@ import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     athleteRosterBaseColumns,
@@ -24,6 +23,12 @@ import {
     geupOptions,
     parentRosterColumns,
 } from '@/pages/profiles/profileRosterConfig';
+import { dashboard } from '@/routes';
+import { sync as parentChildrenSync } from '@/routes/parents/children';
+import { index as usersIndex, show as userShow } from '@/routes/users';
+import { update as athleteRecordUpdate } from '@/routes/users/athlete-record';
+import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
+import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -68,14 +73,11 @@ const athleteGroupFilter = ref('');
 const athleteStatusFilter = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Users', href: appRoutes.athletes },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Users', href: usersIndex.url() },
 ];
 
-const athleteColumns: TableColumn[] = [
-    ...athleteRosterBaseColumns,
-    ...athleteRosterTrailingColumns,
-];
+const athleteColumns: TableColumn[] = [...athleteRosterBaseColumns, ...athleteRosterTrailingColumns];
 
 const coachColumns: TableColumn[] = coachRosterColumns;
 
@@ -154,7 +156,7 @@ function submit() {
     };
 
     if (editingAthleteId.value) {
-        form.put(`/athlete/user/${editingAthleteId.value}`, options);
+        form.put(athleteRecordUpdate.url(editingAthleteId.value), options);
         return;
     }
 }
@@ -183,7 +185,7 @@ function viewProfile(row: TableRow) {
         return;
     }
 
-    router.visit(`/users/${userId}`);
+    router.visit(userShow.url(userId));
 }
 
 function openEditCoach(row: TableRow) {
@@ -196,7 +198,7 @@ function openEditCoach(row: TableRow) {
 
 function saveCoach() {
     if (editingCoachId.value) {
-        coachForm.put(`/users/${editingCoachId.value}/coach-profile`, {
+        coachForm.put(userCoachProfileUpdate.url(editingCoachId.value), {
             preserveScroll: true,
             onSuccess: () => {
                 showCoachModal.value = false;
@@ -216,7 +218,7 @@ function openEditParent(row: TableRow) {
 
 function saveParent() {
     if (editingParentId.value) {
-        parentForm.put(`/users/${editingParentId.value}/parent-profile`, {
+        parentForm.put(userParentProfileUpdate.url(editingParentId.value), {
             preserveScroll: true,
             onSuccess: () => {
                 showParentModal.value = false;
@@ -272,7 +274,7 @@ function toggleChild(value: string | number) {
 function saveParentChildren() {
     if (!editingParentChildrenId.value) return;
 
-    parentChildrenForm.put(`/parents/${editingParentChildrenId.value}/children`, {
+    parentChildrenForm.put(parentChildrenSync.url(editingParentChildrenId.value), {
         preserveScroll: true,
         onSuccess: closeParentChildrenModal,
     });

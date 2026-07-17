@@ -11,11 +11,12 @@ import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
+    { title: 'Dashboard', href: dashboard.url() },
     { title: 'Components Playground', href: appRoutes.componentsPlayground },
 ];
 
@@ -47,22 +48,42 @@ const options = [
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection title="Components Playground" description="Dedicated page to test reusable UI components in one place.">
+            <PageSection
+                title="Components Playground"
+                description="Dedicated page to test reusable UI components in one place."
+            >
                 <template #actions>
                     <Button type="button" @click="showModal = true">Open test modal</Button>
                 </template>
             </PageSection>
 
-            <DataTable title="Shared table sample" description="Simple table sample for regression testing." :columns="columns" :rows="rows" />
+            <DataTable
+                title="Shared table sample"
+                description="Simple table sample for regression testing."
+                :columns="columns"
+                :rows="rows"
+            />
         </div>
 
         <FormModal :open="showModal" max-width-class="max-w-xl" @close="showModal = false">
             <PageSection title="Form components" description="Reusable form controls test bed.">
                 <div class="grid gap-4">
                     <FormInputField id="play-name" v-model="form.name" label="Name" placeholder="Type here" />
-                    <FormSelectField id="play-branch" v-model="form.branch" label="Branch" :options="options" placeholder="Select branch" />
+                    <FormSelectField
+                        id="play-branch"
+                        v-model="form.branch"
+                        label="Branch"
+                        :options="options"
+                        placeholder="Select branch"
+                    />
                     <SearchableSelect v-model="form.coach" :options="options" placeholder="Search select sample" />
-                    <FormNumberStepperField id="play-weight" v-model="form.weight" label="Weight (kg)" :min="0" :step="0.1" />
+                    <FormNumberStepperField
+                        id="play-weight"
+                        v-model="form.weight"
+                        label="Weight (kg)"
+                        :min="0"
+                        :step="0.1"
+                    />
                     <Button type="button" variant="outline" @click="showModal = false">Close</Button>
                 </div>
             </PageSection>

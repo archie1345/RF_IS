@@ -5,8 +5,9 @@ import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vu
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole, Metric, TableRow, AttendanceRow, TrainingDay } from '@/types/resource-table';
@@ -14,7 +15,7 @@ import type { AppRole, Metric, TableRow, AttendanceRow, TrainingDay } from '@/ty
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
-        href: appRoutes.dashboard,
+        href: dashboard.url(),
     },
 ];
 
@@ -34,7 +35,9 @@ const props = defineProps({
 const role = computed<AppRole>(() => {
     const userRole = page.props.auth?.user?.role;
 
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete' ? userRole : 'athlete';
+    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
+        ? userRole
+        : 'athlete';
 });
 
 const children = computed(() => page.props.auth.children ?? []);
@@ -42,12 +45,12 @@ const activeChild = computed(() => page.props.auth.activeChild ?? null);
 
 const switchChild = (athleteId: string) => {
     if (!athleteId) {
-        router.delete(appRoutes.parentChildrenSwitch, { preserveState: true });
+        router.delete(clearChildRoute.url(), { preserveState: true });
 
         return;
     }
 
-    router.post(appRoutes.parentChildrenSwitch, { athlete_id: athleteId }, { preserveState: true });
+    router.post(switchChildRoute.url(), { athlete_id: athleteId }, { preserveState: true });
 };
 
 useLiveReload(

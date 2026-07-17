@@ -10,8 +10,15 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    attendance as sessionAttendance,
+    destroy as sessionDestroy,
+    index as sessionsIndex,
+    join as sessionJoin,
+    store as sessionsStore,
+} from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -23,8 +30,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Sessions', href: appRoutes.sessions },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Sessions', href: sessionsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -51,7 +58,7 @@ const showSessionForm = ref(false);
 const pendingDeleteSessionId = ref<number | null>(null);
 
 function submit() {
-    form.post('/sessions', {
+    form.post(sessionsStore.url(), {
         onSuccess: () => {
             form.reset();
             showSessionForm.value = false;
@@ -85,13 +92,13 @@ function confirmDeleteSession() {
     if (!pendingDeleteSessionId.value) return;
     const id = pendingDeleteSessionId.value;
     pendingDeleteSessionId.value = null;
-    router.delete(`/sessions/${id}`, { preserveScroll: true });
+    router.delete(sessionDestroy.url(id), { preserveScroll: true });
 }
 
 function joinSession(row: TableRow) {
     const id = Number(row.session_id);
     if (!id) return;
-    router.post(`/sessions/${id}/join`);
+    router.post(sessionJoin.url(id));
 }
 </script>
 
@@ -111,7 +118,10 @@ function joinSession(row: TableRow) {
                 @secondary="cancelDeleteSession"
             />
 
-            <PageSection title="Session" description="Schedule training sessions and keep the live coaching calendar synced.">
+            <PageSection
+                title="Session"
+                description="Schedule training sessions and keep the live coaching calendar synced."
+            >
                 <template #actions>
                     <Button type="button" @click="openCreateSessionForm">Schedule session</Button>
                 </template>
@@ -132,9 +142,11 @@ function joinSession(row: TableRow) {
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
                             <Button as-child size="sm" variant="outline">
-                                <Link :href="`/sessions/${String(row.id).replace('SES-', '')}/attendance`">Edit</Link>
+                                <Link :href="sessionAttendance.url(String(row.id).replace('SES-', ''))">Edit</Link>
                             </Button>
-                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
+                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)"
+                                >Join</Button
+                            >
                             <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
                         </ActionButtonsRow>
                     </template>
@@ -143,18 +155,64 @@ function joinSession(row: TableRow) {
         </div>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
-            <PageSection title="Session draft" description="Create a new training session. Existing sessions are edited from their session attendance page.">
+            <PageSection
+                title="Session draft"
+                description="Create a new training session. Existing sessions are edited from their session attendance page."
+            >
                 <form class="grid gap-4" @submit.prevent="submit">
-                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
+                    <FormInputField
+                        id="session-name"
+                        v-model="form.title"
+                        label="Session name"
+                        placeholder="Junior sparring block"
+                        :error="form.errors.title"
+                    />
                     <div class="grid gap-4 md:grid-cols-2">
-                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
-                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
+                        <FormSelectField
+                            id="session-group"
+                            v-model="form.group_id"
+                            label="Group"
+                            :options="props.groups"
+                            placeholder="All groups in branch"
+                            :error="form.errors.group_id"
+                        />
+                        <FormSelectField
+                            id="session-branch"
+                            v-model="form.branch_id"
+                            label="Branch"
+                            :options="props.branches"
+                            :error="form.errors.branch_id"
+                        />
                     </div>
-                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
+                    <FormInputField
+                        id="session-location"
+                        v-model="form.location"
+                        label="Location"
+                        placeholder="Hall A"
+                        :error="form.errors.location"
+                    />
                     <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
-                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
-                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
+                        <FormInputField
+                            id="session-date"
+                            v-model="form.session_date"
+                            label="Date"
+                            type="date"
+                            :error="form.errors.session_date"
+                        />
+                        <FormInputField
+                            id="session-start"
+                            v-model="form.start_time"
+                            label="Start time"
+                            type="time"
+                            :error="form.errors.start_time"
+                        />
+                        <FormInputField
+                            id="session-end"
+                            v-model="form.end_time"
+                            label="End time"
+                            type="time"
+                            :error="form.errors.end_time"
+                        />
                     </div>
                     <FormSelectField
                         id="session-status"
@@ -169,8 +227,12 @@ function joinSession(row: TableRow) {
                         :error="form.errors.status"
                     />
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Save schedule</Button>
-                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing"
+                            >Save schedule</Button
+                        >
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>
