@@ -31,7 +31,6 @@ const emit = defineEmits<{
 const mapEl = ref<HTMLElement | null>(null);
 let map: L.Map | null = null;
 let marker: L.Marker | null = null;
-let radiusCircle: L.Circle | null = null;
 
 const defaultCenter: L.LatLngExpression = [-7.9173211, 112.6448861];
 
@@ -125,7 +124,6 @@ onBeforeUnmount(() => {
     }
     map = null;
     marker = null;
-    radiusCircle = null;
 });
 </script>
 

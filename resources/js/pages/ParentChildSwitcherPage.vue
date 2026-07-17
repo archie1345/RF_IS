@@ -2,8 +2,14 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    clear as clearChildRoute,
+    index as parentChildrenIndex,
+    switchMethod as switchChildRoute,
+} from '@/routes/parent/children';
+import { show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
@@ -20,25 +26,25 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Child Switcher', href: appRoutes.parentChildSwitcher },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Child Switcher', href: parentChildrenIndex.url() },
 ];
 
 const switchChild = (athleteId: string) => {
     if (!athleteId) {
-        router.delete('/parent/children/switch', { preserveState: true });
+        router.delete(clearChildRoute.url(), { preserveState: true });
         return;
     }
 
-    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
+    router.post(switchChildRoute.url(), { athlete_id: athleteId }, { preserveState: true });
 };
 
 const clearChild = () => {
-    router.delete('/parent/children/switch', { preserveState: true });
+    router.delete(clearChildRoute.url(), { preserveState: true });
 };
 
 function profileUrl(userId: number) {
-    return `/users/${userId}`;
+    return userShow.url(userId);
 }
 </script>
 
@@ -57,7 +63,7 @@ function profileUrl(userId: number) {
                             type="button"
                             variant="outline"
                             class="w-full sm:w-auto"
-                            @click="router.visit(appRoutes.dashboard)"
+                            @click="router.visit(dashboard.url())"
                             >Back to dashboard</Button
                         >
                         <Button

@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\Admin\AdminAttendanceReportController;
-use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\AdminEventFeatureController;
-use App\Http\Controllers\Admin\AdminFinanceFeatureController;
-use App\Http\Controllers\Admin\AdminPeopleFeatureController;
-use App\Http\Controllers\Admin\AdminScheduleFeatureController;
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\ChampionshipController;
+use App\Http\Controllers\ChampionshipExportController;
+use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
+use App\Http\Controllers\Admin\Features\AdminFinanceFeatureController;
+use App\Http\Controllers\Admin\Features\AdminPeopleFeatureController;
+use App\Http\Controllers\Admin\Features\AdminScheduleFeatureController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
@@ -14,36 +17,62 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceScanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ProfileUserAchievementController;
+use App\Http\Controllers\ParentChildContextController;
+use App\Http\Controllers\ParentChildProfileController;
+use App\Http\Controllers\ProfileAccessController;
+use App\Http\Controllers\SessionController;
+use App\Http\Controllers\SessionAttendanceQrController;
+use App\Http\Controllers\UserAchievementController;
+use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
+use App\Http\Controllers\Profiles\CoachProfileController;
+use App\Http\Controllers\Profiles\ParentProfileController;
 use App\Http\Controllers\Training\TrainingClassController;
 use App\Http\Controllers\Training\TrainingLocationController;
 use App\Http\Controllers\Training\WeeklyScheduleController;
-use App\Http\Controllers\UserCertificationController;
+use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('dashboard'));
+Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule');
-    Route::get('sessions', [AdminScheduleFeatureController::class, 'daily'])->name('sessions');
-    Route::get('announcements', [DashboardController::class, 'announcements'])->name('announcements');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
+    Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
+    Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
+    Route::delete('training-schedules/{schedule}', [WeeklyScheduleController::class, 'destroy'])->name('training-schedules.destroy');
+    Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+    Route::post('sessions', [SessionController::class, 'store'])->name('sessions.store');
+    Route::put('sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
+    Route::delete('sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
+    Route::post('sessions/{session}/join', [SessionController::class, 'join'])->name('sessions.join');
+    Route::get('sessions/{session}/attendance', [SessionController::class, 'attendanceSheet'])->name('sessions.attendance');
+    Route::post('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('sessions.attendance-qr.store');
+    Route::delete('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('sessions.attendance-qr.destroy');
+    Route::post('sessions/{session}/coach-attendance', [SessionController::class, 'addCoachAttendance'])->name('sessions.coach-attendance.store');
+    Route::put('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'updateCoachAttendance'])->name('sessions.coach-attendance.update');
+    Route::delete('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'destroyCoachAttendance'])->name('sessions.coach-attendance.destroy');
+    Route::get('achievements', [UserAchievementController::class, 'index'])->name('achievements.index');
+    Route::post('achievements', [UserAchievementController::class, 'storeAchievement'])->name('achievements.store');
+    Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
 
     Route::middleware('throttle:qr-scan')->group(function () {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
 
-    Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::prefix('users')->controller(UserDirectoryController::class)->group(function () {
         Route::get('/', 'index')->name('users.index');
         Route::post('/', 'store')->name('users.store');
-        Route::get('{user}', 'show')->name('users.show');
+        Route::get('{user}', [ProfileAccessController::class, 'show'])->name('users.show');
         Route::put('{user}', 'update')->name('users.update');
+        Route::patch('{user}/account', [ProfileAccessController::class, 'updateAccount'])->name('users.account.update');
+        Route::post('{user}/profile', [ProfileAccessController::class, 'updateAccountProfile'])->name('users.profile.update');
+        Route::put('{user}/athlete-profile', [ProfileAccessController::class, 'updateAthleteProfile'])->name('users.athlete-profile.update');
+        Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update');
+        Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update');
+        Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update');
         Route::delete('{user}', 'destroy')->name('users.destroy');
         Route::post('{user}/restore', 'restore')->name('users.restore');
         Route::delete('{user}/force', 'forceDelete')->name('users.force-delete');
@@ -57,6 +86,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync');
     });
 
+    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('switch', 'switch')->name('switch');
+        Route::delete('switch', 'clear')->name('clear');
+        Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
+    });
+
+    Route::prefix('championships')->name('championships.')->controller(ChampionshipController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('events', 'storeEvent')->name('events.store');
+        Route::get('{event}', 'show')->name('show');
+        Route::get('{event}/export', ChampionshipExportController::class)->name('export');
+        Route::post('registrations', 'storeRegistration')->name('registrations.store');
+        Route::put('registrations/{registration}', 'updateRegistration')->name('registrations.update');
+        Route::post('payments/{payment}/settle', 'settleRegistrationPayment')->name('payments.settle');
+        Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store');
+        Route::post('registrations/{registration}/result', 'recordResult')->name('registrations.result');
+    });
+
     Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function () {
         Route::post('/', 'store')->name('athletes.store');
         Route::get('{athlete}', 'show')->name('athletes.record.show');
@@ -64,7 +112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('{athlete}', 'destroy')->name('athletes.destroy');
         Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
         Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
-        Route::put('user/{user}', 'upsertByUser')->name('users.update');
+        Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
     });
 
     Route::prefix('admin')->name('admin.')->group(function () {
@@ -137,9 +185,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
-        Route::post('manual', 'storeManual')->name('manual.store');
+        Route::post('manual', 'store')->name('manual.store');
+        Route::post('manual', 'store')->name('store');
+        Route::post('bulk-update', 'bulkUpdate')->name('bulk-update');
         Route::put('{attendance}', 'update')->name('update');
     });
 });
 
+require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

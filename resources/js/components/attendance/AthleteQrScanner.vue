@@ -4,7 +4,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
+import { show as attendanceScanShow } from '@/routes/attendance/scan';
 
 const scanner = ref<Html5Qrcode | null>(null);
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
@@ -33,10 +33,10 @@ function extractAttendanceScanUrl(value: string): string | null {
         const parsed = new URL(raw, window.location.origin);
         const match = parsed.pathname.match(/^\/attendance\/scan\/([^/]+)\/?$/);
         if (!match?.[1]) return null;
-        return appRoutes.attendanceScan(match[1]);
+        return attendanceScanShow.url(match[1]);
     } catch {
         const match = raw.match(/\/attendance\/scan\/([^\s/]+)/);
-        return match?.[1] ? appRoutes.attendanceScan(match[1]) : null;
+        return match?.[1] ? attendanceScanShow.url(match[1]) : null;
     }
 }
 

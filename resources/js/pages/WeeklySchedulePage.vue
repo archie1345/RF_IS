@@ -3,6 +3,8 @@ import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, WeeklySchedule } from '@/types/training';
 
@@ -34,22 +36,11 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: props.title, href: '/training-schedule' },
-];
-
-const dayOptions = [
-    { value: 1, label: 'Senin' },
-    { value: 2, label: 'Selasa' },
-    { value: 3, label: 'Rabu' },
-    { value: 4, label: 'Kamis' },
-    { value: 5, label: 'Jumat' },
-    { value: 6, label: 'Sabtu' },
-    { value: 7, label: 'Minggu' },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: props.title, href: trainingScheduleIndex.url() },
 ];
 
 const scheduleView = ref<'cards' | 'table'>('cards');
-
 </script>
 
 <template>

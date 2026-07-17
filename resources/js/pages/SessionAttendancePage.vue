@@ -10,9 +10,16 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { bulkUpdate as attendanceBulkUpdate, update as attendanceUpdate } from '@/routes/attendance';
+import { attendance as sessionAttendance, index as sessionsIndex, update as sessionUpdate } from '@/routes/sessions';
+import {
+    destroy as sessionCoachAttendanceDestroy,
+    store as sessionCoachAttendanceStore,
+    update as sessionCoachAttendanceUpdate,
+} from '@/routes/sessions/coach-attendance';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -48,9 +55,9 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Coach Sessions', href: appRoutes.sessions },
-    { title: 'Edit Session', href: `/sessions/${props.session.id}/attendance` },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Coach Sessions', href: sessionsIndex.url() },
+    { title: 'Edit Session', href: sessionAttendance.url(props.session.id) },
 ];
 
 const columns: TableColumn[] = [
@@ -85,7 +92,7 @@ const pendingCoachDeleteId = ref<string | null>(null);
 
 function updateStatus(rowId: string, status: string) {
     const attendanceId = rowId.replace('ATT-', '');
-    router.put(appRoutes.attendanceItem(attendanceId), { status }, { preserveScroll: true });
+    router.put(attendanceUpdate.url(attendanceId), { status }, { preserveScroll: true });
 }
 
 function requestBulkUpdate(status: 'PRESENT' | 'ABSENT') {
@@ -99,11 +106,11 @@ function confirmBulkUpdate() {
     const attendanceIds = props.rows
         .map((row) => Number(String(row.id).replace('ATT-', '')))
         .filter((id) => !Number.isNaN(id));
-    router.post(appRoutes.attendanceBulkUpdate, { attendance_ids: attendanceIds, status }, { preserveScroll: true });
+    router.post(attendanceBulkUpdate.url(), { attendance_ids: attendanceIds, status }, { preserveScroll: true });
 }
 
 function addCoach() {
-    coachForm.post(appRoutes.sessionCoachAttendance(props.session.id), {
+    coachForm.post(sessionCoachAttendanceStore.url(props.session.id), {
         preserveScroll: true,
         onSuccess: () => coachForm.reset(),
     });
@@ -111,7 +118,7 @@ function addCoach() {
 
 function updateCoachStatus(rowId: string, status: 'TEACH' | 'NOT_TEACH') {
     const coachAttendanceId = rowId.replace('SCA-', '');
-    router.put(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { status }, { preserveScroll: true });
+    router.put(sessionCoachAttendanceUpdate.url(coachAttendanceId), { status }, { preserveScroll: true });
 }
 
 function requestRemoveCoach(rowId: string) {
@@ -122,7 +129,7 @@ function confirmRemoveCoach() {
     if (!pendingCoachDeleteId.value) return;
     const coachAttendanceId = pendingCoachDeleteId.value.replace('SCA-', '');
     pendingCoachDeleteId.value = null;
-    router.delete(appRoutes.sessionCoachAttendanceItem(coachAttendanceId), { preserveScroll: true });
+    router.delete(sessionCoachAttendanceDestroy.url(coachAttendanceId), { preserveScroll: true });
 }
 function resetCoachForm() {
     coachForm.reset();
@@ -131,8 +138,12 @@ function resetCoachForm() {
 
 function openEditSessionForm() {
     form.title = props.session.title;
-    form.branch_id = props.session.branch_id === null || props.session.branch_id === undefined ? '' : String(props.session.branch_id);
-    form.group_id = props.session.group_id === null || props.session.group_id === undefined ? '' : String(props.session.group_id);
+    form.branch_id =
+        props.session.branch_id === null || props.session.branch_id === undefined
+            ? ''
+            : String(props.session.branch_id);
+    form.group_id =
+        props.session.group_id === null || props.session.group_id === undefined ? '' : String(props.session.group_id);
     form.location = props.session.location ?? '';
     form.session_date = props.session.date;
     form.start_time = props.session.start_time ?? '';
@@ -155,7 +166,7 @@ function openQrPanelForm() {
 }
 
 function submit() {
-    form.put(`/sessions/${props.session.id}`, {
+    form.put(sessionUpdate.url(props.session.id), {
         preserveScroll: true,
         onSuccess: () => {
             showSessionForm.value = false;
@@ -197,11 +208,15 @@ function submit() {
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" @click="requestBulkUpdate('PRESENT')">Mark all present</Button>
-                        <Button type="button" variant="outline" @click="requestBulkUpdate('ABSENT')">Mark all absent</Button>
+                        <Button type="button" variant="outline" @click="requestBulkUpdate('PRESENT')"
+                            >Mark all present</Button
+                        >
+                        <Button type="button" variant="outline" @click="requestBulkUpdate('ABSENT')"
+                            >Mark all absent</Button
+                        >
                         <Button type="button" @click="openEditSessionForm">Edit session</Button>
                         <Button type="button" @click="openQrPanelForm">Show QR panel</Button>
-                        <Button as-child variant="outline"><a href="/sessions">Back to sessions</a></Button>
+                        <Button as-child variant="outline"><a :href="sessionsIndex.url()">Back to sessions</a></Button>
                     </div>
                 </template>
             </PageSection>
@@ -212,7 +227,13 @@ function submit() {
             >
                 <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
                     <div class="grid gap-2">
-                        <FormSelectField id="coach-picker" v-model="coachForm.coach_id" label="Add coach" :options="props.coachOptions" placeholder="Select coach" />
+                        <FormSelectField
+                            id="coach-picker"
+                            v-model="coachForm.coach_id"
+                            label="Add coach"
+                            :options="props.coachOptions"
+                            placeholder="Select coach"
+                        />
                         <InputError :message="coachForm.errors.coach_id" />
                     </div>
                     <div class="flex items-end gap-2">
@@ -233,9 +254,27 @@ function submit() {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Teach</Button>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Not teach</Button>
-                            <Button type="button" size="sm" variant="destructive" @click="requestRemoveCoach(String(row.id))">Delete</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'TEACH')"
+                                >Teach</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'NOT_TEACH')"
+                                >Not teach</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                @click="requestRemoveCoach(String(row.id))"
+                                >Delete</Button
+                            >
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
@@ -244,7 +283,7 @@ function submit() {
             <FormModal :open="openQrPanel" max-width-class="max-w-2xl" @close="openQrPanel = false">
                 <SessionAttendanceQrPanel
                     :session-id="props.session.id"
-                    :back-href="`/sessions/${props.session.id}/attendance`"
+                    :back-href="sessionAttendance.url(props.session.id)"
                     :qr="props.session.attendance_qr"
                     :session-date="props.session.date"
                     :session-start-time="props.session.start_time"
@@ -264,26 +303,84 @@ function submit() {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'PRESENT')">Attend</Button>
-                        <Button type="button" size="sm" variant="outline" @click="updateStatus(String(row.id), 'ABSENT')">Not attend</Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="updateStatus(String(row.id), 'PRESENT')"
+                            >Attend</Button
+                        >
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="updateStatus(String(row.id), 'ABSENT')"
+                            >Not attend</Button
+                        >
                     </ActionButtonsRow>
                 </template>
             </DataTable>
         </div>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
-            <PageSection title="Edit training session" description="Update this session's date, time, branch, group, location, and status.">
+            <PageSection
+                title="Edit training session"
+                description="Update this session's date, time, branch, group, location, and status."
+            >
                 <form class="grid gap-4" @submit.prevent="submit">
-                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
+                    <FormInputField
+                        id="session-name"
+                        v-model="form.title"
+                        label="Session name"
+                        placeholder="Junior sparring block"
+                        :error="form.errors.title"
+                    />
                     <div class="grid gap-4 md:grid-cols-2">
-                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
-                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
+                        <FormSelectField
+                            id="session-group"
+                            v-model="form.group_id"
+                            label="Group"
+                            :options="props.groups"
+                            placeholder="All groups in branch"
+                            :error="form.errors.group_id"
+                        />
+                        <FormSelectField
+                            id="session-branch"
+                            v-model="form.branch_id"
+                            label="Branch"
+                            :options="props.branches"
+                            :error="form.errors.branch_id"
+                        />
                     </div>
-                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
+                    <FormInputField
+                        id="session-location"
+                        v-model="form.location"
+                        label="Location"
+                        placeholder="Hall A"
+                        :error="form.errors.location"
+                    />
                     <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
-                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
-                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
+                        <FormInputField
+                            id="session-date"
+                            v-model="form.session_date"
+                            label="Date"
+                            type="date"
+                            :error="form.errors.session_date"
+                        />
+                        <FormInputField
+                            id="session-start"
+                            v-model="form.start_time"
+                            label="Start time"
+                            type="time"
+                            :error="form.errors.start_time"
+                        />
+                        <FormInputField
+                            id="session-end"
+                            v-model="form.end_time"
+                            label="End time"
+                            type="time"
+                            :error="form.errors.end_time"
+                        />
                     </div>
                     <FormSelectField
                         id="session-status"
@@ -297,8 +394,12 @@ function submit() {
                         :error="form.errors.status"
                     />
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save changes' }}</Button>
-                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">{{
+                            form.processing ? 'Saving...' : 'Save changes'
+                        }}</Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>

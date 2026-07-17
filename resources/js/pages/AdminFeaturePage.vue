@@ -7,6 +7,18 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    classes as adminClasses,
+    locations as adminLocations,
+    payments as adminPayments,
+    monthlyDues as adminMonthlyDues,
+} from '@/routes/admin';
+import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
+import { destroy as groupDestroy, store as groupStore, update as groupUpdate } from '@/routes/admin/groups';
+import { generate as generateMonthlyDuesRoute, settings as monthlyDuesSettings } from '@/routes/admin/monthly-dues';
+import { generateWeek as generateWeekRoute, store as scheduleStore } from '@/routes/admin/schedules';
+import { index as paymentsIndex } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
 import type {
     AdminFeatureSelectOption,
@@ -56,8 +68,19 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: props.title, href: `/admin/${props.mode}` },
+    { title: 'Dashboard', href: dashboard.url() },
+    {
+        title: props.title,
+        href:
+            (
+                {
+                    locations: adminLocations.url(),
+                    classes: adminClasses.url(),
+                    payments: adminPayments.url(),
+                    'monthly-dues': adminMonthlyDues.url(),
+                } as Record<string, string>
+            )[props.mode] ?? dashboard.url(),
+    },
 ];
 
 const dayCards = [
@@ -207,16 +230,16 @@ function clearAttendanceFilters() {
 }
 
 function generateMonthlyDues() {
-    router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true });
+    router.post(generateMonthlyDuesRoute.url(), {}, { preserveScroll: true });
 }
 function saveBillingSettings() {
-    billingForm.post('/admin/monthly-dues/settings', { preserveScroll: true });
+    billingForm.post(monthlyDuesSettings.url(), { preserveScroll: true });
 }
 function generateWeeklySessions() {
-    router.post('/admin/schedules/generate-week', {}, { preserveScroll: true });
+    router.post(generateWeekRoute.url(), {}, { preserveScroll: true });
 }
 function saveWeeklySchedule() {
-    weeklyForm.post('/admin/schedules', { preserveScroll: true, onSuccess: () => weeklyForm.reset() });
+    weeklyForm.post(scheduleStore.url(), { preserveScroll: true, onSuccess: () => weeklyForm.reset() });
 }
 
 function openLocationForm(location?: ManagedLocation) {
@@ -244,13 +267,13 @@ function saveLocation() {
             editingLocationId.value = null;
         },
     };
-    if (editingLocationId.value) locationForm.put(`/admin/branches/${editingLocationId.value}`, options);
-    else locationForm.post('/admin/branches', options);
+    if (editingLocationId.value) locationForm.put(branchUpdate.url(editingLocationId.value), options);
+    else locationForm.post(branchStore.url(), options);
 }
 
 function deleteLocation(location: ManagedLocation) {
     if (window.confirm(`Delete location ${location.name}?`))
-        router.delete(`/admin/branches/${location.id}`, { preserveScroll: true });
+        router.delete(branchDestroy.url(location.id), { preserveScroll: true });
 }
 
 function useCurrentLocation() {
@@ -285,13 +308,13 @@ function saveClass() {
             editingClassId.value = null;
         },
     };
-    if (editingClassId.value) classForm.put(`/admin/groups/${editingClassId.value}`, options);
-    else classForm.post('/admin/groups', options);
+    if (editingClassId.value) classForm.put(groupUpdate.url(editingClassId.value), options);
+    else classForm.post(groupStore.url(), options);
 }
 
 function deleteClass(item: ManagedClass) {
     if (window.confirm(`Delete class ${item.name}?`))
-        router.delete(`/admin/groups/${item.id}`, { preserveScroll: true });
+        router.delete(groupDestroy.url(item.id), { preserveScroll: true });
 }
 
 function isExternalUrl(value: unknown): value is string {
@@ -335,7 +358,7 @@ function linkLabel(value: string) {
                             as-child
                             variant="outline"
                             size="sm"
-                            ><Link href="/payments">Payment Center</Link></Button
+                            ><Link :href="paymentsIndex.url()">Payment Center</Link></Button
                         >
                         <Button variant="secondary" size="sm" @click="router.reload({})"
                             ><RefreshCcw class="mr-2 size-4" /> Refresh</Button

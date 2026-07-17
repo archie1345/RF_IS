@@ -4,6 +4,14 @@ import { CalendarDays, Pencil, RefreshCcw, Trash2, Users } from 'lucide-vue-next
 import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { classes as adminClasses } from '@/routes/admin';
+import {
+    athletes as groupAthletes,
+    destroy as groupDestroy,
+    store as groupStore,
+    update as groupUpdate,
+} from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
 import type { ClassAthleteRecord, ClassRecord, SelectOption } from '@/types/training';
 
@@ -27,8 +35,8 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: props.title, href: '/admin/classes' },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: props.title, href: adminClasses.url() },
 ];
 
 const dayOptions = [
@@ -75,12 +83,12 @@ const isPrivateClass = computed(() => form.class_type === 'private');
 const classCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-            form.class_type &&
-            form.branch_id &&
-            form.day_of_week &&
-            form.start_time &&
-            form.end_time &&
-            (!isPrivateClass.value || form.coach_id),
+        form.class_type &&
+        form.branch_id &&
+        form.day_of_week &&
+        form.start_time &&
+        form.end_time &&
+        (!isPrivateClass.value || form.coach_id),
     );
 });
 
@@ -162,7 +170,7 @@ async function openClassAthletes(item: ClassRecord) {
     athleteModalLoading.value = true;
 
     try {
-        const response = await fetch(`/admin/groups/${item.id}/athletes`, {
+        const response = await fetch(groupAthletes.url(item.id), {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
@@ -192,7 +200,7 @@ function editClass(item: ClassRecord) {
     form.name = item.name;
     form.class_type = classType;
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
-    form.coach_id = classType === 'private' ? item.coach_id ?? '' : '';
+    form.coach_id = classType === 'private' ? (item.coach_id ?? '') : '';
     form.day_of_week = item.day_of_week ?? 1;
     form.start_time = item.start_time || '16:00';
     form.end_time = item.end_time || '18:00';
@@ -210,18 +218,27 @@ function saveClass() {
 
     enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeClassForm };
-    if (editingClassId.value) form.put(`/admin/groups/${editingClassId.value}`, options);
-    else form.post('/admin/groups', options);
+    if (editingClassId.value) form.put(groupUpdate.url(editingClassId.value), options);
+    else form.post(groupStore.url(), options);
 }
 
 function deleteClass(item: ClassRecord) {
     if (window.confirm(`Delete/deactivate kelas ${item.name}?`)) {
-        router.delete(`/admin/groups/${item.id}`, { preserveScroll: true });
+        router.delete(groupDestroy.url(item.id), { preserveScroll: true });
     }
 }
 
 watch(
-    () => [form.is_active, form.name, form.class_type, form.branch_id, form.coach_id, form.day_of_week, form.start_time, form.end_time],
+    () => [
+        form.is_active,
+        form.name,
+        form.class_type,
+        form.branch_id,
+        form.coach_id,
+        form.day_of_week,
+        form.start_time,
+        form.end_time,
+    ],
     enforceActivationRules,
 );
 </script>
@@ -298,9 +315,13 @@ watch(
                                         {{ classTypeLabel(item.class_type) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
-                                <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
                                 <td class="max-w-[200px] px-3 py-4">
-                                    <p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p>
+                                    <p class="truncate">{{ item.branch }}</p>
+                                </td>
+                                <td class="max-w-[200px] px-3 py-4">
+                                    <p class="truncate">
+                                        {{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}
+                                    </p>
                                 </td>
                                 <td class="px-3 py-4">
                                     <CalendarDays class="mr-1 inline size-3" />{{ item.day_label }}
@@ -327,7 +348,11 @@ watch(
                                 </td>
                                 <td class="px-3 py-4">
                                     <div class="flex gap-2">
-                                        <button type="button" class="rounded border px-2 py-1" @click.stop="editClass(item)">
+                                        <button
+                                            type="button"
+                                            class="rounded border px-2 py-1"
+                                            @click.stop="editClass(item)"
+                                        >
                                             <Pencil class="size-4" /></button
                                         ><button
                                             type="button"
@@ -365,15 +390,13 @@ watch(
                         <label class="grid gap-1 text-sm font-semibold">
                             Tipe Kelas *
                             <select v-model="form.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option
-                                    v-for="option in classTypeOptions"
-                                    :key="option.value"
-                                    :value="option.value"
-                                >
+                                <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
+                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{
+                                form.errors.class_type
+                            }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -402,12 +425,17 @@ watch(
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{ form.errors.coach_id }}</span>
+                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{
+                                form.errors.coach_id
+                            }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Hari *
-                            <select v-model="form.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <select
+                                v-model="form.day_of_week"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            >
                                 <option v-for="day in dayOptions" :key="day.value" :value="day.value">
                                     {{ day.label }}
                                 </option>
@@ -445,7 +473,9 @@ watch(
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{ form.errors.min_belt }}</span>
+                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{
+                                form.errors.min_belt
+                            }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -470,7 +500,10 @@ watch(
                                 />
                                 Aktif
                             </span>
-                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                            <span
+                                class="text-xs"
+                                :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'"
+                            >
                                 {{ activationHint }}
                             </span>
                         </label>
@@ -482,7 +515,11 @@ watch(
                             >
                                 {{ form.processing ? 'Saving...' : 'Save Kelas' }}
                             </button>
-                            <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeClassForm">
+                            <button
+                                type="button"
+                                class="rounded-lg border px-4 py-2 text-sm font-bold"
+                                @click="closeClassForm"
+                            >
                                 Batal
                             </button>
                         </div>
@@ -496,11 +533,15 @@ watch(
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
                         <p class="text-sm text-muted-foreground">
-                            {{ classTypeLabel(selectedClass.class_type) }} · {{ selectedClass.branch }} · {{ selectedClass.athletes_count }} atlet
+                            {{ classTypeLabel(selectedClass.class_type) }} · {{ selectedClass.branch }} ·
+                            {{ selectedClass.athletes_count }} atlet
                         </p>
                     </div>
 
-                    <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    <p
+                        v-if="athleteModalError"
+                        class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
                         {{ athleteModalError }}
                     </p>
 
@@ -524,10 +565,16 @@ watch(
                                         Belum ada atlet di kelas ini.
                                     </td>
                                 </tr>
-                                <tr v-for="athlete in selectedClassAthletes" :key="String(athlete.id)" class="border-b last:border-b-0">
+                                <tr
+                                    v-for="athlete in selectedClassAthletes"
+                                    :key="String(athlete.id)"
+                                    class="border-b last:border-b-0"
+                                >
                                     <td class="px-3 py-3 font-bold">{{ athlete.name }}</td>
                                     <td class="px-3 py-3 text-muted-foreground">{{ athlete.geup || '-' }}</td>
-                                    <td class="px-3 py-3 text-muted-foreground">{{ athlete.branch || selectedClass.branch || '-' }}</td>
+                                    <td class="px-3 py-3 text-muted-foreground">
+                                        {{ athlete.branch || selectedClass.branch || '-' }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

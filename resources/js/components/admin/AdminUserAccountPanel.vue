@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { destroy as adminAccountDestroy, forceDelete as adminAccountForceDelete, restore as adminAccountRestore, store as adminAccountStore, update as adminAccountUpdate } from '@/routes/admin/accounts';
+import { resend as adminAccountInvitationResend } from '@/routes/admin/accounts/invitation';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { Metric, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -232,12 +234,12 @@ const submit = () => {
     };
 
     if (editingId.value !== null) {
-        form.transform(() => payload).put(`/admin/accounts/${editingId.value}`, options);
+        form.transform(() => payload).put(adminAccountUpdate.url(editingId.value), options);
 
         return;
     }
 
-    form.transform(() => payload).post('/admin/accounts', options);
+    form.transform(() => payload).post(adminAccountStore.url(), options);
 };
 
 // function saveRosterProfile() {
@@ -255,7 +257,7 @@ function isInvitedRow(row: TableRow) {
 function resendInvitation(row: TableRow) {
     const id = Number(row.id);
     if (!id) return;
-    router.post(`/admin/accounts/${id}/invitation`, {}, { preserveScroll: true });
+    router.post(adminAccountInvitationResend.url(id), {}, { preserveScroll: true });
 }
 
 function deleteAccount(row: TableRow) {
@@ -273,7 +275,7 @@ function deleteAccount(row: TableRow) {
 function restoreAccount(row: TableRow) {
     const id = Number(row.id);
     if (!id) return;
-    router.put(`/admin/accounts/${id}/restore`, {}, { preserveScroll: true });
+    router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
 }
 
 function hardDeleteAccount(row: TableRow) {
@@ -305,13 +307,13 @@ function confirmPendingAction() {
     pendingConfirmation.value = null;
 
     if (confirmation.kind === 'hard-delete') {
-        router.delete(`/admin/accounts/${confirmation.id}/hard-delete`, {
+        router.delete(adminAccountForceDelete.url(confirmation.id), {
             preserveScroll: true,
         });
         return;
     }
 
-    router.delete(`/admin/accounts/${confirmation.id}`, {
+    router.delete(adminAccountDestroy.url(confirmation.id), {
         preserveScroll: true,
     });
 }

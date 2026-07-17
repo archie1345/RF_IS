@@ -5,6 +5,9 @@ import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { locations as adminLocations } from '@/routes/admin';
+import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
 import type { BreadcrumbItem } from '@/types';
 import type { LocationRecord } from '@/types/training';
 
@@ -22,8 +25,8 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: props.title, href: '/admin/locations' },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: props.title, href: adminLocations.url() },
 ];
 
 const editingLocationId = ref<number | null>(null);
@@ -59,11 +62,11 @@ const filteredLocations = computed(() => {
 const locationCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-            form.address.trim() &&
-            form.city.trim() &&
-            form.province.trim() &&
-            isValidCoordinate(form.latitude) &&
-            isValidCoordinate(form.longitude),
+        form.address.trim() &&
+        form.city.trim() &&
+        form.province.trim() &&
+        isValidCoordinate(form.latitude) &&
+        isValidCoordinate(form.longitude),
     );
 });
 
@@ -135,13 +138,13 @@ function setCoordinates(payload: { latitude: string; longitude: string }) {
 function saveLocation() {
     enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeLocationForm };
-    if (editingLocationId.value) form.put(`/admin/branches/${editingLocationId.value}`, options);
-    else form.post('/admin/branches', options);
+    if (editingLocationId.value) form.put(branchUpdate.url(editingLocationId.value), options);
+    else form.post(branchStore.url(), options);
 }
 
 function deleteLocation(location: LocationRecord) {
     if (window.confirm(`Delete/deactivate lokasi ${location.name}?`)) {
-        router.delete(`/admin/branches/${location.id}`, { preserveScroll: true });
+        router.delete(branchDestroy.url(location.id), { preserveScroll: true });
     }
 }
 
@@ -313,30 +316,45 @@ watch(
                                 class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
                                 placeholder="Alamat lengkap"
                             ></textarea>
-                            <span v-if="form.errors.address" class="text-xs text-destructive">{{ form.errors.address }}</span>
+                            <span v-if="form.errors.address" class="text-xs text-destructive">{{
+                                form.errors.address
+                            }}</span>
                         </label>
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
                                 Kota *
                                 <input v-model="form.city" class="h-10 rounded-lg border bg-background px-3 text-sm" />
-                                <span v-if="form.errors.city" class="text-xs text-destructive">{{ form.errors.city }}</span>
+                                <span v-if="form.errors.city" class="text-xs text-destructive">{{
+                                    form.errors.city
+                                }}</span>
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
                                 Provinsi *
-                                <input v-model="form.province" class="h-10 rounded-lg border bg-background px-3 text-sm" />
-                                <span v-if="form.errors.province" class="text-xs text-destructive">{{ form.errors.province }}</span>
+                                <input
+                                    v-model="form.province"
+                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                />
+                                <span v-if="form.errors.province" class="text-xs text-destructive">{{
+                                    form.errors.province
+                                }}</span>
                             </label>
                         </div>
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
                                 Latitude *
-                                <input v-model="form.latitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                                <input
+                                    v-model="form.latitude"
+                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                />
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
                                 Longitude *
-                                <input v-model="form.longitude" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                                <input
+                                    v-model="form.longitude"
+                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                />
                             </label>
                         </div>
 
@@ -352,7 +370,10 @@ watch(
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
                                 Timezone
-                                <input v-model="form.timezone" class="h-10 rounded-lg border bg-background px-3 text-sm" />
+                                <input
+                                    v-model="form.timezone"
+                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                />
                             </label>
                         </div>
 
@@ -360,7 +381,10 @@ watch(
                             <span class="flex h-7 items-center gap-2">
                                 <input v-model="form.is_active" type="checkbox" /> Aktif
                             </span>
-                            <span class="text-xs" :class="locationCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                            <span
+                                class="text-xs"
+                                :class="locationCanBeActive ? 'text-green-600' : 'text-muted-foreground'"
+                            >
                                 {{ activationHint }}
                             </span>
                         </label>
@@ -372,7 +396,11 @@ watch(
                             >
                                 {{ form.processing ? 'Saving...' : 'Save Lokasi' }}
                             </button>
-                            <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeLocationForm">
+                            <button
+                                type="button"
+                                class="rounded-lg border px-4 py-2 text-sm font-bold"
+                                @click="closeLocationForm"
+                            >
                                 Batal
                             </button>
                         </div>

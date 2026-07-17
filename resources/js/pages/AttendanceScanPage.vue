@@ -4,6 +4,8 @@ import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-n
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { show as attendanceScanShow } from '@/routes/attendance/scan';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
@@ -45,8 +47,8 @@ const isSubmitting = ref(false);
 const submitError = ref<string | null>(null);
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'QR Attendance', href: `/attendance/scan/${props.token}` },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'QR Attendance', href: attendanceScanShow.url(props.token) },
 ];
 
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
@@ -103,7 +105,7 @@ function recordAttendance() {
     submitError.value = null;
 
     router.post(
-        `/attendance/scan/${props.token}`,
+        attendanceScanShow.url(props.token),
         {},
         {
             preserveScroll: true,
@@ -212,7 +214,7 @@ function recordAttendance() {
                     </section>
 
                     <a
-                        href="/dashboard"
+                        :href="dashboard.url()"
                         class="rounded-2xl border px-4 py-3 text-center text-sm font-bold hover:bg-muted"
                     >
                         {{ hasSaved ? 'Done / Back to dashboard' : 'Back to dashboard' }}
