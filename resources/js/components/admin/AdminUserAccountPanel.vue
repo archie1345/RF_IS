@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
-import StatCard from '@/components/shared/StatCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { destroy as adminAccountDestroy, forceDelete as adminAccountForceDelete, restore as adminAccountRestore, store as adminAccountStore, update as adminAccountUpdate } from '@/routes/admin/accounts';
 import { resend as adminAccountInvitationResend } from '@/routes/admin/accounts/invitation';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
-import type { Metric, TableColumn, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
@@ -49,38 +48,6 @@ const form = useForm({
 });
 
 const rolesError = computed(() => (form.errors as Record<string, string>).roles);
-
-const stats = computed<Metric[]>(() => [
-    {
-        label: 'Total accounts',
-        value: String(users.value.length),
-        detail: 'Managed from one admin workspace',
-        tone: 'info',
-    },
-    {
-        label: 'Admins and coaches',
-        value: String(
-            users.value.filter((user) => {
-                const roles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
-                return roles.includes('admin') || roles.includes('coach');
-            }).length,
-        ),
-        detail: 'Core operating team',
-        tone: 'success',
-    },
-    {
-        label: 'Invites pending',
-        value: String(users.value.filter((user) => user.status === 'invited').length),
-        detail: 'Accounts waiting to complete setup',
-        tone: 'warning',
-    },
-    {
-        label: 'Suspended accounts',
-        value: String(users.value.filter((user) => user.status === 'suspended').length),
-        detail: 'Needs admin review',
-        tone: 'danger',
-    },
-]);
 
 const roleLabel: Record<AdminAccountRole, string> = {
     admin: 'Admin',
@@ -345,13 +312,9 @@ function confirmPendingAction() {
             </DialogContent>
         </Dialog>
         
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
-        </div>
-        
         <ResourceTablePanel
             eyebrow="Admin panel"
-            title="User Account Directory"
+            title="User Management"
             description="Create accounts here only. User, coach, parent, and athlete pages edit profile data after the account exists."
             create-label="Create user"
             table-title="Account roster"
@@ -364,6 +327,12 @@ function confirmPendingAction() {
             search-placeholder="Search users by name, email, role, branch, or status"
             @create="openCreate"
         >
+            <template #actions>
+                <Button type="button" class="gap-2" @click="openCreate">
+                    <Plus class="size-4" />
+                    Add new user
+                </Button>
+            </template>
 
             <template #row-actions="{ row }">
                 <div class="flex justify-end gap-2">

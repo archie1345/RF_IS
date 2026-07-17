@@ -33,6 +33,7 @@ import {
     events as adminEvents,
     locations as adminLocations,
     classes as adminClasses,
+    index as adminIndex,
 } from '@/routes/admin';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { history as adminEventHistory } from '@/routes/admin/events';
@@ -72,13 +73,14 @@ const adminNavItems: NavItem[] = [
     { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
     { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPin },
     { title: 'Kelas Latihan', href: adminClasses.url(), icon: Users },
+    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
     { title: 'Presensi Atlet', href: adminAttendance.url(), icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: adminInstructorAttendance.url(), icon: CalendarCheck2 },
     { title: 'Keuangan', href: adminPayments.url(), icon: CreditCard },
-    { title: 'Manajemen User', href: usersIndex.url(), icon: Users },
+    { title: 'Manajemen User', href: adminIndex.url(), icon: Users },
+    { title: 'Manajemen Athlete', href: usersIndex.url(),icon: Users},
     { title: 'Event Internal / UKT', href: adminEvents.url(), icon: Trophy },
     { title: 'Riwayat Event & UKT', href: adminEventHistory.url(), icon: FileClock },
-    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
     { title: 'Pengumuman', href: announcementsIndex.url(), icon: FileClock },
     { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: FileClock },
 ];
@@ -129,6 +131,8 @@ const mainNavItems = computed(() => {
             return true;
         });
 });
+
+const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
@@ -150,7 +154,7 @@ const mainNavItems = computed(() => {
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter />
+            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>
