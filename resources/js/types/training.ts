@@ -22,6 +22,7 @@ export type ClassAthleteRecord = {
     name: string;
     geup?: string | null;
     branch?: string | null;
+    training_group?: string | null;
 };
 
 export type ClassScheduleMode = 'weekly' | 'one_day';
@@ -29,6 +30,8 @@ export type ClassScheduleMode = 'weekly' | 'one_day';
 export type ClassRecord = {
     id: number;
     name: string;
+    training_group_id?: number | string | null;
+    training_group?: string | null;
     class_type: string;
     schedule_mode?: ClassScheduleMode;
     single_session_date?: string | null;
@@ -57,6 +60,8 @@ export type WeeklySchedule = {
     branch?: string | null;
     group_id?: number | null;
     group?: string | null;
+    training_group_id?: number | string | null;
+    training_group?: string | null;
     dedicated_athlete_id?: number | string | null;
     dedicated_athlete?: string | null;
     session_type?: string | null;
