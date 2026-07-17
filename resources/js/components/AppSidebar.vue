@@ -3,10 +3,10 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     CalendarCheck2,
     CalendarDays,
-    Camera,
     CreditCard,
     FileClock,
     LayoutGrid,
+    MapPin,
     Trophy,
     Users,
 } from 'lucide-vue-next';
@@ -23,7 +23,27 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { appRoutes } from '@/data/routes';
+import { dashboard } from '@/routes';
+import { index as achievementsIndex } from '@/routes/achievements';
+import {
+    dashboard as adminDashboard,
+    attendance as adminAttendance,
+    instructorAttendance as adminInstructorAttendance,
+    payments as adminPayments,
+    events as adminEvents,
+    locations as adminLocations,
+    classes as adminClasses,
+} from '@/routes/admin';
+import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
+import { history as adminEventHistory } from '@/routes/admin/events';
+import { index as announcementsIndex } from '@/routes/announcements';
+import { index as attendanceIndex } from '@/routes/attendance';
+import { index as championshipsIndex } from '@/routes/championships';
+import { index as parentChildrenIndex } from '@/routes/parent/children';
+import { index as paymentsIndex } from '@/routes/payments';
+import { index as sessionsIndex } from '@/routes/sessions';
+import { index as trainingScheduleIndex } from '@/routes/training-schedule';
+import { index as usersIndex } from '@/routes/users';
 import { type NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
@@ -33,64 +53,65 @@ const page = usePage<{ auth: Auth }>();
 
 const roles = computed<AppRole[]>(() => {
     const assignedRoles = page.props.auth?.user?.roles ?? [];
-    const validRoles = assignedRoles.filter((item): item is AppRole => ['admin', 'coach', 'parent', 'athlete'].includes(item));
+    const validRoles = assignedRoles.filter((item): item is AppRole =>
+        ['admin', 'coach', 'parent', 'athlete'].includes(item),
+    );
 
     if (validRoles.length > 0) {
         return validRoles;
     }
 
     const userRole = page.props.auth?.user?.role;
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete' ? [userRole] : ['athlete'];
+    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
+        ? [userRole]
+        : ['athlete'];
 });
 
 const adminNavItems: NavItem[] = [
-    { title: 'Dashboard', href: appRoutes.adminDashboard, icon: LayoutGrid },
-    { title: 'Presensi Atlet', href: appRoutes.adminAttendance, icon: CalendarCheck2 },
-    { title: 'Presensi Coach', href: appRoutes.adminInstructorAttendance, icon: CalendarCheck2 },
-    { title: 'Keuangan', href: appRoutes.adminPayments, icon: CreditCard },
-    { title: 'Manajemen User', href: appRoutes.users, icon: Users },
-    { title: 'Manajemen Latihan', href: appRoutes.adminTrainingManagement, icon: CalendarDays },
-    { title: 'Event Internal / UKT', href: appRoutes.adminEvents, icon: Trophy },
-    { title: 'Riwayat Event & UKT', href: appRoutes.adminEventHistory, icon: FileClock },
-    { title: 'Manajemen Sesi', href: appRoutes.sessions, icon: CalendarCheck2 },
-    { title: 'Pengumuman', href: appRoutes.announcements, icon: FileClock },
-    { title: 'Log Aktivitas', href: appRoutes.activityLogs, icon: FileClock },
+    { title: 'Dashboard', href: adminDashboard.url(), icon: LayoutGrid },
+    { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
+    { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPin },
+    { title: 'Kelas Latihan', href: adminClasses.url(), icon: Users },
+    { title: 'Presensi Atlet', href: adminAttendance.url(), icon: CalendarCheck2 },
+    { title: 'Presensi Coach', href: adminInstructorAttendance.url(), icon: CalendarCheck2 },
+    { title: 'Keuangan', href: adminPayments.url(), icon: CreditCard },
+    { title: 'Manajemen User', href: usersIndex.url(), icon: Users },
+    { title: 'Event Internal / UKT', href: adminEvents.url(), icon: Trophy },
+    { title: 'Riwayat Event & UKT', href: adminEventHistory.url(), icon: FileClock },
+    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
+    { title: 'Pengumuman', href: announcementsIndex.url(), icon: FileClock },
+    { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: FileClock },
 ];
 
-const attendanceScannerItem: NavItem = { title: 'Scan QR Attendance', href: appRoutes.attendanceScanner, icon: Camera };
-
 const navByRole: Record<AppRole, NavItem[]> = {
-    admin: [attendanceScannerItem, ...adminNavItems],
+    admin: adminNavItems,
     coach: [
-        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
-        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
+        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
+        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
+        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
+        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
+        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
+        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
     ],
     parent: [
-        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
-        { title: 'Child Profiles', href: appRoutes.parentChildSwitcher, icon: Users },
-        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
+        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
+        { title: 'Child Profiles', href: parentChildrenIndex.url(), icon: Users },
+        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
+        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
+        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
+        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
+        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
     ],
     athlete: [
-        { title: 'Dashboard', href: appRoutes.dashboard, icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: appRoutes.trainingSchedule, icon: CalendarDays },
-        attendanceScannerItem,
-        { title: 'Payments', href: appRoutes.payments, icon: CreditCard },
-        { title: 'Attendance', href: appRoutes.attendance, icon: CalendarCheck2 },
-        { title: 'Championships', href: appRoutes.championships, icon: Trophy },
-        { title: 'Achievements', href: appRoutes.achievements, icon: Trophy },
-        { title: 'Announcements', href: appRoutes.announcements, icon: FileClock },
+        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
+        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
+        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
+        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
+        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
+        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
+        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
     ],
 };
 
@@ -108,8 +129,6 @@ const mainNavItems = computed(() => {
             return true;
         });
 });
-
-const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
@@ -118,7 +137,7 @@ const footerNavItems: NavItem[] = [];
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="appRoutes.dashboard">
+                        <Link :href="dashboard.url()">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -131,9 +150,8 @@ const footerNavItems: NavItem[] = [];
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <NavFooter />
             <NavUser />
         </SidebarFooter>
     </Sidebar>
-    <slot />
 </template>

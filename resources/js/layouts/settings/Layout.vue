@@ -5,31 +5,31 @@ import Heading from '@/components/Heading.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
+import { edit as appearanceEdit } from '@/routes/appearance';
+import { edit as profileEdit } from '@/routes/profile';
+import { show as twoFactorShow } from '@/routes/two-factor';
+import { edit as passwordEdit } from '@/routes/user-password';
 import { type NavItem } from '@/types';
-import { edit as editAppearance } from '@/routes/appearance';
-import { edit as editProfile } from '@/routes/profile';
-import { show } from '@/routes/two-factor';
-import { edit as editPassword } from '@/routes/user-password';
 
 const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
-        href: editProfile(),
+        href: profileEdit.url(),
         icon: UserRound,
     },
     {
         title: 'Password',
-        href: editPassword(),
+        href: passwordEdit.url(),
         icon: KeyRound,
     },
     {
         title: 'Two-Factor Auth',
-        href: show(),
+        href: twoFactorShow.url(),
         icon: ShieldCheck,
     },
     {
         title: 'Appearance',
-        href: editAppearance(),
+        href: appearanceEdit.url(),
         icon: Palette,
     },
 ];
@@ -39,10 +39,7 @@ const { isCurrentUrl } = useCurrentUrl();
 
 <template>
     <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <Heading
-            title="Settings"
-            description="Manage your profile and account settings"
-        />
+        <Heading title="Settings" description="Manage your profile and account settings" />
 
         <div class="grid min-w-0 gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
             <aside class="min-w-0">

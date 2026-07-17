@@ -7,64 +7,41 @@ import InputError from '@/components/InputError.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as usersIndex, show as userShow } from '@/routes/users';
+import { update as userAccountUpdate } from '@/routes/users/account';
+import { update as userAthleteProfileUpdate } from '@/routes/users/athlete-profile';
+import { update as userPasswordUpdate } from '@/routes/users/password';
 import type { BreadcrumbItem } from '@/types';
+import type { Child, SelectOption } from '@/types/childProfile';
 
-type SelectOption = {
-    value: string | number;
-    label: string;
-};
-
-type Child = {
-    id: number;
-    name: string;
-    email: string;
-    gender?: string;
-    bday?: string;
-    phone?: string;
-    roles: string[];
-    bio?: string;
-    profilePictureUrl?: string | null;
-    athleteProfile?: {
-        height_cm?: number;
-        weight_kg?: number;
-        geup?: string;
-        nik?: string;
-        bpjs?: string;
-        phone?: string;
-        bday?: string;
-        gender?: string;
-        alamat?: string;
-        branch_id?: string | number | null;
-        group_id?: string | number | null;
-        branch?: string;
-        group?: string;
-    } | null;
-    achievements: Array<Record<string, unknown>>;
-    certifications: Array<Record<string, unknown>>;
-};
-
-const props = withDefaults(defineProps<{
-    child: Child;
-    branches?: SelectOption[];
-    groups?: SelectOption[];
-}>(), {
-    branches: () => [],
-    groups: () => [],
-});
+const props = withDefaults(
+    defineProps<{
+        child: Child;
+        branches?: SelectOption[];
+        groups?: SelectOption[];
+    }>(),
+    {
+        branches: () => [],
+        groups: () => [],
+    },
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'My Children', href: '/users' },
-    { title: props.child.name, href: `/users/${props.child.id}` },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'My Children', href: usersIndex.url() },
+    { title: props.child.name, href: userShow.url(props.child.id) },
 ];
 
 const isEditingAccount = ref(false);
 const isEditingAthlete = ref(false);
 const isEditingPassword = ref(false);
 
-const geupOptions = computed(() => [
-    'GEUP_10', 'GEUP_9', 'GEUP_8', 'GEUP_7', 'GEUP_6', 'GEUP_5', 'GEUP_4', 'GEUP_3', 'GEUP_2', 'GEUP_1', 'DAN',
-].map((value) => ({ value, label: value.replace('_', ' ') })));
+const geupOptions = computed(() =>
+    ['GEUP_10', 'GEUP_9', 'GEUP_8', 'GEUP_7', 'GEUP_6', 'GEUP_5', 'GEUP_4', 'GEUP_3', 'GEUP_2', 'GEUP_1', 'DAN'].map(
+        (value) => ({ value, label: value.replace('_', ' ') }),
+    ),
+);
 
 const genderOptions = [
     { value: 'MALE', label: 'Male' },
@@ -99,7 +76,7 @@ const passwordForm = useForm({
 });
 
 function saveAccount() {
-    accountForm.patch(`/users/${props.child.id}/account`, {
+    accountForm.patch(userAccountUpdate.url(props.child.id), {
         preserveScroll: true,
         onSuccess: () => {
             isEditingAccount.value = false;
@@ -108,7 +85,7 @@ function saveAccount() {
 }
 
 function saveAthlete() {
-    athleteForm.put(`/users/${props.child.id}/athlete-profile`, {
+    athleteForm.put(userAthleteProfileUpdate.url(props.child.id), {
         preserveScroll: true,
         onSuccess: () => {
             isEditingAthlete.value = false;
@@ -117,7 +94,7 @@ function saveAthlete() {
 }
 
 function savePassword() {
-    passwordForm.put(`/users/${props.child.id}/password`, {
+    passwordForm.put(userPasswordUpdate.url(props.child.id), {
         preserveScroll: true,
         onSuccess: () => {
             isEditingPassword.value = false;
@@ -174,7 +151,8 @@ function cancelPasswordEdit() {
                         <h2 class="mt-4 text-xl font-semibold">{{ child.name }}</h2>
                         <p class="text-sm text-muted-foreground">{{ child.email }}</p>
                         <p class="mt-2 text-sm text-muted-foreground">
-                            {{ child.athleteProfile?.branch ?? 'No branch' }} • {{ child.athleteProfile?.group ?? 'No group' }}
+                            {{ child.athleteProfile?.branch ?? 'No branch' }} •
+                            {{ child.athleteProfile?.group ?? 'No group' }}
                         </p>
                     </div>
                 </aside>
@@ -184,24 +162,67 @@ function cancelPasswordEdit() {
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold">Child Account Details</h3>
-                                <p class="text-sm text-muted-foreground">Update the child account identity and contact information.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Update the child account identity and contact information.
+                                </p>
                             </div>
-                            <Button v-if="!isEditingAccount" variant="outline" size="sm" @click="isEditingAccount = true">Edit Account</Button>
+                            <Button
+                                v-if="!isEditingAccount"
+                                variant="outline"
+                                size="sm"
+                                @click="isEditingAccount = true"
+                                >Edit Account</Button
+                            >
                         </div>
 
                         <form class="space-y-3" @submit.prevent="saveAccount">
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormInputField id="child-name" v-model="accountForm.name" label="Name" :disabled="!isEditingAccount" :error="accountForm.errors.name" />
-                                <FormInputField id="child-email" v-model="accountForm.email" label="Email" type="email" :disabled="!isEditingAccount" :error="accountForm.errors.email" />
+                                <FormInputField
+                                    id="child-name"
+                                    v-model="accountForm.name"
+                                    label="Name"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.name"
+                                />
+                                <FormInputField
+                                    id="child-email"
+                                    v-model="accountForm.email"
+                                    label="Email"
+                                    type="email"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.email"
+                                />
                             </div>
                             <div class="grid gap-3 md:grid-cols-3">
-                                <FormSelectField id="child-gender" v-model="accountForm.gender" label="Gender" :disabled="!isEditingAccount" :options="genderOptions" :error="accountForm.errors.gender" />
-                                <FormInputField id="child-bday" v-model="accountForm.bday" label="Birth date" type="date" :disabled="!isEditingAccount" :error="accountForm.errors.bday" />
-                                <FormInputField id="child-phone" v-model="accountForm.phone" label="Phone" :disabled="!isEditingAccount" :error="accountForm.errors.phone" />
+                                <FormSelectField
+                                    id="child-gender"
+                                    v-model="accountForm.gender"
+                                    label="Gender"
+                                    :disabled="!isEditingAccount"
+                                    :options="genderOptions"
+                                    :error="accountForm.errors.gender"
+                                />
+                                <FormInputField
+                                    id="child-bday"
+                                    v-model="accountForm.bday"
+                                    label="Birth date"
+                                    type="date"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.bday"
+                                />
+                                <FormInputField
+                                    id="child-phone"
+                                    v-model="accountForm.phone"
+                                    label="Phone"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.phone"
+                                />
                             </div>
                             <div v-if="isEditingAccount" class="flex flex-col gap-2 sm:flex-row">
                                 <Button type="submit" size="sm" :disabled="accountForm.processing">Save Account</Button>
-                                <Button type="button" variant="outline" size="sm" @click="cancelAccountEdit">Cancel</Button>
+                                <Button type="button" variant="outline" size="sm" @click="cancelAccountEdit"
+                                    >Cancel</Button
+                                >
                             </div>
                         </form>
                     </section>
@@ -210,36 +231,121 @@ function cancelPasswordEdit() {
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold">Child Athlete Data</h3>
-                                <p class="text-sm text-muted-foreground">Update training, body, rank, identifier, and address data for this child.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Update training, body, rank, identifier, and address data for this child.
+                                </p>
                             </div>
-                            <Button v-if="!isEditingAthlete" variant="outline" size="sm" @click="isEditingAthlete = true">Edit Athlete Data</Button>
+                            <Button
+                                v-if="!isEditingAthlete"
+                                variant="outline"
+                                size="sm"
+                                @click="isEditingAthlete = true"
+                                >Edit Athlete Data</Button
+                            >
                         </div>
 
                         <form class="space-y-3" @submit.prevent="saveAthlete">
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormInputField id="child-height" v-model="athleteForm.height_cm" label="Height (cm)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.height_cm" />
-                                <FormInputField id="child-weight" v-model="athleteForm.weight_kg" label="Weight (kg)" type="number" :disabled="!isEditingAthlete" :error="athleteForm.errors.weight_kg" />
+                                <FormInputField
+                                    id="child-height"
+                                    v-model="athleteForm.height_cm"
+                                    label="Height (cm)"
+                                    type="number"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.height_cm"
+                                />
+                                <FormInputField
+                                    id="child-weight"
+                                    v-model="athleteForm.weight_kg"
+                                    label="Weight (kg)"
+                                    type="number"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.weight_kg"
+                                />
                             </div>
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormSelectField id="child-geup" v-model="athleteForm.geup" label="Geup" :disabled="!isEditingAthlete" :options="geupOptions" :error="athleteForm.errors.geup" />
-                                <FormSelectField id="child-athlete-gender" v-model="athleteForm.gender" label="Gender" :disabled="!isEditingAthlete" :options="genderOptions" :error="athleteForm.errors.gender" />
+                                <FormSelectField
+                                    id="child-geup"
+                                    v-model="athleteForm.geup"
+                                    label="Geup"
+                                    :disabled="!isEditingAthlete"
+                                    :options="geupOptions"
+                                    :error="athleteForm.errors.geup"
+                                />
+                                <FormSelectField
+                                    id="child-athlete-gender"
+                                    v-model="athleteForm.gender"
+                                    label="Gender"
+                                    :disabled="!isEditingAthlete"
+                                    :options="genderOptions"
+                                    :error="athleteForm.errors.gender"
+                                />
                             </div>
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormInputField id="child-athlete-bday" v-model="athleteForm.bday" label="Birth date" type="date" :disabled="!isEditingAthlete" :error="athleteForm.errors.bday" />
-                                <FormInputField id="child-athlete-phone" v-model="athleteForm.phone" label="Phone" :disabled="!isEditingAthlete" :error="athleteForm.errors.phone" />
+                                <FormInputField
+                                    id="child-athlete-bday"
+                                    v-model="athleteForm.bday"
+                                    label="Birth date"
+                                    type="date"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.bday"
+                                />
+                                <FormInputField
+                                    id="child-athlete-phone"
+                                    v-model="athleteForm.phone"
+                                    label="Phone"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.phone"
+                                />
                             </div>
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormSelectField id="child-branch" v-model="athleteForm.branch_id" label="Branch" :disabled="!isEditingAthlete" :options="branches" :error="athleteForm.errors.branch_id" />
-                                <FormSelectField id="child-group" v-model="athleteForm.group_id" label="Group" :disabled="!isEditingAthlete" :options="groups" :error="athleteForm.errors.group_id" />
+                                <FormSelectField
+                                    id="child-branch"
+                                    v-model="athleteForm.branch_id"
+                                    label="Branch"
+                                    :disabled="!isEditingAthlete"
+                                    :options="branches"
+                                    :error="athleteForm.errors.branch_id"
+                                />
+                                <FormSelectField
+                                    id="child-group"
+                                    v-model="athleteForm.group_id"
+                                    label="Group"
+                                    :disabled="!isEditingAthlete"
+                                    :options="groups"
+                                    :error="athleteForm.errors.group_id"
+                                />
                             </div>
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormInputField id="child-nik" v-model="athleteForm.nik" label="NIK" :disabled="!isEditingAthlete" :error="athleteForm.errors.nik" />
-                                <FormInputField id="child-bpjs" v-model="athleteForm.bpjs" label="BPJS" :disabled="!isEditingAthlete" :error="athleteForm.errors.bpjs" />
+                                <FormInputField
+                                    id="child-nik"
+                                    v-model="athleteForm.nik"
+                                    label="NIK"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.nik"
+                                />
+                                <FormInputField
+                                    id="child-bpjs"
+                                    v-model="athleteForm.bpjs"
+                                    label="BPJS"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.bpjs"
+                                />
                             </div>
-                            <FormInputField id="child-address" v-model="athleteForm.alamat" label="Address" :disabled="!isEditingAthlete" :error="athleteForm.errors.alamat" />
+                            <FormInputField
+                                id="child-address"
+                                v-model="athleteForm.alamat"
+                                label="Address"
+                                :disabled="!isEditingAthlete"
+                                :error="athleteForm.errors.alamat"
+                            />
                             <div v-if="isEditingAthlete" class="flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" size="sm" :disabled="athleteForm.processing">Save Athlete Data</Button>
-                                <Button type="button" variant="outline" size="sm" @click="cancelAthleteEdit">Cancel</Button>
+                                <Button type="submit" size="sm" :disabled="athleteForm.processing"
+                                    >Save Athlete Data</Button
+                                >
+                                <Button type="button" variant="outline" size="sm" @click="cancelAthleteEdit"
+                                    >Cancel</Button
+                                >
                             </div>
                         </form>
                     </section>
@@ -248,25 +354,50 @@ function cancelPasswordEdit() {
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold">Child Password</h3>
-                                <p class="text-sm text-muted-foreground">Set a new login password for this child account. This does not change your parent password.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Set a new login password for this child account. This does not change your parent
+                                    password.
+                                </p>
                             </div>
-                            <Button v-if="!isEditingPassword" variant="outline" size="sm" @click="isEditingPassword = true">Change Child Password</Button>
+                            <Button
+                                v-if="!isEditingPassword"
+                                variant="outline"
+                                size="sm"
+                                @click="isEditingPassword = true"
+                                >Change Child Password</Button
+                            >
                         </div>
 
                         <form v-if="isEditingPassword" class="space-y-3" @submit.prevent="savePassword">
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div class="grid gap-2">
-                                    <FormInputField id="child-password" v-model="passwordForm.password" label="New child password" type="password" :error="passwordForm.errors.password" />
+                                    <FormInputField
+                                        id="child-password"
+                                        v-model="passwordForm.password"
+                                        label="New child password"
+                                        type="password"
+                                        :error="passwordForm.errors.password"
+                                    />
                                     <InputError :message="passwordForm.errors.password" />
                                 </div>
                                 <div class="grid gap-2">
-                                    <FormInputField id="child-password-confirmation" v-model="passwordForm.password_confirmation" label="Confirm new password" type="password" :error="passwordForm.errors.password_confirmation" />
+                                    <FormInputField
+                                        id="child-password-confirmation"
+                                        v-model="passwordForm.password_confirmation"
+                                        label="Confirm new password"
+                                        type="password"
+                                        :error="passwordForm.errors.password_confirmation"
+                                    />
                                     <InputError :message="passwordForm.errors.password_confirmation" />
                                 </div>
                             </div>
                             <div class="flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" size="sm" :disabled="passwordForm.processing">Save Child Password</Button>
-                                <Button type="button" variant="outline" size="sm" @click="cancelPasswordEdit">Cancel</Button>
+                                <Button type="submit" size="sm" :disabled="passwordForm.processing"
+                                    >Save Child Password</Button
+                                >
+                                <Button type="button" variant="outline" size="sm" @click="cancelPasswordEdit"
+                                    >Cancel</Button
+                                >
                             </div>
                         </form>
                     </section>

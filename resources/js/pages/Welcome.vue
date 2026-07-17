@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import { dashboard, login, register } from '@/routes';
 import { Head, Link } from '@inertiajs/vue3';
-import { dashboard, login } from '@/routes';
 
 withDefaults(
     defineProps<{
         canRegister: boolean;
     }>(),
     {
-        canRegister: false,
+        canRegister: true,
     },
 );
 
@@ -53,13 +53,6 @@ const highlights = [
                             >
                                 Log in
                             </Link>
-                            <!-- <Link
-                                v-if="canRegister"
-                                :href="register()"
-                                class="hidden h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-cyan-100 sm:inline-flex"
-                            >
-                                Register
-                            </Link> -->
                         </template>
                     </nav>
                 </header>

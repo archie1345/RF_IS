@@ -47,7 +47,9 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user ? [
-                    ...$user->toArray(),
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->role,
                     'roles' => $user->assignedRoles(),
                     'avatar' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
                 ] : null,
@@ -56,6 +58,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
+                'status' => fn () => $request->session()->get('status'),
                 'attendanceQr' => fn () => $request->session()->get('attendanceQr'),
                 'attendanceQrStatus' => fn () => $request->session()->get('attendanceQrStatus'),
                 'attendanceScan' => fn () => $request->session()->get('attendanceScan'),

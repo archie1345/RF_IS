@@ -21,9 +21,15 @@ const props = withDefaults(
         showCreate?: boolean;
         searchable?: boolean;
         searchPlaceholder?: string;
+        paginate?: boolean;
+        initialLimit?: number;
+        pageSize?: number;
     }>(),
     {
         showCreate: true,
+        paginate: true,
+        initialLimit: 10,
+        pageSize: 10,
     },
 );
 
@@ -43,11 +49,12 @@ const slots = useSlots();
             :description="props.description ?? ''"
         >
             <template #actions>
-                <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
-                    <Plus class="size-4" />
-                    {{ props.createLabel ?? 'Create' }}
-                </Button>
-                <slot v-else name="actions" />
+                <slot name="actions">
+                    <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
+                        <Plus class="size-4" />
+                        {{ props.createLabel ?? 'Create' }}
+                    </Button>
+                </slot>
             </template>
 
             <slot name="stats" />
@@ -62,6 +69,9 @@ const slots = useSlots();
             :action-label="props.actionLabel"
             :searchable="props.searchable"
             :search-placeholder="props.searchPlaceholder"
+            :paginate="props.paginate"
+            :initial-limit="props.initialLimit"
+            :page-size="props.pageSize"
         >
             <template #row-actions="{ row }">
                 <slot name="row-actions" :row="row" />

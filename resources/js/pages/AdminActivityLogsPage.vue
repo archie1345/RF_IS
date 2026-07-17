@@ -5,8 +5,9 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption } from '@/types/resource-table';
 import type { TableColumn, TableRow } from '@/types/resource-table';
@@ -29,8 +30,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'User Activity Log', href: appRoutes.activityLogs },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'User Activity Log', href: activityLogsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -70,13 +71,17 @@ const filterForm = useForm({
 });
 
 function applyFilters(page = 1) {
-    router.get('/admin/activity-logs', {
-        ...filterForm.data(),
-        page,
-    }, {
-        preserveScroll: true,
-        preserveState: true,
-    });
+    router.get(
+        activityLogsIndex.url(),
+        {
+            ...filterForm.data(),
+            page,
+        },
+        {
+            preserveScroll: true,
+            preserveState: true,
+        },
+    );
 }
 
 function resetFilters() {
@@ -101,11 +106,31 @@ function resetFilters() {
             />
 
             <div class="grid gap-4 md:grid-cols-3">
-                <FormInputField id="log-search" v-model="filterForm.q" label="Search" placeholder="Action, context, description, actor, IP" />
+                <FormInputField
+                    id="log-search"
+                    v-model="filterForm.q"
+                    label="Search"
+                    placeholder="Action, context, description, actor, IP"
+                />
                 <FormSelectField id="log-action" v-model="filterForm.action" label="Action" :options="actionOptions" />
-                <FormSelectField id="log-context" v-model="filterForm.context" label="Context" :options="contextOptions" />
-                <FormInputField id="log-actor-email" v-model="filterForm.actor_email" label="Actor email" placeholder="email@domain.com" />
-                <FormSelectField id="log-per-page" v-model="filterForm.per_page" label="Rows per page" :options="perPageOptions" />
+                <FormSelectField
+                    id="log-context"
+                    v-model="filterForm.context"
+                    label="Context"
+                    :options="contextOptions"
+                />
+                <FormInputField
+                    id="log-actor-email"
+                    v-model="filterForm.actor_email"
+                    label="Actor email"
+                    placeholder="email@domain.com"
+                />
+                <FormSelectField
+                    id="log-per-page"
+                    v-model="filterForm.per_page"
+                    label="Rows per page"
+                    :options="perPageOptions"
+                />
                 <div class="flex items-end gap-2">
                     <Button type="button" @click="applyFilters(1)">Apply</Button>
                     <Button type="button" variant="outline" @click="resetFilters">Reset</Button>
@@ -120,10 +145,21 @@ function resetFilters() {
             />
 
             <div class="flex justify-end gap-2">
-                <Button type="button" variant="outline" :disabled="props.currentPage <= 1" @click="applyFilters(props.currentPage - 1)">Previous</Button>
-                <Button type="button" variant="outline" :disabled="props.currentPage >= props.lastPage" @click="applyFilters(props.currentPage + 1)">Next</Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    :disabled="props.currentPage <= 1"
+                    @click="applyFilters(props.currentPage - 1)"
+                    >Previous</Button
+                >
+                <Button
+                    type="button"
+                    variant="outline"
+                    :disabled="props.currentPage >= props.lastPage"
+                    @click="applyFilters(props.currentPage + 1)"
+                    >Next</Button
+                >
             </div>
         </div>
     </AppLayout>
 </template>
-

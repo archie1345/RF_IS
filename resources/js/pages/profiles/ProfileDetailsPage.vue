@@ -16,6 +16,9 @@ import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorA
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
 import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
+import { dashboard } from '@/routes';
+import { edit as profileEdit } from '@/routes/profile';
+import { index as usersIndex, show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 import 'vue-advanced-cropper/dist/style.css';
 
@@ -64,11 +67,11 @@ const {
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() =>
     isSettingsContext.value
-        ? [{ title: 'Profile settings', href: '/settings/profile' }]
+        ? [{ title: 'Profile settings', href: profileEdit.url() }]
         : [
-              { title: 'Dashboard', href: '/dashboard' },
-              { title: 'Users', href: '/users' },
-              { title: props.user.name, href: `/users/${props.user.id}` },
+              { title: 'Dashboard', href: dashboard.url() },
+              { title: 'Users', href: usersIndex.url() },
+              { title: props.user.name, href: userShow.url(props.user.id) },
           ],
 );
 
@@ -339,8 +342,6 @@ function shortHash(value?: string | null) {
 
     return `${value.slice(0, 12)}...${value.slice(-8)}`;
 }
-
-
 </script>
 
 <template>
@@ -554,7 +555,7 @@ function shortHash(value?: string | null) {
                                     rows="3"
                                     class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="profileForm.errors.bio" class="text-sm text-red-500">
+                                <p v-if="profileForm.errors.bio" class="text-sm text-brand-coral">
                                     {{ profileForm.errors.bio }}
                                 </p>
                             </div>
@@ -618,7 +619,7 @@ function shortHash(value?: string | null) {
                                         <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
                                     </div>
 
-                                    <p v-if="profilePictureReady" class="text-sm text-green-600">
+                                    <p v-if="profilePictureReady" class="text-sm text-brand-lime">
                                         3x4 profile picture is ready to save.
                                     </p>
                                 </div>
@@ -826,7 +827,7 @@ function shortHash(value?: string | null) {
                                     rows="3"
                                     class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="coachForm.errors.bio" class="text-sm text-red-500">
+                                <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">
                                     {{ coachForm.errors.bio }}
                                 </p>
                             </div>

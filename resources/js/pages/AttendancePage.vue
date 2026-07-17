@@ -11,8 +11,10 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useRole } from '@/composables/useRole';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
+import { store as sessionsStore } from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
@@ -28,8 +30,8 @@ const props = defineProps<{
     activeAthleteId: string | null;
 }>();
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Attendance', href: appRoutes.attendance },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Attendance', href: attendanceIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -89,7 +91,7 @@ function canUpdateRow(row: AttendanceRow | TableRow) {
 
 function setAttendanceStatus(id: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') {
     const attendanceId = id.replace('ATT-', '');
-    router.put(appRoutes.attendanceItem(attendanceId), { status }, { preserveScroll: true });
+    router.put(attendanceUpdate.url(attendanceId), { status }, { preserveScroll: true });
 }
 
 function openSessionAttendance(href?: string) {
@@ -130,7 +132,7 @@ function applySessionDate(sessionValue: string) {
 }
 
 function submitSession() {
-    sessionForm.post(appRoutes.sessions, {
+    sessionForm.post(sessionsStore.url(), {
         onSuccess: () => {
             sessionForm.reset();
             showSessionForm.value = false;

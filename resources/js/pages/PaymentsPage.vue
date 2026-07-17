@@ -11,9 +11,18 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { exportMethod as dataTransferExport } from '@/routes/admin/data-transfer';
+import {
+    exportMethod as paymentExport,
+    destroy as paymentDestroy,
+    index as paymentsIndex,
+    store as paymentStore,
+    update as paymentUpdate,
+} from '@/routes/payments';
+import { submit as paymentProofSubmit, review as paymentProofReview } from '@/routes/payments/proof';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -40,8 +49,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Payments', href: appRoutes.payments },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Payments', href: paymentsIndex.url() },
 ];
 
 const invoiceTemplateModalOpen = ref(false);
@@ -206,20 +215,20 @@ function submit() {
     };
 
     if (editingPaymentId.value) {
-        form.put(`/payments/${editingPaymentId.value}`, options);
+        form.put(paymentUpdate.url(editingPaymentId.value), options);
         return;
     }
 
-    form.post('/payments', options);
+    form.post(paymentStore.url(), options);
 }
 
 function exportInvoice(paymentId: number | string) {
     // Triggers the browser to download the file by hitting the Laravel endpoint
-    window.open(`/payments/${paymentId}/export`, '_blank');
+    window.open(paymentExport.url(paymentId), '_blank');
 }
 
 function exportPaymentCsv() {
-    window.location.href = '/admin/data-transfer/export?entity=payments';
+    window.location.href = dataTransferExport.url({ query: { entity: 'payments' } });
 }
 
 function openCreate() {
@@ -260,7 +269,7 @@ function deletePayment(row: TableRow) {
     const id = Number(row.payment_id);
     if (!id) return;
     if (!confirm('Delete this invoice?')) return;
-    router.delete(`/payments/${id}`, { preserveScroll: true });
+    router.delete(paymentDestroy.url(id), { preserveScroll: true });
 }
 
 function saveInvoiceTemplate() {
@@ -280,7 +289,7 @@ function openProofForm(row: TableRow) {
 
 function submitProof() {
     if (!proofPaymentId.value) return;
-    proofForm.post(`/payments/${proofPaymentId.value}/proof`, {
+    proofForm.post(paymentProofSubmit.url(proofPaymentId.value), {
         forceFormData: true,
         onSuccess: () => {
             showProofForm.value = false;
@@ -304,7 +313,7 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
 
     if (decision === 'REJECTED' && !confirm('Are you sure you want to reject this receipt?')) return;
 
-    reviewForm.put(`/payments/${id}/proof-review`, {
+    reviewForm.put(paymentProofReview.url(id), {
         preserveScroll: true,
         onSuccess: () => {
             showReviewForm.value = false;
@@ -339,7 +348,10 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     </div>
                 </template>
 
-                <div v-if="props.coachPaymentLimitation" class="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                <div
+                    v-if="props.coachPaymentLimitation"
+                    class="rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+                >
                     {{ props.coachPaymentLimitation }}
                 </div>
 

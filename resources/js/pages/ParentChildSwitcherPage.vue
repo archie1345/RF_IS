@@ -2,8 +2,14 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    clear as clearChildRoute,
+    index as parentChildrenIndex,
+    switchMethod as switchChildRoute,
+} from '@/routes/parent/children';
+import { show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
@@ -20,25 +26,25 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Child Switcher', href: appRoutes.parentChildSwitcher },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Child Switcher', href: parentChildrenIndex.url() },
 ];
 
 const switchChild = (athleteId: string) => {
     if (!athleteId) {
-        router.delete('/parent/children/switch', { preserveState: true });
+        router.delete(clearChildRoute.url(), { preserveState: true });
         return;
     }
 
-    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
+    router.post(switchChildRoute.url(), { athlete_id: athleteId }, { preserveState: true });
 };
 
 const clearChild = () => {
-    router.delete('/parent/children/switch', { preserveState: true });
+    router.delete(clearChildRoute.url(), { preserveState: true });
 };
 
 function profileUrl(userId: number) {
-    return `/users/${userId}`;
+    return userShow.url(userId);
 }
 </script>
 
@@ -47,28 +53,57 @@ function profileUrl(userId: number) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection title="Choose Child Context" description="Select which child account data to view across attendance, payments, and championships.">
+            <PageSection
+                title="Choose Child Context"
+                description="Select which child account data to view across attendance, payments, and championships."
+            >
                 <template #actions>
                     <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(appRoutes.dashboard)">Back to dashboard</Button>
-                        <Button v-if="props.activeChildId" type="button" variant="outline" class="w-full sm:w-auto" @click="clearChild">Exit child view</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="router.visit(dashboard.url())"
+                            >Back to dashboard</Button
+                        >
+                        <Button
+                            v-if="props.activeChildId"
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="clearChild"
+                            >Exit child view</Button
+                        >
                     </div>
                 </template>
             </PageSection>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div v-for="child in props.children" :key="child.athlete_id" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+                <div
+                    v-for="child in props.children"
+                    :key="child.athlete_id"
+                    class="rounded-xl border border-border/70 bg-card p-4 shadow-sm"
+                >
                     <div class="space-y-2">
                         <div class="flex items-center justify-between gap-2">
                             <h3 class="text-lg font-semibold">{{ child.name }}</h3>
-                            <span v-if="child.is_active" class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">Active</span>
+                            <span
+                                v-if="child.is_active"
+                                class="rounded-full bg-brand-lime/20 px-2 py-1 text-xs font-medium text-brand-lime"
+                                >Active</span
+                            >
                         </div>
                         <p class="text-sm text-muted-foreground">{{ child.email }}</p>
                         <p class="text-sm text-muted-foreground">Branch: {{ child.branch }}</p>
                         <p class="text-sm text-muted-foreground">Group: {{ child.group }}</p>
                     </div>
                     <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                        <Button type="button" class="w-full" :variant="child.is_active ? 'outline' : 'default'" @click="switchChild(child.athlete_id)">
+                        <Button
+                            type="button"
+                            class="w-full"
+                            :variant="child.is_active ? 'outline' : 'default'"
+                            @click="switchChild(child.athlete_id)"
+                        >
                             {{ child.is_active ? 'Currently active' : 'Switch to this child' }}
                         </Button>
                         <Button as-child variant="outline" class="w-full">

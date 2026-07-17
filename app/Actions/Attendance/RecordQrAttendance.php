@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Support\Domain\AttendanceStatus;
+use App\Support\Domain\BeltRank;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -90,12 +91,20 @@ class RecordQrAttendance
 
     private function validateEligibility(Athlete $athlete, TrainingSession $session): void
     {
+        $session->loadMissing('group');
+
         if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session branch.']);
         }
 
-        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
-            throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session group.']);
+        if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
+            throw ValidationException::withMessages(['attendance' => 'You are not the assigned athlete for this private session.']);
+        }
+
+        if ($session->group_id !== null
+            && (string) $athlete->group_id !== (string) $session->group_id
+            && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
+            throw ValidationException::withMessages(['attendance' => 'Your belt level is not eligible for this session.']);
         }
     }
 }

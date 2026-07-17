@@ -84,7 +84,17 @@ class BranchController extends Controller
             'longitude' => $validated['longitude'] ?? null,
             'attendance_radius_meters' => $validated['attendance_radius_meters'],
             'timezone' => $validated['timezone'] ?? 'Asia/Jakarta',
-            'is_active' => (bool) ($validated['is_active'] ?? true),
+            'is_active' => (bool) ($validated['is_active'] ?? true) && $this->canActivate($validated),
         ];
+    }
+
+    private function canActivate(array $validated): bool
+    {
+        return filled($validated['name'] ?? null)
+            && filled($validated['address'] ?? null)
+            && filled($validated['city'] ?? null)
+            && filled($validated['province'] ?? null)
+            && filled($validated['latitude'] ?? null)
+            && filled($validated['longitude'] ?? null);
     }
 }

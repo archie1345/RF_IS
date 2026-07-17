@@ -19,7 +19,6 @@ abstract class BaseAdminFeatureController extends Controller
             'columns' => $columns,
             'rows' => $rows,
             'emptyText' => $emptyText,
-            'roleAccess' => 'Admin only',
             'todaySessions' => [],
             'billingSettings' => null,
         ], $extra));

@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { destroy as adminAccountDestroy, forceDelete as adminAccountForceDelete, restore as adminAccountRestore, store as adminAccountStore, update as adminAccountUpdate } from '@/routes/admin/accounts';
+import { resend as adminAccountInvitationResend } from '@/routes/admin/accounts/invitation';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { Metric, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -47,11 +49,6 @@ const form = useForm({
 });
 
 const rolesError = computed(() => (form.errors as Record<string, string>).roles);
-
-// const profileForm = useForm({
-//     bio: '',
-//     profile_picture: null as File | null,
-// });
 
 const stats = computed<Metric[]>(() => [
     {
@@ -99,7 +96,7 @@ const roleTone: Record<AdminAccountRole, 'danger' | 'info' | 'warning' | 'succes
     athlete: 'success',
 };
 
-const roleOptions = [
+const roleOptions: Array<{ value: AdminAccountRole; label: string }> = [
     { value: 'admin', label: 'Admin' },
     { value: 'coach', label: 'Coach' },
     { value: 'parent', label: 'Parent' },
@@ -162,11 +159,6 @@ function openEditByRow(row: TableRow) {
     openEdit(user);
 }
 
-// function viewProfile(row: TableRow) {
-//     const userId = row.id;
-//     router.visit(`/admin/accounts/${userId}`);
-// }
-
 const resetForm = () => {
     editingId.value = null;
     form.reset();
@@ -178,9 +170,6 @@ const resetForm = () => {
     form.status = 'active';
     form.password = '';
     form.password_confirmation = '';
-    // profileForm.reset();
-    // profileForm.bio = '';
-    // profileForm.profile_picture = null;
 };
 
 const openCreate = () => {
@@ -197,18 +186,31 @@ const openEdit = (user: AdminAccountRow) => {
     form.status = user.status;
     form.password = '';
     form.password_confirmation = '';
-    // profileForm.bio = user.bio ?? '';
-    // profileForm.profile_picture = null;
     isFormOpen.value = true;
 };
 
-// function onProfilePictureChange(event: Event) {
-//     const target = event.target as HTMLInputElement;
-//     profileForm.profile_picture = target.files?.[0] ?? null;
-// }
-
 function generatePassword() {
-    const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
+    const lowerChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    const secureRandomString = (length: number, charset: string): string => {
+        const result: string[] = [];
+        const maxValid = Math.floor(0x100000000 / charset.length) * charset.length;
+
+        while (result.length < length) {
+            const randomValues = new Uint32Array(1);
+            window.crypto.getRandomValues(randomValues);
+            const value = randomValues[0];
+
+            if (value < maxValid) {
+                result.push(charset[value % charset.length]);
+            }
+        }
+
+        return result.join('');
+    };
+
+    const generated = `${secureRandomString(8, lowerChars)}${secureRandomString(4, upperChars)}!`;
     form.password = generated;
     form.password_confirmation = generated;
 }
@@ -232,21 +234,13 @@ const submit = () => {
     };
 
     if (editingId.value !== null) {
-        form.transform(() => payload).put(`/admin/accounts/${editingId.value}`, options);
+        form.transform(() => payload).put(adminAccountUpdate.url(editingId.value), options);
 
         return;
     }
 
-    form.transform(() => payload).post('/admin/accounts', options);
+    form.transform(() => payload).post(adminAccountStore.url(), options);
 };
-
-// function saveRosterProfile() {
-//     if (editingId.value === null) return;
-//     profileForm.post(`/admin/accounts/${editingId.value}/profile`, {
-//         forceFormData: true,
-//         preserveScroll: true,
-//     });
-// }
 
 function isInvitedRow(row: TableRow) {
     return row.statusValue === 'invited';
@@ -255,7 +249,7 @@ function isInvitedRow(row: TableRow) {
 function resendInvitation(row: TableRow) {
     const id = Number(row.id);
     if (!id) return;
-    router.post(`/admin/accounts/${id}/invitation`, {}, { preserveScroll: true });
+    router.post(adminAccountInvitationResend.url(id), {}, { preserveScroll: true });
 }
 
 function deleteAccount(row: TableRow) {
@@ -273,7 +267,7 @@ function deleteAccount(row: TableRow) {
 function restoreAccount(row: TableRow) {
     const id = Number(row.id);
     if (!id) return;
-    router.put(`/admin/accounts/${id}/restore`, {}, { preserveScroll: true });
+    router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
 }
 
 function hardDeleteAccount(row: TableRow) {
@@ -305,13 +299,13 @@ function confirmPendingAction() {
     pendingConfirmation.value = null;
 
     if (confirmation.kind === 'hard-delete') {
-        router.delete(`/admin/accounts/${confirmation.id}/hard-delete`, {
+        router.delete(adminAccountForceDelete.url(confirmation.id), {
             preserveScroll: true,
         });
         return;
     }
 
-    router.delete(`/admin/accounts/${confirmation.id}`, {
+    router.delete(adminAccountDestroy.url(confirmation.id), {
         preserveScroll: true,
     });
 }
@@ -358,22 +352,21 @@ function confirmPendingAction() {
         <ResourceTablePanel
             eyebrow="Admin panel"
             title="User Account Directory"
-            description="Modeled after the JTE admin workspace: one place to review account types, manage access, and prepare new users for onboarding."
-            create-label="New account"
+            description="Create accounts here only. User, coach, parent, and athlete pages edit profile data after the account exists."
+            create-label="Create user"
             table-title="Account roster"
-            table-description="A role-based management table for admins, coaches, parents, and athletes. This is the same operating shape as your JTE panel, adapted to RF IS roles."
+            table-description="A role-based management table for admins, coaches, parents, and athletes."
             :columns="columns"
             :rows="rows"
             empty-text="No accounts available yet."
             action-label="Action"
+            searchable
+            search-placeholder="Search users by name, email, role, branch, or status"
             @create="openCreate"
         >
 
             <template #row-actions="{ row }">
                 <div class="flex justify-end gap-2">
-                    <!-- <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
-                        <UserRoundCog class="size-4" />
-                        View Profile -->
                     <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
                         <PencilLine class="size-4" />
                         Edit
@@ -398,11 +391,10 @@ function confirmPendingAction() {
             <DialogHeader>
                 <DialogTitle class="flex items-center gap-2">
                     <UserRoundCog class="size-5" />
-                    {{ editingId !== null ? 'Edit account' : 'Create account' }}
+                    {{ editingId !== null ? 'Edit account' : 'Create user account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    The form layout follows your JTE admin panel pattern and is ready to connect to Laravel actions
-                    later.
+                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent, athlete, or admin.
                 </DialogDescription>
             </DialogHeader>
 
@@ -421,35 +413,17 @@ function confirmPendingAction() {
                         {{ form.errors.email }}
                     </p>
                 </div>
-                <div class="grid gap-2 md:col-span-2">
-                    <Label>Roles</Label>
-                    <div class="grid gap-2 rounded-md border border-input p-3">
-                        <label
-                            v-for="option in roleOptions"
-                            :key="option.value"
-                            class="flex items-center gap-2 text-sm"
-                        >
-                            <input
-                                type="checkbox"
-                                :checked="form.roles.includes(option.value as AdminAccountRole)"
-                                @change="
-                                    ($event) => {
-                                        const role = option.value as AdminAccountRole;
-                                        if (($event.target as HTMLInputElement).checked) {
-                                            if (!form.roles.includes(role)) form.roles.push(role);
-                                        } else {
-                                            form.roles = form.roles.filter((entry) => entry !== role);
-                                        }
-                                    }
-                                "
-                            />
-                            <span>{{ option.label }}</span>
-                        </label>
-                    </div>
-                    <p v-if="rolesError" class="text-sm text-destructive">
-                        {{ rolesError }}
-                    </p>
-                </div>
+                <FormSelectField
+                    id="admin-roles"
+                    v-model="form.roles"
+                    class="md:col-span-2"
+                    label="Roles"
+                    :options="roleOptions"
+                    placeholder="Select one or more roles"
+                    help="Select multiple roles when one account needs more than one permission/profile."
+                    multiple
+                    :error="rolesError"
+                />
                 <FormSelectField
                     id="admin-status"
                     v-model="form.status"
@@ -487,30 +461,10 @@ function confirmPendingAction() {
                         placeholder="Repeat password"
                     />
                 </div>
-                <!-- <div class="grid gap-2 md:col-span-2">
-                    <Label for="admin-branch">Branch</Label>
-                    <Input id="admin-branch" v-model="form.branch" placeholder="Branch is derived from linked role records" disabled />
-                    <p class="text-sm text-muted-foreground">
-                        Branch is currently read-only here and comes from the linked athlete, coach, or child records in the database.
-                    </p>
-                </div> -->
-                <!-- <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
-                    <Label for="admin-bio">Bio</Label>
-                    <textarea id="admin-bio" v-model="profileForm.bio" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                    <p v-if="profileForm.errors.bio" class="text-sm text-destructive">{{ profileForm.errors.bio }}</p>
-                </div>
-                <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
-                    <Label for="admin-profile-picture">Profile picture</Label>
-                    <Input id="admin-profile-picture" type="file" accept="image/*" @change="onProfilePictureChange" />
-                    <p v-if="profileForm.errors.profile_picture" class="text-sm text-destructive">{{ profileForm.errors.profile_picture }}</p>
-                </div> -->
             </div>
 
             <DialogFooter class="gap-2">
                 <Button variant="outline" @click="isFormOpen = false">Cancel</Button>
-                <!-- <Button v-if="editingId !== null" variant="outline" :disabled="profileForm.processing" @click="saveRosterProfile">
-                    Save profile
-                </Button> -->
                 <Button :disabled="form.processing" @click="submit">
                     {{ editingId !== null ? 'Save changes' : 'Create account' }}
                 </Button>
