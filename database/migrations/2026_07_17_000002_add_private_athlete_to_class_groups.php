@@ -19,10 +19,6 @@ return new class extends Migration
         if (Schema::hasTable('training_groups')) {
             DB::table('training_groups')
                 ->whereRaw('LOWER(name) = ?', ['private'])
-                ->where('classes_count', null);
-
-            DB::table('training_groups')
-                ->whereRaw('LOWER(name) = ?', ['private'])
                 ->whereNotExists(function ($query): void {
                     $query->selectRaw('1')
                         ->from('class_groups')
