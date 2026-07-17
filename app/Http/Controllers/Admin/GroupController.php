@@ -40,8 +40,9 @@ class GroupController extends Controller
         $group = Group::create($this->payload($validated));
         $result = $this->syncSessionsForGroup($group->refresh());
 
-        ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created group', $group, [
+        ActivityLogger::log($request, 'admin.group.created', 'admin', 'Created class', $group, [
             'group_name' => $group->group_name,
+            'training_group_id' => $group->training_group_id,
             'schedule_mode' => $group->schedule_mode,
             'auto_created_sessions' => $result['created'],
         ]);
@@ -58,8 +59,9 @@ class GroupController extends Controller
         $group->update($this->payload($validated));
         $result = $this->syncSessionsForGroup($group->refresh(), $existingSchedule);
 
-        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated group', $group, [
+        ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated class', $group, [
             'group_name' => $group->group_name,
+            'training_group_id' => $group->training_group_id,
             'schedule_mode' => $group->schedule_mode,
             'auto_created_sessions' => $result['created'],
             'updated_future_sessions' => $result['updated'],
@@ -73,7 +75,7 @@ class GroupController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        $group->load(['athletes.user:id,name', 'athletes.branch:branch_id,branch_name']);
+        $group->load(['athletes.user:id,name', 'athletes.branch:branch_id,branch_name', 'athletes.trainingGroup']);
 
         return response()->json([
             'athletes' => $this->athletePayload($group),
@@ -100,7 +102,7 @@ class GroupController extends Controller
         $this->sessionGenerator->removeFutureSessionsForSchedule($schedule);
         $this->removeFutureOneDaySessions($group);
         $schedule?->delete();
-        ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted group', $group, ['group_name' => $group->group_name]);
+        ActivityLogger::log($request, 'admin.group.deleted', 'admin', 'Deleted class', $group, ['group_name' => $group->group_name]);
         $group->delete();
 
         return back()->with('status', 'Class deleted.');
@@ -110,6 +112,7 @@ class GroupController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
+            'training_group_id' => ['required', 'exists:training_groups,id'],
             'class_type' => ['required', 'string', Rule::in(self::CLASS_TYPES)],
             'schedule_mode' => ['required', 'string', Rule::in(self::SCHEDULE_MODES)],
             'single_session_date' => ['nullable', 'required_if:schedule_mode,one_day', 'date'],
@@ -142,6 +145,7 @@ class GroupController extends Controller
 
         return [
             'group_name' => $validated['name'],
+            'training_group_id' => $validated['training_group_id'],
             'class_type' => $classType,
             'schedule_mode' => $scheduleMode,
             'single_session_date' => $singleSessionDate,
@@ -180,11 +184,13 @@ class GroupController extends Controller
 
     private function syncWeeklySchedule(Group $group): ?WeeklyTrainingSchedule
     {
-        $group->loadMissing('branch');
+        $group->loadMissing('branch', 'trainingGroup');
         $existing = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
         $isSchedulable = (bool) (
             ($group->schedule_mode ?? 'weekly') === 'weekly'
             && $group->is_active
+            && $group->training_group_id
+            && $group->trainingGroup?->is_active
             && $group->branch?->is_active
             && $group->branch_id
             && $group->day_of_week
@@ -232,7 +238,7 @@ class GroupController extends Controller
     private function syncOneDaySession(Group $group): array
     {
         $result = $this->emptySessionSyncResult();
-        $group->loadMissing('branch');
+        $group->loadMissing('branch', 'trainingGroup');
 
         if (! $this->isOneDaySchedulable($group)) {
             $result['removed'] += $this->removeFutureOneDaySessions($group);
@@ -298,7 +304,7 @@ class GroupController extends Controller
 
     private function isOneDaySchedulable(Group $group): bool
     {
-        return (bool) (($group->schedule_mode ?? 'weekly') === 'one_day' && $group->is_active && $group->single_session_date && $group->branch?->is_active && $group->branch_id && $group->start_time && $group->end_time && (($group->class_type ?? null) !== 'private' || filled($group->coach_id)));
+        return (bool) (($group->schedule_mode ?? 'weekly') === 'one_day' && $group->is_active && $group->training_group_id && $group->trainingGroup?->is_active && $group->single_session_date && $group->branch?->is_active && $group->branch_id && $group->start_time && $group->end_time && (($group->class_type ?? null) !== 'private' || filled($group->coach_id)));
     }
 
     private function oneDaySessionPayload(Group $group, CarbonInterface $date): array
@@ -361,6 +367,7 @@ class GroupController extends Controller
                 'name' => $athlete->user?->name ?? ('Atlet #'.$athlete->athlete_id),
                 'geup' => $athlete->geup,
                 'branch' => $athlete->branch?->branch_name,
+                'training_group' => $athlete->trainingGroup?->name ?? $athlete->group?->trainingGroup?->name,
             ])
             ->values()
             ->all();
@@ -371,10 +378,13 @@ class GroupController extends Controller
         $classType = $validated['class_type'] ?? null;
         $branchId = $validated['branch_id'] ?? null;
         $scheduleMode = $validated['schedule_mode'] ?? 'weekly';
+        $trainingGroupId = $validated['training_group_id'] ?? null;
 
         return filled($validated['name'] ?? null)
             && in_array($classType, self::CLASS_TYPES, true)
             && in_array($scheduleMode, self::SCHEDULE_MODES, true)
+            && filled($trainingGroupId)
+            && \App\Models\TrainingGroup::query()->where('id', $trainingGroupId)->where('is_active', true)->exists()
             && filled($branchId)
             && Branch::query()->where('branch_id', $branchId)->where('is_active', true)->exists()
             && filled($validated['start_time'] ?? null)
