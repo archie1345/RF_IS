@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { MapPin, Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
+import { MapPin, Pencil, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
@@ -165,13 +165,6 @@ watch(
                         <h1 class="text-3xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
                     </div>
-                    <button
-                        type="button"
-                        class="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold"
-                        @click="router.reload()"
-                    >
-                        <RefreshCcw class="mr-2 size-4" /> Refresh
-                    </button>
                 </div>
             </section>
 

@@ -1,5 +1,5 @@
 <?php
-
+use Inertia\Inertia;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\ChampionshipController;
@@ -33,7 +33,7 @@ use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('dashboard'))->name('home');
+Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
