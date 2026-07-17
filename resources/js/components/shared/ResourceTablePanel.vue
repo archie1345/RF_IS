@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Plus } from 'lucide-vue-next';
-import { computed, useSlots } from 'vue';
+import { useSlots } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
@@ -33,42 +33,26 @@ const props = withDefaults(
     },
 );
 
-const emit = defineEmits<{
+defineEmits<{
     create: [];
 }>();
 
 const slots = useSlots();
-const showUserManagementCreateShortcut = computed(
-    () => props.showCreate === false && props.eyebrow === 'User Directory' && props.title === 'User directory workspace',
-);
-const shouldShowCreateAction = computed(() => props.showCreate || showUserManagementCreateShortcut.value);
-const createActionLabel = computed(() =>
-    showUserManagementCreateShortcut.value ? 'Add new user' : (props.createLabel ?? 'Create'),
-);
-
-function handleCreateAction() {
-    if (showUserManagementCreateShortcut.value) {
-        window.location.assign('/admin');
-        return;
-    }
-
-    emit('create');
-}
 </script>
 
 <template>
     <div class="min-w-0 space-y-6">
         <PageSection
-            v-if="props.title || props.description || props.eyebrow || shouldShowCreateAction || slots.actions || slots.stats"
+            v-if="props.title || props.description || props.eyebrow || props.showCreate || slots.actions || slots.stats"
             :eyebrow="props.eyebrow ?? ''"
             :title="props.title ?? ''"
             :description="props.description ?? ''"
         >
             <template #actions>
                 <slot name="actions">
-                    <Button v-if="shouldShowCreateAction" class="gap-2" @click="handleCreateAction">
+                    <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
                         <Plus class="size-4" />
-                        {{ createActionLabel }}
+                        {{ props.createLabel ?? 'Create' }}
                     </Button>
                 </slot>
             </template>
