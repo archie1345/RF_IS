@@ -37,12 +37,15 @@ class SessionController extends Controller
         private readonly InitializeSessionAttendance $initializeAttendance,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $user = request()->user();
+        $user = $request->user();
         $this->authorize('viewAny', TrainingSession::class);
         $currentCoachId = $this->sessionVisibility->coachProfileIdFor($user);
         $hasCoachPivot = $this->sessionVisibility->hasCoachPivotTable();
+        $today = now()->toDateString();
+        $visibility = $request->query('visibility', 'upcoming');
+        $visibility = in_array($visibility, ['upcoming', 'past', 'all'], true) ? $visibility : 'upcoming';
 
         $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
         if ($hasCoachPivot) {
@@ -51,15 +54,26 @@ class SessionController extends Controller
 
         $sessions = TrainingSession::query()
             ->with($with)
+            ->when($visibility === 'upcoming', fn ($query) => $query->whereDate('session_date', '>=', $today))
+            ->when($visibility === 'past', fn ($query) => $query->whereDate('session_date', '<', $today))
             ->orderBy('session_date')
             ->orderBy('start_time')
             ->get();
 
+        $pastCount = TrainingSession::query()->whereDate('session_date', '<', $today)->count();
+        $upcomingCount = TrainingSession::query()->whereDate('session_date', '>=', $today)->count();
+
         return Inertia::render('SessionsPage', [
             'metrics' => [
-                ['label' => 'Scheduled sessions', 'value' => (string) $sessions->count(), 'detail' => 'Across all active branches', 'tone' => 'info'],
+                ['label' => 'Scheduled sessions', 'value' => (string) $sessions->count(), 'detail' => $visibility === 'all' ? 'All visible sessions' : ($visibility === 'past' ? 'Past sessions only' : 'Current and future sessions'), 'tone' => 'info'],
                 ['label' => 'Confirmed coverage', 'value' => (string) $sessions->where('status', 'CONFIRMED')->count(), 'detail' => 'Sessions fully staffed and approved', 'tone' => 'success'],
                 ['label' => 'Need support', 'value' => (string) $sessions->where('status', 'NEEDS_ASSISTANT')->count(), 'detail' => 'Still waiting for coach support', 'tone' => 'warning'],
+            ],
+            'filters' => [
+                'visibility' => $visibility,
+                'past_count' => $pastCount,
+                'upcoming_count' => $upcomingCount,
+                'all_count' => $pastCount + $upcomingCount,
             ],
             'rows' => $sessions->map(fn (TrainingSession $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
