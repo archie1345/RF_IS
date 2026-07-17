@@ -377,9 +377,18 @@ watch(
                             </label>
                         </div>
 
-                        <label class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold">
+                        <label
+                            class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold"
+                            :class="!locationCanBeActive ? 'opacity-80' : ''"
+                        >
                             <span class="flex h-7 items-center gap-2">
-                                <input v-model="form.is_active" type="checkbox" /> Aktif
+                                <input
+                                    v-model="form.is_active"
+                                    type="checkbox"
+                                    :disabled="!locationCanBeActive"
+                                    class="disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                Aktif
                             </span>
                             <span
                                 class="text-xs"
