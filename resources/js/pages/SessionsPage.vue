@@ -22,8 +22,16 @@ import {
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
+type SessionVisibility = 'upcoming' | 'past' | 'all';
+
 const props = defineProps<{
     metrics: Metric[];
+    filters: {
+        visibility: SessionVisibility;
+        past_count: number;
+        upcoming_count: number;
+        all_count: number;
+    };
     rows: TableRow[];
     branches: SelectOption[];
     groups: SelectOption[];
@@ -56,6 +64,24 @@ const form = useForm({
 
 const showSessionForm = ref(false);
 const pendingDeleteSessionId = ref<number | null>(null);
+
+const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: keyof typeof props.filters }> = [
+    { value: 'upcoming', label: 'Current & future', countKey: 'upcoming_count' },
+    { value: 'past', label: 'Past', countKey: 'past_count' },
+    { value: 'all', label: 'All', countKey: 'all_count' },
+];
+
+function setVisibility(visibility: SessionVisibility) {
+    router.get(
+        sessionsIndex.url(),
+        { visibility },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        },
+    );
+}
 
 function submit() {
     form.post(sessionsStore.url(), {
@@ -120,7 +146,7 @@ function joinSession(row: TableRow) {
 
             <PageSection
                 title="Session"
-                description="Schedule training sessions and keep the live coaching calendar synced."
+                description="Schedule training sessions and keep the live coaching calendar synced. Past sessions are hidden by default."
             >
                 <template #actions>
                     <Button type="button" @click="openCreateSessionForm">Schedule session</Button>
@@ -132,6 +158,29 @@ function joinSession(row: TableRow) {
             </PageSection>
 
             <div class="grid gap-6">
+                <section class="rounded-2xl border bg-card p-4 shadow-sm">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-base font-black">Session visibility</h2>
+                            <p class="text-sm text-muted-foreground">
+                                Default view shows today and future sessions. Use this to review history.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                v-for="option in visibilityOptions"
+                                :key="option.value"
+                                type="button"
+                                size="sm"
+                                :variant="props.filters.visibility === option.value ? 'default' : 'outline'"
+                                @click="setVisibility(option.value)"
+                            >
+                                {{ option.label }} ({{ props.filters[option.countKey] }})
+                            </Button>
+                        </div>
+                    </div>
+                </section>
+
                 <DataTable
                     title="Session lineup"
                     description="Use Edit to manage schedule details, QR attendance, athlete attendance, and coach attendance in one place."
