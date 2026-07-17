@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -19,15 +19,16 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 type SessionVisibility = 'upcoming' | 'past' | 'all';
+type SessionFilters = {
+    visibility: SessionVisibility;
+    past_count: number;
+    upcoming_count: number;
+    all_count: number;
+};
 
 const props = defineProps<{
     metrics: Metric[];
-    filters: {
-        visibility: SessionVisibility;
-        past_count: number;
-        upcoming_count: number;
-        all_count: number;
-    };
+    filters?: SessionFilters;
     rows: TableRow[];
     branches: SelectOption[];
     groups: SelectOption[];
@@ -49,7 +50,18 @@ const columns: TableColumn[] = [
 
 const pendingDeleteSessionId = ref<number | null>(null);
 
-const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: keyof typeof props.filters }> = [
+const effectiveFilters = computed<SessionFilters>(() => {
+    const fallbackCount = props.rows.length;
+
+    return {
+        visibility: props.filters?.visibility ?? 'upcoming',
+        past_count: props.filters?.past_count ?? 0,
+        upcoming_count: props.filters?.upcoming_count ?? fallbackCount,
+        all_count: props.filters?.all_count ?? fallbackCount,
+    };
+});
+
+const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: keyof SessionFilters }> = [
     { value: 'upcoming', label: 'Current & future', countKey: 'upcoming_count' },
     { value: 'past', label: 'Past', countKey: 'past_count' },
     { value: 'all', label: 'All', countKey: 'all_count' },
@@ -137,10 +149,10 @@ function joinSession(row: TableRow) {
                                 :key="option.value"
                                 type="button"
                                 size="sm"
-                                :variant="props.filters.visibility === option.value ? 'default' : 'outline'"
+                                :variant="effectiveFilters.visibility === option.value ? 'default' : 'outline'"
                                 @click="setVisibility(option.value)"
                             >
-                                {{ option.label }} ({{ props.filters[option.countKey] }})
+                                {{ option.label }} ({{ effectiveFilters[option.countKey] }})
                             </Button>
                         </div>
                     </div>
