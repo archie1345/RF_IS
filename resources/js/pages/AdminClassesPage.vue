@@ -21,6 +21,7 @@ const props = withDefaults(
         subtitle?: string;
         classes?: ClassRecord[];
         branchOptions?: SelectOption[];
+        trainingGroupOptions?: SelectOption[];
         coachOptions?: SelectOption[];
         beltOptions?: SelectOption[];
     }>(),
@@ -29,6 +30,7 @@ const props = withDefaults(
         subtitle: 'Master data kelas. Jadwal mingguan atau kelas satu hari otomatis membuat sesi latihan.',
         classes: () => [],
         branchOptions: () => [],
+        trainingGroupOptions: () => [],
         coachOptions: () => [],
         beltOptions: () => [],
     },
@@ -72,6 +74,7 @@ const search = ref('');
 
 const form = useForm({
     name: '',
+    training_group_id: '',
     class_type: 'reguler',
     schedule_mode: 'weekly' as ClassScheduleMode,
     single_session_date: '',
@@ -91,6 +94,7 @@ const isOneDayClass = computed(() => form.schedule_mode === 'one_day');
 const classCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
+            form.training_group_id &&
             form.class_type &&
             form.branch_id &&
             form.start_time &&
@@ -103,19 +107,13 @@ const classCanBeActive = computed(() => {
 const activationHint = computed(() => {
     if (classCanBeActive.value) {
         return isOneDayClass.value
-            ? 'Data lengkap. Kelas sekali jalan akan membuat satu sesi pada tanggal ini.'
-            : 'Data kelas lengkap. Kelas mingguan akan menyinkronkan sesi otomatis.';
-    }
-
-    if (isOneDayClass.value) {
-        return isPrivateClass.value
-            ? 'Lengkapi nama, tipe, lokasi aktif, coach private, tanggal sesi, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
-            : 'Lengkapi nama, tipe, lokasi aktif, tanggal sesi, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
+            ? 'Data lengkap. Kelas sekali jalan akan membuat satu sesi pada tanggal ini dan hanya grup terpilih yang bisa ikut.'
+            : 'Data lengkap. Kelas mingguan akan menyinkronkan sesi otomatis dan hanya grup terpilih yang bisa ikut.';
     }
 
     return isPrivateClass.value
-        ? 'Lengkapi nama, tipe, lokasi aktif, coach private, hari, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
-        : 'Lengkapi nama, tipe, lokasi aktif, hari, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
+        ? 'Lengkapi nama, grup, tipe, lokasi aktif, coach private, jadwal/tanggal, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
+        : 'Lengkapi nama, grup, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
 });
 
 const filteredClasses = computed(() => {
@@ -123,7 +121,7 @@ const filteredClasses = computed(() => {
     if (!keyword) return props.classes;
 
     return props.classes.filter((item) =>
-        [item.name, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
+        [item.name, item.training_group, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
             .filter(Boolean)
             .join(' ')
             .toLowerCase()
@@ -162,6 +160,7 @@ function resetForm() {
     editingClassId.value = null;
     form.clearErrors();
     form.name = '';
+    form.training_group_id = '';
     form.class_type = 'reguler';
     form.schedule_mode = 'weekly';
     form.single_session_date = '';
@@ -209,12 +208,7 @@ async function openClassAthletes(item: ClassRecord) {
         }
 
         const data = (await response.json()) as { athletes?: ClassAthleteRecord[] };
-        const athletes = data.athletes ?? [];
-        selectedClassAthletes.value = athletes;
-
-        if (selectedClass.value?.id === item.id) {
-            selectedClass.value = { ...selectedClass.value, athletes };
-        }
+        selectedClassAthletes.value = data.athletes ?? [];
     } catch (error) {
         athleteModalError.value = error instanceof Error ? error.message : 'Gagal mengambil daftar atlet.';
     } finally {
@@ -228,6 +222,7 @@ function editClass(item: ClassRecord) {
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
+    form.training_group_id = item.training_group_id ? String(item.training_group_id) : '';
     form.class_type = classType;
     form.schedule_mode = scheduleMode;
     form.single_session_date = item.single_session_date ?? '';
@@ -268,6 +263,7 @@ watch(
     () => [
         form.is_active,
         form.name,
+        form.training_group_id,
         form.class_type,
         form.schedule_mode,
         form.single_session_date,
@@ -292,11 +288,7 @@ watch(
                         <h1 class="text-3xl font-black">{{ props.title }}</h1>
                         <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
                     </div>
-                    <button
-                        type="button"
-                        class="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold"
-                        @click="router.reload()"
-                    >
+                    <button type="button" class="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold" @click="router.reload()">
                         <RefreshCcw class="mr-2 size-4" /> Refresh
                     </button>
                 </div>
@@ -306,26 +298,19 @@ watch(
                 <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div class="flex items-center gap-2">
                         <h2 class="text-xl font-black">Daftar Kelas</h2>
-                        <button
-                            type="button"
-                            class="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
-                            @click="openCreateClass"
-                        >
+                        <button type="button" class="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground" @click="openCreateClass">
                             Tambah Kelas
                         </button>
                     </div>
-                    <input
-                        v-model="search"
-                        class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72"
-                        placeholder="Cari kelas..."
-                    />
+                    <input v-model="search" class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72" placeholder="Cari kelas/grup..." />
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[980px] text-sm">
+                    <table class="w-full min-w-[1080px] text-sm">
                         <thead>
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Kelas</th>
+                                <th class="px-3 py-3 font-black">Grup</th>
                                 <th class="px-3 py-3 font-black">Lokasi</th>
                                 <th class="px-3 py-3 font-black">Coach</th>
                                 <th class="px-3 py-3 font-black">Jadwal</th>
@@ -337,68 +322,31 @@ watch(
                         </thead>
                         <tbody>
                             <tr v-if="filteredClasses.length === 0">
-                                <td colspan="8" class="h-32 px-3 text-center text-muted-foreground">
-                                    Belum ada kelas.
-                                </td>
+                                <td colspan="9" class="h-32 px-3 text-center text-muted-foreground">Belum ada kelas.</td>
                             </tr>
-                            <tr
-                                v-for="item in filteredClasses"
-                                :key="item.id"
-                                class="cursor-pointer border-b hover:bg-muted/40"
-                                @click="openClassAthletes(item)"
-                            >
+                            <tr v-for="item in filteredClasses" :key="item.id" class="cursor-pointer border-b hover:bg-muted/40" @click="openClassAthletes(item)">
                                 <td class="max-w-[260px] px-3 py-4">
                                     <p class="truncate font-black">{{ item.name }}</p>
                                     <p class="truncate text-xs text-muted-foreground">
                                         {{ classTypeLabel(item.class_type) }} · {{ scheduleModeLabel(item.schedule_mode) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
-                                <td class="max-w-[200px] px-3 py-4">
-                                    <p class="truncate">{{ item.branch }}</p>
-                                </td>
-                                <td class="max-w-[200px] px-3 py-4">
-                                    <p class="truncate">
-                                        {{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}
-                                    </p>
-                                </td>
+                                <td class="px-3 py-4 font-semibold">{{ item.training_group || 'Belum ada grup' }}</td>
+                                <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
+                                <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p></td>
                                 <td class="px-3 py-4">
                                     <CalendarDays class="mr-1 inline size-3" />{{ item.day_label }}
-                                    <p class="text-xs text-muted-foreground">
-                                        {{ item.start_time }} - {{ item.end_time }}
-                                    </p>
+                                    <p class="text-xs text-muted-foreground">{{ item.start_time }} - {{ item.end_time }}</p>
                                 </td>
-                                <td class="px-3 py-4">
-                                    <span class="inline-flex items-center gap-1 font-bold">
-                                        <Users class="size-3" /> {{ item.athletes_count }} atlet
-                                    </span>
-                                </td>
+                                <td class="px-3 py-4"><span class="inline-flex items-center gap-1 font-bold"><Users class="size-3" /> {{ item.athletes_count }} atlet</span></td>
                                 <td class="px-3 py-4">{{ item.weekly_schedule_status }}</td>
                                 <td class="px-3 py-4">
-                                    <span
-                                        class="rounded-full px-3 py-1 text-xs font-black"
-                                        :class="
-                                            item.is_active
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-slate-100 text-slate-500'
-                                        "
-                                        >{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
-                                    >
+                                    <span class="rounded-full px-3 py-1 text-xs font-black" :class="item.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span>
                                 </td>
                                 <td class="px-3 py-4">
                                     <div class="flex gap-2">
-                                        <button
-                                            type="button"
-                                            class="rounded border px-2 py-1"
-                                            @click.stop="editClass(item)"
-                                        >
-                                            <Pencil class="size-4" /></button
-                                        ><button
-                                            type="button"
-                                            class="rounded border px-2 py-1 text-red-600"
-                                            @click.stop="deleteClass(item)"
-                                        >
-                                            <Trash2 class="size-4" />
-                                        </button>
+                                        <button type="button" class="rounded border px-2 py-1" @click.stop="editClass(item)"><Pencil class="size-4" /></button>
+                                        <button type="button" class="rounded border px-2 py-1 text-red-600" @click.stop="deleteClass(item)"><Trash2 class="size-4" /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -410,27 +358,29 @@ watch(
             <FormModal :open="showClassForm" max-width-class="max-w-3xl" @close="closeClassForm">
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        Buat kelas mingguan atau kelas tambahan satu hari. Sesi latihan dibuat dari data kelas ini, bukan dari form sesi manual.
-                    </p>
+                    <p class="mt-1 text-sm text-muted-foreground">Pilih grup wajib agar kelas hanya bisa diikuti atlet dari kategori yang sama.</p>
 
                     <div class="mt-5 grid gap-3">
                         <label class="grid gap-1 text-sm font-semibold">
                             Nama Kelas *
-                            <input
-                                v-model="form.name"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                placeholder="Contoh: Junior Sparring"
-                            />
+                            <input v-model="form.name" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Junior Sparring" />
                             <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Grup Atlet *
+                            <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option value="">Pilih grup atlet</option>
+                                <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            </select>
+                            <span class="text-xs text-muted-foreground">Hanya atlet dari grup ini yang dibuatkan presensi dan boleh scan QR kelas ini.</span>
+                            <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Tipe Kelas *
                             <select v-model="form.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
+                                <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
                             <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
                         </label>
@@ -438,13 +388,9 @@ watch(
                         <label class="grid gap-1 text-sm font-semibold">
                             Pola Jadwal *
                             <select v-model="form.schedule_mode" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option v-for="option in scheduleModeOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
+                                <option v-for="option in scheduleModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
-                            <span class="text-xs text-muted-foreground">
-                                {{ scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail }}
-                            </span>
+                            <span class="text-xs text-muted-foreground">{{ scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail }}</span>
                             <span v-if="form.errors.schedule_mode" class="text-xs text-destructive">{{ form.errors.schedule_mode }}</span>
                         </label>
 
@@ -452,13 +398,7 @@ watch(
                             Lokasi *
                             <select v-model="form.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Pilih lokasi aktif</option>
-                                <option
-                                    v-for="option in props.branchOptions"
-                                    :key="String(option.value)"
-                                    :value="String(option.value)"
-                                >
-                                    {{ option.label }}
-                                </option>
+                                <option v-for="option in props.branchOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
                         </label>
 
@@ -466,117 +406,53 @@ watch(
                             Coach Private *
                             <select v-model="form.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Pilih coach private</option>
-                                <option
-                                    v-for="option in props.coachOptions"
-                                    :key="String(option.value)"
-                                    :value="String(option.value)"
-                                >
-                                    {{ option.label }}
-                                </option>
+                                <option v-for="option in props.coachOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
                             <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{ form.errors.coach_id }}</span>
                         </label>
 
                         <label v-if="isOneDayClass" class="grid gap-1 text-sm font-semibold">
                             Tanggal Sesi *
-                            <input
-                                v-model="form.single_session_date"
-                                type="date"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            />
+                            <input v-model="form.single_session_date" type="date" class="h-10 rounded-lg border bg-background px-3 text-sm" />
                             <span v-if="form.errors.single_session_date" class="text-xs text-destructive">{{ form.errors.single_session_date }}</span>
                         </label>
 
                         <label v-else class="grid gap-1 text-sm font-semibold">
                             Hari *
-                            <select
-                                v-model="form.day_of_week"
-                                class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            >
-                                <option v-for="day in dayOptions" :key="day.value" :value="day.value">
-                                    {{ day.label }}
-                                </option>
+                            <select v-model="form.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option v-for="day in dayOptions" :key="day.value" :value="day.value">{{ day.label }}</option>
                             </select>
                         </label>
 
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold">
-                                Mulai *
-                                <input
-                                    v-model="form.start_time"
-                                    type="time"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                />
-                            </label>
-                            <label class="grid gap-1 text-sm font-semibold">
-                                Selesai *
-                                <input
-                                    v-model="form.end_time"
-                                    type="time"
-                                    class="h-10 rounded-lg border bg-background px-3 text-sm"
-                                />
-                            </label>
+                            <label class="grid gap-1 text-sm font-semibold">Mulai *<input v-model="form.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
+                            <label class="grid gap-1 text-sm font-semibold">Selesai *<input v-model="form.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
                         </div>
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Minimal Sabuk
                             <select v-model="form.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm">
                                 <option value="">Tanpa minimal</option>
-                                <option
-                                    v-for="option in props.beltOptions"
-                                    :key="String(option.value)"
-                                    :value="String(option.value)"
-                                >
-                                    {{ option.label }}
-                                </option>
+                                <option v-for="option in props.beltOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
                             <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{ form.errors.min_belt }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Deskripsi
-                            <textarea
-                                v-model="form.description"
-                                class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
-                                placeholder="Deskripsi kelas"
-                            ></textarea>
+                            <textarea v-model="form.description" class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Deskripsi kelas"></textarea>
                         </label>
 
-                        <label
-                            class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold"
-                            :class="!classCanBeActive ? 'opacity-80' : ''"
-                        >
+                        <label class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold" :class="!classCanBeActive ? 'opacity-80' : ''">
                             <span class="flex h-7 items-center gap-2">
-                                <input
-                                    v-model="form.is_active"
-                                    type="checkbox"
-                                    :disabled="!classCanBeActive"
-                                    class="disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                Aktif
+                                <input v-model="form.is_active" type="checkbox" :disabled="!classCanBeActive" class="disabled:cursor-not-allowed disabled:opacity-50" /> Aktif
                             </span>
-                            <span
-                                class="text-xs"
-                                :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'"
-                            >
-                                {{ activationHint }}
-                            </span>
+                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">{{ activationHint }}</span>
                         </label>
 
                         <div class="flex gap-2">
-                            <button
-                                class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-                                :disabled="form.processing"
-                            >
-                                {{ form.processing ? 'Saving...' : 'Save Kelas' }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="closeClassForm"
-                            >
-                                Batal
-                            </button>
+                            <button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save Kelas' }}</button>
+                            <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeClassForm">Batal</button>
                         </div>
                     </div>
                 </form>
@@ -587,49 +463,20 @@ watch(
                     <div>
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
-                        <p class="text-sm text-muted-foreground">
-                            {{ classTypeLabel(selectedClass.class_type) }} · {{ scheduleModeLabel(selectedClass.schedule_mode) }} · {{ selectedClass.branch }} ·
-                            {{ selectedClass.athletes_count }} atlet
-                        </p>
+                        <p class="text-sm text-muted-foreground">Grup: {{ selectedClass.training_group || 'Belum ada grup' }}</p>
                     </div>
-
-                    <p
-                        v-if="athleteModalError"
-                        class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                    >
-                        {{ athleteModalError }}
-                    </p>
-
-                    <div class="overflow-hidden rounded-xl border">
+                    <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ athleteModalError }}</p>
+                    <p v-if="athleteModalLoading" class="text-sm text-muted-foreground">Loading athletes...</p>
+                    <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b bg-muted/40 text-left">
-                                    <th class="px-3 py-3 font-black">Nama Atlet</th>
-                                    <th class="px-3 py-3 font-black">Sabuk / Geup</th>
-                                    <th class="px-3 py-3 font-black">Cabang</th>
-                                </tr>
-                            </thead>
+                            <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Atlet</th><th class="px-3 py-3 font-black">Branch</th><th class="px-3 py-3 font-black">Grup</th><th class="px-3 py-3 font-black">Geup</th></tr></thead>
                             <tbody>
-                                <tr v-if="athleteModalLoading">
-                                    <td colspan="3" class="h-28 px-3 text-center text-muted-foreground">
-                                        Memuat daftar atlet...
-                                    </td>
-                                </tr>
-                                <tr v-else-if="!selectedClassAthletes.length">
-                                    <td colspan="3" class="h-28 px-3 text-center text-muted-foreground">
-                                        Belum ada atlet di kelas ini.
-                                    </td>
-                                </tr>
-                                <tr
-                                    v-for="athlete in selectedClassAthletes"
-                                    :key="String(athlete.id)"
-                                    class="border-b last:border-b-0"
-                                >
-                                    <td class="px-3 py-3 font-bold">{{ athlete.name }}</td>
-                                    <td class="px-3 py-3 text-muted-foreground">{{ athlete.geup || '-' }}</td>
-                                    <td class="px-3 py-3 text-muted-foreground">
-                                        {{ athlete.branch || selectedClass.branch || '-' }}
-                                    </td>
+                                <tr v-if="selectedClassAthletes.length === 0"><td colspan="4" class="h-24 px-3 text-center text-muted-foreground">Belum ada atlet.</td></tr>
+                                <tr v-for="athlete in selectedClassAthletes" :key="athlete.id" class="border-b">
+                                    <td class="px-3 py-3 font-semibold">{{ athlete.name }}</td>
+                                    <td class="px-3 py-3">{{ athlete.branch || '-' }}</td>
+                                    <td class="px-3 py-3">{{ athlete.training_group || '-' }}</td>
+                                    <td class="px-3 py-3">{{ athlete.geup || '-' }}</td>
                                 </tr>
                             </tbody>
                         </table>
