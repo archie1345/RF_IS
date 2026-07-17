@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Download, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { AttendanceReportPeriod } from '@/types/admin-feature';
-import type { Metric } from '@/types/resource-table';
+import type { Metric, SelectOption } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -22,12 +22,17 @@ const props = withDefaults(
         emptyText?: string;
         roleAccess?: string;
         period: AttendanceReportPeriod;
+        manualCoachAttendanceUrl?: string;
+        coachOptions?: SelectOption[];
+        sessionOptions?: SelectOption[];
     }>(),
     {
         metrics: () => [],
         columns: () => [],
         rows: () => [],
         emptyText: 'Tidak ada data',
+        coachOptions: () => [],
+        sessionOptions: () => [],
     },
 );
 
@@ -42,6 +47,12 @@ const attendanceRangeEnd = ref(props.period.to);
 const attendanceSearch = ref('');
 const attendanceClass = ref('');
 const attendanceStatus = ref('');
+const showManualCoachForm = ref(false);
+const manualCoachForm = useForm({
+    coach_id: '',
+    training_session_id: '',
+    status: 'TEACH',
+});
 const exportUrl = computed(() => {
     const url = new URL(props.period.exportUrl, window.location.origin);
     url.searchParams.set('from', attendanceRangeStart.value);
@@ -50,7 +61,8 @@ const exportUrl = computed(() => {
     return `${url.pathname}?${url.searchParams.toString()}`;
 });
 
-const classOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
+const usesClassFilter = computed(() => props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)));
+const classOptions = computed(() => (usesClassFilter.value ? uniqueValuesFromColumns(['Kelas', 'Class']) : []));
 const statusOptions = computed(() => uniqueValuesFromColumns(['Status']));
 
 const displayedRows = computed(() => {
@@ -68,7 +80,7 @@ const displayedRows = computed(() => {
 
         return (
             (!keyword || memberText.includes(keyword)) &&
-            (!classValue || classText === classValue) &&
+            (!usesClassFilter.value || !classValue || classText === classValue) &&
             (!statusValue || statusText === statusValue)
         );
     });
@@ -121,6 +133,24 @@ function clearFilters() {
     attendanceStatus.value = '';
 }
 
+function cancelManualCoachForm() {
+    manualCoachForm.reset();
+    manualCoachForm.clearErrors();
+    showManualCoachForm.value = false;
+}
+
+function submitManualCoachAttendance() {
+    if (!props.manualCoachAttendanceUrl) return;
+
+    manualCoachForm.post(props.manualCoachAttendanceUrl, {
+        preserveScroll: true,
+        onSuccess: () => {
+            manualCoachForm.reset();
+            showManualCoachForm.value = false;
+        },
+    });
+}
+
 function isExternalUrl(value: unknown): value is string {
     return typeof value === 'string' && /^https?:\/\//i.test(value);
 }
@@ -136,16 +166,11 @@ function linkLabel(value: string) {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection :title="props.title" :description="props.subtitle">
-                <!-- <template #actions>
-                    <div class="flex flex-wrap gap-2">
-                        <a :href="exportUrl" class="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
-                            <Download class="mr-2 size-4" /> Export Excel
-                        </a>
-                        <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })">
-                            <RefreshCcw class="mr-2 size-4" /> Refresh
-                        </Button>
-                    </div>
-                </template> -->
+                <template v-if="props.mode === 'instructor-attendance' && props.manualCoachAttendanceUrl" #actions>
+                    <Button type="button" @click="showManualCoachForm = !showManualCoachForm">
+                        {{ showManualCoachForm ? 'Tutup Form Manual' : 'Tambah Presensi Coach' }}
+                    </Button>
+                </template>
 
                 <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
                 <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
@@ -153,8 +178,54 @@ function linkLabel(value: string) {
                 </div>
             </PageSection>
 
+            <section v-if="props.mode === 'instructor-attendance' && showManualCoachForm" class="rounded-xl border bg-card p-5 shadow-sm">
+                <div class="mb-4">
+                    <h2 class="text-lg font-black">Tambah presensi coach manual</h2>
+                    <p class="text-sm text-muted-foreground">
+                        Gunakan ini saat coach lupa dicatat. Pilihan sesi dibatasi sampai hari ini; sesi masa depan tidak bisa dipilih.
+                    </p>
+                </div>
+                <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px_auto] lg:items-end" @submit.prevent="submitManualCoachAttendance">
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Coach
+                        <select v-model="manualCoachForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="">Pilih coach</option>
+                            <option v-for="option in props.coachOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <span v-if="manualCoachForm.errors.coach_id" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.coach_id }}</span>
+                    </label>
+
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Sesi sampai hari ini
+                        <select v-model="manualCoachForm.training_session_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="">Pilih sesi</option>
+                            <option v-for="option in props.sessionOptions" :key="option.value" :value="option.value">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <span v-if="manualCoachForm.errors.training_session_id" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.training_session_id }}</span>
+                    </label>
+
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Status
+                        <select v-model="manualCoachForm.status" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                            <option value="TEACH">Mengajar</option>
+                            <option value="NOT_TEACH">Tidak Mengajar</option>
+                        </select>
+                        <span v-if="manualCoachForm.errors.status" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.status }}</span>
+                    </label>
+
+                    <div class="flex gap-2">
+                        <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button>
+                        <Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
+                    </div>
+                </form>
+            </section>
+
             <section class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-5 grid gap-4 xl:grid-cols-[220px_280px_1fr_1fr_1fr_1fr_auto]">
+                <div class="mb-5 grid gap-4 xl:grid-cols-[220px_280px_1fr_1fr_auto]">
                     <label class="grid gap-1 text-sm font-semibold">
                         Bulan
                         <input
@@ -177,7 +248,7 @@ function linkLabel(value: string) {
                         </div>
                     </label>
 
-                    <label class="grid gap-1 text-sm font-semibold">
+                    <label v-if="usesClassFilter" class="grid gap-1 text-sm font-semibold">
                         Kelas
                         <select
                             v-model="attendanceClass"
