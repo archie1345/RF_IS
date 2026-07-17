@@ -102,6 +102,8 @@ class AttendanceScanController extends Controller
 
     private function sessionPayload(TrainingSession $session): array
     {
+        $session->loadMissing('group.trainingGroup');
+
         return [
             'id' => $session->training_session_id,
             'title' => $session->title,
@@ -112,6 +114,7 @@ class AttendanceScanController extends Controller
             'location' => $session->branch?->location,
             'branch' => $session->branch?->branch_name ?? 'Unassigned',
             'group' => $session->group?->group_name ?? 'All groups',
+            'training_group' => $session->group?->trainingGroup?->name,
             'minimum_belt' => BeltRank::label($session->group?->min_belt),
             'status' => $session->status,
             'attendance_status' => AttendanceStatus::PRESENT,
@@ -128,7 +131,7 @@ class AttendanceScanController extends Controller
             return ['invalid', 'This QR attendance code is invalid or has been closed.'];
         }
 
-        $session->loadMissing('group');
+        $session->loadMissing('group.trainingGroup');
 
         if (! $deviceAllowed) {
             return ['desktop_blocked', 'QR attendance is only available on phones and tablets.'];
@@ -150,6 +153,8 @@ class AttendanceScanController extends Controller
             return ['athlete_required', 'Please log in using an athlete account before checking in.'];
         }
 
+        $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
+
         if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             return ['not_eligible', 'You are not eligible for this session branch.'];
         }
@@ -158,7 +163,14 @@ class AttendanceScanController extends Controller
             return ['not_eligible', 'You are not the assigned athlete for this private session.'];
         }
 
-        if ($session->group_id !== null
+        $requiredTrainingGroupId = $session->group?->training_group_id;
+        if ($requiredTrainingGroupId !== null) {
+            $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
+
+            if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
+                return ['not_eligible', 'You are not in the required group category for this session.'];
+            }
+        } elseif ($session->group_id !== null
             && (string) $athlete->group_id !== (string) $session->group_id
             && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
             return ['not_eligible', 'Your belt level is not eligible for this session.'];
