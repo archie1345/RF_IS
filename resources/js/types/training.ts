@@ -39,6 +39,8 @@ export type ClassRecord = {
     branch: string;
     coach_id?: string | null;
     coach: string;
+    dedicated_athlete_id?: string | number | null;
+    dedicated_athlete?: string | null;
     day_of_week?: number | null;
     day_label: string;
     start_time: string;
