@@ -24,10 +24,14 @@ export type ClassAthleteRecord = {
     branch?: string | null;
 };
 
+export type ClassScheduleMode = 'weekly' | 'one_day';
+
 export type ClassRecord = {
     id: number;
     name: string;
     class_type: string;
+    schedule_mode?: ClassScheduleMode;
+    single_session_date?: string | null;
     branch_id?: number | null;
     branch: string;
     coach_id?: string | null;
