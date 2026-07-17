@@ -91,11 +91,24 @@ class RecordQrAttendance
 
     private function validateEligibility(Athlete $athlete, TrainingSession $session): void
     {
-        $session->loadMissing('group.trainingGroup');
+        $session->loadMissing('group.trainingGroup', 'group.privateAthletes');
         $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
 
         if ((string) $athlete->branch_id !== (string) $session->branch_id) {
             throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session branch.']);
+        }
+
+        if (($session->group?->class_type ?? null) === 'private') {
+            $allowedAthleteIds = $session->group
+                ->privateAthletes
+                ->pluck('athlete_id')
+                ->map(fn ($id) => (string) $id);
+
+            if (! $allowedAthleteIds->contains((string) $athlete->athlete_id)) {
+                throw ValidationException::withMessages(['attendance' => 'You are not assigned to this private session.']);
+            }
+
+            return;
         }
 
         if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
