@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Training\Concerns\BuildsTrainingPayloads;
 use App\Models\Branch;
 use App\Models\Group;
+use App\Models\TrainingGroup;
 use App\Models\WeeklyTrainingSchedule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,17 +22,19 @@ class TrainingClassController extends Controller
 
         $weeklySchedules = WeeklyTrainingSchedule::query()->get();
         $groups = Group::query()
-            ->with(['branch', 'coach.user', 'athletes.user', 'athletes.branch'])
+            ->with(['branch', 'trainingGroup', 'coach.user', 'athletes.user', 'athletes.branch', 'athletes.trainingGroup'])
             ->withCount('athletes')
             ->orderBy('group_name')
             ->get();
         $branches = Branch::query()->where('is_active', true)->orderBy('branch_name')->get();
+        $trainingGroups = TrainingGroup::query()->where('is_active', true)->orderBy('name')->get();
 
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',
-            'subtitle' => 'Master data kelas. Jadwal mingguan otomatis sinkron dari data kelas.',
+            'subtitle' => 'Master data kelas. Setiap kelas wajib memilih grup agar hanya atlet dari kategori yang sama yang bisa ikut presensi.',
             'classes' => $this->groupPayload($groups, $weeklySchedules),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
+            'trainingGroupOptions' => $trainingGroups->map(fn (TrainingGroup $group) => ['value' => $group->id, 'label' => $group->name])->values(),
             'coachOptions' => $this->coachOptions(),
             'beltOptions' => $this->beltOptions(),
         ]);
