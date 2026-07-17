@@ -208,7 +208,27 @@ const openEdit = (user: AdminAccountRow) => {
 // }
 
 function generatePassword() {
-    const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
+    const lowerChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    const secureRandomString = (length: number, charset: string): string => {
+        const result: string[] = [];
+        const maxValid = Math.floor(0x100000000 / charset.length) * charset.length;
+
+        while (result.length < length) {
+            const randomValues = new Uint32Array(1);
+            window.crypto.getRandomValues(randomValues);
+            const value = randomValues[0];
+
+            if (value < maxValid) {
+                result.push(charset[value % charset.length]);
+            }
+        }
+
+        return result.join('');
+    };
+
+    const generated = `${secureRandomString(8, lowerChars)}${secureRandomString(4, upperChars)}!`;
     form.password = generated;
     form.password_confirmation = generated;
 }
