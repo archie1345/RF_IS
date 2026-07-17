@@ -16,6 +16,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -132,7 +133,7 @@ class GroupController extends Controller
         $singleSessionDate = $scheduleMode === 'one_day' ? ($validated['single_session_date'] ?? null) : null;
 
         if ($scheduleMode === 'one_day' && $singleSessionDate) {
-            $validated['day_of_week'] = now()->parse($singleSessionDate)->isoWeekday();
+            $validated['day_of_week'] = Carbon::parse($singleSessionDate)->isoWeekday();
         }
 
         $validated['class_type'] = $classType;
@@ -155,18 +156,14 @@ class GroupController extends Controller
         ];
     }
 
-    /**
-     * @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string}
-     */
+    /** @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string} */
     private function syncSessionsForGroup(Group $group, ?WeeklyTrainingSchedule $previousSchedule = null): array
     {
         if (($group->schedule_mode ?? 'weekly') === 'one_day') {
             $previousSchedule ??= WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
             $previousSchedule?->update(['is_active' => false]);
-
             $result = $this->syncOneDaySession($group);
             $result['removed'] += $this->sessionGenerator->removeFutureSessionsForSchedule($previousSchedule);
-
             return $result;
         }
 
@@ -184,7 +181,6 @@ class GroupController extends Controller
     private function syncWeeklySchedule(Group $group): ?WeeklyTrainingSchedule
     {
         $group->loadMissing('branch');
-
         $existing = WeeklyTrainingSchedule::query()->where('group_id', $group->group_id)->first();
         $isSchedulable = (bool) (
             ($group->schedule_mode ?? 'weekly') === 'weekly'
@@ -222,25 +218,17 @@ class GroupController extends Controller
         );
     }
 
-    /**
-     * @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string}
-     */
+    /** @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string} */
     private function generateSessionsForSchedule(?WeeklyTrainingSchedule $schedule): array
     {
         if (! $schedule) {
             return $this->emptySessionSyncResult();
         }
 
-        return $this->sessionGenerator->handle(
-            now()->startOfDay(),
-            now()->copy()->addDays(14)->endOfDay(),
-            [$schedule->weekly_training_schedule_id],
-        );
+        return $this->sessionGenerator->handle(now()->startOfDay(), now()->copy()->addDays(14)->endOfDay(), [$schedule->weekly_training_schedule_id]);
     }
 
-    /**
-     * @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string}
-     */
+    /** @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string} */
     private function syncOneDaySession(Group $group): array
     {
         $result = $this->emptySessionSyncResult();
@@ -251,10 +239,9 @@ class GroupController extends Controller
             return $result;
         }
 
-        $date = now()->parse((string) $group->single_session_date)->startOfDay();
+        $date = Carbon::parse((string) $group->single_session_date)->startOfDay();
         $result['from'] = $date->toDateString();
         $result['to'] = $date->toDateString();
-
         $result['removed'] += $this->removeFutureOneDaySessions($group, $date);
 
         $session = TrainingSession::query()
@@ -274,12 +261,10 @@ class GroupController extends Controller
                 if ($session->trashed()) {
                     $session->restore();
                 }
-
                 $session->forceFill($this->oneDaySessionPayload($group, $date))->save();
                 $this->syncSessionCoach($session, $this->coachIdFor($group));
                 $this->initializeAttendance->handle($session);
                 $result['updated']++;
-
                 return;
             }
 
@@ -295,10 +280,7 @@ class GroupController extends Controller
     private function removeFutureOneDaySessions(Group $group, ?CarbonInterface $exceptDate = null): int
     {
         $removed = 0;
-        $query = TrainingSession::query()
-            ->where('group_id', $group->group_id)
-            ->whereNull('weekly_training_schedule_id')
-            ->whereDate('session_date', '>', now()->toDateString());
+        $query = TrainingSession::query()->where('group_id', $group->group_id)->whereNull('weekly_training_schedule_id')->whereDate('session_date', '>', now()->toDateString());
 
         if ($exceptDate) {
             $query->whereDate('session_date', '!=', $exceptDate->toDateString());
@@ -316,16 +298,7 @@ class GroupController extends Controller
 
     private function isOneDaySchedulable(Group $group): bool
     {
-        return (bool) (
-            ($group->schedule_mode ?? 'weekly') === 'one_day'
-            && $group->is_active
-            && $group->single_session_date
-            && $group->branch?->is_active
-            && $group->branch_id
-            && $group->start_time
-            && $group->end_time
-            && (($group->class_type ?? null) !== 'private' || filled($group->coach_id))
-        );
+        return (bool) (($group->schedule_mode ?? 'weekly') === 'one_day' && $group->is_active && $group->single_session_date && $group->branch?->is_active && $group->branch_id && $group->start_time && $group->end_time && (($group->class_type ?? null) !== 'private' || filled($group->coach_id)));
     }
 
     private function oneDaySessionPayload(Group $group, CarbonInterface $date): array
@@ -348,9 +321,7 @@ class GroupController extends Controller
 
     private function coachIdFor(Group $group): ?string
     {
-        return ($group->class_type ?? null) === 'private' && $group->coach_id
-            ? $group->coach_id
-            : null;
+        return ($group->class_type ?? null) === 'private' && $group->coach_id ? $group->coach_id : null;
     }
 
     private function syncSessionCoach(TrainingSession $session, ?string $coachId): void
@@ -359,14 +330,10 @@ class GroupController extends Controller
             return;
         }
 
-        $coachId
-            ? $session->assignedCoaches()->sync([$coachId])
-            : $session->assignedCoaches()->detach();
+        $coachId ? $session->assignedCoaches()->sync([$coachId]) : $session->assignedCoaches()->detach();
     }
 
-    /**
-     * @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string}
-     */
+    /** @return array{created:int, skipped:int, updated:int, removed:int, from:string, to:string} */
     private function emptySessionSyncResult(): array
     {
         return [
@@ -382,7 +349,6 @@ class GroupController extends Controller
     private function sessionSyncMessage(string $prefix, Group $group, array $result): string
     {
         $mode = ($group->schedule_mode ?? 'weekly') === 'one_day' ? 'one-day class session' : 'weekly schedule';
-
         return "{$prefix} and {$mode} synced. Auto-created {$result['created']} sessions; updated {$result['updated']} current/future sessions; removed {$result['removed']} obsolete future sessions; skipped {$result['skipped']} past sessions.";
     }
 
