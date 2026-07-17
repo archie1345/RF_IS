@@ -44,6 +44,7 @@ import { index as parentChildrenIndex } from '@/routes/parent/children';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
+import { index as usersIndex } from '@/routes/users';
 import { type NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
@@ -72,13 +73,14 @@ const adminNavItems: NavItem[] = [
     { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
     { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPin },
     { title: 'Kelas Latihan', href: adminClasses.url(), icon: Users },
+    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
     { title: 'Presensi Atlet', href: adminAttendance.url(), icon: CalendarCheck2 },
     { title: 'Presensi Coach', href: adminInstructorAttendance.url(), icon: CalendarCheck2 },
     { title: 'Keuangan', href: adminPayments.url(), icon: CreditCard },
     { title: 'Manajemen User', href: adminIndex.url(), icon: Users },
+    { title: 'Manajemen Athlete', href: usersIndex.url(),icon: Users},
     { title: 'Event Internal / UKT', href: adminEvents.url(), icon: Trophy },
     { title: 'Riwayat Event & UKT', href: adminEventHistory.url(), icon: FileClock },
-    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
     { title: 'Pengumuman', href: announcementsIndex.url(), icon: FileClock },
     { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: FileClock },
 ];
