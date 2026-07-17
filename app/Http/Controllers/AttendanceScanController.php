@@ -102,7 +102,7 @@ class AttendanceScanController extends Controller
 
     private function sessionPayload(TrainingSession $session): array
     {
-        $session->loadMissing('group.trainingGroup');
+        $session->loadMissing('group.trainingGroup', 'group.privateAthletes.user');
 
         return [
             'id' => $session->training_session_id,
@@ -115,6 +115,9 @@ class AttendanceScanController extends Controller
             'branch' => $session->branch?->branch_name ?? 'Unassigned',
             'group' => $session->group?->group_name ?? 'All groups',
             'training_group' => $session->group?->trainingGroup?->name,
+            'private_athletes' => $session->group && ($session->group->class_type ?? null) === 'private'
+                ? $session->group->privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->values()
+                : [],
             'minimum_belt' => BeltRank::label($session->group?->min_belt),
             'status' => $session->status,
             'attendance_status' => AttendanceStatus::PRESENT,
@@ -131,7 +134,7 @@ class AttendanceScanController extends Controller
             return ['invalid', 'This QR attendance code is invalid or has been closed.'];
         }
 
-        $session->loadMissing('group.trainingGroup');
+        $session->loadMissing('group.trainingGroup', 'group.privateAthletes');
 
         if (! $deviceAllowed) {
             return ['desktop_blocked', 'QR attendance is only available on phones and tablets.'];
@@ -159,21 +162,32 @@ class AttendanceScanController extends Controller
             return ['not_eligible', 'You are not eligible for this session branch.'];
         }
 
-        if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
-            return ['not_eligible', 'You are not the assigned athlete for this private session.'];
-        }
+        if (($session->group?->class_type ?? null) === 'private') {
+            $allowedAthleteIds = $session->group
+                ->privateAthletes
+                ->pluck('athlete_id')
+                ->map(fn ($id) => (string) $id);
 
-        $requiredTrainingGroupId = $session->group?->training_group_id;
-        if ($requiredTrainingGroupId !== null) {
-            $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
-
-            if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
-                return ['not_eligible', 'You are not in the required group category for this session.'];
+            if (! $allowedAthleteIds->contains((string) $athlete->athlete_id)) {
+                return ['not_eligible', 'You are not assigned to this private session.'];
             }
-        } elseif ($session->group_id !== null
-            && (string) $athlete->group_id !== (string) $session->group_id
-            && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
-            return ['not_eligible', 'Your belt level is not eligible for this session.'];
+        } else {
+            if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
+                return ['not_eligible', 'You are not the assigned athlete for this private session.'];
+            }
+
+            $requiredTrainingGroupId = $session->group?->training_group_id;
+            if ($requiredTrainingGroupId !== null) {
+                $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
+
+                if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
+                    return ['not_eligible', 'You are not in the required group category for this session.'];
+                }
+            } elseif ($session->group_id !== null
+                && (string) $athlete->group_id !== (string) $session->group_id
+                && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
+                return ['not_eligible', 'Your belt level is not eligible for this session.'];
+            }
         }
 
         if ($attendance?->status === AttendanceStatus::PRESENT) {
@@ -182,7 +196,6 @@ class AttendanceScanController extends Controller
 
         return ['ready', 'Attendance is being saved from this QR.'];
     }
-
 
     private function phoneCheckAllowed(Request $request): bool
     {
