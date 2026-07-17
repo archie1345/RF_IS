@@ -55,6 +55,12 @@ const visibilityOptions: Array<{ value: SessionVisibility; label: string; countK
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
 
+function sessionIdFromRow(row: TableRow): number | null {
+    const id = Number(row.session_id ?? String(row.id).replace('SES-', ''));
+
+    return Number.isFinite(id) && id > 0 ? id : null;
+}
+
 function setVisibility(visibility: SessionVisibility) {
     router.get(
         sessionsIndex.url(),
@@ -68,7 +74,7 @@ function setVisibility(visibility: SessionVisibility) {
 }
 
 function removeSession(row: TableRow) {
-    const id = Number(row.session_id);
+    const id = sessionIdFromRow(row);
     if (!id) return;
     pendingDeleteSessionId.value = id;
 }
@@ -85,7 +91,7 @@ function confirmDeleteSession() {
 }
 
 function joinSession(row: TableRow) {
-    const id = Number(row.session_id);
+    const id = sessionIdFromRow(row);
     if (!id) return;
     router.post(sessionJoin.url(id));
 }
@@ -150,7 +156,7 @@ function joinSession(row: TableRow) {
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
                             <Button as-child size="sm" variant="outline">
-                                <Link :href="sessionAttendance.url(String(row.id).replace('SES-', ''))">Edit</Link>
+                                <Link v-if="sessionIdFromRow(row)" :href="sessionAttendance.url(sessionIdFromRow(row)!)">Edit</Link>
                             </Button>
                             <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
                             <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
