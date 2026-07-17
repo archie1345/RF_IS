@@ -9,11 +9,13 @@ type FieldOption = {
     label: string;
 };
 
+type ModelValue = string | string[];
+
 const props = withDefaults(
     defineProps<{
         id: string;
         label: string;
-        modelValue: string;
+        modelValue: ModelValue;
         options: FieldOption[];
         placeholder?: string;
         error?: string;
@@ -21,22 +23,35 @@ const props = withDefaults(
         required?: boolean;
         disabled?: boolean;
         showPlaceholder?: boolean;
+        multiple?: boolean;
+        searchPlaceholder?: string;
     }>(),
     {
         required: false,
         disabled: false,
+        multiple: false,
     },
 );
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: string): void;
+    (e: 'update:modelValue', value: ModelValue): void;
 }>();
 
 const open = ref(false);
 const search = ref('');
 
+const selectedValues = computed(() =>
+    Array.isArray(props.modelValue)
+        ? props.modelValue.map(String)
+        : props.modelValue === ''
+          ? []
+          : [String(props.modelValue)],
+);
 const selectedOption = computed(
     () => props.options.find((option) => String(option.value) === String(props.modelValue)) ?? null,
+);
+const selectedOptions = computed(() =>
+    props.options.filter((option) => selectedValues.value.includes(String(option.value))),
 );
 const filteredOptions = computed(() => {
     const keyword = search.value.trim().toLowerCase();
@@ -47,15 +62,41 @@ const filteredOptions = computed(() => {
     );
 });
 
+function optionSelected(value: string | number) {
+    return selectedValues.value.includes(String(value));
+}
+
 function selectValue(value: string | number) {
-    emit('update:modelValue', String(value));
-    open.value = false;
-    search.value = '';
+    if (!props.multiple) {
+        emit('update:modelValue', String(value));
+        open.value = false;
+        search.value = '';
+        return;
+    }
+
+    const stringValue = String(value);
+    const nextValues = optionSelected(stringValue)
+        ? selectedValues.value.filter((entry) => entry !== stringValue)
+        : [...selectedValues.value, stringValue];
+
+    emit('update:modelValue', nextValues);
 }
 
 function clearValue() {
-    emit('update:modelValue', '');
+    emit('update:modelValue', props.multiple ? [] : '');
     search.value = '';
+}
+
+function removeValue(value: string | number) {
+    if (!props.multiple) {
+        clearValue();
+        return;
+    }
+
+    emit(
+        'update:modelValue',
+        selectedValues.value.filter((entry) => entry !== String(value)),
+    );
 }
 </script>
 
@@ -75,8 +116,18 @@ function clearValue() {
             :class="props.error ? 'border-destructive ring-2 ring-destructive/15' : 'border-input hover:border-ring/60'"
             @click="open = !open"
         >
+            <span v-if="props.multiple && selectedOptions.length" class="flex max-w-[calc(100%-2rem)] flex-wrap gap-1.5">
+                <span
+                    v-for="option in selectedOptions"
+                    :key="option.value"
+                    class="inline-flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 font-medium text-primary"
+                >
+                    {{ option.label }}
+                    <X class="size-3" @click.stop="removeValue(option.value)" />
+                </span>
+            </span>
             <span
-                v-if="selectedOption"
+                v-else-if="selectedOption"
                 class="inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1 font-medium text-primary"
             >
                 {{ selectedOption.label }}
@@ -98,7 +149,7 @@ function clearValue() {
                     v-model="search"
                     type="search"
                     class="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none"
-                    placeholder="Cari..."
+                    :placeholder="props.searchPlaceholder ?? 'Cari...'"
                 />
             </div>
             <div class="max-h-64 overflow-auto p-1">
@@ -112,18 +163,21 @@ function clearValue() {
                     <span
                         class="flex size-5 items-center justify-center rounded-md border"
                         :class="
-                            String(option.value) === String(props.modelValue)
+                            optionSelected(option.value)
                                 ? 'border-primary bg-primary text-primary-foreground'
                                 : 'border-input'
                         "
                     >
-                        <Check v-if="String(option.value) === String(props.modelValue)" class="size-3" />
+                        <Check v-if="optionSelected(option.value)" class="size-3" />
                     </span>
                     <span>{{ option.label }}</span>
                 </button>
                 <p v-if="filteredOptions.length === 0" class="px-3 py-6 text-center text-sm text-muted-foreground">
                     No options found.
                 </p>
+            </div>
+            <div v-if="props.multiple && selectedOptions.length" class="border-t px-3 py-2 text-xs text-muted-foreground">
+                {{ selectedOptions.length }} selected
             </div>
         </div>
 

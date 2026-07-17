@@ -1,26 +1,38 @@
 <script setup lang="ts">
 import { ArrowDownUp, Search } from 'lucide-vue-next';
-import { computed, ref, useSlots } from 'vue';
+import { computed, ref, useSlots, watch } from 'vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{
-    title: string;
-    description: string;
-    columns: TableColumn[];
-    rows: TableRow[];
-    emptyText?: string;
-    actionLabel?: string;
-    searchable?: boolean;
-    searchPlaceholder?: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        title: string;
+        description: string;
+        columns: TableColumn[];
+        rows: TableRow[];
+        emptyText?: string;
+        actionLabel?: string;
+        searchable?: boolean;
+        searchPlaceholder?: string;
+        paginate?: boolean;
+        initialLimit?: number;
+        pageSize?: number;
+    }>(),
+    {
+        paginate: true,
+        initialLimit: 10,
+        pageSize: 10,
+    },
+);
 
 const slots = useSlots();
 const hasRowActions = Boolean(slots['row-actions']);
 const search = ref('');
 const sortKey = ref('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
+const visibleLimit = ref(props.initialLimit);
 
 function getCellValue(row: TableRow, key: string): TableCell | undefined {
     return row[key];
@@ -82,6 +94,21 @@ const filteredRows = computed(() => {
         return sortDirection.value === 'asc' ? left.localeCompare(right) : right.localeCompare(left);
     });
 });
+
+const visibleRows = computed(() => (props.paginate ? filteredRows.value.slice(0, visibleLimit.value) : filteredRows.value));
+const canShowMore = computed(() => props.paginate && visibleRows.value.length < filteredRows.value.length);
+
+watch([search, sortKey, sortDirection, () => props.rows.length], () => {
+    visibleLimit.value = props.initialLimit;
+});
+
+function showMoreRows() {
+    visibleLimit.value += props.pageSize;
+}
+
+function showAllRows() {
+    visibleLimit.value = filteredRows.value.length;
+}
 </script>
 
 <template>
@@ -93,7 +120,7 @@ const filteredRows = computed(() => {
                     <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
                 </div>
                 <div class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                    {{ filteredRows.length }} / {{ props.rows.length }} rows
+                    {{ visibleRows.length }} / {{ filteredRows.length }} shown<span v-if="filteredRows.length !== props.rows.length"> · {{ props.rows.length }} total</span>
                 </div>
             </div>
             <div v-if="props.searchable" class="relative pt-1">
@@ -135,9 +162,9 @@ const filteredRows = computed(() => {
                             </th>
                         </tr>
                     </thead>
-                    <tbody v-if="filteredRows.length > 0">
+                    <tbody v-if="visibleRows.length > 0">
                         <tr
-                            v-for="row in filteredRows"
+                            v-for="row in visibleRows"
                             :key="row.id"
                             class="rounded-xl bg-muted/35 text-sm text-foreground transition-all hover:-translate-y-0.5 hover:bg-muted/70 hover:shadow-sm"
                         >
@@ -184,6 +211,10 @@ const filteredRows = computed(() => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 px-4 pt-4 sm:px-0">
+                <Button type="button" variant="outline" size="sm" @click="showMoreRows">Show 10 more</Button>
+                <Button type="button" variant="ghost" size="sm" @click="showAllRows">Show all {{ filteredRows.length }}</Button>
             </div>
         </CardContent>
     </Card>

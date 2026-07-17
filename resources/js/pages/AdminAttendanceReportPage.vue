@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Download, Search } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ const attendanceRangeEnd = ref(props.period.to);
 const attendanceSearch = ref('');
 const attendanceClass = ref('');
 const attendanceStatus = ref('');
+const visibleLimit = ref(10);
 const showManualCoachForm = ref(false);
 const manualCoachForm = useForm({
     coach_id: '',
@@ -62,8 +64,14 @@ const exportUrl = computed(() => {
 });
 
 const usesClassFilter = computed(() => props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)));
-const classOptions = computed(() => (usesClassFilter.value ? uniqueValuesFromColumns(['Kelas', 'Class']) : []));
-const statusOptions = computed(() => uniqueValuesFromColumns(['Status']));
+const classOptions = computed(() => [
+    { value: '', label: 'Semua kelas' },
+    ...uniqueValuesFromColumns(['Kelas', 'Class']).map((option) => ({ value: option, label: option })),
+]);
+const statusOptions = computed(() => [
+    { value: '', label: 'Semua status' },
+    ...uniqueValuesFromColumns(['Status']).map((option) => ({ value: option, label: option })),
+]);
 
 const displayedRows = computed(() => {
     const keyword = attendanceSearch.value.trim().toLowerCase();
@@ -84,6 +92,13 @@ const displayedRows = computed(() => {
             (!statusValue || statusText === statusValue)
         );
     });
+});
+
+const visibleRows = computed(() => displayedRows.value.slice(0, visibleLimit.value));
+const canShowMoreRows = computed(() => visibleRows.value.length < displayedRows.value.length);
+
+watch([attendanceSearch, attendanceClass, attendanceStatus, () => props.rows.length], () => {
+    visibleLimit.value = 10;
 });
 
 function formatDate(date: Date) {
@@ -131,6 +146,14 @@ function clearFilters() {
     attendanceSearch.value = '';
     attendanceClass.value = '';
     attendanceStatus.value = '';
+}
+
+function showMoreRows() {
+    visibleLimit.value += 10;
+}
+
+function showAllRows() {
+    visibleLimit.value = displayedRows.value.length;
 }
 
 function cancelManualCoachForm() {
@@ -185,39 +208,38 @@ function linkLabel(value: string) {
                         Gunakan ini saat coach lupa dicatat. Pilihan sesi dibatasi sampai hari ini; sesi masa depan tidak bisa dipilih.
                     </p>
                 </div>
-                <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px_auto] lg:items-end" @submit.prevent="submitManualCoachAttendance">
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Coach
-                        <select v-model="manualCoachForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                            <option value="">Pilih coach</option>
-                            <option v-for="option in props.coachOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                        <span v-if="manualCoachForm.errors.coach_id" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.coach_id }}</span>
-                    </label>
+                <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px_auto] lg:items-start" @submit.prevent="submitManualCoachAttendance">
+                    <FormSelectField
+                        id="manual-coach-id"
+                        v-model="manualCoachForm.coach_id"
+                        label="Coach"
+                        :options="props.coachOptions"
+                        placeholder="Pilih coach"
+                        :error="manualCoachForm.errors.coach_id"
+                    />
 
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Sesi sampai hari ini
-                        <select v-model="manualCoachForm.training_session_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                            <option value="">Pilih sesi</option>
-                            <option v-for="option in props.sessionOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                        <span v-if="manualCoachForm.errors.training_session_id" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.training_session_id }}</span>
-                    </label>
+                    <FormSelectField
+                        id="manual-session-id"
+                        v-model="manualCoachForm.training_session_id"
+                        label="Pilih sesi"
+                        :options="props.sessionOptions"
+                        placeholder="Pilih sesi sampai hari ini"
+                        search-placeholder="Cari sesi..."
+                        :error="manualCoachForm.errors.training_session_id"
+                    />
 
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Status
-                        <select v-model="manualCoachForm.status" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                            <option value="TEACH">Mengajar</option>
-                            <option value="NOT_TEACH">Tidak Mengajar</option>
-                        </select>
-                        <span v-if="manualCoachForm.errors.status" class="text-xs font-semibold text-destructive">{{ manualCoachForm.errors.status }}</span>
-                    </label>
+                    <FormSelectField
+                        id="manual-coach-status"
+                        v-model="manualCoachForm.status"
+                        label="Status"
+                        :options="[
+                            { value: 'TEACH', label: 'Mengajar' },
+                            { value: 'NOT_TEACH', label: 'Tidak Mengajar' },
+                        ]"
+                        :error="manualCoachForm.errors.status"
+                    />
 
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 pt-7">
                         <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button>
                         <Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
                     </div>
@@ -248,27 +270,22 @@ function linkLabel(value: string) {
                         </div>
                     </label>
 
-                    <label v-if="usesClassFilter" class="grid gap-1 text-sm font-semibold">
-                        Kelas
-                        <select
-                            v-model="attendanceClass"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground"
-                        >
-                            <option value="">Filter per Kelas</option>
-                            <option v-for="option in classOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
+                    <FormSelectField
+                        v-if="usesClassFilter"
+                        id="attendance-class-filter"
+                        v-model="attendanceClass"
+                        label="Kelas"
+                        :options="classOptions"
+                        placeholder="Semua kelas"
+                    />
 
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Status
-                        <select
-                            v-model="attendanceStatus"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground"
-                        >
-                            <option value="">Filter per Status</option>
-                            <option v-for="option in statusOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
+                    <FormSelectField
+                        id="attendance-status-filter"
+                        v-model="attendanceStatus"
+                        label="Status"
+                        :options="statusOptions"
+                        placeholder="Semua status"
+                    />
 
                     <div class="flex flex-wrap items-end gap-2">
                         <a
@@ -291,7 +308,7 @@ function linkLabel(value: string) {
                         <span>Periode aktif: {{ props.period.label }}</span>
                     </div>
                     <span class="text-muted-foreground"
-                        >{{ displayedRows.length }} dari {{ props.rows.length }} baris ditampilkan</span
+                        >{{ visibleRows.length }} dari {{ displayedRows.length }} baris ditampilkan<span v-if="displayedRows.length !== props.rows.length"> · {{ props.rows.length }} total</span></span
                     >
                 </div>
 
@@ -305,7 +322,7 @@ function linkLabel(value: string) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-if="displayedRows.length === 0">
+                            <tr v-if="visibleRows.length === 0">
                                 <td
                                     :colspan="Math.max(props.columns.length, 1)"
                                     class="h-40 px-3 text-center text-muted-foreground"
@@ -313,7 +330,7 @@ function linkLabel(value: string) {
                                     {{ props.emptyText }}
                                 </td>
                             </tr>
-                            <tr v-for="(row, index) in displayedRows" :key="index" class="border-b hover:bg-muted/40">
+                            <tr v-for="(row, index) in visibleRows" :key="index" class="border-b hover:bg-muted/40">
                                 <td v-for="column in props.columns" :key="column" class="px-3 py-3 whitespace-pre-line">
                                     <a
                                         v-if="isExternalUrl(row[column])"
@@ -328,6 +345,10 @@ function linkLabel(value: string) {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                <div v-if="canShowMoreRows" class="flex flex-wrap items-center justify-center gap-2 pt-4">
+                    <Button type="button" variant="outline" size="sm" @click="showMoreRows">Tampilkan 10 lagi</Button>
+                    <Button type="button" variant="ghost" size="sm" @click="showAllRows">Tampilkan semua {{ displayedRows.length }}</Button>
                 </div>
             </section>
         </div>
