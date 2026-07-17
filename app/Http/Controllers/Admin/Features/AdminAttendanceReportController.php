@@ -8,9 +8,11 @@ use App\Models\Coach;
 use App\Models\CoachAttendance;
 use App\Models\TrainingSession;
 use Carbon\CarbonInterface;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -84,62 +86,97 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
     public function coaches(Request $request): Response
     {
         $this->authorizeAdmin($request);
-        [$from, $to, $month] = $this->resolvePeriod($request);
+        [$from, $to, $month] = $this->resolvePeriodUntilToday($request);
 
         $coachAttendance = CoachAttendance::query()
-            ->with(['coach.user', 'trainingSession.group', 'trainingSession.branch'])
+            ->with(['coach.user'])
             ->whereHas('trainingSession', fn ($query) => $query->whereBetween('session_date', [$from->toDateString(), $to->toDateString()]))
             ->get();
         $coachAttendanceByCoach = $coachAttendance->groupBy('coach_id');
-        $scheduledSessionsByCoach = TrainingSession::query()
-            ->with(['group', 'branch'])
-            ->whereBetween('session_date', [$from->toDateString(), $to->toDateString()])
-            ->whereNotNull('coach_id')
-            ->where('status', '!=', 'CANCELED')
-            ->get()
-            ->groupBy('coach_id');
         $coaches = Coach::query()->with('user')->orderBy('coach_id')->get();
+
+        $sessionOptions = TrainingSession::query()
+            ->whereDate('session_date', '<=', now()->toDateString())
+            ->where('status', '!=', 'CANCELED')
+            ->orderByDesc('session_date')
+            ->orderByDesc('start_time')
+            ->limit(80)
+            ->get(['training_session_id', 'title', 'session_date', 'start_time', 'end_time'])
+            ->map(fn (TrainingSession $session): array => [
+                'value' => $session->training_session_id,
+                'label' => $this->sessionOptionLabel($session),
+            ])
+            ->values();
 
         return $this->renderAttendanceReport(
             'Rekap Presensi Coach',
-            'Rekap presensi coach berbasis bulan. Gunakan Bulan untuk laporan utama.',
+            'Rekap presensi coach hanya menghitung catatan sampai hari ini. Data masa depan tidak dimasukkan.',
             [
                 ['label' => 'Total Coach', 'value' => (string) $coaches->count(), 'tone' => 'info'],
-                ['label' => 'Jadwal Coach', 'value' => (string) $scheduledSessionsByCoach->flatten()->count(), 'tone' => 'neutral'],
+                ['label' => 'Total Catatan', 'value' => (string) $coachAttendance->count(), 'tone' => 'neutral'],
                 ['label' => 'Mengajar', 'value' => (string) $coachAttendance->where('status', 'TEACH')->count(), 'tone' => 'success'],
                 ['label' => 'Tidak Mengajar', 'value' => (string) $coachAttendance->where('status', 'NOT_TEACH')->count(), 'tone' => 'warning'],
             ],
-            ['No', 'Coach', 'Kelas', 'Jadwal', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status'],
-            'Belum ada data presensi coach.',
+            ['No', 'Coach', 'Total Catatan', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status'],
+            'Belum ada data presensi coach sampai periode ini.',
             'instructor-attendance',
-            $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach, $scheduledSessionsByCoach): array {
+            $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach): array {
                 $records = $coachAttendanceByCoach->get($coach->coach_id, collect());
-                $scheduledSessions = $scheduledSessionsByCoach->get($coach->coach_id, collect());
-                $scheduled = $scheduledSessions->count();
+                $total = $records->count();
                 $teach = $records->where('status', 'TEACH')->count();
                 $notTeach = $records->where('status', 'NOT_TEACH')->count();
-                $unrecorded = max($scheduled - $records->count(), 0);
-                $rate = $scheduled > 0 ? round(($teach / $scheduled) * 100) : 0;
-                $lastChecked = $records->sortByDesc('checked_at')->first()?->checked_at;
-                $classes = $scheduledSessions->pluck('group.group_name')->filter()->unique()->values()->all();
-                $classTypes = $scheduledSessions->pluck('group.class_type')->filter()->unique()->values()->all();
+                $rate = $total > 0 ? round(($teach / $total) * 100) : 0;
 
                 return [
                     'No' => (string) ($index + 1),
                     'Coach' => ($coach->user?->name ?? 'Unknown coach').'\n'.$coach->coach_id,
-                    'Kelas' => count($classes) ? implode(', ', $classes) : '-',
-                    'Jadwal' => (string) $scheduled,
+                    'Total Catatan' => (string) $total,
                     'Mengajar' => (string) $teach,
                     'Tidak Mengajar' => (string) $notTeach,
                     'Persentase' => $rate.'%',
-                    'Status' => $this->attendanceRateStatus($rate, $scheduled),
+                    'Status' => $this->attendanceRateStatus($rate, $total),
                 ];
             })->all(),
             $from,
             $to,
             $month,
             route('admin.instructor-attendance.export'),
+            [
+                'manualCoachAttendanceUrl' => route('admin.instructor-attendance.manual'),
+                'coachOptions' => $coaches
+                    ->map(fn (Coach $coach): array => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
+                    ->sortBy('label')
+                    ->values(),
+                'sessionOptions' => $sessionOptions,
+            ],
         );
+    }
+
+    public function storeCoachAttendance(Request $request): RedirectResponse
+    {
+        $this->authorizeAdmin($request);
+
+        $validated = $request->validate([
+            'coach_id' => ['required', 'exists:coaches,coach_id'],
+            'training_session_id' => [
+                'required',
+                Rule::exists('training_sessions', 'training_session_id')->where(fn ($query) => $query->whereDate('session_date', '<=', now()->toDateString())),
+            ],
+            'status' => ['required', Rule::in(['TEACH', 'NOT_TEACH'])],
+        ]);
+
+        CoachAttendance::query()->updateOrCreate(
+            [
+                'training_session_id' => $validated['training_session_id'],
+                'coach_id' => $validated['coach_id'],
+            ],
+            [
+                'status' => $validated['status'],
+                'checked_at' => now(),
+            ],
+        );
+
+        return back()->with('status', 'Coach attendance saved.');
     }
 
     public function exportAthletes(Request $request): BinaryFileResponse
@@ -170,33 +207,43 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
     public function exportCoaches(Request $request): BinaryFileResponse
     {
         $this->authorizeAdmin($request);
-        [$from, $to] = $this->resolvePeriod($request);
+        [$from, $to] = $this->resolvePeriodUntilToday($request);
 
-        $records = CoachAttendance::query()
-            ->with(['coach.user', 'trainingSession.group'])
+        $recordsByCoach = CoachAttendance::query()
+            ->with(['coach.user'])
             ->whereHas('trainingSession', fn ($query) => $query->whereBetween('session_date', [$from->toDateString(), $to->toDateString()]))
             ->get()
-            ->sortBy([
-                fn (CoachAttendance $left, CoachAttendance $right) => strcmp((string) $left->trainingSession?->session_date, (string) $right->trainingSession?->session_date),
-                fn (CoachAttendance $left, CoachAttendance $right) => strcmp((string) $left->coach_id, (string) $right->coach_id),
-            ])
-            ->values()
-            ->map(fn (CoachAttendance $attendance, int $index): array => [
-                (string) ($index + 1),
-                optional($attendance->trainingSession?->session_date)->format('d/m/Y') ?? '-',
-                $attendance->coach?->user?->name ?? $attendance->coach_id ?? '-',
-                $attendance->trainingSession?->group?->group_name ?? '-',
-                $attendance->checked_at ? Carbon::parse((string) $attendance->checked_at)->format('H:i') : '-',
-                '-',
-                $this->coachStatusLabel((string) $attendance->status),
-            ])->all();
+            ->groupBy('coach_id');
 
-        return $this->downloadAttendanceWorkbook('LAPORAN ABSENSI PELATIH', $from, $to, $records, $this->exportFilename('presensi-pelatih', $from, $to));
+        $records = Coach::query()
+            ->with('user')
+            ->orderBy('coach_id')
+            ->get()
+            ->values()
+            ->map(function (Coach $coach, int $index) use ($recordsByCoach): array {
+                $coachRecords = $recordsByCoach->get($coach->coach_id, collect());
+                $total = $coachRecords->count();
+                $teach = $coachRecords->where('status', 'TEACH')->count();
+                $notTeach = $coachRecords->where('status', 'NOT_TEACH')->count();
+                $rate = $total > 0 ? round(($teach / $total) * 100) : 0;
+
+                return [
+                    (string) ($index + 1),
+                    $coach->user?->name ?? $coach->coach_id ?? '-',
+                    (string) $total,
+                    (string) $teach,
+                    (string) $notTeach,
+                    $rate.'%',
+                    $this->attendanceRateStatus($rate, $total),
+                ];
+            })->all();
+
+        return $this->downloadAttendanceWorkbook('LAPORAN ABSENSI PELATIH', $from, $to, $records, $this->exportFilename('presensi-pelatih', $from, $to), ['No', 'Coach', 'Total Catatan', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status']);
     }
 
-    private function renderAttendanceReport(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows, CarbonInterface $from, CarbonInterface $to, string $month, string $exportUrl): Response
+    private function renderAttendanceReport(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows, CarbonInterface $from, CarbonInterface $to, string $month, string $exportUrl, array $extra = []): Response
     {
-        return Inertia::render('AdminAttendanceReportPage', [
+        return Inertia::render('AdminAttendanceReportPage', array_merge([
             'mode' => $mode,
             'title' => $title,
             'subtitle' => $subtitle,
@@ -211,7 +258,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
                 'label' => $from->format('d M Y').' - '.$to->format('d M Y'),
                 'exportUrl' => $exportUrl,
             ],
-        ]);
+        ], $extra));
     }
 
     private function resolvePeriod(Request $request): array
@@ -234,7 +281,24 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return [$from, $to, $from->format('Y-m')];
     }
 
-    private function downloadAttendanceWorkbook(string $title, CarbonInterface $from, CarbonInterface $to, array $records, string $filename): BinaryFileResponse
+    private function resolvePeriodUntilToday(Request $request): array
+    {
+        [$from, $to, $month] = $this->resolvePeriod($request);
+        $today = now()->endOfDay();
+
+        if ($to->gt($today)) {
+            $to = $today;
+        }
+
+        if ($from->gt($to)) {
+            $from = $to->copy()->startOfDay();
+            $month = $from->format('Y-m');
+        }
+
+        return [$from, $to, $month];
+    }
+
+    private function downloadAttendanceWorkbook(string $title, CarbonInterface $from, CarbonInterface $to, array $records, string $filename, array $headings = ['No', 'Tanggal', 'Nama', 'Kelas', 'Check In', 'Check Out', 'Status']): BinaryFileResponse
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -248,7 +312,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         $sheet->setCellValue('A2', 'Rhino Fighter');
         $sheet->setCellValue('A3', 'Periode: '.$from->format('d M Y').' - '.$to->format('d M Y'));
         $sheet->setCellValue('A4', 'Digenerate pada: '.now(config('app.timezone', 'Asia/Jakarta'))->format('d/m/Y H:i').' ('.config('app.timezone', 'Asia/Jakarta').')');
-        $sheet->fromArray(['No', 'Tanggal', 'Nama', 'Kelas', 'Check In', 'Check Out', 'Status'], null, 'A6');
+        $sheet->fromArray($headings, null, 'A6');
 
         if (count($records) > 0) {
             $sheet->fromArray($records, null, 'A7');
@@ -274,7 +338,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         $sheet->getRowDimension(1)->setRowHeight(28);
         $sheet->getRowDimension(6)->setRowHeight(24);
 
-        foreach (['A' => 8, 'B' => 16, 'C' => 32, 'D' => 24, 'E' => 16, 'F' => 16, 'G' => 20] as $column => $width) {
+        foreach (['A' => 8, 'B' => 26, 'C' => 18, 'D' => 18, 'E' => 18, 'F' => 16, 'G' => 20] as $column => $width) {
             $sheet->getColumnDimension($column)->setWidth($width);
         }
 
@@ -332,5 +396,14 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
             $rate >= 70 => 'Perlu Pantau',
             default => 'Perlu Perhatian',
         };
+    }
+
+    private function sessionOptionLabel(TrainingSession $session): string
+    {
+        $date = Carbon::parse((string) $session->session_date)->format('Y-m-d');
+        $start = $session->start_time ? Carbon::parse((string) $session->start_time)->format('H:i') : '--:--';
+        $end = $session->end_time ? Carbon::parse((string) $session->end_time)->format('H:i') : '--:--';
+
+        return $date.' '.$start.'-'.$end.' · '.$session->title;
     }
 }
