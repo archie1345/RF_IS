@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Pencil, RefreshCcw, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -410,14 +411,19 @@ watch(
                             <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
                         </label>
 
-                        <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
-                            Atlet Private *
-                            <select v-model="form.dedicated_athlete_ids" multiple class="min-h-32 rounded-lg border bg-background px-3 py-2 text-sm">
-                                <option v-for="option in props.athleteOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
-                            </select>
-                            <span class="text-xs text-muted-foreground">Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private.</span>
-                            <span v-if="form.errors.dedicated_athlete_ids" class="text-xs text-destructive">{{ form.errors.dedicated_athlete_ids }}</span>
-                        </label>
+                        <FormSelectField
+                            v-if="isPrivateClass"
+                            id="private-athletes"
+                            v-model="form.dedicated_athlete_ids"
+                            label="Atlet Private"
+                            :options="props.athleteOptions"
+                            placeholder="Pilih atlet private"
+                            search-placeholder="Cari atlet..."
+                            help="Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private."
+                            :error="form.errors.dedicated_athlete_ids"
+                            required
+                            multiple
+                        />
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Pola Jadwal *
