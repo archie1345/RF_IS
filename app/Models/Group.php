@@ -25,6 +25,7 @@ class Group extends Model
         'branch_id',
         'training_group_id',
         'coach_id',
+        'dedicated_athlete_id',
         'group_name',
         'class_type',
         'schedule_mode',
@@ -63,5 +64,10 @@ class Group extends Model
     public function coach(): BelongsTo
     {
         return $this->belongsTo(Coach::class, 'coach_id', 'coach_id');
+    }
+
+    public function dedicatedAthlete(): BelongsTo
+    {
+        return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
     }
 }
