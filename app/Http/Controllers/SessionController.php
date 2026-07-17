@@ -43,7 +43,9 @@ class SessionController extends Controller
         $this->authorize('viewAny', TrainingSession::class);
         $currentCoachId = $this->sessionVisibility->coachProfileIdFor($user);
         $hasCoachPivot = $this->sessionVisibility->hasCoachPivotTable();
-        $today = now()->toDateString();
+        $now = now();
+        $today = $now->toDateString();
+        $currentTime = $now->format('H:i:s');
         $visibility = $request->query('visibility', 'upcoming');
         $visibility = in_array($visibility, ['upcoming', 'past', 'all'], true) ? $visibility : 'upcoming';
 
@@ -52,16 +54,21 @@ class SessionController extends Controller
             $with[] = 'assignedCoaches.user:id,name';
         }
 
-        $sessions = TrainingSession::query()
-            ->with($with)
-            ->when($visibility === 'upcoming', fn ($query) => $query->whereDate('session_date', '>=', $today))
-            ->when($visibility === 'past', fn ($query) => $query->whereDate('session_date', '<', $today))
+        $sessionsQuery = TrainingSession::query()->with($with);
+        $this->applySessionVisibility($sessionsQuery, $visibility, $today, $currentTime);
+
+        $sessions = $sessionsQuery
             ->orderBy('session_date')
             ->orderBy('start_time')
             ->get();
 
-        $pastCount = TrainingSession::query()->whereDate('session_date', '<', $today)->count();
-        $upcomingCount = TrainingSession::query()->whereDate('session_date', '>=', $today)->count();
+        $pastCountQuery = TrainingSession::query();
+        $this->applySessionVisibility($pastCountQuery, 'past', $today, $currentTime);
+        $pastCount = $pastCountQuery->count();
+
+        $upcomingCountQuery = TrainingSession::query();
+        $this->applySessionVisibility($upcomingCountQuery, 'upcoming', $today, $currentTime);
+        $upcomingCount = $upcomingCountQuery->count();
 
         return Inertia::render('SessionsPage', [
             'metrics' => [
@@ -274,6 +281,43 @@ class SessionController extends Controller
         $coachAttendance->delete();
 
         return back();
+    }
+
+    private function applySessionVisibility($query, string $visibility, string $today, string $currentTime)
+    {
+        if ($visibility === 'upcoming') {
+            return $query->where(function ($query) use ($today, $currentTime): void {
+                $query->whereDate('session_date', '>', $today)
+                    ->orWhere(function ($sameDay) use ($today, $currentTime): void {
+                        $sameDay->whereDate('session_date', $today)
+                            ->where(function ($timeQuery) use ($currentTime): void {
+                                $timeQuery->whereTime('end_time', '>=', $currentTime)
+                                    ->orWhere(function ($missingEndTime) use ($currentTime): void {
+                                        $missingEndTime->whereNull('end_time')
+                                            ->whereTime('start_time', '>=', $currentTime);
+                                    });
+                            });
+                    });
+            });
+        }
+
+        if ($visibility === 'past') {
+            return $query->where(function ($query) use ($today, $currentTime): void {
+                $query->whereDate('session_date', '<', $today)
+                    ->orWhere(function ($sameDay) use ($today, $currentTime): void {
+                        $sameDay->whereDate('session_date', $today)
+                            ->where(function ($timeQuery) use ($currentTime): void {
+                                $timeQuery->whereTime('end_time', '<', $currentTime)
+                                    ->orWhere(function ($missingEndTime) use ($currentTime): void {
+                                        $missingEndTime->whereNull('end_time')
+                                            ->whereTime('start_time', '<', $currentTime);
+                                    });
+                            });
+                    });
+            });
+        }
+
+        return $query;
     }
 
     private function attendanceBadge(string $status): array
