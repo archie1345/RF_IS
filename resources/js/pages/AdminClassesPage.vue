@@ -13,7 +13,7 @@ import {
     update as groupUpdate,
 } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
-import type { ClassAthleteRecord, ClassRecord, SelectOption } from '@/types/training';
+import type { ClassAthleteRecord, ClassRecord, ClassScheduleMode, SelectOption } from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -26,7 +26,7 @@ const props = withDefaults(
     }>(),
     {
         title: 'Kelas Latihan',
-        subtitle: 'Master data kelas. Jadwal mingguan otomatis sinkron dari data kelas.',
+        subtitle: 'Master data kelas. Jadwal mingguan atau kelas satu hari otomatis membuat sesi latihan.',
         classes: () => [],
         branchOptions: () => [],
         coachOptions: () => [],
@@ -57,6 +57,11 @@ const classTypeOptions = [
     { value: 'sparring', label: 'Sparring' },
 ];
 
+const scheduleModeOptions: Array<{ value: ClassScheduleMode; label: string; detail: string }> = [
+    { value: 'weekly', label: 'Mingguan', detail: 'Membuat dan menyinkronkan sesi berulang dari kelas ini.' },
+    { value: 'one_day', label: 'Sekali jalan', detail: 'Membuat satu sesi hanya pada tanggal yang dipilih.' },
+];
+
 const editingClassId = ref<number | null>(null);
 const selectedClass = ref<ClassRecord | null>(null);
 const selectedClassAthletes = ref<ClassAthleteRecord[]>([]);
@@ -68,6 +73,8 @@ const search = ref('');
 const form = useForm({
     name: '',
     class_type: 'reguler',
+    schedule_mode: 'weekly' as ClassScheduleMode,
+    single_session_date: '',
     branch_id: '',
     coach_id: '',
     day_of_week: 1,
@@ -79,21 +86,32 @@ const form = useForm({
 });
 
 const isPrivateClass = computed(() => form.class_type === 'private');
+const isOneDayClass = computed(() => form.schedule_mode === 'one_day');
 
 const classCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-        form.class_type &&
-        form.branch_id &&
-        form.day_of_week &&
-        form.start_time &&
-        form.end_time &&
-        (!isPrivateClass.value || form.coach_id),
+            form.class_type &&
+            form.branch_id &&
+            form.start_time &&
+            form.end_time &&
+            (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
+            (!isPrivateClass.value || form.coach_id),
     );
 });
 
 const activationHint = computed(() => {
-    if (classCanBeActive.value) return 'Data kelas lengkap. Kelas bisa diaktifkan.';
+    if (classCanBeActive.value) {
+        return isOneDayClass.value
+            ? 'Data lengkap. Kelas sekali jalan akan membuat satu sesi pada tanggal ini.'
+            : 'Data kelas lengkap. Kelas mingguan akan menyinkronkan sesi otomatis.';
+    }
+
+    if (isOneDayClass.value) {
+        return isPrivateClass.value
+            ? 'Lengkapi nama, tipe, lokasi aktif, coach private, tanggal sesi, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
+            : 'Lengkapi nama, tipe, lokasi aktif, tanggal sesi, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
+    }
 
     return isPrivateClass.value
         ? 'Lengkapi nama, tipe, lokasi aktif, coach private, hari, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
@@ -105,7 +123,7 @@ const filteredClasses = computed(() => {
     if (!keyword) return props.classes;
 
     return props.classes.filter((item) =>
-        [item.name, classTypeLabel(item.class_type), item.branch, item.coach, item.day_label, item.min_belt]
+        [item.name, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
             .filter(Boolean)
             .join(' ')
             .toLowerCase()
@@ -119,10 +137,19 @@ function normalizeClassType(value?: string | null): string {
     return classTypeOptions.some((item) => item.value === normalized) ? normalized : 'reguler';
 }
 
+function normalizeScheduleMode(value?: string | null): ClassScheduleMode {
+    return value === 'one_day' ? 'one_day' : 'weekly';
+}
+
 function classTypeLabel(value?: string | null): string {
     const normalized = normalizeClassType(value);
     const option = classTypeOptions.find((item) => item.value === normalized);
     return option?.label ?? '-';
+}
+
+function scheduleModeLabel(value?: string | null): string {
+    const normalized = normalizeScheduleMode(value);
+    return scheduleModeOptions.find((item) => item.value === normalized)?.label ?? 'Mingguan';
 }
 
 function enforceActivationRules() {
@@ -136,6 +163,8 @@ function resetForm() {
     form.clearErrors();
     form.name = '';
     form.class_type = 'reguler';
+    form.schedule_mode = 'weekly';
+    form.single_session_date = '';
     form.branch_id = '';
     form.coach_id = '';
     form.day_of_week = 1;
@@ -195,10 +224,13 @@ async function openClassAthletes(item: ClassRecord) {
 
 function editClass(item: ClassRecord) {
     const classType = normalizeClassType(item.class_type);
+    const scheduleMode = normalizeScheduleMode(item.schedule_mode);
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
     form.class_type = classType;
+    form.schedule_mode = scheduleMode;
+    form.single_session_date = item.single_session_date ?? '';
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
     form.coach_id = classType === 'private' ? (item.coach_id ?? '') : '';
     form.day_of_week = item.day_of_week ?? 1;
@@ -214,6 +246,10 @@ function editClass(item: ClassRecord) {
 function saveClass() {
     if (!isPrivateClass.value) {
         form.coach_id = '';
+    }
+
+    if (!isOneDayClass.value) {
+        form.single_session_date = '';
     }
 
     enforceActivationRules();
@@ -233,6 +269,8 @@ watch(
         form.is_active,
         form.name,
         form.class_type,
+        form.schedule_mode,
+        form.single_session_date,
         form.branch_id,
         form.coach_id,
         form.day_of_week,
@@ -312,7 +350,7 @@ watch(
                                 <td class="max-w-[260px] px-3 py-4">
                                     <p class="truncate font-black">{{ item.name }}</p>
                                     <p class="truncate text-xs text-muted-foreground">
-                                        {{ classTypeLabel(item.class_type) }} · min {{ item.min_belt || '-' }}
+                                        {{ classTypeLabel(item.class_type) }} · {{ scheduleModeLabel(item.schedule_mode) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
                                 <td class="max-w-[200px] px-3 py-4">
@@ -373,7 +411,7 @@ watch(
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Tipe kelas mengikuti tipe jadwal mingguan. Coach hanya dipilih untuk kelas Private.
+                        Buat kelas mingguan atau kelas tambahan satu hari. Sesi latihan dibuat dari data kelas ini, bukan dari form sesi manual.
                     </p>
 
                     <div class="mt-5 grid gap-3">
@@ -394,9 +432,20 @@ watch(
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{
-                                form.errors.class_type
-                            }}</span>
+                            <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
+                        </label>
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Pola Jadwal *
+                            <select v-model="form.schedule_mode" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option v-for="option in scheduleModeOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                            <span class="text-xs text-muted-foreground">
+                                {{ scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail }}
+                            </span>
+                            <span v-if="form.errors.schedule_mode" class="text-xs text-destructive">{{ form.errors.schedule_mode }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -425,12 +474,20 @@ watch(
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{
-                                form.errors.coach_id
-                            }}</span>
+                            <span v-if="form.errors.coach_id" class="text-xs text-destructive">{{ form.errors.coach_id }}</span>
                         </label>
 
-                        <label class="grid gap-1 text-sm font-semibold">
+                        <label v-if="isOneDayClass" class="grid gap-1 text-sm font-semibold">
+                            Tanggal Sesi *
+                            <input
+                                v-model="form.single_session_date"
+                                type="date"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            />
+                            <span v-if="form.errors.single_session_date" class="text-xs text-destructive">{{ form.errors.single_session_date }}</span>
+                        </label>
+
+                        <label v-else class="grid gap-1 text-sm font-semibold">
                             Hari *
                             <select
                                 v-model="form.day_of_week"
@@ -473,9 +530,7 @@ watch(
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{
-                                form.errors.min_belt
-                            }}</span>
+                            <span v-if="form.errors.min_belt" class="text-xs text-destructive">{{ form.errors.min_belt }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -533,7 +588,7 @@ watch(
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
                         <p class="text-sm text-muted-foreground">
-                            {{ classTypeLabel(selectedClass.class_type) }} · {{ selectedClass.branch }} ·
+                            {{ classTypeLabel(selectedClass.class_type) }} · {{ scheduleModeLabel(selectedClass.schedule_mode) }} · {{ selectedClass.branch }} ·
                             {{ selectedClass.athletes_count }} atlet
                         </p>
                     </div>
