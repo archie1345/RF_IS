@@ -115,8 +115,8 @@ const activationHint = computed(() => {
     }
 
     return isPrivateClass.value
-        ? 'Lengkapi nama, kategori atlet, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
-        : 'Lengkapi nama, kategori atlet, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
+        ? 'Lengkapi nama, grup, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
+        : 'Lengkapi nama, grup, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
 });
 
 const filteredClasses = computed(() => {
@@ -311,7 +311,7 @@ watch(
                         <thead>
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Kelas</th>
-                                <th class="px-3 py-3 font-black">Kategori Atlet</th>
+                                <th class="px-3 py-3 font-black">grup</th>
                                 <th class="px-3 py-3 font-black">Atlet Private</th>
                                 <th class="px-3 py-3 font-black">Lokasi</th>
                                 <th class="px-3 py-3 font-black">Coach</th>
@@ -362,7 +362,7 @@ watch(
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        Kategori Atlet membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih Atlet Private khusus.
+                        grup membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih Atlet Private khusus.
                     </p>
 
                     <div class="mt-5 grid gap-3">
@@ -373,12 +373,11 @@ watch(
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Kategori Atlet *
+                            grup *
                             <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih kategori atlet</option>
+                                <option value="">Pilih grup</option>
                                 <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
-                            <span class="text-xs text-muted-foreground">Contoh: Junior, Prestasi, Senior. Private bukan kategori; gunakan Tipe Kelas = Private.</span>
                             <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
                         </label>
 

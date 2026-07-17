@@ -62,7 +62,7 @@ const effectiveFilters = computed<SessionFilters>(() => {
 });
 
 const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: keyof SessionFilters }> = [
-    { value: 'upcoming', label: 'Current & future', countKey: 'upcoming_count' },
+    { value: 'upcoming', label: 'Upcoming', countKey: 'upcoming_count' },
     { value: 'past', label: 'Past', countKey: 'past_count' },
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
