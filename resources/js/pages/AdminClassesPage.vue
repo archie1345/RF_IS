@@ -22,15 +22,17 @@ const props = withDefaults(
         classes?: ClassRecord[];
         branchOptions?: SelectOption[];
         trainingGroupOptions?: SelectOption[];
+        athleteOptions?: SelectOption[];
         coachOptions?: SelectOption[];
         beltOptions?: SelectOption[];
     }>(),
     {
         title: 'Kelas Latihan',
-        subtitle: 'Master data kelas. Jadwal mingguan atau kelas satu hari otomatis membuat sesi latihan.',
+        subtitle: 'Master data kelas. Private adalah tipe kelas, bukan kategori grup atlet.',
         classes: () => [],
         branchOptions: () => [],
         trainingGroupOptions: () => [],
+        athleteOptions: () => [],
         coachOptions: () => [],
         beltOptions: () => [],
     },
@@ -76,6 +78,7 @@ const form = useForm({
     name: '',
     training_group_id: '',
     class_type: 'reguler',
+    dedicated_athlete_id: '',
     schedule_mode: 'weekly' as ClassScheduleMode,
     single_session_date: '',
     branch_id: '',
@@ -100,20 +103,20 @@ const classCanBeActive = computed(() => {
             form.start_time &&
             form.end_time &&
             (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
-            (!isPrivateClass.value || form.coach_id),
+            (!isPrivateClass.value || (form.coach_id && form.dedicated_athlete_id)),
     );
 });
 
 const activationHint = computed(() => {
     if (classCanBeActive.value) {
-        return isOneDayClass.value
-            ? 'Data lengkap. Kelas sekali jalan akan membuat satu sesi pada tanggal ini dan hanya grup terpilih yang bisa ikut.'
-            : 'Data lengkap. Kelas mingguan akan menyinkronkan sesi otomatis dan hanya grup terpilih yang bisa ikut.';
+        return isPrivateClass.value
+            ? 'Data lengkap. Kelas private hanya membuat presensi untuk atlet khusus yang dipilih.'
+            : 'Data lengkap. Kelas hanya bisa diikuti atlet dari kategori grup yang dipilih.';
     }
 
     return isPrivateClass.value
-        ? 'Lengkapi nama, grup, tipe, lokasi aktif, coach private, jadwal/tanggal, jam mulai, dan jam selesai sebelum kelas bisa aktif.'
-        : 'Lengkapi nama, grup, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai sebelum kelas bisa aktif.';
+        ? 'Lengkapi nama, kategori atlet, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
+        : 'Lengkapi nama, kategori atlet, tipe, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
 });
 
 const filteredClasses = computed(() => {
@@ -121,7 +124,7 @@ const filteredClasses = computed(() => {
     if (!keyword) return props.classes;
 
     return props.classes.filter((item) =>
-        [item.name, item.training_group, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
+        [item.name, item.training_group, item.dedicated_athlete, classTypeLabel(item.class_type), scheduleModeLabel(item.schedule_mode), item.branch, item.coach, item.day_label, item.min_belt]
             .filter(Boolean)
             .join(' ')
             .toLowerCase()
@@ -151,9 +154,7 @@ function scheduleModeLabel(value?: string | null): string {
 }
 
 function enforceActivationRules() {
-    if (form.is_active && !classCanBeActive.value) {
-        form.is_active = false;
-    }
+    if (form.is_active && !classCanBeActive.value) form.is_active = false;
 }
 
 function resetForm() {
@@ -162,6 +163,7 @@ function resetForm() {
     form.name = '';
     form.training_group_id = '';
     form.class_type = 'reguler';
+    form.dedicated_athlete_id = '';
     form.schedule_mode = 'weekly';
     form.single_session_date = '';
     form.branch_id = '';
@@ -203,9 +205,7 @@ async function openClassAthletes(item: ClassRecord) {
             credentials: 'same-origin',
         });
 
-        if (!response.ok) {
-            throw new Error('Gagal mengambil daftar atlet.');
-        }
+        if (!response.ok) throw new Error('Gagal mengambil daftar atlet.');
 
         const data = (await response.json()) as { athletes?: ClassAthleteRecord[] };
         selectedClassAthletes.value = data.athletes ?? [];
@@ -224,6 +224,7 @@ function editClass(item: ClassRecord) {
     form.name = item.name;
     form.training_group_id = item.training_group_id ? String(item.training_group_id) : '';
     form.class_type = classType;
+    form.dedicated_athlete_id = classType === 'private' ? String(item.dedicated_athlete_id ?? '') : '';
     form.schedule_mode = scheduleMode;
     form.single_session_date = item.single_session_date ?? '';
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
@@ -241,11 +242,10 @@ function editClass(item: ClassRecord) {
 function saveClass() {
     if (!isPrivateClass.value) {
         form.coach_id = '';
+        form.dedicated_athlete_id = '';
     }
 
-    if (!isOneDayClass.value) {
-        form.single_session_date = '';
-    }
+    if (!isOneDayClass.value) form.single_session_date = '';
 
     enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeClassForm };
@@ -265,6 +265,7 @@ watch(
         form.name,
         form.training_group_id,
         form.class_type,
+        form.dedicated_athlete_id,
         form.schedule_mode,
         form.single_session_date,
         form.branch_id,
@@ -302,15 +303,16 @@ watch(
                             Tambah Kelas
                         </button>
                     </div>
-                    <input v-model="search" class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72" placeholder="Cari kelas/grup..." />
+                    <input v-model="search" class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72" placeholder="Cari kelas/kategori/atlet..." />
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1080px] text-sm">
+                    <table class="w-full min-w-[1160px] text-sm">
                         <thead>
                             <tr class="border-b text-left">
                                 <th class="px-3 py-3 font-black">Kelas</th>
-                                <th class="px-3 py-3 font-black">Grup</th>
+                                <th class="px-3 py-3 font-black">Kategori Atlet</th>
+                                <th class="px-3 py-3 font-black">Atlet Private</th>
                                 <th class="px-3 py-3 font-black">Lokasi</th>
                                 <th class="px-3 py-3 font-black">Coach</th>
                                 <th class="px-3 py-3 font-black">Jadwal</th>
@@ -322,7 +324,7 @@ watch(
                         </thead>
                         <tbody>
                             <tr v-if="filteredClasses.length === 0">
-                                <td colspan="9" class="h-32 px-3 text-center text-muted-foreground">Belum ada kelas.</td>
+                                <td colspan="10" class="h-32 px-3 text-center text-muted-foreground">Belum ada kelas.</td>
                             </tr>
                             <tr v-for="item in filteredClasses" :key="item.id" class="cursor-pointer border-b hover:bg-muted/40" @click="openClassAthletes(item)">
                                 <td class="max-w-[260px] px-3 py-4">
@@ -331,7 +333,8 @@ watch(
                                         {{ classTypeLabel(item.class_type) }} · {{ scheduleModeLabel(item.schedule_mode) }} · min {{ item.min_belt || '-' }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-4 font-semibold">{{ item.training_group || 'Belum ada grup' }}</td>
+                                <td class="px-3 py-4 font-semibold">{{ item.training_group || 'Belum ada kategori' }}</td>
+                                <td class="px-3 py-4">{{ normalizeClassType(item.class_type) === 'private' ? item.dedicated_athlete || '-' : '-' }}</td>
                                 <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ item.branch }}</p></td>
                                 <td class="max-w-[200px] px-3 py-4"><p class="truncate">{{ normalizeClassType(item.class_type) === 'private' ? item.coach : '-' }}</p></td>
                                 <td class="px-3 py-4">
@@ -358,7 +361,9 @@ watch(
             <FormModal :open="showClassForm" max-width-class="max-w-3xl" @close="closeClassForm">
                 <form class="grid gap-4" @submit.prevent="saveClass">
                     <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">Pilih grup wajib agar kelas hanya bisa diikuti atlet dari kategori yang sama.</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Kategori Atlet membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih Atlet Private khusus.
+                    </p>
 
                     <div class="mt-5 grid gap-3">
                         <label class="grid gap-1 text-sm font-semibold">
@@ -368,12 +373,12 @@ watch(
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Grup Atlet *
+                            Kategori Atlet *
                             <select v-model="form.training_group_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
-                                <option value="">Pilih grup atlet</option>
+                                <option value="">Pilih kategori atlet</option>
                                 <option v-for="option in props.trainingGroupOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
                             </select>
-                            <span class="text-xs text-muted-foreground">Hanya atlet dari grup ini yang dibuatkan presensi dan boleh scan QR kelas ini.</span>
+                            <span class="text-xs text-muted-foreground">Contoh: Junior, Prestasi, Senior. Private bukan kategori; gunakan Tipe Kelas = Private.</span>
                             <span v-if="form.errors.training_group_id" class="text-xs text-destructive">{{ form.errors.training_group_id }}</span>
                         </label>
 
@@ -383,6 +388,16 @@ watch(
                                 <option v-for="option in classTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                             </select>
                             <span v-if="form.errors.class_type" class="text-xs text-destructive">{{ form.errors.class_type }}</span>
+                        </label>
+
+                        <label v-if="isPrivateClass" class="grid gap-1 text-sm font-semibold">
+                            Atlet Private *
+                            <select v-model="form.dedicated_athlete_id" class="h-10 rounded-lg border bg-background px-3 text-sm">
+                                <option value="">Pilih atlet private</option>
+                                <option v-for="option in props.athleteOptions" :key="String(option.value)" :value="String(option.value)">{{ option.label }}</option>
+                            </select>
+                            <span class="text-xs text-muted-foreground">Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private.</span>
+                            <span v-if="form.errors.dedicated_athlete_id" class="text-xs text-destructive">{{ form.errors.dedicated_athlete_id }}</span>
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
@@ -463,13 +478,14 @@ watch(
                     <div>
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
-                        <p class="text-sm text-muted-foreground">Grup: {{ selectedClass.training_group || 'Belum ada grup' }}</p>
+                        <p class="text-sm text-muted-foreground">Kategori: {{ selectedClass.training_group || 'Belum ada kategori' }}</p>
+                        <p v-if="normalizeClassType(selectedClass.class_type) === 'private'" class="text-sm text-muted-foreground">Atlet private: {{ selectedClass.dedicated_athlete || '-' }}</p>
                     </div>
                     <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ athleteModalError }}</p>
                     <p v-if="athleteModalLoading" class="text-sm text-muted-foreground">Loading athletes...</p>
                     <div v-else class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Atlet</th><th class="px-3 py-3 font-black">Branch</th><th class="px-3 py-3 font-black">Grup</th><th class="px-3 py-3 font-black">Geup</th></tr></thead>
+                            <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Atlet</th><th class="px-3 py-3 font-black">Branch</th><th class="px-3 py-3 font-black">Kategori</th><th class="px-3 py-3 font-black">Geup</th></tr></thead>
                             <tbody>
                                 <tr v-if="selectedClassAthletes.length === 0"><td colspan="4" class="h-24 px-3 text-center text-muted-foreground">Belum ada atlet.</td></tr>
                                 <tr v-for="athlete in selectedClassAthletes" :key="athlete.id" class="border-b">
