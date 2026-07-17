@@ -24,7 +24,7 @@ trait BuildsTrainingPayloads
             })
             ->with([
                 'branch',
-                'group' => fn ($query) => $query->with(['trainingGroup'])->withCount('athletes'),
+                'group' => fn ($query) => $query->with(['trainingGroup', 'dedicatedAthlete.user'])->withCount('athletes'),
                 'dedicatedAthlete.user',
                 'coach.user',
             ])
@@ -113,6 +113,8 @@ trait BuildsTrainingPayloads
                 'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
                 'coach_id' => $group->coach_id,
                 'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
+                'dedicated_athlete_id' => $group->dedicated_athlete_id,
+                'dedicated_athlete' => $group->dedicatedAthlete?->user?->name,
                 'day_of_week' => $group->day_of_week,
                 'day_label' => $scheduleMode === 'one_day' && $singleSessionDate
                     ? $this->dayName((int) ($group->day_of_week ?? 1)).' · '.$singleSessionDate
