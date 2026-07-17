@@ -23,6 +23,7 @@ class Group extends Model
 
     protected $fillable = [
         'branch_id',
+        'training_group_id',
         'coach_id',
         'group_name',
         'class_type',
@@ -52,6 +53,11 @@ class Group extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'branch_id', 'branch_id');
+    }
+
+    public function trainingGroup(): BelongsTo
+    {
+        return $this->belongsTo(TrainingGroup::class, 'training_group_id', 'id');
     }
 
     public function coach(): BelongsTo
