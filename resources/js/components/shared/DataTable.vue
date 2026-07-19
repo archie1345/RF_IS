@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ArrowDownUp, Search } from 'lucide-vue-next';
 import { computed, ref, useSlots, watch } from 'vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/resource-table';
+import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -19,11 +20,15 @@ const props = withDefaults(
         paginate?: boolean;
         initialLimit?: number;
         pageSize?: number;
+        showRowsPerPage?: boolean;
+        rowsPerPageOptions?: number[];
     }>(),
     {
         paginate: true,
         initialLimit: 10,
         pageSize: 10,
+        showRowsPerPage: true,
+        rowsPerPageOptions: () => [10, 25, 50],
     },
 );
 
@@ -32,7 +37,32 @@ const hasRowActions = Boolean(slots['row-actions']);
 const search = ref('');
 const sortKey = ref('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
+const selectedRowsPerPage = ref(String(props.initialLimit));
 const visibleLimit = ref(props.initialLimit);
+
+const rowsPerPageSelectId = computed(() => `rows-per-page-${props.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+
+const rowsPerPageOptions = computed<SelectOption[]>(() => {
+    const numericOptions = new Set(
+        [...props.rowsPerPageOptions, props.initialLimit, props.pageSize]
+            .map((value) => Number(value))
+            .filter((value) => Number.isFinite(value) && value > 0),
+    );
+
+    return [
+        ...Array.from(numericOptions)
+            .sort((left, right) => left - right)
+            .map((value) => ({ value: String(value), label: `${value} rows` })),
+        { value: 'all', label: 'All rows' },
+    ];
+});
+
+const activePageSize = computed(() => {
+    if (selectedRowsPerPage.value === 'all') return filteredRows.value.length;
+
+    const parsed = Number(selectedRowsPerPage.value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : props.pageSize;
+});
 
 function getCellValue(row: TableRow, key: string): TableCell | undefined {
     return row[key];
@@ -95,18 +125,25 @@ const filteredRows = computed(() => {
     });
 });
 
-const visibleRows = computed(() => (props.paginate ? filteredRows.value.slice(0, visibleLimit.value) : filteredRows.value));
-const canShowMore = computed(() => props.paginate && visibleRows.value.length < filteredRows.value.length);
+const visibleRows = computed(() => {
+    if (!props.paginate || selectedRowsPerPage.value === 'all') return filteredRows.value;
 
-watch([search, sortKey, sortDirection, () => props.rows.length], () => {
-    visibleLimit.value = props.initialLimit;
+    return filteredRows.value.slice(0, visibleLimit.value);
 });
+const canShowMore = computed(() => props.paginate && selectedRowsPerPage.value !== 'all' && visibleRows.value.length < filteredRows.value.length);
+
+function resetVisibleLimit() {
+    visibleLimit.value = activePageSize.value || props.initialLimit;
+}
+
+watch([search, sortKey, sortDirection, () => props.rows.length, selectedRowsPerPage], resetVisibleLimit);
 
 function showMoreRows() {
-    visibleLimit.value += props.pageSize;
+    visibleLimit.value += activePageSize.value || props.pageSize;
 }
 
 function showAllRows() {
+    selectedRowsPerPage.value = 'all';
     visibleLimit.value = filteredRows.value.length;
 }
 </script>
@@ -119,8 +156,18 @@ function showAllRows() {
                     <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
                     <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
                 </div>
-                <div class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                    {{ visibleRows.length }} / {{ filteredRows.length }} shown<span v-if="filteredRows.length !== props.rows.length"> · {{ props.rows.length }} total</span>
+                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <FormSelectField
+                        v-if="props.paginate && props.showRowsPerPage"
+                        :id="rowsPerPageSelectId"
+                        v-model="selectedRowsPerPage"
+                        label="Rows per page"
+                        :options="rowsPerPageOptions"
+                        placeholder="Rows per page"
+                    />
+                    <div class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                        {{ visibleRows.length }} / {{ filteredRows.length }} shown<span v-if="filteredRows.length !== props.rows.length"> · {{ props.rows.length }} total</span>
+                    </div>
                 </div>
             </div>
             <div v-if="props.searchable" class="relative pt-1">
@@ -213,7 +260,7 @@ function showAllRows() {
                 </table>
             </div>
             <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 px-4 pt-4 sm:px-0">
-                <Button type="button" variant="outline" size="sm" @click="showMoreRows">Show 10 more</Button>
+                <Button type="button" variant="outline" size="sm" @click="showMoreRows">Show {{ activePageSize }} more</Button>
                 <Button type="button" variant="ghost" size="sm" @click="showAllRows">Show all {{ filteredRows.length }}</Button>
             </div>
         </CardContent>
