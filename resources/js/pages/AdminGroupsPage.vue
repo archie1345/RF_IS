@@ -2,10 +2,15 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
 type TrainingGroupRecord = {
     id: number;
@@ -34,7 +39,35 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.title, href: '/admin/groups' },
 ];
 
-const search = ref('');
+const groupTableColumns: TableColumn[] = [
+    { key: 'name', label: 'Grup' },
+    { key: 'description', label: 'Deskripsi' },
+    { key: 'classes_count', label: 'Kelas', align: 'right' },
+    { key: 'athletes_count', label: 'Atlet', align: 'right' },
+    { key: 'status', label: 'Status' },
+];
+
+const groupTableFilters: TableFilter[] = [
+    {
+        key: 'group',
+        label: 'Grup',
+        type: 'text',
+        placeholder: 'Cari nama/deskripsi grup...',
+        accessor: (row) => [row.name, row.description].filter(Boolean).join(' '),
+    },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        columnKey: 'status',
+        placeholder: 'Semua status',
+        options: [
+            { value: 'AKTIF', label: 'Aktif' },
+            { value: 'NONAKTIF', label: 'Nonaktif' },
+        ],
+    },
+];
+
 const showForm = ref(false);
 const editingId = ref<number | null>(null);
 
@@ -44,18 +77,21 @@ const form = useForm({
     is_active: true,
 });
 
-const filteredGroups = computed(() => {
-    const keyword = search.value.trim().toLowerCase();
-    if (!keyword) return props.groups;
-
-    return props.groups.filter((group) =>
-        [group.name, group.description, group.is_active ? 'aktif' : 'nonaktif']
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase()
-            .includes(keyword),
-    );
-});
+const groupTableRows = computed<TableRow[]>(() =>
+    props.groups.map((group) => ({
+        id: String(group.id),
+        group_id: group.id,
+        name: group.name,
+        description: group.description || '-',
+        classes_count: group.classes_count,
+        athletes_count: group.athletes_count,
+        status: {
+            kind: 'badge',
+            text: group.is_active ? 'AKTIF' : 'NONAKTIF',
+            tone: group.is_active ? 'success' : 'neutral',
+        },
+    })),
+);
 
 function resetForm() {
     editingId.value = null;
@@ -70,6 +106,12 @@ function openCreate() {
     showForm.value = true;
 }
 
+function groupFromRow(row: TableRow): TrainingGroupRecord | null {
+    const id = Number(row.group_id ?? row.id);
+
+    return props.groups.find((group) => Number(group.id) === id) ?? null;
+}
+
 function openEdit(group: TrainingGroupRecord) {
     editingId.value = group.id;
     form.clearErrors();
@@ -77,6 +119,11 @@ function openEdit(group: TrainingGroupRecord) {
     form.description = group.description ?? '';
     form.is_active = group.is_active;
     showForm.value = true;
+}
+
+function openEditFromRow(row: TableRow) {
+    const group = groupFromRow(row);
+    if (group) openEdit(group);
 }
 
 function closeForm() {
@@ -100,6 +147,11 @@ function deleteGroup(group: TrainingGroupRecord) {
         router.delete(`/admin/training-groups/${group.id}`, { preserveScroll: true });
     }
 }
+
+function deleteGroupFromRow(row: TableRow) {
+    const group = groupFromRow(row);
+    if (group) deleteGroup(group);
+}
 </script>
 
 <template>
@@ -107,70 +159,44 @@ function deleteGroup(group: TrainingGroupRecord) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <p class="text-xs font-black tracking-wide text-red-500 uppercase">Group Management</p>
-                        <h1 class="text-3xl font-black">{{ props.title }}</h1>
-                        <p class="mt-1 max-w-3xl text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                    </div>
+            <PageSection :title="props.title" :description="props.subtitle" eyebrow="Group Management">
+                <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <button type="button" class="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-bold" @click="router.reload()">
-                            <RefreshCcw class="mr-2 size-4" /> Refresh
-                        </button>
-                        <button type="button" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground" @click="openCreate">
-                            <Plus class="mr-2 size-4" /> Tambah Grup
-                        </button>
+                        <Button type="button" variant="outline" class="gap-2" @click="router.reload()">
+                            <RefreshCcw class="size-4" />
+                            Refresh
+                        </Button>
+                        <Button type="button" class="gap-2" @click="openCreate">
+                            <Plus class="size-4" />
+                            Tambah Grup
+                        </Button>
                     </div>
-                </div>
-            </section>
+                </template>
+            </PageSection>
 
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h2 class="text-xl font-black">Daftar Grup</h2>
-                        <p class="text-sm text-muted-foreground">Kelas hanya dapat diikuti atlet dari grup yang sama.</p>
-                    </div>
-                    <input v-model="search" class="h-10 rounded-lg border bg-background px-3 text-sm md:w-80" placeholder="Cari grup..." />
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[760px] text-sm">
-                        <thead>
-                            <tr class="border-b text-left">
-                                <th class="px-3 py-3 font-black">Grup</th>
-                                <th class="px-3 py-3 font-black">Deskripsi</th>
-                                <th class="px-3 py-3 font-black">Kelas</th>
-                                <th class="px-3 py-3 font-black">Atlet</th>
-                                <th class="px-3 py-3 font-black">Status</th>
-                                <th class="px-3 py-3 font-black">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="filteredGroups.length === 0">
-                                <td colspan="6" class="h-32 px-3 text-center text-muted-foreground">Belum ada grup.</td>
-                            </tr>
-                            <tr v-for="group in filteredGroups" :key="group.id" class="border-b hover:bg-muted/40">
-                                <td class="px-3 py-4 font-black">{{ group.name }}</td>
-                                <td class="max-w-[360px] px-3 py-4 text-muted-foreground">{{ group.description || '-' }}</td>
-                                <td class="px-3 py-4">{{ group.classes_count }}</td>
-                                <td class="px-3 py-4">{{ group.athletes_count }}</td>
-                                <td class="px-3 py-4">
-                                    <span class="rounded-full px-3 py-1 text-xs font-black" :class="group.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'">
-                                        {{ group.is_active ? 'AKTIF' : 'NONAKTIF' }}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-4">
-                                    <div class="flex gap-2">
-                                        <button type="button" class="rounded border px-2 py-1" @click="openEdit(group)"><Pencil class="size-4" /></button>
-                                        <button type="button" class="rounded border px-2 py-1 text-red-600" @click="deleteGroup(group)"><Trash2 class="size-4" /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            <DataTable
+                title="Daftar Grup"
+                description="Kelas hanya dapat diikuti atlet dari grup yang sama. Filter dan pagination memakai tabel bersama."
+                :columns="groupTableColumns"
+                :rows="groupTableRows"
+                :filters="groupTableFilters"
+                filterable
+                searchable
+                search-placeholder="Cari grup, deskripsi, status..."
+                empty-text="Belum ada grup."
+                action-label="Aksi"
+            >
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button type="button" size="sm" variant="outline" @click="openEditFromRow(row)">
+                            <Pencil class="size-4" />
+                        </Button>
+                        <Button type="button" size="sm" variant="destructive" @click="deleteGroupFromRow(row)">
+                            <Trash2 class="size-4" />
+                        </Button>
+                    </ActionButtonsRow>
+                </template>
+            </DataTable>
 
             <FormModal :open="showForm" max-width-class="max-w-xl" @close="closeForm">
                 <form class="grid gap-4" @submit.prevent="saveGroup">
@@ -192,14 +218,15 @@ function deleteGroup(group: TrainingGroupRecord) {
                     </label>
 
                     <label class="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold">
-                        <input v-model="form.is_active" type="checkbox" /> Aktif
+                        <input v-model="form.is_active" type="checkbox" />
+                        Aktif
                     </label>
 
                     <div class="flex gap-2">
-                        <button class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground" :disabled="form.processing">
+                        <Button type="submit" :disabled="form.processing">
                             {{ form.processing ? 'Saving...' : 'Save Grup' }}
-                        </button>
-                        <button type="button" class="rounded-lg border px-4 py-2 text-sm font-bold" @click="closeForm">Batal</button>
+                        </Button>
+                        <Button type="button" variant="outline" @click="closeForm">Batal</Button>
                     </div>
                 </form>
             </FormModal>
