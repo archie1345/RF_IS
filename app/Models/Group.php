@@ -32,6 +32,7 @@ class Group extends Model
         'schedule_mode',
         'single_session_date',
         'day_of_week',
+        'day_of_weeks',
         'start_time',
         'end_time',
         'min_belt',
@@ -43,6 +44,7 @@ class Group extends Model
 
     protected $casts = [
         'day_of_week' => 'integer',
+        'day_of_weeks' => 'array',
         'single_session_date' => 'date',
         'is_active' => 'boolean',
     ];
