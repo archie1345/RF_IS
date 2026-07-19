@@ -4,7 +4,7 @@ import { useSlots } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import type { TableColumn, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -24,12 +24,16 @@ const props = withDefaults(
         paginate?: boolean;
         initialLimit?: number;
         pageSize?: number;
+        filters?: TableFilter[];
+        filterable?: boolean;
     }>(),
     {
         showCreate: true,
         paginate: true,
         initialLimit: 10,
         pageSize: 10,
+        filters: () => [],
+        filterable: false,
     },
 );
 
@@ -72,6 +76,8 @@ const slots = useSlots();
             :paginate="props.paginate"
             :initial-limit="props.initialLimit"
             :page-size="props.pageSize"
+            :filters="props.filters"
+            :filterable="props.filterable"
         >
             <template #row-actions="{ row }">
                 <slot name="row-actions" :row="row" />
