@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { MapPin, Pencil, Trash2 } from 'lucide-vue-next';
+import { Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
+import PageSection from '@/components/shared/PageSection.vue';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { locations as adminLocations } from '@/routes/admin';
 import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
 import type { BreadcrumbItem } from '@/types';
+import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 import type { LocationRecord } from '@/types/training';
 
 const props = withDefaults(
@@ -29,9 +34,39 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.title, href: adminLocations.url() },
 ];
 
+const locationTableColumns: TableColumn[] = [
+    { key: 'name', label: 'Lokasi' },
+    { key: 'address', label: 'Alamat' },
+    { key: 'coordinates', label: 'Koordinat' },
+    { key: 'usage', label: 'Kelas / Atlet' },
+    { key: 'radius', label: 'Radius' },
+    { key: 'status', label: 'Status' },
+];
+
+const locationTableFilters: TableFilter[] = [
+    {
+        key: 'location',
+        label: 'Lokasi',
+        type: 'text',
+        placeholder: 'Cari lokasi/alamat...',
+        accessor: (row) => [row.name, row.location_label, row.address, row.area].filter(Boolean).join(' '),
+    },
+    { key: 'area', label: 'Kota / Provinsi', type: 'select', columnKey: 'area', placeholder: 'Semua area' },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        columnKey: 'status',
+        placeholder: 'Semua status',
+        options: [
+            { value: 'AKTIF', label: 'Aktif' },
+            { value: 'NONAKTIF', label: 'Nonaktif' },
+        ],
+    },
+];
+
 const editingLocationId = ref<number | null>(null);
 const showLocationForm = ref(false);
-const search = ref('');
 
 const form = useForm({
     name: '',
@@ -46,27 +81,37 @@ const form = useForm({
     is_active: false,
 });
 
-const filteredLocations = computed(() => {
-    const keyword = search.value.trim().toLowerCase();
-    if (!keyword) return props.locations;
-
-    return props.locations.filter((location) =>
-        [location.name, location.location, location.address, location.city, location.province]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase()
-            .includes(keyword),
-    );
-});
+const locationTableRows = computed<TableRow[]>(() =>
+    props.locations.map((location) => ({
+        id: String(location.id),
+        location_id: location.id,
+        name: location.name,
+        location_label: location.location ?? '-',
+        address: location.address ?? '-',
+        area: [location.city, location.province].filter(Boolean).join(' ') || '-',
+        coordinates:
+            location.latitude !== null && location.latitude !== undefined && location.longitude !== null && location.longitude !== undefined
+                ? `${location.latitude}, ${location.longitude}`
+                : '-',
+        usage: `${location.groups_count ?? 0} kelas · ${location.athletes_count ?? 0} atlet`,
+        radius: `${location.attendance_radius_meters ?? 100}m`,
+        timezone: location.timezone ?? 'Asia/Jakarta',
+        status: {
+            kind: 'badge',
+            text: location.is_active ? 'AKTIF' : 'NONAKTIF',
+            tone: location.is_active ? 'success' : 'neutral',
+        },
+    })),
+);
 
 const locationCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-        form.address.trim() &&
-        form.city.trim() &&
-        form.province.trim() &&
-        isValidCoordinate(form.latitude) &&
-        isValidCoordinate(form.longitude),
+            form.address.trim() &&
+            form.city.trim() &&
+            form.province.trim() &&
+            isValidCoordinate(form.latitude) &&
+            isValidCoordinate(form.longitude),
     );
 });
 
@@ -113,6 +158,12 @@ function closeLocationForm() {
     resetForm();
 }
 
+function locationFromRow(row: TableRow): LocationRecord | null {
+    const id = Number(row.location_id ?? row.id);
+
+    return props.locations.find((location) => Number(location.id) === id) ?? null;
+}
+
 function editLocation(location: LocationRecord) {
     editingLocationId.value = location.id;
     form.clearErrors();
@@ -128,6 +179,11 @@ function editLocation(location: LocationRecord) {
     form.is_active = location.is_active;
     enforceActivationRules();
     showLocationForm.value = true;
+}
+
+function editLocationFromRow(row: TableRow) {
+    const location = locationFromRow(row);
+    if (location) editLocation(location);
 }
 
 function setCoordinates(payload: { latitude: string; longitude: string }) {
@@ -148,6 +204,11 @@ function deleteLocation(location: LocationRecord) {
     }
 }
 
+function deleteLocationFromRow(row: TableRow) {
+    const location = locationFromRow(row);
+    if (location) deleteLocation(location);
+}
+
 watch(
     () => [form.is_active, form.name, form.address, form.city, form.province, form.latitude, form.longitude],
     enforceActivationRules,
@@ -159,113 +220,44 @@ watch(
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <h1 class="text-3xl font-black">{{ props.title }}</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                    </div>
-                </div>
-            </section>
-
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-xl font-black">Daftar Lokasi</h2>
-                        <button
-                            type="button"
-                            class="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
-                            @click="openCreateLocation"
-                        >
+            <PageSection :title="props.title" :description="props.subtitle">
+                <template #actions>
+                    <div class="flex flex-wrap gap-2">
+                        <Button type="button" variant="outline" class="gap-2" @click="router.reload()">
+                            <RefreshCcw class="size-4" />
+                            Refresh
+                        </Button>
+                        <Button type="button" class="gap-2" @click="openCreateLocation">
+                            <Plus class="size-4" />
                             Tambah Lokasi
-                        </button>
+                        </Button>
                     </div>
-                    <input
-                        v-model="search"
-                        class="h-10 rounded-lg border bg-background px-3 text-sm md:w-72"
-                        placeholder="Cari lokasi..."
-                    />
-                </div>
+                </template>
+            </PageSection>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[980px] text-sm">
-                        <thead>
-                            <tr class="border-b text-left">
-                                <th class="px-3 py-3 font-black">Lokasi</th>
-                                <th class="px-3 py-3 font-black">Alamat</th>
-                                <th class="px-3 py-3 font-black">Koordinat</th>
-                                <th class="px-3 py-3 font-black">Kelas / Atlet</th>
-                                <th class="px-3 py-3 font-black">Radius</th>
-                                <th class="px-3 py-3 font-black">Status</th>
-                                <th class="px-3 py-3 font-black">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="filteredLocations.length === 0">
-                                <td colspan="7" class="h-32 px-3 text-center text-muted-foreground">
-                                    Belum ada lokasi.
-                                </td>
-                            </tr>
-                            <tr
-                                v-for="location in filteredLocations"
-                                :key="location.id"
-                                class="border-b hover:bg-muted/40"
-                            >
-                                <td class="max-w-[220px] px-3 py-4">
-                                    <p class="truncate font-black">{{ location.name }}</p>
-                                    <p class="truncate text-xs text-muted-foreground">
-                                        <MapPin class="mr-1 inline size-3" />{{ location.location ?? '-' }}
-                                    </p>
-                                </td>
-                                <td class="max-w-[260px] px-3 py-4">
-                                    <p class="truncate">{{ location.address ?? '-' }}</p>
-                                    <p class="truncate text-xs text-muted-foreground">
-                                        {{ location.city }} {{ location.province }}
-                                    </p>
-                                </td>
-                                <td class="px-3 py-4 text-xs text-muted-foreground">
-                                    <span v-if="location.latitude && location.longitude">
-                                        {{ location.latitude }}, {{ location.longitude }}
-                                    </span>
-                                    <span v-else>-</span>
-                                </td>
-                                <td class="px-3 py-4">
-                                    {{ location.groups_count }} kelas · {{ location.athletes_count }} atlet
-                                </td>
-                                <td class="px-3 py-4">{{ location.attendance_radius_meters }}m</td>
-                                <td class="px-3 py-4">
-                                    <span
-                                        class="rounded-full px-3 py-1 text-xs font-black"
-                                        :class="
-                                            location.is_active
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-slate-100 text-slate-500'
-                                        "
-                                        >{{ location.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
-                                    >
-                                </td>
-                                <td class="px-3 py-4">
-                                    <div class="flex gap-2">
-                                        <button
-                                            type="button"
-                                            class="rounded border px-2 py-1"
-                                            @click="editLocation(location)"
-                                        >
-                                            <Pencil class="size-4" /></button
-                                        ><button
-                                            type="button"
-                                            class="rounded border px-2 py-1 text-red-600"
-                                            @click="deleteLocation(location)"
-                                        >
-                                            <Trash2 class="size-4" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+            <DataTable
+                title="Daftar Lokasi"
+                description="Kelola dojang/lokasi latihan memakai tabel bersama agar filter, pagination, dan desain konsisten."
+                :columns="locationTableColumns"
+                :rows="locationTableRows"
+                :filters="locationTableFilters"
+                filterable
+                searchable
+                search-placeholder="Cari lokasi, alamat, kota, provinsi..."
+                empty-text="Belum ada lokasi."
+                action-label="Aksi"
+            >
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button type="button" size="sm" variant="outline" @click="editLocationFromRow(row)">
+                            <Pencil class="size-4" />
+                        </Button>
+                        <Button type="button" size="sm" variant="destructive" @click="deleteLocationFromRow(row)">
+                            <Trash2 class="size-4" />
+                        </Button>
+                    </ActionButtonsRow>
+                </template>
+            </DataTable>
 
             <FormModal :open="showLocationForm" max-width-class="max-w-4xl" @close="closeLocationForm">
                 <form class="grid gap-4" @submit.prevent="saveLocation">
@@ -392,19 +384,10 @@ watch(
                         </label>
 
                         <div class="flex gap-2">
-                            <button
-                                class="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-                                :disabled="form.processing"
-                            >
+                            <Button type="submit" :disabled="form.processing">
                                 {{ form.processing ? 'Saving...' : 'Save Lokasi' }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border px-4 py-2 text-sm font-bold"
-                                @click="closeLocationForm"
-                            >
-                                Batal
-                            </button>
+                            </Button>
+                            <Button type="button" variant="outline" @click="closeLocationForm">Batal</Button>
                         </div>
                     </div>
                 </form>
