@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -16,7 +17,7 @@ import {
     join as sessionJoin,
 } from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableBadgeCell, TableCell, TableColumn, TableRow } from '@/types/resource-table';
 
 type SessionVisibility = 'upcoming' | 'past' | 'all';
 type SessionFilters = {
@@ -25,6 +26,8 @@ type SessionFilters = {
     upcoming_count: number;
     all_count: number;
 };
+
+type SessionColumnFilters = Record<'session' | 'branch' | 'group' | 'coach' | 'schedule' | 'status', string>;
 
 const props = defineProps<{
     metrics: Metric[];
@@ -48,6 +51,14 @@ const columns: TableColumn[] = [
     { key: 'status', label: 'Status' },
 ];
 
+const columnFilters = reactive<SessionColumnFilters>({
+    session: '',
+    branch: '',
+    group: '',
+    coach: '',
+    schedule: '',
+    status: '',
+});
 const pendingDeleteSessionId = ref<number | null>(null);
 
 const effectiveFilters = computed<SessionFilters>(() => {
@@ -67,10 +78,63 @@ const visibilityOptions: Array<{ value: SessionVisibility; label: string; countK
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
 
+const branchFilterOptions = computed(() => optionsFromColumn('branch'));
+const groupFilterOptions = computed(() => optionsFromColumn('group'));
+const coachFilterOptions = computed(() => optionsFromColumn('coach'));
+const statusFilterOptions = computed(() => optionsFromColumn('status'));
+const hasColumnFilters = computed(() => Object.values(columnFilters).some((value) => value.trim() !== ''));
+const filteredRows = computed(() => props.rows.filter((row) => rowMatchesColumnFilters(row)));
+
 function sessionIdFromRow(row: TableRow): number | null {
     const id = Number(row.session_id ?? String(row.id).replace('SES-', ''));
 
     return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function getCellValue(row: TableRow, key: string): TableCell | undefined {
+    return row[key];
+}
+
+function isBadgeCell(value: TableCell | undefined): value is TableBadgeCell {
+    return typeof value === 'object' && value !== null && 'kind' in value && value.kind === 'badge';
+}
+
+function getCellText(value: TableCell | undefined): string {
+    if (isBadgeCell(value)) return value.text;
+    if (Array.isArray(value)) return value.join(', ');
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+}
+
+function optionsFromColumn(key: keyof SessionColumnFilters): SelectOption[] {
+    return Array.from(
+        new Set(
+            props.rows
+                .map((row) => getCellText(getCellValue(row, key)).trim())
+                .filter((value) => value !== '' && value !== '-'),
+        ),
+    )
+        .sort((left, right) => left.localeCompare(right))
+        .map((value) => ({ value, label: value }));
+}
+
+function rowMatchesColumnFilters(row: TableRow): boolean {
+    return (Object.keys(columnFilters) as Array<keyof SessionColumnFilters>).every((key) => {
+        const filter = columnFilters[key].trim().toLowerCase();
+        if (!filter) return true;
+
+        return getCellText(getCellValue(row, key)).toLowerCase().includes(filter);
+    });
+}
+
+function clearColumnFilters() {
+    columnFilters.session = '';
+    columnFilters.branch = '';
+    columnFilters.group = '';
+    columnFilters.coach = '';
+    columnFilters.schedule = '';
+    columnFilters.status = '';
 }
 
 function setVisibility(visibility: SessionVisibility) {
@@ -158,11 +222,81 @@ function joinSession(row: TableRow) {
                     </div>
                 </section>
 
+                <section class="rounded-2xl border bg-card p-4 shadow-sm">
+                    <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h2 class="text-base font-black">Column filters</h2>
+                            <p class="text-sm text-muted-foreground">Filter the session table by any column.</p>
+                        </div>
+                        <Button v-if="hasColumnFilters" type="button" variant="outline" size="sm" @click="clearColumnFilters">
+                            Clear filters
+                        </Button>
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Session
+                            <input
+                                v-model="columnFilters.session"
+                                type="text"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                placeholder="Filter by session"
+                            />
+                        </label>
+
+                        <FormSelectField
+                            id="session-branch-filter"
+                            v-model="columnFilters.branch"
+                            label="Branch"
+                            :options="branchFilterOptions"
+                            placeholder="All branches"
+                            search-placeholder="Search branch..."
+                        />
+
+                        <FormSelectField
+                            id="session-group-filter"
+                            v-model="columnFilters.group"
+                            label="Group"
+                            :options="groupFilterOptions"
+                            placeholder="All groups"
+                            search-placeholder="Search group..."
+                        />
+
+                        <FormSelectField
+                            id="session-coach-filter"
+                            v-model="columnFilters.coach"
+                            label="Coach"
+                            :options="coachFilterOptions"
+                            placeholder="All coaches"
+                            search-placeholder="Search coach..."
+                        />
+
+                        <label class="grid gap-1 text-sm font-semibold">
+                            Schedule
+                            <input
+                                v-model="columnFilters.schedule"
+                                type="text"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                                placeholder="Filter by date or time"
+                            />
+                        </label>
+
+                        <FormSelectField
+                            id="session-status-filter"
+                            v-model="columnFilters.status"
+                            label="Status"
+                            :options="statusFilterOptions"
+                            placeholder="All statuses"
+                            search-placeholder="Search status..."
+                        />
+                    </div>
+                </section>
+
                 <DataTable
                     title="Session lineup"
                     description="Use Edit to manage QR attendance, athlete attendance, and coach attendance. Create new sessions by creating weekly or one-day classes."
                     :columns="columns"
-                    :rows="props.rows"
+                    :rows="filteredRows"
                     action-label="Actions"
                 >
                     <template #row-actions="{ row }">
