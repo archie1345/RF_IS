@@ -41,6 +41,20 @@ export type SelectOption = {
     label: string;
 };
 
+export type TableFilterType = 'text' | 'select';
+
+export type TableFilter = {
+    key: string;
+    label: string;
+    type?: TableFilterType;
+    columnKey?: string;
+    placeholder?: string;
+    searchPlaceholder?: string;
+    options?: SelectOption[];
+    accessor?: (row: TableRow) => TableCell | string | number | boolean | null | undefined;
+    match?: (row: TableRow, value: string) => boolean;
+};
+
 export type RoleDashboardContent = {
     headline: string;
     description: string;

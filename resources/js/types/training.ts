@@ -42,7 +42,6 @@ export type ClassRecord = {
     dedicated_athlete_ids?: Array<string | number>;
     dedicated_athlete?: string | null;
     day_of_week?: number | null;
-    day_of_weeks?: Array<string | number>;
     day_label: string;
     start_time: string;
     end_time: string;

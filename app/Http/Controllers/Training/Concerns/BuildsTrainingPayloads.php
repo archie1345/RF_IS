@@ -96,18 +96,13 @@ trait BuildsTrainingPayloads
 
     private function groupPayload(Collection $groups, Collection $weeklySchedules)
     {
-        $schedulesByGroup = $weeklySchedules->whereNotNull('group_id')->groupBy('group_id');
+        $scheduleByGroup = $weeklySchedules->whereNotNull('group_id')->keyBy('group_id');
 
-        return $groups->map(function (Group $group) use ($schedulesByGroup): array {
-            $schedules = $schedulesByGroup->get($group->group_id, collect());
-            $schedule = $schedules->first();
+        return $groups->map(function (Group $group) use ($scheduleByGroup): array {
+            $schedule = $scheduleByGroup->get($group->group_id);
             $scheduleMode = $group->schedule_mode ?? 'weekly';
             $singleSessionDate = $group->single_session_date?->format('Y-m-d');
             $privateAthletes = $group->privateAthletes ?? collect();
-            $dayOfWeeks = $this->classDayValues($group, $schedules);
-            $dayLabel = $scheduleMode === 'one_day' && $singleSessionDate
-                ? $this->dayName((int) ($group->day_of_week ?? 1)).' · '.$singleSessionDate
-                : collect($dayOfWeeks)->map(fn (int $day) => $this->dayName($day))->join(', ');
 
             return [
                 'id' => $group->group_id,
@@ -124,8 +119,9 @@ trait BuildsTrainingPayloads
                 'dedicated_athlete_ids' => $privateAthletes->pluck('athlete_id')->map(fn ($id) => (string) $id)->values(),
                 'dedicated_athlete' => $privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', '),
                 'day_of_week' => $group->day_of_week,
-                'day_of_weeks' => $dayOfWeeks,
-                'day_label' => $dayLabel ?: '-',
+                'day_label' => $scheduleMode === 'one_day' && $singleSessionDate
+                    ? $this->dayName((int) ($group->day_of_week ?? 1)).' · '.$singleSessionDate
+                    : $this->dayName((int) ($group->day_of_week ?? 1)),
                 'start_time' => $group->start_time ? substr((string) $group->start_time, 0, 5) : '',
                 'end_time' => $group->end_time ? substr((string) $group->end_time, 0, 5) : '',
                 'min_belt' => $group->min_belt,
@@ -141,34 +137,9 @@ trait BuildsTrainingPayloads
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
                 'weekly_schedule_status' => $scheduleMode === 'one_day'
                     ? 'Sekali jalan'
-                    : ($schedules->isNotEmpty() ? ($schedules->where('is_active', true)->count().' jadwal aktif') : 'Belum terhubung'),
+                    : ($schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung'),
             ];
         })->values();
-    }
-
-    private function classDayValues(Group $group, Collection $schedules): array
-    {
-        $days = $group->day_of_weeks ?? [];
-
-        if (is_string($days)) {
-            $days = json_decode($days, true) ?: [];
-        }
-
-        if (blank($days) && $schedules->isNotEmpty()) {
-            $days = $schedules->pluck('day_of_week')->all();
-        }
-
-        if (blank($days) && filled($group->day_of_week)) {
-            $days = [$group->day_of_week];
-        }
-
-        return collect($days)
-            ->map(fn ($day) => (int) $day)
-            ->filter(fn (int $day) => $day >= 1 && $day <= 7)
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
     }
 
     private function classAthletePayload(Collection $athletes): Collection
