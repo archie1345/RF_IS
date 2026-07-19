@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Download, Search } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { CalendarDays, Download } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { AttendanceReportPeriod } from '@/types/admin-feature';
-import type { Metric, SelectOption } from '@/types/resource-table';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -45,16 +46,21 @@ const breadcrumbs: BreadcrumbItem[] = [
 const attendanceMonth = ref(props.period.month);
 const attendanceRangeStart = ref(props.period.from);
 const attendanceRangeEnd = ref(props.period.to);
-const attendanceSearch = ref('');
-const attendanceClass = ref('');
-const attendanceStatus = ref('');
-const visibleLimit = ref(10);
 const showManualCoachForm = ref(false);
 const manualCoachForm = useForm({
     coach_id: '',
     training_session_id: '',
     status: 'TEACH',
 });
+
+const reportColumns = computed<TableColumn[]>(() => props.columns.map((column) => ({ key: column, label: column })));
+const reportRows = computed<TableRow[]>(() =>
+    props.rows.map((row, index) => ({
+        id: String(row.No ?? row.ID ?? row.Id ?? index),
+        ...row,
+    })),
+);
+
 const exportUrl = computed(() => {
     const url = new URL(props.period.exportUrl, window.location.origin);
     url.searchParams.set('from', attendanceRangeStart.value);
@@ -64,41 +70,31 @@ const exportUrl = computed(() => {
 });
 
 const usesClassFilter = computed(() => props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)));
-const classOptions = computed(() => [
-    { value: '', label: 'Semua kelas' },
-    ...uniqueValuesFromColumns(['Kelas', 'Class']).map((option) => ({ value: option, label: option })),
-]);
-const statusOptions = computed(() => [
-    { value: '', label: 'Semua status' },
-    ...uniqueValuesFromColumns(['Status']).map((option) => ({ value: option, label: option })),
-]);
 
-const displayedRows = computed(() => {
-    const keyword = attendanceSearch.value.trim().toLowerCase();
-    const classValue = attendanceClass.value.trim().toLowerCase();
-    const statusValue = attendanceStatus.value.trim().toLowerCase();
+const reportFilters = computed<TableFilter[]>(() => {
+    const filters: TableFilter[] = [
+        {
+            key: 'member',
+            label: props.mode === 'instructor-attendance' ? 'Coach' : 'Member',
+            type: 'text',
+            placeholder: 'Nama atau kode member...',
+            accessor: (row) => [row.Atlet, row.Coach, row.Member, row.Anggota, row.Nama, row.No].filter(Boolean).join(' '),
+        },
+    ];
 
-    return props.rows.filter((row) => {
-        const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row.Nama, row.No]
-            .filter(Boolean)
-            .join(' ')
-            .toLowerCase();
-        const classText = String(row.Kelas ?? row.Class ?? '').toLowerCase();
-        const statusText = String(row.Status ?? '').toLowerCase();
+    if (usesClassFilter.value) {
+        filters.push({
+            key: 'class',
+            label: 'Kelas',
+            type: 'select',
+            placeholder: 'Semua kelas',
+            accessor: (row) => String(row.Kelas ?? row.Class ?? ''),
+        });
+    }
 
-        return (
-            (!keyword || memberText.includes(keyword)) &&
-            (!usesClassFilter.value || !classValue || classText === classValue) &&
-            (!statusValue || statusText === statusValue)
-        );
-    });
-});
+    filters.push({ key: 'status', label: 'Status', type: 'select', columnKey: 'Status', placeholder: 'Semua status' });
 
-const visibleRows = computed(() => displayedRows.value.slice(0, visibleLimit.value));
-const canShowMoreRows = computed(() => visibleRows.value.length < displayedRows.value.length);
-
-watch([attendanceSearch, attendanceClass, attendanceStatus, () => props.rows.length], () => {
-    visibleLimit.value = 10;
+    return filters;
 });
 
 function formatDate(date: Date) {
@@ -117,18 +113,6 @@ function monthRange(monthValue: string) {
     };
 }
 
-function uniqueValuesFromColumns(columns: string[]) {
-    const seen = new Set<string>();
-    props.rows.forEach((row) => {
-        const value = columns
-            .map((column) => row[column])
-            .find(Boolean)
-            ?.trim();
-        if (value) seen.add(value);
-    });
-    return [...seen].sort((a, b) => a.localeCompare(b));
-}
-
 function reloadPeriod(params: { month?: string; from: string; to: string }) {
     router.get(window.location.pathname, params, { preserveScroll: true, preserveState: true });
 }
@@ -142,18 +126,8 @@ function applyMonth(monthValue = attendanceMonth.value) {
     reloadPeriod({ month: monthValue, ...range });
 }
 
-function clearFilters() {
-    attendanceSearch.value = '';
-    attendanceClass.value = '';
-    attendanceStatus.value = '';
-}
-
-function showMoreRows() {
-    visibleLimit.value += 10;
-}
-
-function showAllRows() {
-    visibleLimit.value = displayedRows.value.length;
+function applyDateRange() {
+    reloadPeriod({ month: attendanceMonth.value, from: attendanceRangeStart.value, to: attendanceRangeEnd.value });
 }
 
 function cancelManualCoachForm() {
@@ -172,14 +146,6 @@ function submitManualCoachAttendance() {
             showManualCoachForm.value = false;
         },
     });
-}
-
-function isExternalUrl(value: unknown): value is string {
-    return typeof value === 'string' && /^https?:\/\//i.test(value);
-}
-
-function linkLabel(value: string) {
-    return value.includes('wa.me') ? 'Open WA' : 'Open';
 }
 </script>
 
@@ -209,36 +175,9 @@ function linkLabel(value: string) {
                     </p>
                 </div>
                 <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px_auto] lg:items-start" @submit.prevent="submitManualCoachAttendance">
-                    <FormSelectField
-                        id="manual-coach-id"
-                        v-model="manualCoachForm.coach_id"
-                        label="Coach"
-                        :options="props.coachOptions"
-                        placeholder="Pilih coach"
-                        :error="manualCoachForm.errors.coach_id"
-                    />
-
-                    <FormSelectField
-                        id="manual-session-id"
-                        v-model="manualCoachForm.training_session_id"
-                        label="Pilih sesi"
-                        :options="props.sessionOptions"
-                        placeholder="Pilih sesi sampai hari ini"
-                        search-placeholder="Cari sesi..."
-                        :error="manualCoachForm.errors.training_session_id"
-                    />
-
-                    <FormSelectField
-                        id="manual-coach-status"
-                        v-model="manualCoachForm.status"
-                        label="Status"
-                        :options="[
-                            { value: 'TEACH', label: 'Mengajar' },
-                            { value: 'NOT_TEACH', label: 'Tidak Mengajar' },
-                        ]"
-                        :error="manualCoachForm.errors.status"
-                    />
-
+                    <FormSelectField id="manual-coach-id" v-model="manualCoachForm.coach_id" label="Coach" :options="props.coachOptions" placeholder="Pilih coach" :error="manualCoachForm.errors.coach_id" />
+                    <FormSelectField id="manual-session-id" v-model="manualCoachForm.training_session_id" label="Pilih sesi" :options="props.sessionOptions" placeholder="Pilih sesi sampai hari ini" search-placeholder="Cari sesi..." :error="manualCoachForm.errors.training_session_id" />
+                    <FormSelectField id="manual-coach-status" v-model="manualCoachForm.status" label="Status" :options="[{ value: 'TEACH', label: 'Mengajar' }, { value: 'NOT_TEACH', label: 'Tidak Mengajar' }]" :error="manualCoachForm.errors.status" />
                     <div class="flex gap-2 pt-7">
                         <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button>
                         <Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
@@ -247,109 +186,44 @@ function linkLabel(value: string) {
             </section>
 
             <section class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-5 grid gap-4 xl:grid-cols-[220px_280px_1fr_1fr_auto]">
+                <div class="mb-5 grid gap-4 xl:grid-cols-[220px_1fr_1fr_auto]">
                     <label class="grid gap-1 text-sm font-semibold">
                         Bulan
-                        <input
-                            v-model="attendanceMonth"
-                            type="month"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            @change="applyMonth()"
-                        />
+                        <input v-model="attendanceMonth" type="month" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyMonth()" />
                     </label>
-
                     <label class="grid gap-1 text-sm font-semibold">
-                        Cari Member
-                        <div class="relative">
-                            <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <input
-                                v-model="attendanceSearch"
-                                class="h-10 w-full rounded-lg border bg-background pr-3 pl-10 text-sm"
-                                placeholder="Nama atau Kode Member..."
-                            />
-                        </div>
+                        Dari
+                        <input v-model="attendanceRangeStart" type="date" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyDateRange" />
                     </label>
-
-                    <FormSelectField
-                        v-if="usesClassFilter"
-                        id="attendance-class-filter"
-                        v-model="attendanceClass"
-                        label="Kelas"
-                        :options="classOptions"
-                        placeholder="Semua kelas"
-                    />
-
-                    <FormSelectField
-                        id="attendance-status-filter"
-                        v-model="attendanceStatus"
-                        label="Status"
-                        :options="statusOptions"
-                        placeholder="Semua status"
-                    />
-
+                    <label class="grid gap-1 text-sm font-semibold">
+                        Sampai
+                        <input v-model="attendanceRangeEnd" type="date" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyDateRange" />
+                    </label>
                     <div class="flex flex-wrap items-end gap-2">
-                        <a
-                            :href="exportUrl"
-                            class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90"
-                        >
+                        <a :href="exportUrl" class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
                             <Download class="mr-2 size-4" /> Export
                         </a>
-                        <Button type="button" variant="ghost" size="sm" class="h-10" @click="clearFilters"
-                            >Reset</Button
-                        >
                     </div>
                 </div>
 
-                <div
-                    class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3 text-sm"
-                >
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3 text-sm">
                     <div class="flex items-center gap-2 font-semibold">
                         <CalendarDays class="size-4 text-muted-foreground" />
                         <span>Periode aktif: {{ props.period.label }}</span>
                     </div>
-                    <span class="text-muted-foreground"
-                        >{{ visibleRows.length }} dari {{ displayedRows.length }} baris ditampilkan<span v-if="displayedRows.length !== props.rows.length"> · {{ props.rows.length }} total</span></span
-                    >
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[900px] text-sm">
-                        <thead>
-                            <tr class="border-b text-left">
-                                <th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">
-                                    {{ column }}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="visibleRows.length === 0">
-                                <td
-                                    :colspan="Math.max(props.columns.length, 1)"
-                                    class="h-40 px-3 text-center text-muted-foreground"
-                                >
-                                    {{ props.emptyText }}
-                                </td>
-                            </tr>
-                            <tr v-for="(row, index) in visibleRows" :key="index" class="border-b hover:bg-muted/40">
-                                <td v-for="column in props.columns" :key="column" class="px-3 py-3 whitespace-pre-line">
-                                    <a
-                                        v-if="isExternalUrl(row[column])"
-                                        :href="row[column]"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        class="font-semibold text-primary underline-offset-4 hover:underline"
-                                        >{{ linkLabel(row[column]) }}</a
-                                    >
-                                    <span v-else>{{ row[column] ?? '-' }}</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div v-if="canShowMoreRows" class="flex flex-wrap items-center justify-center gap-2 pt-4">
-                    <Button type="button" variant="outline" size="sm" @click="showMoreRows">Tampilkan 10 lagi</Button>
-                    <Button type="button" variant="ghost" size="sm" @click="showAllRows">Tampilkan semua {{ displayedRows.length }}</Button>
-                </div>
+                <DataTable
+                    title="Detail Presensi"
+                    description="Gunakan filter tabel bersama untuk mencari member, kelas, dan status tanpa komponen tabel khusus."
+                    :columns="reportColumns"
+                    :rows="reportRows"
+                    :filters="reportFilters"
+                    :empty-text="props.emptyText"
+                    filterable
+                    searchable
+                    search-placeholder="Cari semua kolom presensi..."
+                />
             </section>
         </div>
     </AppLayout>
