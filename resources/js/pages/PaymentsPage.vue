@@ -393,7 +393,7 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     {{ props.coachPaymentLimitation }}
                 </div>
 
-                <div class="grid gap-4 md:grid-cols-3">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
