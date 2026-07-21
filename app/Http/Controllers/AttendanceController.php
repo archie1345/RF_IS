@@ -19,6 +19,7 @@ use App\Presenters\AttendanceRowPresenter;
 use App\Services\AttendanceVisibilityService;
 use App\Services\ParentChildContextService;
 use App\Support\ActivityLogger;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -117,16 +118,23 @@ class AttendanceController extends Controller
         return redirect()->route('attendance.index');
     }
 
-    public function update(UpdateAttendanceRequest $request, Attendance $attendance): RedirectResponse
+    public function update(UpdateAttendanceRequest $request, Attendance $attendance): RedirectResponse|JsonResponse
     {
         $attendance->loadMissing(['athlete', 'trainingSession']);
 
         $this->authorize('update', $attendance);
 
         if ($this->attendanceRows->isLocked($attendance)) {
-            return back()->withErrors([
-                'status' => 'Attendance cannot be changed because the session time has passed.',
-            ]);
+            $message = 'Attendance cannot be changed because the session time has passed.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => ['status' => [$message]],
+                ], 422);
+            }
+
+            return back()->withErrors(['status' => $message]);
         }
 
         $attendance = $this->updateAttendanceStatus->handle($attendance, $request->validated()['status']);
@@ -139,6 +147,13 @@ class AttendanceController extends Controller
             $attendance,
             ['status' => $attendance->status],
         );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $attendance->status,
+                'row' => $this->attendanceRows->row($attendance, $request->user()),
+            ]);
+        }
 
         return back();
     }
