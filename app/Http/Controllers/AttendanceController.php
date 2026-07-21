@@ -124,6 +124,19 @@ class AttendanceController extends Controller
 
         $this->authorize('update', $attendance);
 
+        $status = $request->validated()['status'];
+
+        if ((string) $attendance->status === $status) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'status' => $attendance->status,
+                    'row' => $this->attendanceRows->row($attendance, $request->user()),
+                ]);
+            }
+
+            return back();
+        }
+
         if ($this->attendanceRows->isLocked($attendance)) {
             $message = 'Attendance cannot be changed because the session time has passed.';
 
@@ -137,7 +150,7 @@ class AttendanceController extends Controller
             return back()->withErrors(['status' => $message]);
         }
 
-        $attendance = $this->updateAttendanceStatus->handle($attendance, $request->validated()['status']);
+        $attendance = $this->updateAttendanceStatus->handle($attendance, $status);
 
         ActivityLogger::log(
             $request,
