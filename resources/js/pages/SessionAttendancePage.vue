@@ -288,26 +288,6 @@ function submit() {
                 :secondary-action="{ label: 'Dismiss', variant: 'outline' }"
                 @secondary="attendanceUpdateError = ''"
             />
-            <AppAlert
-                v-if="pendingBulkStatus"
-                tone="warning"
-                title="Update all loaded athletes?"
-                :description="`This will mark every loaded athlete as ${pendingBulkStatus === 'PRESENT' ? 'present' : 'absent'}. Existing statuses will be changed.`"
-                :primary-action="{ label: 'Apply update' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmBulkUpdate"
-                @secondary="pendingBulkStatus = null"
-            />
-            <AppAlert
-                v-if="pendingCoachDeleteId"
-                tone="danger"
-                title="Remove this coach row?"
-                description="This removes the coach from this session attendance table."
-                :primary-action="{ label: 'Remove coach', variant: 'destructive' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmRemoveCoach"
-                @secondary="pendingCoachDeleteId = null"
-            />
 
             <PageSection
                 eyebrow="Unified session edit"
@@ -431,6 +411,32 @@ function submit() {
                 </template>
             </DataTable>
         </div>
+
+        <FormModal :open="Boolean(pendingBulkStatus)" max-width-class="max-w-xl" @close="pendingBulkStatus = null">
+            <AppAlert
+                v-if="pendingBulkStatus"
+                tone="warning"
+                title="Update all loaded athletes?"
+                :description="`This will mark every loaded athlete as ${pendingBulkStatus === 'PRESENT' ? 'present' : 'absent'}. Existing statuses will be changed.`"
+                :primary-action="{ label: 'Apply update' }"
+                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
+                @primary="confirmBulkUpdate"
+                @secondary="pendingBulkStatus = null"
+            />
+        </FormModal>
+
+        <FormModal :open="Boolean(pendingCoachDeleteId)" max-width-class="max-w-xl" @close="pendingCoachDeleteId = null">
+            <AppAlert
+                v-if="pendingCoachDeleteId"
+                tone="danger"
+                title="Remove this coach row?"
+                description="This removes the coach from this session attendance table."
+                :primary-action="{ label: 'Remove coach', variant: 'destructive' }"
+                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
+                @primary="confirmRemoveCoach"
+                @secondary="pendingCoachDeleteId = null"
+            />
+        </FormModal>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
             <PageSection
