@@ -119,7 +119,10 @@ class AttendanceScanController extends Controller
         }
 
         if ($session) {
-            return $children->first(fn (Athlete $child) => $this->athleteEligibleForSession($child, $session)) ?? $children->first();
+            return $children->first(fn (Athlete $child) =>
+                $this->athleteEligibleForSession($child, $session)
+                && $this->findAttendance($session, $child)?->status !== AttendanceStatus::PRESENT
+            ) ?? $children->first(fn (Athlete $child) => $this->athleteEligibleForSession($child, $session)) ?? $children->first();
         }
 
         return $children->first();
