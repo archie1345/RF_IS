@@ -5,7 +5,7 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter, TableFilterValue, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -54,15 +54,15 @@ const sortKey = ref('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
 const selectedRowsPerPage = ref(String(props.initialLimit));
 const visibleLimit = ref(props.initialLimit);
-const filterValues = reactive<Record<string, string>>({});
+const filterValues = reactive<Record<string, TableFilterValue>>({});
 
 const rowsPerPageSelectId = computed(() => `rows-per-page-${safeId(props.title)}`);
 const normalizedFilters = computed(() => props.filters ?? []);
 const textFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'text'));
 const selectFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'select'));
 const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
-const activeFilterSignature = computed(() => normalizedFilters.value.map((filter) => `${filter.key}:${filterValues[filter.key] ?? ''}`).join('|'));
-const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => (filterValues[filter.key] ?? '').trim() !== ''));
+const activeFilterSignature = computed(() => normalizedFilters.value.map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`).join('|'));
+const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => filterSelections(filter).length > 0));
 const clickableHint = computed(() => props.rowClickLabel.trim() || 'Click a row to open details.');
 
 const rowsPerPageOptions = computed<SelectOption[]>(() => {
@@ -128,9 +128,21 @@ function filterType(filter: TableFilter): 'text' | 'select' {
     return filter.type ?? 'text';
 }
 
+function filterMultiple(filter: TableFilter): boolean {
+    return filterType(filter) === 'select' && filter.multiple !== false;
+}
+
 function filterText(filter: TableFilter, row: TableRow): string {
     const value = filter.accessor ? filter.accessor(row) : getCellValue(row, filter.columnKey ?? filter.key);
     return String(getCellText(value)).trim();
+}
+
+function filterSelections(filter: TableFilter): string[] {
+    const value = filterValues[filter.key];
+    if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+
+    const singleValue = String(value ?? '').trim();
+    return singleValue ? [singleValue] : [];
 }
 
 function filterOptions(filter: TableFilter): SelectOption[] {
@@ -151,20 +163,23 @@ function rowMatchesFilters(row: TableRow): boolean {
     if (!hasTableFilters.value) return true;
 
     return normalizedFilters.value.every((filter) => {
-        const value = (filterValues[filter.key] ?? '').trim();
-        if (!value) return true;
-        if (filter.match) return filter.match(row, value);
+        const values = filterSelections(filter);
+        if (values.length === 0) return true;
+        if (filter.match) return filter.match(row, filterMultiple(filter) ? values : values[0]);
 
         const candidate = filterText(filter, row).toLowerCase();
-        const expected = value.toLowerCase();
 
-        return filterType(filter) === 'select' ? candidate === expected : candidate.includes(expected);
+        if (filterType(filter) === 'select') {
+            return values.some((value) => candidate === value.toLowerCase());
+        }
+
+        return candidate.includes(values[0].toLowerCase());
     });
 }
 
 function clearFilters() {
     normalizedFilters.value.forEach((filter) => {
-        filterValues[filter.key] = '';
+        filterValues[filter.key] = filterMultiple(filter) ? [] : '';
     });
 }
 
@@ -228,7 +243,17 @@ watch(
     normalizedFilters,
     (filters) => {
         filters.forEach((filter) => {
-            if (filterValues[filter.key] === undefined) filterValues[filter.key] = '';
+            if (filterValues[filter.key] === undefined) {
+                filterValues[filter.key] = filterMultiple(filter) ? [] : '';
+            }
+
+            if (filterMultiple(filter) && !Array.isArray(filterValues[filter.key])) {
+                filterValues[filter.key] = filterValues[filter.key] ? [String(filterValues[filter.key])] : [];
+            }
+
+            if (!filterMultiple(filter) && Array.isArray(filterValues[filter.key])) {
+                filterValues[filter.key] = '';
+            }
         });
 
         Object.keys(filterValues).forEach((key) => {
@@ -310,6 +335,7 @@ function showAllRows() {
                         :options="filterOptions(filter)"
                         :placeholder="filter.placeholder ?? `All ${filter.label.toLowerCase()}`"
                         :search-placeholder="filter.searchPlaceholder ?? `Search ${filter.label.toLowerCase()}...`"
+                        :multiple="filterMultiple(filter)"
                     />
                 </div>
             </div>
