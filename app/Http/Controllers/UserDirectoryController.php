@@ -23,6 +23,7 @@ class UserDirectoryController extends Controller
     public function index(): Response
     {
         $user = request()->user();
+        abort_unless($user?->isAdmin(), 403);
         $canViewSensitiveIdentifiers = (bool) $user?->isAdmin();
         $parentScopedAthleteIds = null;
 
@@ -209,7 +210,7 @@ class UserDirectoryController extends Controller
 
     public function show(Request $request, Athlete $athlete): JsonResponse
     {
-        abort_if($request->user()?->isParent() && ! $request->user()?->children()->where('athlete_id', $athlete->athlete_id)->exists(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $athlete->loadMissing(['user:id,name,email,gender,bday,phone', 'branch:branch_id,branch_name', 'group:group_id,group_name', 'parent:parent_id,id']);
 
@@ -239,7 +240,7 @@ class UserDirectoryController extends Controller
 
     public function linkParent(Request $request, Athlete $athlete): RedirectResponse
     {
-        abort_if($request->user()?->isParent(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
             'parent_id' => ['nullable', 'exists:parents,parent_id'],
@@ -254,7 +255,7 @@ class UserDirectoryController extends Controller
 
     public function syncParentChildren(Request $request, ParentProfile $parent): RedirectResponse
     {
-        abort_if($request->user()?->isParent(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
             'athlete_ids' => ['nullable', 'array'],
@@ -288,7 +289,7 @@ class UserDirectoryController extends Controller
 
     public function update(Request $request, Athlete $athlete): RedirectResponse
     {
-        abort_if($request->user()?->isParent(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
@@ -349,11 +350,8 @@ class UserDirectoryController extends Controller
 
     public function showByUser(Request $request, User $user): JsonResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
         $athlete = Athlete::query()->where('id', $user->id)->first();
-
-        if ($request->user()?->isParent() && $athlete && ! $request->user()?->children()->where('athlete_id', $athlete->athlete_id)->exists()) {
-            abort(403);
-        }
 
         return response()->json([
             'user_id' => $user->id,
@@ -377,7 +375,7 @@ class UserDirectoryController extends Controller
 
     public function upsertByUser(Request $request, User $user): RedirectResponse
     {
-        abort_if($request->user()?->isParent(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
