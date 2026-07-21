@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';
 
@@ -37,6 +37,7 @@ const emit = defineEmits<{
     (e: 'update:modelValue', value: ModelValue): void;
 }>();
 
+const rootRef = ref<HTMLElement | null>(null);
 const open = ref(false);
 const search = ref('');
 const instanceId = `select-${props.id}-${Math.random().toString(36).slice(2)}`;
@@ -93,9 +94,24 @@ function handleOtherDropdownOpened(event: Event) {
     if (detail?.instanceId !== instanceId) closeDropdown();
 }
 
-window.addEventListener(closeEventName, handleOtherDropdownOpened);
+function handleOutsidePointerDown(event: PointerEvent) {
+    if (!open.value) return;
+
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    if (rootRef.value?.contains(target)) return;
+
+    closeDropdown();
+}
+
+onMounted(() => {
+    window.addEventListener(closeEventName, handleOtherDropdownOpened);
+    document.addEventListener('pointerdown', handleOutsidePointerDown);
+});
+
 onBeforeUnmount(() => {
     window.removeEventListener(closeEventName, handleOtherDropdownOpened);
+    document.removeEventListener('pointerdown', handleOutsidePointerDown);
 });
 
 function selectValue(value: string | number) {
@@ -133,7 +149,7 @@ function removeValue(value: string | number) {
 </script>
 
 <template>
-    <div class="relative grid gap-2">
+    <div ref="rootRef" class="relative grid gap-2">
         <div class="flex items-center justify-between gap-3">
             <Label :for="props.id">{{ props.label }}</Label>
             <span v-if="props.required" class="text-xs text-muted-foreground">Required</span>
