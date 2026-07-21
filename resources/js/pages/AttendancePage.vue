@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed, onMounted, ref, toRef } from 'vue';
+import { computed, onMounted, ref, toRef, watch } from 'vue';
 import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
+import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -17,7 +18,7 @@ import { index as attendanceIndex, update as attendanceUpdate } from '@/routes/a
 import { store as sessionsStore } from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -42,6 +43,12 @@ const columns: TableColumn[] = [
     { key: 'status', label: 'Status' },
 ];
 
+type AttendanceStatusValue = 'PRESENT' | 'ABSENT' | 'EXCUSED';
+type AttendanceUpdateResponse = {
+    message?: string;
+    row?: TableRow;
+};
+
 const form = useForm({
     athlete_id: props.activeAthleteId ? String(props.activeAthleteId) : '',
     training_session_id: '',
@@ -62,6 +69,9 @@ const sessionForm = useForm({
     end_time: '',
     status: 'DRAFT',
 });
+const attendanceRows = ref<TableRow[]>(props.rows.map((row) => ({ ...row })));
+const pendingAttendanceRowIds = ref<string[]>([]);
+const attendanceUpdateError = ref('');
 const coachSessionName = ref('');
 const coachSessionError = ref('');
 const showSessionForm = ref(false);
@@ -73,6 +83,13 @@ const roleTitle = computed(() => {
     if (isAthlete.value) return 'Athlete QR attendance';
     return 'Attendance tracking';
 });
+
+watch(
+    () => props.rows,
+    (rows) => {
+        attendanceRows.value = rows.map((row) => ({ ...row }));
+    },
+);
 
 function todayDate() {
     const date = new Date();
@@ -89,9 +106,92 @@ function canUpdateRow(row: AttendanceRow | TableRow) {
     return Boolean(row.can_update);
 }
 
-function setAttendanceStatus(id: string, status: 'PRESENT' | 'ABSENT' | 'EXCUSED') {
+function csrfToken(): string {
+    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+}
+
+function xsrfToken(): string {
+    const token = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+
+    return token ? decodeURIComponent(token) : '';
+}
+
+function csrfHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const csrf = csrfToken();
+    const xsrf = xsrfToken();
+
+    if (csrf) headers['X-CSRF-TOKEN'] = csrf;
+    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+
+    return headers;
+}
+
+function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell {
+    const map: Record<AttendanceStatusValue, TableBadgeCell> = {
+        PRESENT: { kind: 'badge', text: 'Present', tone: 'success' },
+        ABSENT: { kind: 'badge', text: 'Absent', tone: 'danger' },
+        EXCUSED: { kind: 'badge', text: 'Excused', tone: 'warning' },
+    };
+
+    return map[status];
+}
+
+function isAttendancePending(rowId: string): boolean {
+    return pendingAttendanceRowIds.value.includes(rowId);
+}
+
+function replaceAttendanceRow(rowId: string, row: TableRow) {
+    attendanceRows.value = attendanceRows.value.map((currentRow) => (String(currentRow.id) === rowId ? row : currentRow));
+}
+
+function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue) {
+    attendanceRows.value = attendanceRows.value.map((row) =>
+        String(row.id) === rowId
+            ? {
+                  ...row,
+                  status_value: status,
+                  status: fallbackAttendanceStatus(status),
+              }
+            : row,
+    );
+}
+
+async function setAttendanceStatus(id: string, status: AttendanceStatusValue) {
+    if (isAttendancePending(id)) return;
+
     const attendanceId = id.replace('ATT-', '');
-    router.put(attendanceUpdate.url(attendanceId), { status }, { preserveScroll: true });
+    attendanceUpdateError.value = '';
+    pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, id];
+
+    try {
+        const response = await fetch(attendanceUpdate.url(attendanceId), {
+            method: 'PUT',
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+            body: JSON.stringify({ status }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as AttendanceUpdateResponse;
+
+        if (!response.ok) {
+            throw new Error(payload.message ?? 'Attendance update failed.');
+        }
+
+        if (payload.row) replaceAttendanceRow(id, payload.row);
+        else applyFallbackAttendanceStatus(id, status);
+    } catch (error) {
+        attendanceUpdateError.value = error instanceof Error ? error.message : 'Attendance update failed.';
+    } finally {
+        pendingAttendanceRowIds.value = pendingAttendanceRowIds.value.filter((rowId) => rowId !== id);
+    }
 }
 
 function openSessionAttendance(href?: string) {
@@ -157,6 +257,15 @@ onMounted(() => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <AppAlert
+                v-if="attendanceUpdateError"
+                tone="danger"
+                title="Attendance update failed"
+                :description="attendanceUpdateError"
+                :secondary-action="{ label: 'Dismiss', variant: 'outline' }"
+                @secondary="attendanceUpdateError = ''"
+            />
+
             <PageSection
                 eyebrow="Attendance workspace"
                 :title="roleTitle"
@@ -186,7 +295,7 @@ onMounted(() => {
                             title="My attendance records"
                             description="Records update after a valid QR scan. Athlete rows are read-only from this page."
                             :columns="columns"
-                            :rows="props.rows"
+                            :rows="attendanceRows"
                             empty-text="No attendance records yet. Scan the coach QR during training."
                             searchable
                             search-placeholder="Search session..."
@@ -223,7 +332,7 @@ onMounted(() => {
                         title="Session check-ins"
                         description="Set athlete attendance directly. Once session time has passed, updates are hidden and locked."
                         :columns="columns"
-                        :rows="props.rows"
+                        :rows="attendanceRows"
                         searchable
                         search-placeholder="Search athlete/session/coach..."
                         action-label="Attendance"
@@ -236,7 +345,7 @@ onMounted(() => {
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    :disabled="rowStatusText(row) === 'Present'"
+                                    :disabled="rowStatusText(row) === 'Present' || isAttendancePending(String(row.id))"
                                     @click="setAttendanceStatus(String(row.id), 'PRESENT')"
                                 >
                                     Attend
@@ -245,7 +354,7 @@ onMounted(() => {
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    :disabled="rowStatusText(row) === 'Absent'"
+                                    :disabled="rowStatusText(row) === 'Absent' || isAttendancePending(String(row.id))"
                                     @click="setAttendanceStatus(String(row.id), 'ABSENT')"
                                 >
                                     Not attend
@@ -254,7 +363,7 @@ onMounted(() => {
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    :disabled="rowStatusText(row) === 'Excused'"
+                                    :disabled="rowStatusText(row) === 'Excused' || isAttendancePending(String(row.id))"
                                     @click="setAttendanceStatus(String(row.id), 'EXCUSED')"
                                 >
                                     Excused
