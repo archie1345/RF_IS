@@ -88,8 +88,6 @@ const attendanceTrend = computed(() =>
         (date) => props.attendanceRows.filter((row) => row.date === date && row.status_value === 'PRESENT').length,
     ),
 );
-const maxAttendanceTrend = computed(() => Math.max(...attendanceTrend.value, 1));
-const hasAttendanceTrend = computed(() => attendanceTrend.value.some((value) => value > 0));
 const adminPaymentSummary = computed(() => {
     let paid = 0;
     let unpaid = 0;
@@ -100,13 +98,31 @@ const adminPaymentSummary = computed(() => {
     });
     return { paid, unpaid, unpaidPercent: Math.round((unpaid / Math.max(paid + unpaid, 1)) * 100) };
 });
+const beltLabel: Record<string, string> = {
+    GEUP_1:"Geup 1",
+    GEUP_2:"Geup 2",
+    GEUP_3:"Geup 3",
+    GEUP_4:"Geup 4",
+    GEUP_5:"Geup 5",
+    GEUP_6:"Geup 6",
+    GEUP_7:"Geup 7",
+    GEUP_8:"Geup 8",
+    GEUP_9:"Geup 9",
+    GEUP_10:"Geup 10",
+    DAN:"Dan"
+}
+
 const beltRows = computed<BeltRow[]>(() =>
+
     props.medalRows
-        .map((row, index) => ({
-            label: String(row.type ?? row.label ?? 'Belum diisi'),
-            count: Number(row.count ?? 0),
-            color: beltColors[index % beltColors.length],
-        }))
+        .map((row, index) => {
+            const rawLabel = String(row.type ?? row.label ?? 'Belum diisi');
+            return{
+                label: beltLabel[rawLabel] ?? rawLabel,
+                count: Number(row.count ?? 0),
+                color: beltColors[index % beltColors.length],
+            }
+        })
         .filter((row) => row.count > 0),
 );
 const totalBeltRows = computed(() => beltRows.value.reduce((total, row) => total + row.count, 0));
@@ -154,25 +170,6 @@ onUnmounted(() => {
 <template>
     <div class="space-y-6">
         <div v-if="props.role === 'admin'" class="grid gap-6 xl:grid-cols-2">
-            <section class="rounded-xl border bg-card p-6 shadow-sm">
-                <h3 class="text-lg font-black">Tren Kehadiran (7 Hari)</h3>
-                <div v-if="hasAttendanceTrend" class="mt-8 flex h-56 items-end gap-3">
-                    <div
-                        v-for="(value, index) in attendanceTrend"
-                        :key="sevenDayLabels[index]"
-                        class="flex flex-1 flex-col items-center gap-2"
-                    >
-                        <div
-                            class="w-full rounded-t-xl bg-brand-blue"
-                            :style="{ height: `${Math.max((value / maxAttendanceTrend) * 100, value ? 8 : 0)}%` }"
-                        ></div>
-                        <span class="text-[10px] text-muted-foreground">{{ sevenDayLabels[index].slice(5) }}</span>
-                    </div>
-                </div>
-                <div v-else class="flex h-72 items-center justify-center text-sm text-muted-foreground">
-                    Belum ada data kehadiran minggu ini.
-                </div>
-            </section>
             <section class="rounded-xl border bg-card p-6 shadow-sm">
                 <h3 class="text-lg font-black">Siswa Per Sabuk</h3>
                 <div class="flex min-h-72 flex-col items-center justify-center gap-6">
@@ -224,18 +221,6 @@ onUnmounted(() => {
                     </div>
                 </div>
             </section>
-            <DataTable
-                class="xl:col-span-2"
-                title="Recent account activity"
-                description="Live preview of recent admin actions."
-                :columns="dashboardColumns.log"
-                :rows="props.activityPreviewRows"
-                ><template #row-actions
-                    ><Button as-child variant="outline" size="sm"
-                        ><Link :href="activityLogsIndex.url()">Open full log</Link></Button
-                    ></template
-                ></DataTable
-            >
         </div>
         <div v-if="props.role === 'athlete'" class="grid grid-cols-1 gap-6 lg:grid-cols-5">
             <div class="rounded-xl border bg-card p-6 shadow-sm lg:col-span-3">
