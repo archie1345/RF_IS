@@ -287,12 +287,8 @@ function showAllRows() {
                     </div>
                 </div>
             </div>
-            <div v-if="hasTableFilters" class="rounded-2xl border bg-muted/25 p-3">
+            <div v-if="hasTableFilters">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h3 class="text-sm font-black">Filters</h3>
-                        <p class="text-xs text-muted-foreground">Combine multiple filters to narrow this table.</p>
-                    </div>
                     <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters">Clear filters</Button>
                 </div>
                 <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

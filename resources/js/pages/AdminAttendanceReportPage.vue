@@ -162,9 +162,6 @@ function submitManualCoachAttendance() {
                 </template>
 
                 <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
-                <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
-                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
-                </div>
             </PageSection>
 
             <section v-if="props.mode === 'instructor-attendance' && showManualCoachForm" class="rounded-xl border bg-card p-5 shadow-sm">

@@ -26,27 +26,36 @@ import { submit as paymentProofSubmit, review as paymentProofReview } from '@/ro
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{
-    isAdmin: boolean;
-    canSubmitPaymentProof?: boolean;
-    coachPaymentLimitation?: string | null;
-    metrics: Metric[];
-    rows: TableRow[];
-    athletes: SelectOption[];
-    users: SelectOption[];
-    coaches: SelectOption[];
-    invoiceTemplate?: {
-        company_name: string;
-        company_address: string | null;
-        company_phone: string | null;
-        company_email: string | null;
-        logo_url: string | null;
-        header_text: string | null;
-        footer_text: string | null;
-        payment_notes: string | null;
-    } | null;
-    paymentInstructions: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        isAdmin: boolean;
+        canSubmitPaymentProof?: boolean;
+        coachPaymentLimitation?: string | null;
+        metrics: Metric[];
+        rows: TableRow[];
+        athletes: SelectOption[];
+        users: SelectOption[];
+        coaches: SelectOption[];
+        invoiceTemplate?: {
+            company_name: string;
+            company_address: string | null;
+            company_phone: string | null;
+            company_email: string | null;
+            logo_url: string | null;
+            header_text: string | null;
+            footer_text: string | null;
+            payment_notes: string | null;
+        } | null;
+        paymentInstructions: string;
+        paginate?: boolean;
+        initialLimit?: number;
+        pageSize?: number;
+    }>(),{
+        paginate:true,
+        pageSize: 10,
+        initialLimit:10
+    },
+);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -409,6 +418,8 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                 :rows="filteredRows"
                 searchable
                 search-placeholder="Search by person, bill type, or status"
+                :show-rows-per-page="props.paginate"
+                :paginate="props.paginate"
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
