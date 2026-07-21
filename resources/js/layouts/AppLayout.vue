@@ -35,7 +35,6 @@ function refreshPageData(): void {
 
     try {
         router.reload({
-            preserveScroll: true,
             preserveState: true,
             onFinish: () => {
                 refreshInFlight = false;
