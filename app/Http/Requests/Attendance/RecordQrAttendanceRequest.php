@@ -8,11 +8,16 @@ class RecordQrAttendanceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAthlete() === true && $this->user()->athleteProfile !== null;
+        $user = $this->user();
+
+        return (bool) $user
+            && (($user->isAthlete() && $user->athleteProfile !== null) || $user->isParent());
     }
 
     public function rules(): array
     {
-        return [];
+        return [
+            'athlete_id' => ['nullable', 'string'],
+        ];
     }
 }
