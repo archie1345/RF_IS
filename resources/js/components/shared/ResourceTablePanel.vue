@@ -29,6 +29,7 @@ const props = withDefaults(
     }>(),
     {
         showCreate: true,
+        searchable: false,
         paginate: true,
         initialLimit: 10,
         pageSize: 10,
@@ -74,6 +75,7 @@ const slots = useSlots();
             :searchable="props.searchable"
             :search-placeholder="props.searchPlaceholder"
             :paginate="props.paginate"
+            :show-rows-per-page="props.paginate"
             :initial-limit="props.initialLimit"
             :page-size="props.pageSize"
             :filters="props.filters"
