@@ -2,8 +2,10 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CalendarDays, Download } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
+import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -52,13 +54,18 @@ const manualCoachForm = useForm({
     status: 'TEACH',
 });
 
+const isCoachReport = computed(() => props.mode === 'instructor-attendance');
 const reportColumns = computed<TableColumn[]>(() => props.columns.map((column) => ({ key: column, label: column })));
 const reportRows = computed<TableRow[]>(() =>
     props.rows.map((row, index) => ({
-        id: String(row.No ?? row.ID ?? row.Id ?? index),
+        id: String(row.No ?? row.ID ?? row.Id ?? row.Coach ?? row.Atlet ?? index),
         ...row,
     })),
 );
+
+const totalCoachRecords = computed(() => reportRows.value.reduce((total, row) => total + Number(row['Total Catatan'] ?? 0), 0));
+const totalTeachingRecords = computed(() => reportRows.value.reduce((total, row) => total + Number(row.Mengajar ?? 0), 0));
+const coachTeachingRate = computed(() => (totalCoachRecords.value > 0 ? Math.round((totalTeachingRecords.value / totalCoachRecords.value) * 100) : 0));
 
 const exportUrl = computed(() => {
     const url = new URL(props.period.exportUrl, window.location.origin);
@@ -83,6 +90,10 @@ const reportFilters = computed<TableFilter[]>(() => {
             placeholder: 'Semua kelas',
             accessor: (row) => String(row.Kelas ?? row.Class ?? ''),
         });
+    }
+
+    if (isCoachReport.value) {
+        filters.push({ key: 'coach', label: 'Coach', type: 'select', columnKey: 'Coach', placeholder: 'Semua coach' });
     }
 
     filters.push({ key: 'status', label: 'Status', type: 'select', columnKey: 'Status', placeholder: 'Semua status' });
@@ -148,106 +159,61 @@ function submitManualCoachAttendance() {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection :title="props.title" :description="props.subtitle">
-                <template v-if="props.mode === 'instructor-attendance' && props.manualCoachAttendanceUrl" #actions>
-                    <Button type="button" @click="showManualCoachForm = !showManualCoachForm">
-                        {{ showManualCoachForm ? 'Tutup Form Manual' : 'Tambah Presensi Coach' }}
-                    </Button>
+                <template v-if="isCoachReport && props.manualCoachAttendanceUrl" #actions>
+                    <Button type="button" @click="showManualCoachForm = true">Tambah Presensi Coach</Button>
                 </template>
 
                 <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
+
+                <div v-if="isCoachReport" class="mt-5 grid gap-4 md:grid-cols-3">
+                    <div class="rounded-2xl border bg-card p-4 shadow-sm">
+                        <p class="text-xs font-bold text-muted-foreground uppercase">Coach listed</p>
+                        <p class="mt-2 text-3xl font-black">{{ reportRows.length }}</p>
+                    </div>
+                    <div class="rounded-2xl border bg-card p-4 shadow-sm">
+                        <p class="text-xs font-bold text-muted-foreground uppercase">Teaching records</p>
+                        <p class="mt-2 text-3xl font-black">{{ totalTeachingRecords }} / {{ totalCoachRecords }}</p>
+                    </div>
+                    <div class="rounded-2xl border bg-card p-4 shadow-sm">
+                        <p class="text-xs font-bold text-muted-foreground uppercase">Teaching rate</p>
+                        <p class="mt-2 text-3xl font-black">{{ coachTeachingRate }}%</p>
+                    </div>
+                </div>
             </PageSection>
 
-            <section
-                v-if="props.mode === 'instructor-attendance' && showManualCoachForm"
-                class="rounded-xl border bg-card p-5 shadow-sm"
-            >
-                <div class="mb-4">
-                    <h2 class="text-lg font-black">Tambah presensi coach manual</h2>
-                    <p class="text-sm text-muted-foreground">
-                        Gunakan ini saat coach lupa dicatat. Pilihan sesi dibatasi sampai hari ini; sesi masa depan
-                        tidak bisa dipilih.
-                    </p>
-                </div>
-                <form
-                    class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px_auto] lg:items-start"
-                    @submit.prevent="submitManualCoachAttendance"
-                >
-                    <FormSelectField
-                        id="manual-coach-id"
-                        v-model="manualCoachForm.coach_id"
-                        label="Coach"
-                        :options="props.coachOptions"
-                        placeholder="Pilih coach"
-                        :error="manualCoachForm.errors.coach_id"
-                    />
-                    <FormSelectField
-                        id="manual-session-id"
-                        v-model="manualCoachForm.training_session_id"
-                        label="Pilih sesi"
-                        :options="props.sessionOptions"
-                        placeholder="Pilih sesi sampai hari ini"
-                        search-placeholder="Cari sesi..."
-                        :error="manualCoachForm.errors.training_session_id"
-                    />
-                    <FormSelectField
-                        id="manual-coach-status"
-                        v-model="manualCoachForm.status"
-                        label="Status"
-                        :options="[
+            <FormModal :open="isCoachReport && showManualCoachForm" max-width-class="max-w-4xl" @close="cancelManualCoachForm">
+                <PageSection title="Tambah presensi coach manual" description="Gunakan ini saat coach lupa dicatat. Pilihan sesi dibatasi sampai hari ini; sesi masa depan tidak bisa dipilih.">
+                    <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px]" @submit.prevent="submitManualCoachAttendance">
+                        <FormSelectField id="manual-coach-id" v-model="manualCoachForm.coach_id" label="Coach" :options="props.coachOptions" placeholder="Pilih coach" :multiple="false" :error="manualCoachForm.errors.coach_id" />
+                        <FormSelectField id="manual-session-id" v-model="manualCoachForm.training_session_id" label="Pilih sesi" :options="props.sessionOptions" placeholder="Pilih sesi sampai hari ini" search-placeholder="Cari sesi..." :multiple="false" :error="manualCoachForm.errors.training_session_id" />
+                        <FormSelectField id="manual-coach-status" v-model="manualCoachForm.status" label="Status" :options="[
                             { value: 'TEACH', label: 'Mengajar' },
                             { value: 'NOT_TEACH', label: 'Tidak Mengajar' },
-                        ]"
-                        :error="manualCoachForm.errors.status"
-                    />
-                    <div class="flex gap-2 pt-7">
-                        <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button>
-                        <Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
-                    </div>
-                </form>
-            </section>
+                        ]" :multiple="false" :error="manualCoachForm.errors.status" />
+                        <div class="flex gap-2 lg:col-span-3">
+                            <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button>
+                            <Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
+                        </div>
+                    </form>
+                </PageSection>
+            </FormModal>
 
             <section class="rounded-xl border bg-card p-5 shadow-sm">
                 <div class="mb-5 grid gap-4 xl:grid-cols-[220px_1fr_1fr_auto]">
                     <label class="grid gap-1 text-sm font-semibold">
                         Bulan
-                        <input
-                            v-model="attendanceMonth"
-                            type="month"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            @change="applyMonth()"
-                        />
+                        <input v-model="attendanceMonth" type="month" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyMonth()" />
                     </label>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Dari
-                        <input
-                            v-model="attendanceRangeStart"
-                            type="date"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            @change="applyDateRange"
-                        />
-                    </label>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Sampai
-                        <input
-                            v-model="attendanceRangeEnd"
-                            type="date"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm"
-                            @change="applyDateRange"
-                        />
-                    </label>
+                    <FormInputField id="attendance-range-start" v-model="attendanceRangeStart" label="Dari" type="date" @update:model-value="applyDateRange" />
+                    <FormInputField id="attendance-range-end" v-model="attendanceRangeEnd" label="Sampai" type="date" @update:model-value="applyDateRange" />
                     <div class="flex flex-wrap items-end gap-2">
-                        <a
-                            :href="exportUrl"
-                            class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90"
-                        >
+                        <a :href="exportUrl" class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90">
                             <Download class="mr-2 size-4" /> Export
                         </a>
                     </div>
                 </div>
 
-                <div
-                    class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3 text-sm"
-                >
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 px-4 py-3 text-sm">
                     <div class="flex items-center gap-2 font-semibold">
                         <CalendarDays class="size-4 text-muted-foreground" />
                         <span>Periode aktif: {{ props.period.label }}</span>
@@ -255,14 +221,15 @@ function submitManualCoachAttendance() {
                 </div>
 
                 <DataTable
-                    title="Detail Presensi"
-                    description="Gunakan filter tabel bersama untuk mencari member, kelas, dan status tanpa komponen tabel khusus."
+                    :title="isCoachReport ? 'Ringkasan presensi coach' : 'Detail Presensi'"
+                    :description="isCoachReport ? 'Setiap baris merangkum status mengajar per coach pada periode aktif.' : 'Gunakan filter tabel bersama untuk mencari member, kelas, dan status tanpa komponen tabel khusus.'"
                     :columns="reportColumns"
                     :rows="reportRows"
                     :filters="reportFilters"
                     :empty-text="props.emptyText"
                     filterable
                     searchable
+                    :filter-columns="isCoachReport ? 3 : 'auto'"
                     search-placeholder="Cari semua kolom presensi..."
                 />
             </section>
