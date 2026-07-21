@@ -103,6 +103,7 @@ trait BuildsTrainingPayloads
             $scheduleMode = $group->schedule_mode ?? 'weekly';
             $singleSessionDate = $group->single_session_date?->format('Y-m-d');
             $privateAthletes = $group->privateAthletes ?? collect();
+            $isArchived = $this->oneDayClassArchived($group, $singleSessionDate);
 
             return [
                 'id' => $group->group_id,
@@ -134,10 +135,13 @@ trait BuildsTrainingPayloads
                     ? $this->classAthletePayload($privateAthletes)
                     : $this->classAthletePayload($group->athletes ?? collect()),
                 'is_active' => (bool) ($group->is_active ?? true),
+                'is_archived' => $isArchived,
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
-                'weekly_schedule_status' => $scheduleMode === 'one_day'
-                    ? 'Sekali jalan'
-                    : ($schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung'),
+                'weekly_schedule_status' => $isArchived
+                    ? 'Arsip'
+                    : ($scheduleMode === 'one_day'
+                        ? 'Sekali jalan'
+                        : ($schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung')),
             ];
         })->values();
     }
@@ -189,6 +193,15 @@ trait BuildsTrainingPayloads
         }
 
         return false;
+    }
+
+    private function oneDayClassArchived(Group $group, ?string $singleSessionDate): bool
+    {
+        if (($group->schedule_mode ?? 'weekly') !== 'one_day' || ! $singleSessionDate || ! $group->end_time) {
+            return false;
+        }
+
+        return now()->greaterThan(\Illuminate\Support\Carbon::parse($singleSessionDate.' '.substr((string) $group->end_time, 0, 5)));
     }
 
     private function dayName(int $day): string
