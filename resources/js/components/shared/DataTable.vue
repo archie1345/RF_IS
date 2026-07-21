@@ -24,6 +24,7 @@ const props = withDefaults(
         rowsPerPageOptions?: number[];
         filters?: TableFilter[];
         filterable?: boolean;
+        rowClickable?: boolean;
     }>(),
     {
         paginate: true,
@@ -33,8 +34,13 @@ const props = withDefaults(
         rowsPerPageOptions: () => [10, 25, 50],
         filters: () => [],
         filterable: false,
+        rowClickable: false,
     },
 );
+
+const emit = defineEmits<{
+    rowClick: [row: TableRow];
+}>();
 
 const slots = useSlots();
 const hasRowActions = Boolean(slots['row-actions']);
@@ -164,6 +170,10 @@ function setSort(column: TableColumn) {
 
     sortKey.value = column.key;
     sortDirection.value = 'asc';
+}
+
+function handleRowClick(row: TableRow) {
+    if (props.rowClickable) emit('rowClick', row);
 }
 
 const filteredRows = computed(() => {
@@ -323,6 +333,8 @@ function showAllRows() {
                             v-for="row in visibleRows"
                             :key="row.id"
                             class="rounded-xl bg-muted/35 text-sm text-foreground transition-all hover:-translate-y-0.5 hover:bg-muted/70 hover:shadow-sm"
+                            :class="props.rowClickable ? 'cursor-pointer' : ''"
+                            @click="handleRowClick(row)"
                         >
                             <td
                                 v-for="column in props.columns"
@@ -345,13 +357,14 @@ function showAllRows() {
                                         target="_blank"
                                         rel="noreferrer"
                                         class="font-semibold text-primary underline-offset-4 hover:underline"
+                                        @click.stop
                                     >
                                         {{ linkText(String(getCellValue(row, column.key))) }}
                                     </a>
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
-                            <td v-if="hasRowActions" class="rounded-r-xl px-2 py-3 text-right sm:px-3">
+                            <td v-if="hasRowActions" class="rounded-r-xl px-2 py-3 text-right sm:px-3" @click.stop>
                                 <slot name="row-actions" :row="row" />
                             </td>
                         </tr>
