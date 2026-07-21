@@ -171,7 +171,8 @@ const classTableRows = computed<TableRow[]>(() =>
             schedule_time: `${item.start_time} - ${item.end_time}`,
             participants: `${item.athletes_count} atlet`,
             weekly_schedule_status: item.weekly_schedule_status,
-            status: { kind: 'badge', text: item.is_active ? 'AKTIF' : 'NONAKTIF', tone: item.is_active ? 'success' : 'neutral' },
+            status: item.is_active ? 'AKTIF' : 'NONAKTIF',
+            status_tone: item.is_active ? 'success' : 'neutral',
         };
     }),
 );
@@ -388,6 +389,13 @@ watch(
                     </div>
                     <span v-else-if="column.key === 'participants'" class="inline-flex items-center gap-1 font-bold text-foreground">
                         <Users class="size-3.5" /> {{ value }}
+                    </span>
+                    <span
+                        v-else-if="column.key === 'status'"
+                        class="inline-flex rounded-full px-3 py-1 text-xs font-black"
+                        :class="row.status_tone === 'success' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'"
+                    >
+                        {{ value }}
                     </span>
                     <span v-else>{{ value }}</span>
                 </template>
