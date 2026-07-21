@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Pencil, RefreshCcw, Trash2 } from 'lucide-vue-next';
+import { CalendarDays, Pencil, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
@@ -17,7 +17,7 @@ import {
     update as groupUpdate,
 } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 import type { ClassAthleteRecord, ClassRecord, ClassScheduleMode, SelectOption } from '@/types/training';
 
 const props = withDefaults(
@@ -73,8 +73,6 @@ const scheduleModeOptions: Array<{ value: ClassScheduleMode; label: string; deta
 
 const classTableColumns: TableColumn[] = [
     { key: 'class', label: 'Kelas' },
-    { key: 'category', label: 'Kategori' },
-    { key: 'private_athlete', label: 'Atlet Private' },
     { key: 'branch', label: 'Lokasi' },
     { key: 'coach', label: 'Coach' },
     { key: 'schedule', label: 'Jadwal' },
@@ -89,22 +87,6 @@ const athleteTableColumns: TableColumn[] = [
     { key: 'training_group', label: 'Kategori' },
     { key: 'geup', label: 'Geup' },
 ];
-
-const classTableFilters = computed<TableFilter[]>(() => [
-    { key: 'class', label: 'Kelas', type: 'text', columnKey: 'class', placeholder: 'Cari kelas...' },
-    {
-        key: 'class_type_label',
-        label: 'Tipe Kelas',
-        type: 'select',
-        columnKey: 'class_type_label',
-        placeholder: 'Semua tipe',
-        options: classTypeOptions.map((option) => ({ value: option.label, label: option.label })),
-    },
-    { key: 'category', label: 'Kategori', type: 'select', columnKey: 'category', placeholder: 'Semua kategori' },
-    { key: 'branch', label: 'Lokasi', type: 'select', columnKey: 'branch', placeholder: 'Semua lokasi' },
-    { key: 'coach', label: 'Coach', type: 'select', columnKey: 'coach', placeholder: 'Semua coach' },
-    { key: 'status', label: 'Status', type: 'select', columnKey: 'status', placeholder: 'Semua status' },
-]);
 
 const editingClassId = ref<number | null>(null);
 const selectedClass = ref<ClassRecord | null>(null);
@@ -166,20 +148,32 @@ const activationHint = computed(() => {
 });
 
 const classTableRows = computed<TableRow[]>(() =>
-    props.classes.map((item) => ({
-        id: String(item.id),
-        class_id: item.id,
-        class: `${item.name} · ${classTypeLabel(item.class_type)} · min ${item.min_belt || '-'}`,
-        class_type_label: classTypeLabel(item.class_type),
-        category: normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
-        private_athlete: privateAthleteLabel(item),
-        branch: item.branch || '-',
-        coach: normalizeClassType(item.class_type) === 'private' ? item.coach || '-' : '-',
-        schedule: `${item.day_label} · ${item.start_time} - ${item.end_time}`,
-        participants: `${item.athletes_count} atlet`,
-        weekly_schedule_status: item.weekly_schedule_status,
-        status: { kind: 'badge', text: item.is_active ? 'AKTIF' : 'NONAKTIF', tone: item.is_active ? 'success' : 'neutral' },
-    })),
+    props.classes.map((item) => {
+        const typeLabel = classTypeLabel(item.class_type);
+        const minBelt = item.min_belt || '-';
+        const privateAthlete = privateAthleteLabel(item);
+        const classMeta = normalizeClassType(item.class_type) === 'private'
+            ? `${typeLabel} · ${privateAthlete}`
+            : `${typeLabel} · min ${minBelt}`;
+
+        return {
+            id: String(item.id),
+            class_id: item.id,
+            class: item.name,
+            class_meta: classMeta,
+            class_type_label: typeLabel,
+            category: normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
+            private_athlete: privateAthlete,
+            branch: item.branch || '-',
+            coach: normalizeClassType(item.class_type) === 'private' ? item.coach || '-' : '-',
+            schedule: `${item.day_label} · ${item.start_time} - ${item.end_time}`,
+            schedule_day: item.day_label,
+            schedule_time: `${item.start_time} - ${item.end_time}`,
+            participants: `${item.athletes_count} atlet`,
+            weekly_schedule_status: item.weekly_schedule_status,
+            status: { kind: 'badge', text: item.is_active ? 'AKTIF' : 'NONAKTIF', tone: item.is_active ? 'success' : 'neutral' },
+        };
+    }),
 );
 
 const selectedClassAthleteRows = computed<TableRow[]>(() =>
@@ -206,11 +200,6 @@ function classTypeLabel(value?: string | null): string {
     const normalized = normalizeClassType(value);
     const option = classTypeOptions.find((item) => item.value === normalized);
     return option?.label ?? '-';
-}
-
-function scheduleModeLabel(value?: string | null): string {
-    const normalized = normalizeScheduleMode(value);
-    return scheduleModeOptions.find((option) => option.value === normalized)?.label ?? 'Mingguan';
 }
 
 function privateAthleteLabel(item: ClassRecord): string {
@@ -371,33 +360,37 @@ watch(
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <h1 class="text-3xl font-black">{{ props.title }}</h1>
-                        <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                    </div>
-                    <Button type="button" variant="outline" class="gap-2" @click="router.reload()">
-                        <RefreshCcw class="size-4" /> Refresh
-                    </Button>
-                </div>
-            </section>
-
             <DataTable
                 title="Daftar Kelas"
-                description="Klik baris kelas untuk melihat daftar atlet. Edit dan hapus tetap tersedia di kolom Aksi."
                 :columns="classTableColumns"
                 :rows="classTableRows"
-                :filters="classTableFilters"
-                filterable
                 searchable
                 row-clickable
                 row-click-label="Klik baris untuk melihat daftar atlet."
-                search-placeholder="Cari kelas, kategori, atlet, lokasi, atau coach..."
+                search-placeholder="Cari kelas..."
                 empty-text="Belum ada kelas."
                 action-label="Aksi"
                 @row-click="openClassAthletesFromRow"
             >
+                <template #actions>
+                    <Button type="button" @click="openCreateClass">Tambah Kelas</Button>
+                </template>
+                <template #cell="{ row, column, value }">
+                    <div v-if="column.key === 'class'" class="grid gap-0.5">
+                        <span class="font-bold text-foreground">{{ value }}</span>
+                        <span class="text-xs font-normal text-muted-foreground">{{ row.class_meta }}</span>
+                    </div>
+                    <div v-else-if="column.key === 'schedule'" class="grid gap-0.5">
+                        <span class="inline-flex items-center gap-1 font-medium text-foreground">
+                            <CalendarDays class="size-3.5" /> {{ row.schedule_day }}
+                        </span>
+                        <span class="text-xs text-muted-foreground">{{ row.schedule_time }}</span>
+                    </div>
+                    <span v-else-if="column.key === 'participants'" class="inline-flex items-center gap-1 font-bold text-foreground">
+                        <Users class="size-3.5" /> {{ value }}
+                    </span>
+                    <span v-else>{{ value }}</span>
+                </template>
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button type="button" size="sm" variant="outline" @click="editClassFromRow(row)">
@@ -409,8 +402,6 @@ watch(
                     </ActionButtonsRow>
                 </template>
             </DataTable>
-
-            <Button type="button" class="w-fit" @click="openCreateClass">Tambah Kelas</Button>
 
             <FormModal :open="showClassForm" max-width-class="max-w-3xl" @close="closeClassForm">
                 <form class="grid gap-4" @submit.prevent="saveClass">
