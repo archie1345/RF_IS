@@ -24,7 +24,7 @@ class AttendanceVisibilityService
         }
 
         if ($user->isParent()) {
-            return $query->whereIn('athlete_id', $this->childContext->visibleChildAthleteIds($request));
+            return $query->whereIn('athlete_id', $this->childContext->visibleChildAthleteIds($request, false));
         }
 
         if ($user->isAthlete()) {
@@ -57,6 +57,31 @@ class AttendanceVisibilityService
             });
         }
 
+        if ($user->isParent()) {
+            $children = $this->childContext->childrenFor($user);
+            $childAthleteIds = $children->pluck('athlete_id')->map(fn ($id) => (string) $id)->all();
+            $childBranchIds = $children->pluck('branch_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
+            $childGroupIds = $children->pluck('group_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
+
+            if ($children->isEmpty()) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query
+                ->whereIn('branch_id', $childBranchIds)
+                ->where(function ($sessionQuery) use ($childAthleteIds, $childGroupIds): void {
+                    $sessionQuery->whereNull('group_id');
+
+                    if ($childGroupIds !== []) {
+                        $sessionQuery->orWhereIn('group_id', $childGroupIds);
+                    }
+
+                    if ($childAthleteIds !== []) {
+                        $sessionQuery->orWhereHas('group.privateAthletes', fn ($athleteQuery) => $athleteQuery->whereIn('athletes.athlete_id', $childAthleteIds));
+                    }
+                });
+        }
+
         if ($user->isAthlete()) {
             $athlete = $user->athleteProfile;
 
@@ -84,6 +109,10 @@ class AttendanceVisibilityService
             return $attendance->trainingSession
                 ? $this->coachCanAccessSession($user, $attendance->trainingSession)
                 : false;
+        }
+
+        if ($user->isParent() && $attendance->athlete) {
+            return $this->childContext->belongsToParent($user, $attendance->athlete);
         }
 
         if ($user->isAthlete()) {
