@@ -42,7 +42,7 @@ class AttendanceController extends Controller
         $request = request();
         $user = $request->user();
         $role = $user?->primaryRole() ?? 'athlete';
-        $parentScopedAthleteIds = $user?->isParent() ? collect($this->childContext->visibleChildAthleteIds($request)) : null;
+        $parentScopedAthleteIds = $user?->isParent() ? collect($this->childContext->visibleChildAthleteIds($request, false)) : null;
         $athleteScopedId = $user?->isAthlete() ? $user->athleteProfile?->athlete_id : null;
 
         $attendanceQuery = $this->attendanceVisibility->scopedAttendanceQuery($request)
