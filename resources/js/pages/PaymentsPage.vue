@@ -18,7 +18,7 @@ import { exportMethod as dataTransferExport } from '@/routes/admin/data-transfer
 import { destroy as paymentDestroy, index as paymentsIndex, store as paymentStore, update as paymentUpdate } from '@/routes/payments';
 import { submit as paymentProofSubmit, review as paymentProofReview } from '@/routes/payments/proof';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     isAdmin: boolean;
@@ -48,10 +48,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const invoiceTemplateModalOpen = ref(false);
-const billStatusFilter = ref('');
-const proofQueueFilter = ref('');
-const billKindFilter = ref('');
-const billTypeFilter = ref('');
 const showPaymentForm = ref(false);
 const editingPaymentId = ref<number | null>(null);
 const editingPaymentRow = ref<TableRow | null>(null);
@@ -96,22 +92,61 @@ const collectionMethodOptions = [
     { value: 'OTHER', label: 'Other' },
 ];
 
-const filteredRows = computed(() =>
-    props.rows.filter((row) => {
-        const paid = Number(row.paid_amount_raw ?? 0);
-        const remaining = Number(row.remaining_amount_raw ?? 0);
-        const billStatusMatches =
-            !billStatusFilter.value ||
-            (billStatusFilter.value === 'pending' && paid <= 0 && remaining > 0) ||
-            (billStatusFilter.value === 'partial' && paid > 0 && remaining > 0) ||
-            (billStatusFilter.value === 'paid' && remaining <= 0);
-        const proofMatches = !proofQueueFilter.value || String(row.proof_status ?? '') === proofQueueFilter.value;
-        const kindMatches = !billKindFilter.value || String(row.bill_kind ?? '') === billKindFilter.value;
-        const typeMatches = !billTypeFilter.value || String(row.payment_type_raw ?? '') === billTypeFilter.value;
+const paymentTableFilters = computed<TableFilter[]>(() => [
+    {
+        key: 'bill_status',
+        label: 'Bill status',
+        type: 'select',
+        placeholder: 'All statuses',
+        options: [
+            { value: 'pending', label: 'Pending bills' },
+            { value: 'partial', label: 'Partial bills' },
+            { value: 'paid', label: 'Paid bills' },
+        ],
+        match: (row, value) => {
+            const paid = Number(row.paid_amount_raw ?? 0);
+            const remaining = Number(row.remaining_amount_raw ?? 0);
 
-        return billStatusMatches && proofMatches && kindMatches && typeMatches;
-    }),
-);
+            return (
+                (value === 'pending' && paid <= 0 && remaining > 0) ||
+                (value === 'partial' && paid > 0 && remaining > 0) ||
+                (value === 'paid' && remaining <= 0)
+            );
+        },
+    },
+    {
+        key: 'proof_status',
+        label: 'Proof queue',
+        type: 'select',
+        columnKey: 'proof_status',
+        placeholder: 'All proof states',
+        options: [
+            { value: 'SUBMITTED', label: 'Submitted proofs' },
+            { value: 'NONE', label: 'No active proof' },
+            { value: 'APPROVED', label: 'Approved proof' },
+            { value: 'REJECTED', label: 'Rejected proof' },
+        ],
+    },
+    {
+        key: 'bill_kind',
+        label: 'Bill kind',
+        type: 'select',
+        columnKey: 'bill_kind',
+        placeholder: 'All kinds',
+        options: [
+            { value: 'INVOICE', label: 'Invoice / member bill' },
+            { value: 'PAYROLL', label: 'Coach payout' },
+        ],
+    },
+    {
+        key: 'payment_type_raw',
+        label: 'Bill category',
+        type: 'select',
+        columnKey: 'payment_type_raw',
+        placeholder: 'All categories',
+        options: paymentTypeOptions,
+    },
+]);
 
 function todayDate() {
     const date = new Date();
@@ -350,53 +385,13 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                 </div>
             </PageSection>
 
-            <div class="grid gap-3 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-4">
-                <FormSelectField
-                    id="bill-status-filter"
-                    v-model="billStatusFilter"
-                    label="Bill status"
-                    :options="[
-                        { value: '', label: 'All statuses' },
-                        { value: 'pending', label: 'Pending bills' },
-                        { value: 'partial', label: 'Partial bills' },
-                        { value: 'paid', label: 'Paid bills' },
-                    ]"
-                />
-                <FormSelectField
-                    id="proof-queue-filter"
-                    v-model="proofQueueFilter"
-                    label="Proof queue"
-                    :options="[
-                        { value: '', label: 'All proof states' },
-                        { value: 'SUBMITTED', label: 'Submitted proofs' },
-                        { value: 'NONE', label: 'No active proof' },
-                        { value: 'APPROVED', label: 'Approved proof' },
-                        { value: 'REJECTED', label: 'Rejected proof' },
-                    ]"
-                />
-                <FormSelectField
-                    id="bill-kind-filter"
-                    v-model="billKindFilter"
-                    label="Bill kind"
-                    :options="[
-                        { value: '', label: 'All kinds' },
-                        { value: 'INVOICE', label: 'Invoice / member bill' },
-                        { value: 'PAYROLL', label: 'Coach payout' },
-                    ]"
-                />
-                <FormSelectField
-                    id="bill-type-filter"
-                    v-model="billTypeFilter"
-                    label="Bill category"
-                    :options="[{ value: '', label: 'All categories' }, ...paymentTypeOptions]"
-                />
-            </div>
-
             <DataTable
                 title="Bills and receipts"
                 description="Open a bill to download the invoice or upload payment proof. The balance changes only after admin approval."
                 :columns="columns"
-                :rows="filteredRows"
+                :rows="props.rows"
+                :filters="paymentTableFilters"
+                filterable
                 searchable
                 search-placeholder="Search by person, bill type, or status"
             >
