@@ -62,7 +62,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
 
-
     Route::prefix('users')->controller(UserDirectoryController::class)->group(function () {
         Route::get('/', 'index')->name('users.index');
         Route::post('/', 'store')->name('users.store');
@@ -124,10 +123,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('instructor-attendance', [AdminAttendanceReportController::class, 'coaches'])->name('instructor-attendance');
         Route::post('instructor-attendance/manual', [AdminAttendanceReportController::class, 'storeCoachAttendance'])->name('instructor-attendance.manual');
         Route::get('instructor-attendance/export', [AdminAttendanceReportController::class, 'exportCoaches'])->name('instructor-attendance.export');
-        Route::get('payments', [AdminFinanceFeatureController::class, 'index'])->name('payments');
-        Route::redirect('finance-income', '/admin/payments')->name('finance-income');
-        Route::redirect('finance-output', '/admin/payments')->name('finance-output');
-        Route::redirect('monthly-dues', '/admin/payments')->name('monthly-dues');
+        Route::redirect('payments', '/payments')->name('payments');
+        Route::redirect('finance-income', '/payments')->name('finance-income');
+        Route::redirect('finance-output', '/payments')->name('finance-output');
+        Route::redirect('monthly-dues', '/payments')->name('monthly-dues');
         Route::post('monthly-dues/settings', [AdminFinanceFeatureController::class, 'updateBillingSettings'])->name('monthly-dues.settings');
         Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
         Route::get('members', [AdminPeopleFeatureController::class, 'members'])->name('members');
