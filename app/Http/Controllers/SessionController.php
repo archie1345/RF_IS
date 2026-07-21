@@ -34,7 +34,7 @@ class SessionController extends Controller
         private readonly SessionRowPresenter $sessionRows,
         private readonly CreateSession $createSession,
         private readonly UpdateSession $updateSession,
-        private readonly InitializeSessionAttendance,
+        private readonly InitializeSessionAttendance $initializeAttendance,
     ) {}
 
     public function index(Request $request): Response
