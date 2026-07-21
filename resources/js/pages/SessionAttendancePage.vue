@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
@@ -21,7 +21,7 @@ import {
     update as sessionCoachAttendanceUpdate,
 } from '@/routes/sessions/coach-attendance';
 import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     branches: SelectOption[];
@@ -70,6 +70,12 @@ const coachColumns: TableColumn[] = [
     { key: 'checked_at', label: 'Updated At' },
 ];
 
+type AttendanceStatusValue = 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE';
+type AttendanceUpdateResponse = {
+    message?: string;
+    row?: TableRow;
+};
+
 const coachForm = useForm({
     coach_id: '',
 });
@@ -85,14 +91,108 @@ const form = useForm({
     status: 'DRAFT',
 });
 
+const attendanceRows = ref<TableRow[]>([...props.rows]);
+const attendanceUpdateError = ref('');
+const pendingAttendanceRowIds = ref<string[]>([]);
 const pendingBulkStatus = ref<'PRESENT' | 'ABSENT' | null>(null);
 const showSessionForm = ref(false);
 const openQrPanel = ref(false);
 const pendingCoachDeleteId = ref<string | null>(null);
 
-function updateStatus(rowId: string, status: string) {
+watch(
+    () => props.rows,
+    (rows) => {
+        attendanceRows.value = [...rows];
+    },
+);
+
+function csrfToken(): string {
+    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+}
+
+function xsrfToken(): string {
+    const token = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+
+    return token ? decodeURIComponent(token) : '';
+}
+
+function csrfHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const csrf = csrfToken();
+    const xsrf = xsrfToken();
+
+    if (csrf) headers['X-CSRF-TOKEN'] = csrf;
+    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+
+    return headers;
+}
+
+function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell {
+    const map: Record<AttendanceStatusValue, TableBadgeCell> = {
+        PRESENT: { kind: 'badge', text: 'Present', tone: 'success' },
+        ABSENT: { kind: 'badge', text: 'Absent', tone: 'danger' },
+        EXCUSED: { kind: 'badge', text: 'Excused', tone: 'warning' },
+        LATE: { kind: 'badge', text: 'Late', tone: 'warning' },
+    };
+
+    return map[status];
+}
+
+function replaceAttendanceRow(rowId: string, row: TableRow) {
+    attendanceRows.value = attendanceRows.value.map((currentRow) => (String(currentRow.id) === rowId ? row : currentRow));
+}
+
+function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue) {
+    attendanceRows.value = attendanceRows.value.map((row) =>
+        String(row.id) === rowId
+            ? {
+                  ...row,
+                  status_value: status,
+                  status: fallbackAttendanceStatus(status),
+              }
+            : row,
+    );
+}
+
+function isAttendancePending(rowId: string): boolean {
+    return pendingAttendanceRowIds.value.includes(rowId);
+}
+
+async function updateStatus(rowId: string, status: AttendanceStatusValue) {
+    if (isAttendancePending(rowId)) return;
+
     const attendanceId = rowId.replace('ATT-', '');
-    router.put(attendanceUpdate.url(attendanceId), { status }, { preserveScroll: true });
+    attendanceUpdateError.value = '';
+    pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, rowId];
+
+    try {
+        const response = await fetch(attendanceUpdate.url(attendanceId), {
+            method: 'PUT',
+            headers: csrfHeaders(),
+            credentials: 'same-origin',
+            body: JSON.stringify({ status }),
+        });
+        const payload = (await response.json().catch(() => ({}))) as AttendanceUpdateResponse;
+
+        if (!response.ok) {
+            throw new Error(payload.message ?? 'Attendance update failed.');
+        }
+
+        if (payload.row) replaceAttendanceRow(rowId, payload.row);
+        else applyFallbackAttendanceStatus(rowId, status);
+    } catch (error) {
+        attendanceUpdateError.value = error instanceof Error ? error.message : 'Attendance update failed.';
+    } finally {
+        pendingAttendanceRowIds.value = pendingAttendanceRowIds.value.filter((id) => id !== rowId);
+    }
 }
 
 function requestBulkUpdate(status: 'PRESENT' | 'ABSENT') {
@@ -103,7 +203,7 @@ function confirmBulkUpdate() {
     if (!pendingBulkStatus.value) return;
     const status = pendingBulkStatus.value;
     pendingBulkStatus.value = null;
-    const attendanceIds = props.rows
+    const attendanceIds = attendanceRows.value
         .map((row) => Number(String(row.id).replace('ATT-', '')))
         .filter((id) => !Number.isNaN(id));
     router.post(attendanceBulkUpdate.url(), { attendance_ids: attendanceIds, status }, { preserveScroll: true });
@@ -180,6 +280,14 @@ function submit() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <AppAlert
+                v-if="attendanceUpdateError"
+                tone="danger"
+                title="Attendance update failed"
+                :description="attendanceUpdateError"
+                :secondary-action="{ label: 'Dismiss', variant: 'outline' }"
+                @secondary="attendanceUpdateError = ''"
+            />
             <AppAlert
                 v-if="pendingBulkStatus"
                 tone="warning"
@@ -295,7 +403,7 @@ function submit() {
                 title="Athlete attendance form"
                 description="All athletes registered in this session group are preloaded as not attend by default. QR scans update the records automatically."
                 :columns="columns"
-                :rows="props.rows"
+                :rows="attendanceRows"
                 empty-text="No eligible athletes were found for this session. Check the branch/group assignment or go back to sessions."
                 searchable
                 search-placeholder="Search athlete..."
@@ -307,6 +415,7 @@ function submit() {
                             type="button"
                             size="sm"
                             variant="outline"
+                            :disabled="isAttendancePending(String(row.id))"
                             @click="updateStatus(String(row.id), 'PRESENT')"
                             >Attend</Button
                         >
@@ -314,6 +423,7 @@ function submit() {
                             type="button"
                             size="sm"
                             variant="outline"
+                            :disabled="isAttendancePending(String(row.id))"
                             @click="updateStatus(String(row.id), 'ABSENT')"
                             >Not attend</Button
                         >
