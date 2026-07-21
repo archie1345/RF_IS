@@ -218,7 +218,7 @@ function rowMatchesFilters(row: TableRow): boolean {
     return normalizedFilters.value.every((filter) => {
         const values = filterSelections(filter);
         if (values.length === 0) return true;
-        if (filter.match) return filter.match(row, filterMultiple(filter) ? values : values[0]);
+        if (filter.match) return values.some((value) => filter.match?.(row, value));
 
         const candidate = filterText(filter, row).toLowerCase();
 
