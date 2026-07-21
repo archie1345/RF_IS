@@ -195,7 +195,7 @@ function saveResult() {
                             >Edit entry</Button
                         >
                         <Button v-if="row.athlete_user_id" as-child type="button" size="sm" variant="outline"
-                            ><Link :href="userShow.url(row.athlete_user_id)">Edit athlete</Link></Button
+                            ><Link :href="userShow.url(String(row.athlete_user_id))">Edit athlete</Link></Button
                         >
                         <Button
                             v-if="props.canRecordResult"

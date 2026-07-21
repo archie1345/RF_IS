@@ -55,13 +55,13 @@ class GenerateWeeklyTrainingSessions
                 $existing = $this->existingSession($schedule, $date);
 
                 if ($existing) {
+                    $skipped++;
+
                     if ($this->isFutureSessionDate($date)) {
                         DB::transaction(function () use ($existing, $schedule, $date, $attachScheduleCoach, &$updated): void {
                             $this->refreshSessionFromSchedule($existing, $schedule, $date, $attachScheduleCoach);
                             $updated++;
                         });
-                    } else {
-                        $skipped++;
                     }
 
                     continue;

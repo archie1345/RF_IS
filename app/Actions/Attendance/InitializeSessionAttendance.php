@@ -84,6 +84,8 @@ class InitializeSessionAttendance
             return true;
         }
 
-        return BeltRank::eligible($athlete->geup, $session->group?->min_belt);
+        $minimumBelt = $session->group?->min_belt;
+
+        return filled($minimumBelt) && BeltRank::eligible($athlete->geup, $minimumBelt);
     }
 }

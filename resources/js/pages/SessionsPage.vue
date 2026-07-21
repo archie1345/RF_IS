@@ -8,6 +8,9 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { SessionVisibility, SessionFilters } from './SessionsPage.types';
 import { dashboard } from '@/routes';
 import {
     attendance as sessionAttendance,
@@ -15,17 +18,6 @@ import {
     index as sessionsIndex,
     join as sessionJoin,
 } from '@/routes/sessions';
-import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-
-type SessionVisibility = 'upcoming' | 'archived' | 'all';
-type SessionFilters = {
-    visibility: SessionVisibility | 'past';
-    archived_count?: number;
-    past_count?: number;
-    upcoming_count: number;
-    all_count: number;
-};
 
 const props = defineProps<{
     metrics: Metric[];
@@ -50,10 +42,38 @@ const columns: TableColumn[] = [
 ];
 
 const sessionTableFilters: TableFilter[] = [
-    { key: 'branch', label: 'Branch', type: 'select', columnKey: 'branch', placeholder: 'All branches', searchPlaceholder: 'Search branch...' },
-    { key: 'group', label: 'Group', type: 'select', columnKey: 'group', placeholder: 'All groups', searchPlaceholder: 'Search group...' },
-    { key: 'coach', label: 'Coach', type: 'select', columnKey: 'coach', placeholder: 'All coaches', searchPlaceholder: 'Search coach...' },
-    { key: 'status', label: 'Status', type: 'select', columnKey: 'status', placeholder: 'All statuses', searchPlaceholder: 'Search status...' },
+    {
+        key: 'branch',
+        label: 'Branch',
+        type: 'select',
+        columnKey: 'branch',
+        placeholder: 'All branches',
+        searchPlaceholder: 'Search branch...',
+    },
+    {
+        key: 'group',
+        label: 'Group',
+        type: 'select',
+        columnKey: 'group',
+        placeholder: 'All groups',
+        searchPlaceholder: 'Search group...',
+    },
+    {
+        key: 'coach',
+        label: 'Coach',
+        type: 'select',
+        columnKey: 'coach',
+        placeholder: 'All coaches',
+        searchPlaceholder: 'Search coach...',
+    },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        columnKey: 'status',
+        placeholder: 'All statuses',
+        searchPlaceholder: 'Search status...',
+    },
 ];
 
 const pendingDeleteSessionId = ref<number | null>(null);
@@ -75,7 +95,11 @@ const effectiveFilters = computed<{
     };
 });
 
-const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: 'upcoming_count' | 'archived_count' | 'all_count' }> = [
+const visibilityOptions: Array<{
+    value: SessionVisibility;
+    label: string;
+    countKey: 'upcoming_count' | 'archived_count' | 'all_count';
+}> = [
     { value: 'upcoming', label: 'Upcoming', countKey: 'upcoming_count' },
     { value: 'archived', label: 'Archived', countKey: 'archived_count' },
     { value: 'all', label: 'All', countKey: 'all_count' },
@@ -154,7 +178,8 @@ function joinSession(row: TableRow) {
                         <div>
                             <h2 class="text-base font-black">Session visibility</h2>
                             <p class="text-sm text-muted-foreground">
-                                Default view shows today and future sessions. Archived stores finished sessions and completed one-day classes.
+                                Default view shows today and future sessions. Archived stores finished sessions and
+                                completed one-day classes.
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
@@ -186,9 +211,13 @@ function joinSession(row: TableRow) {
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
                             <Button as-child size="sm" variant="outline">
-                                <Link v-if="sessionIdFromRow(row)" :href="sessionAttendance.url(sessionIdFromRow(row)!)">Edit</Link>
+                                <Link v-if="sessionIdFromRow(row)" :href="sessionAttendance.url(sessionIdFromRow(row)!)"
+                                    >Edit</Link
+                                >
                             </Button>
-                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
+                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)"
+                                >Join</Button
+                            >
                             <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
                         </ActionButtonsRow>
                     </template>

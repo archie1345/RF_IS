@@ -2,23 +2,10 @@
 import { Link } from '@inertiajs/vue3';
 import { CheckCircle2, QrCode, WalletCards } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import DataTable from '@/components/shared/DataTable.vue';
 import { Button } from '@/components/ui/button';
-import { dashboardColumns } from '@/data/dashboard';
-import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as attendanceIndex } from '@/routes/attendance';
-import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
-
-type DashboardAttendanceRow = {
-    id?: number | string;
-    date?: string;
-    session_date?: string;
-    status: string | TableBadgeCell;
-    status_value?: string;
-};
-type DashboardTrainingDay = { id: string; date: string; title: string; time: string; branch: string; group: string };
-
-type BeltRow = { label: string; count: number; color: string };
+import type { AppRole, TableRow } from '@/types/resource-table';
+import type { DashboardAttendanceRow, DashboardTrainingDay, BeltRow } from './DashboardOverviewSections.types';
 
 let timer: ReturnType<typeof setInterval> | null = null;
 const props = withDefaults(
@@ -76,18 +63,6 @@ const attendanceStatusMap = computed(() => {
 const selectedTrainingSessions = computed(() =>
     selectedDay.value ? (trainingDayMap.value.get(selectedDay.value) ?? []) : [],
 );
-const sevenDayLabels = computed(() =>
-    Array.from({ length: 7 }, (_, index) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - index));
-        return date.toISOString().slice(0, 10);
-    }),
-);
-const attendanceTrend = computed(() =>
-    sevenDayLabels.value.map(
-        (date) => props.attendanceRows.filter((row) => row.date === date && row.status_value === 'PRESENT').length,
-    ),
-);
 const adminPaymentSummary = computed(() => {
     let paid = 0;
     let unpaid = 0;
@@ -99,29 +74,28 @@ const adminPaymentSummary = computed(() => {
     return { paid, unpaid, unpaidPercent: Math.round((unpaid / Math.max(paid + unpaid, 1)) * 100) };
 });
 const beltLabel: Record<string, string> = {
-    GEUP_1:"Geup 1",
-    GEUP_2:"Geup 2",
-    GEUP_3:"Geup 3",
-    GEUP_4:"Geup 4",
-    GEUP_5:"Geup 5",
-    GEUP_6:"Geup 6",
-    GEUP_7:"Geup 7",
-    GEUP_8:"Geup 8",
-    GEUP_9:"Geup 9",
-    GEUP_10:"Geup 10",
-    DAN:"Dan"
-}
+    GEUP_1: 'Geup 1',
+    GEUP_2: 'Geup 2',
+    GEUP_3: 'Geup 3',
+    GEUP_4: 'Geup 4',
+    GEUP_5: 'Geup 5',
+    GEUP_6: 'Geup 6',
+    GEUP_7: 'Geup 7',
+    GEUP_8: 'Geup 8',
+    GEUP_9: 'Geup 9',
+    GEUP_10: 'Geup 10',
+    DAN: 'Dan',
+};
 
 const beltRows = computed<BeltRow[]>(() =>
-
     props.medalRows
         .map((row, index) => {
             const rawLabel = String(row.type ?? row.label ?? 'Belum diisi');
-            return{
+            return {
                 label: beltLabel[rawLabel] ?? rawLabel,
                 count: Number(row.count ?? 0),
                 color: beltColors[index % beltColors.length],
-            }
+            };
         })
         .filter((row) => row.count > 0),
 );

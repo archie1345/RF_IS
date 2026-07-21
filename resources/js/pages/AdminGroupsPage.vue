@@ -8,18 +8,10 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-
-type TrainingGroupRecord = {
-    id: number;
-    name: string;
-    description?: string | null;
-    is_active: boolean;
-    classes_count: number;
-    athletes_count: number;
-};
+import type { TrainingGroupRecord } from './AdminGroupsPage.types';
+import { dashboard } from '@/routes';
 
 const props = withDefaults(
     defineProps<{
@@ -195,22 +187,36 @@ function deleteGroupFromRow(row: TableRow) {
                 <form class="grid gap-4" @submit.prevent="saveGroup">
                     <div>
                         <h2 class="text-xl font-black">{{ editingId ? 'Edit Grup' : 'Tambah Grup' }}</h2>
-                        <p class="mt-1 text-sm text-muted-foreground">Grup ini akan dipakai sebagai kategori wajib saat membuat kelas.</p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Grup ini akan dipakai sebagai kategori wajib saat membuat kelas.
+                        </p>
                     </div>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Nama Grup *
-                        <input v-model="form.name" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Junior, Senior, Prestasi" />
+                        <input
+                            v-model="form.name"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            placeholder="Contoh: Junior, Senior, Prestasi"
+                        />
                         <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
                     </label>
 
                     <label class="grid gap-1 text-sm font-semibold">
                         Deskripsi
-                        <textarea v-model="form.description" class="min-h-24 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Keterangan grup"></textarea>
-                        <span v-if="form.errors.description" class="text-xs text-destructive">{{ form.errors.description }}</span>
+                        <textarea
+                            v-model="form.description"
+                            class="min-h-24 rounded-lg border bg-background px-3 py-2 text-sm"
+                            placeholder="Keterangan grup"
+                        ></textarea>
+                        <span v-if="form.errors.description" class="text-xs text-destructive">{{
+                            form.errors.description
+                        }}</span>
                     </label>
 
-                    <label class="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold">
+                    <label
+                        class="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-semibold"
+                    >
                         <input v-model="form.is_active" type="checkbox" />
                         Aktif
                     </label>

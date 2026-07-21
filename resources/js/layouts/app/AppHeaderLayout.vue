@@ -2,11 +2,8 @@
 import AppContent from '@/components/AppContent.vue';
 import AppHeader from '@/components/AppHeader.vue';
 import AppShell from '@/components/AppShell.vue';
-import type { BreadcrumbItem } from '@/types';
 
-type Props = {
-    breadcrumbs?: BreadcrumbItem[];
-};
+import type { Props } from './AppHeaderLayout.types';
 
 withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],

@@ -2,11 +2,7 @@
 import { AlertCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-
-type Props = {
-    errors: string[];
-    title?: string;
-};
+import type { Props } from './AlertError.types';
 
 const props = withDefaults(defineProps<Props>(), {
     title: 'Something went wrong.',

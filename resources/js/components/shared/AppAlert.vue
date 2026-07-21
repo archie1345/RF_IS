@@ -2,14 +2,7 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
-
-type AlertTone = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
-
-type AlertAction = {
-    label: string;
-    variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-    disabled?: boolean;
-};
+import type { AlertTone, AlertAction } from './AppAlert.types';
 
 const props = withDefaults(
     defineProps<{
