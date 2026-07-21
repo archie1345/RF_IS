@@ -24,7 +24,7 @@ import {
 } from '@/routes/payments';
 import { submit as paymentProofSubmit, review as paymentProofReview } from '@/routes/payments/proof';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableColumn, TableRow, TableFilter } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -50,10 +50,14 @@ const props = withDefaults(
         paginate?: boolean;
         initialLimit?: number;
         pageSize?: number;
+        filters?: TableFilter[];
+        filterable?: boolean;
     }>(),{
         paginate:true,
         pageSize: 10,
-        initialLimit:10
+        initialLimit:10,
+        filters: () => [],
+        filterable: false,
     },
 );
 
