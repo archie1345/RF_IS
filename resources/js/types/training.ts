@@ -25,6 +25,18 @@ export type ClassAthleteRecord = {
     training_group?: string | null;
 };
 
+export type ClassSessionRecord = {
+    id: number;
+    title: string;
+    date: string;
+    time: string;
+    branch?: string | null;
+    coach?: string | null;
+    status: string;
+    is_archived: boolean;
+    attendance_url?: string | null;
+};
+
 export type ClassScheduleMode = 'weekly' | 'one_day';
 
 export type ClassRecord = {
@@ -50,6 +62,10 @@ export type ClassRecord = {
     description?: string | null;
     athletes_count: number;
     athletes?: ClassAthleteRecord[];
+    sessions?: ClassSessionRecord[];
+    sessions_count?: number;
+    active_sessions_count?: number;
+    archived_sessions_count?: number;
     is_active: boolean;
     is_archived?: boolean;
     weekly_schedule_id?: number | null;
