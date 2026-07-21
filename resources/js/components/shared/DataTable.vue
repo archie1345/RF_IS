@@ -315,13 +315,13 @@ function showAllRows() {
         <CardContent class="px-0 pb-3 sm:px-5 sm:pb-5">
             <div class="px-4 pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
             <div class="w-full max-w-full overflow-x-auto px-2 sm:px-0">
-                <table class="w-max min-w-full border-separate border-spacing-y-2">
+                <table class="w-max min-w-full border-separate border-spacing-y-3">
                     <thead>
                         <tr class="text-left text-xs tracking-[0.16em] text-muted-foreground uppercase">
                             <th
                                 v-for="column in props.columns"
                                 :key="column.key"
-                                class="px-2 py-2 font-semibold sm:px-3"
+                                class="px-3 py-2 font-semibold sm:px-4"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
                                 <button
@@ -336,7 +336,7 @@ function showAllRows() {
                                     />
                                 </button>
                             </th>
-                            <th v-if="hasRowActions" class="px-2 py-2 text-right font-semibold sm:px-3">
+                            <th v-if="hasRowActions" class="px-3 py-2 text-right font-semibold sm:px-4">
                                 {{ props.actionLabel ?? 'Action' }}
                             </th>
                         </tr>
@@ -345,7 +345,7 @@ function showAllRows() {
                         <tr
                             v-for="row in visibleRows"
                             :key="row.id"
-                            class="rounded-xl bg-muted/35 text-sm text-foreground transition-all hover:-translate-y-0.5 hover:bg-muted/70 hover:shadow-sm"
+                            class="group text-sm text-foreground transition-all hover:-translate-y-0.5"
                             :class="props.rowClickable ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none' : ''"
                             :role="props.rowClickable ? 'button' : undefined"
                             :tabindex="props.rowClickable ? 0 : undefined"
@@ -354,12 +354,13 @@ function showAllRows() {
                             @keydown="handleRowKeydown($event, row)"
                         >
                             <td
-                                v-for="column in props.columns"
+                                v-for="(column, columnIndex) in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="px-2 py-3 first:rounded-l-xl last:rounded-r-xl sm:px-3"
+                                class="border-y border-border/70 bg-card px-3 py-4 shadow-sm transition-colors first:rounded-l-2xl first:border-l last:rounded-r-2xl last:border-r group-hover:border-primary/30 group-hover:bg-muted/40 sm:px-4"
                                 :class="[
                                     column.align === 'right' ? 'text-right' : 'text-left',
-                                    hasRowActions ? 'last:rounded-r-none' : '',
+                                    columnIndex === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground',
+                                    hasRowActions ? 'last:rounded-r-none last:border-r-0' : '',
                                 ]"
                             >
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
@@ -381,7 +382,11 @@ function showAllRows() {
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
-                            <td v-if="hasRowActions" class="rounded-r-xl px-2 py-3 text-right sm:px-3" @click.stop>
+                            <td
+                                v-if="hasRowActions"
+                                class="rounded-r-2xl border-y border-r border-border/70 bg-card px-3 py-4 text-right shadow-sm transition-colors group-hover:border-primary/30 group-hover:bg-muted/40 sm:px-4"
+                                @click.stop
+                            >
                                 <slot name="row-actions" :row="row" />
                             </td>
                         </tr>
