@@ -2,13 +2,8 @@
 import { router } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted } from 'vue';
 import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
-import type { BreadcrumbItem } from '@/types';
 
-type Props = {
-    breadcrumbs?: BreadcrumbItem[];
-    autoRefresh?: boolean;
-    autoRefreshIntervalMs?: number;
-};
+import type { Props } from './AppLayout.types';
 
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],

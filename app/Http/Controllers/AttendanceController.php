@@ -136,7 +136,7 @@ class AttendanceController extends Controller
                 ]);
             }
 
-            return back();
+            return redirect()->route('attendance.index');
         }
 
         if (! $canCorrectPastAttendance && $this->attendanceRows->isLocked($attendance)) {
@@ -173,7 +173,7 @@ class AttendanceController extends Controller
             ]);
         }
 
-        return back();
+        return redirect()->route('attendance.index');
     }
 
     public function bulkUpdate(BulkUpdateAttendanceRequest $request): RedirectResponse

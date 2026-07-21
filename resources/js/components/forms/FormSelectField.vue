@@ -3,13 +3,7 @@ import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';
-
-type FieldOption = {
-    value: string | number;
-    label: string;
-};
-
-type ModelValue = string | string[];
+import type { FieldOption, ModelValue } from './FormSelectField.types';
 
 const props = withDefaults(
     defineProps<{
@@ -164,7 +158,10 @@ function removeValue(value: string | number) {
             :class="props.error ? 'border-destructive ring-2 ring-destructive/15' : 'border-input hover:border-ring/60'"
             @click="toggleDropdown"
         >
-            <span v-if="props.multiple && selectedOptions.length" class="flex max-w-[calc(100%-2rem)] flex-wrap gap-1.5">
+            <span
+                v-if="props.multiple && selectedOptions.length"
+                class="flex max-w-[calc(100%-2rem)] flex-wrap gap-1.5"
+            >
                 <span
                     v-for="option in selectedOptions"
                     :key="option.value"
@@ -224,7 +221,10 @@ function removeValue(value: string | number) {
                     No options found.
                 </p>
             </div>
-            <div v-if="props.multiple && selectedOptions.length" class="border-t px-3 py-2 text-xs text-muted-foreground">
+            <div
+                v-if="props.multiple && selectedOptions.length"
+                class="border-t px-3 py-2 text-xs text-muted-foreground"
+            >
                 {{ selectedOptions.length }} selected
             </div>
         </div>

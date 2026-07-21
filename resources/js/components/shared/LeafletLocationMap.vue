@@ -5,8 +5,7 @@ import markerIcon2xUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIconUrl from 'leaflet/dist/images/marker-icon.png';
 import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-
-type LatLngValue = string | number | null | undefined;
+import type { LatLngValue } from './LeafletLocationMap.types';
 
 const leafletDefaultIconPrototype = L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown };
 delete leafletDefaultIconPrototype._getIconUrl;

@@ -1,41 +1,42 @@
 <?php
-use Inertia\Inertia;
+
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\AnnouncementController;
-use App\Http\Controllers\ChampionshipController;
-use App\Http\Controllers\ChampionshipExportController;
+use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
-use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
 use App\Http\Controllers\Admin\Features\AdminFinanceFeatureController;
 use App\Http\Controllers\Admin\Features\AdminPeopleFeatureController;
 use App\Http\Controllers\Admin\Features\AdminScheduleFeatureController;
-use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\InvoiceTemplateController;
 use App\Http\Controllers\Admin\TrainingGroupController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceScanController;
+use App\Http\Controllers\ChampionshipController;
+use App\Http\Controllers\ChampionshipExportController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProfileAccessController;
-use App\Http\Controllers\SessionController;
-use App\Http\Controllers\SessionAttendanceQrController;
-use App\Http\Controllers\UserAchievementController;
-use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\CoachProfileController;
 use App\Http\Controllers\Profiles\ParentProfileController;
+use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
+use App\Http\Controllers\Profiles\UserCertificationController;
+use App\Http\Controllers\SessionAttendanceQrController;
+use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Training\TrainingClassController;
 use App\Http\Controllers\Training\TrainingLocationController;
 use App\Http\Controllers\Training\WeeklyScheduleController;
-use App\Http\Controllers\Profiles\UserCertificationController;
+use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
     Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
@@ -189,7 +190,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
-        Route::post('manual', 'store')->name('manual.store');
         Route::post('manual', 'store')->name('store');
         Route::post('bulk-update', 'bulkUpdate')->name('bulk-update');
         Route::put('{attendance}', 'update')->name('update');

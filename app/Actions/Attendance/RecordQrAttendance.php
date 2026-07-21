@@ -46,7 +46,7 @@ class RecordQrAttendance
                 && (int) $attendance?->training_session_id === (int) $session->training_session_id;
 
             if (! $attendance) {
-                $attendance = new Attendance();
+                $attendance = new Attendance;
                 $attendance->athlete_id = $athlete->athlete_id;
             }
 
@@ -126,10 +126,12 @@ class RecordQrAttendance
             return;
         }
 
-        if ($session->group_id !== null
-            && (string) $athlete->group_id !== (string) $session->group_id
-            && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
-            throw ValidationException::withMessages(['attendance' => 'Your belt level is not eligible for this session.']);
+        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
+            $minimumBelt = $session->group?->min_belt;
+
+            if (blank($minimumBelt) || ! BeltRank::eligible($athlete->geup, $minimumBelt)) {
+                throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session group.']);
+            }
         }
     }
 }

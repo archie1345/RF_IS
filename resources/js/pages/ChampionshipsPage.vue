@@ -159,7 +159,7 @@ onMounted(() => {
                             >Register</Button
                         >
                         <Button as-child type="button" size="sm" variant="outline"
-                            ><Link :href="championshipShow.url(row.event_id)">View participants</Link></Button
+                            ><Link :href="championshipShow.url(String(row.event_id))">View participants</Link></Button
                         >
                     </ActionButtonsRow>
                 </template>

@@ -13,12 +13,13 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useRole } from '@/composables/useRole';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard } from '@/routes';
-import { index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
-import { store as sessionsStore } from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
 import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
+import type { AttendanceStatusValue, AttendanceUpdateResponse } from './AttendancePage.types';
+import { dashboard } from '@/routes';
+import { index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
+import { store as sessionsStore } from '@/routes/sessions';
 
 const props = defineProps<{
     metrics: Metric[];
@@ -42,12 +43,6 @@ const columns: TableColumn[] = [
     { key: 'checkin', label: 'Check-in', align: 'right' },
     { key: 'status', label: 'Status' },
 ];
-
-type AttendanceStatusValue = 'PRESENT' | 'ABSENT' | 'EXCUSED';
-type AttendanceUpdateResponse = {
-    message?: string;
-    row?: TableRow;
-};
 
 const form = useForm({
     athlete_id: props.activeAthleteId ? String(props.activeAthleteId) : '',
@@ -150,7 +145,9 @@ function isAttendancePending(rowId: string): boolean {
 }
 
 function replaceAttendanceRow(rowId: string, row: TableRow) {
-    attendanceRows.value = attendanceRows.value.map((currentRow) => (String(currentRow.id) === rowId ? row : currentRow));
+    attendanceRows.value = attendanceRows.value.map((currentRow) =>
+        String(currentRow.id) === rowId ? row : currentRow,
+    );
 }
 
 function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue) {

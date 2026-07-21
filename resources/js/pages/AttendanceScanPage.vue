@@ -4,9 +4,10 @@ import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-n
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { PagePropsWithAttendanceScan } from './AttendanceScanPage.types';
 import { dashboard } from '@/routes';
 import { show as attendanceScanShow } from '@/routes/attendance/scan';
-import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     token: string;
@@ -29,18 +30,6 @@ const props = defineProps<{
         current_status: string | null;
     } | null;
 }>();
-
-type AttendanceScanFlash = {
-    status?: string;
-    message?: string;
-};
-
-type PagePropsWithAttendanceScan = {
-    flash?: {
-        attendanceScan?: AttendanceScanFlash;
-    };
-    errors?: Record<string, string>;
-};
 
 const page = usePage<PagePropsWithAttendanceScan>();
 const isSubmitting = ref(false);

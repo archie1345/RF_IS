@@ -5,16 +5,15 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-
-type DataTableFilterValue = string | string[];
-type DataTableFilterColumns = 1 | 2 | 3 | 4 | 5 | 6 | 'auto';
-type DataTableFilterSpan = 1 | 2 | 3 | 4 | 5 | 6 | 'full';
-type DataTableFilter = Omit<TableFilter, 'match'> & {
-    multiple?: boolean;
-    span?: DataTableFilterSpan;
-    match?: (row: TableRow, value: string) => boolean;
-};
+import type {
+    SelectOption,
+    TableBadgeCell,
+    TableCell,
+    TableColumn,
+    TableFilter,
+    TableRow,
+} from '@/types/resource-table';
+import type { DataTableFilterValue, DataTableFilterColumns, DataTableFilter } from './DataTable.types';
 
 const props = withDefaults(
     defineProps<{
@@ -74,7 +73,9 @@ const selectFilters = computed(() => normalizedFilters.value.filter((filter) => 
 const orderedFilters = computed(() => [...textFilters.value, ...selectFilters.value]);
 const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
 const activeFilterSignature = computed(() =>
-    normalizedFilters.value.map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`).join('|'),
+    normalizedFilters.value
+        .map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`)
+        .join('|'),
 );
 const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => filterSelections(filter).length > 0));
 const clickableHint = computed(() => props.rowClickLabel.trim() || 'Click a row to open details.');
@@ -103,7 +104,12 @@ const activePageSize = computed(() => {
 });
 
 function safeId(value: string): string {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'table';
+    return (
+        value
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '') || 'table'
+    );
 }
 
 function filterInputId(filter: DataTableFilter): string {
@@ -154,7 +160,11 @@ function filterText(filter: DataTableFilter, row: TableRow): string {
 
 function filterSelections(filter: DataTableFilter): string[] {
     const value = filterValues[filter.key];
-    if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+    if (Array.isArray(value))
+        return value
+            .map(String)
+            .map((entry) => entry.trim())
+            .filter(Boolean);
 
     const singleValue = String(value ?? '').trim();
     return singleValue ? [singleValue] : [];
@@ -164,11 +174,7 @@ function filterOptions(filter: DataTableFilter): SelectOption[] {
     if (filter.options) return filter.options;
 
     return Array.from(
-        new Set(
-            props.rows
-                .map((row) => filterText(filter, row))
-                .filter((value) => value !== '' && value !== '-'),
-        ),
+        new Set(props.rows.map((row) => filterText(filter, row)).filter((value) => value !== '' && value !== '-')),
     )
         .sort((left, right) => left.localeCompare(right))
         .map((value) => ({ value, label: value }));
@@ -318,7 +324,10 @@ watch(
     { immediate: true },
 );
 
-watch([search, sortKey, sortDirection, () => props.rows.length, selectedRowsPerPage, activeFilterSignature], resetVisibleLimit);
+watch(
+    [search, sortKey, sortDirection, () => props.rows.length, selectedRowsPerPage, activeFilterSignature],
+    resetVisibleLimit,
+);
 
 function showMoreRows() {
     visibleLimit.value += activePageSize.value || props.pageSize;
@@ -353,8 +362,15 @@ function showAllRows() {
                         :options="rowsPerPageOptions"
                         placeholder="Rows per page"
                     />
-                    <div v-if="props.paginate" class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
-                        {{ visibleRows.length }} / {{ filteredRows.length }} shown<span v-if="filteredRows.length !== props.rows.length"> · {{ props.rows.length }} total</span>
+                    <div
+                        v-if="props.paginate"
+                        class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
+                    >
+                        {{ visibleRows.length }} / {{ filteredRows.length }} shown<span
+                            v-if="filteredRows.length !== props.rows.length"
+                        >
+                            · {{ props.rows.length }} total</span
+                        >
                     </div>
                     <div v-if="props.searchable" class="relative w-full sm:w-80 lg:w-96">
                         <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -369,7 +385,9 @@ function showAllRows() {
             </div>
             <div v-if="hasTableFilters">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters">Clear filters</Button>
+                    <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters"
+                        >Clear filters</Button
+                    >
                 </div>
                 <div :class="['grid items-end gap-3', filterGridClass]">
                     <div
@@ -412,11 +430,17 @@ function showAllRows() {
                                 class="px-3 py-4 font-bold first:pl-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
-                                <button type="button" class="inline-flex items-center gap-1 hover:text-primary" @click="setSort(column)">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1 hover:text-primary"
+                                    @click="setSort(column)"
+                                >
                                     {{ column.label }}
                                     <ArrowDownUp
                                         class="size-3"
-                                        :class="sortKey === column.key ? 'text-primary' : 'opacity-0 group-hover:opacity-40'"
+                                        :class="
+                                            sortKey === column.key ? 'text-primary' : 'opacity-0 group-hover:opacity-40'
+                                        "
                                     />
                                 </button>
                             </th>
@@ -430,7 +454,11 @@ function showAllRows() {
                             v-for="row in visibleRows"
                             :key="row.id"
                             class="group border-b border-border/70 text-sm text-foreground transition-colors hover:bg-muted/25"
-                            :class="props.rowClickable ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none' : ''"
+                            :class="
+                                props.rowClickable
+                                    ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none'
+                                    : ''
+                            "
                             :role="props.rowClickable ? 'button' : undefined"
                             :tabindex="props.rowClickable ? 0 : undefined"
                             :title="props.rowClickable ? clickableHint : undefined"
@@ -483,8 +511,12 @@ function showAllRows() {
                 </table>
             </div>
             <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 pt-4">
-                <Button type="button" variant="outline" size="sm" @click="showMoreRows">Show {{ activePageSize }} more</Button>
-                <Button type="button" variant="ghost" size="sm" @click="showAllRows">Show all {{ filteredRows.length }}</Button>
+                <Button type="button" variant="outline" size="sm" @click="showMoreRows"
+                    >Show {{ activePageSize }} more</Button
+                >
+                <Button type="button" variant="ghost" size="sm" @click="showAllRows"
+                    >Show all {{ filteredRows.length }}</Button
+                >
             </div>
         </CardContent>
     </Card>

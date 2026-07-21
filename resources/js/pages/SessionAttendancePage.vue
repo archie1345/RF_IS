@@ -11,6 +11,9 @@ import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
+import type { AttendanceStatusValue, AttendanceUpdateResponse } from './SessionAttendancePage.types';
 import { dashboard } from '@/routes';
 import { bulkUpdate as attendanceBulkUpdate, update as attendanceUpdate } from '@/routes/attendance';
 import { attendance as sessionAttendance, index as sessionsIndex, update as sessionUpdate } from '@/routes/sessions';
@@ -19,8 +22,6 @@ import {
     store as sessionCoachAttendanceStore,
     update as sessionCoachAttendanceUpdate,
 } from '@/routes/sessions/coach-attendance';
-import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     branches: SelectOption[];
@@ -68,12 +69,6 @@ const coachColumns: TableColumn[] = [
     { key: 'status', label: 'Status' },
     { key: 'checked_at', label: 'Updated At' },
 ];
-
-type AttendanceStatusValue = 'PRESENT' | 'ABSENT' | 'EXCUSED' | 'LATE';
-type AttendanceUpdateResponse = {
-    message?: string;
-    row?: TableRow;
-};
 
 const coachForm = useForm({
     coach_id: '',
@@ -146,7 +141,9 @@ function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell
 }
 
 function replaceAttendanceRow(rowId: string, row: TableRow) {
-    attendanceRows.value = attendanceRows.value.map((currentRow) => (String(currentRow.id) === rowId ? row : currentRow));
+    attendanceRows.value = attendanceRows.value.map((currentRow) =>
+        String(currentRow.id) === rowId ? row : currentRow,
+    );
 }
 
 function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue) {
@@ -402,7 +399,11 @@ function submit() {
             </DataTable>
         </div>
 
-        <FormModal :open="Boolean(attendanceUpdateError)" max-width-class="max-w-lg" @close="attendanceUpdateError = ''">
+        <FormModal
+            :open="Boolean(attendanceUpdateError)"
+            max-width-class="max-w-lg"
+            @close="attendanceUpdateError = ''"
+        >
             <PageSection title="Attendance update failed" :description="attendanceUpdateError">
                 <div class="flex justify-end">
                     <Button type="button" variant="outline" @click="attendanceUpdateError = ''">Close</Button>
@@ -423,8 +424,15 @@ function submit() {
             </PageSection>
         </FormModal>
 
-        <FormModal :open="Boolean(pendingCoachDeleteId)" max-width-class="max-w-xl" @close="pendingCoachDeleteId = null">
-            <PageSection title="Remove this coach row?" description="This removes the coach from this session attendance table.">
+        <FormModal
+            :open="Boolean(pendingCoachDeleteId)"
+            max-width-class="max-w-xl"
+            @close="pendingCoachDeleteId = null"
+        >
+            <PageSection
+                title="Remove this coach row?"
+                description="This removes the coach from this session attendance table."
+            >
                 <div class="flex flex-wrap gap-3">
                     <Button type="button" variant="destructive" @click="confirmRemoveCoach">Remove coach</Button>
                     <Button type="button" variant="outline" @click="pendingCoachDeleteId = null">Cancel</Button>

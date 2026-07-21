@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin\Features;
 
 use App\Models\TrainingSession;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Inertia\Response;
 
 class AdminScheduleFeatureController extends BaseAdminFeatureController
@@ -31,20 +30,5 @@ class AdminScheduleFeatureController extends BaseAdminFeatureController
             'Siswa Hadir' => (string) $session->present_count,
             'Status' => $session->status,
         ])->values()->all());
-    }
-
-    public function disabledReports(Request $request): Response
-    {
-        $this->authorizeAdmin($request);
-
-        return Inertia::render('AdminFeaturePage', [
-            'mode' => 'periodic-stats',
-            'title' => 'Laporan dinonaktifkan',
-            'subtitle' => 'Halaman laporan sudah dihapus dari navigasi.',
-            'metrics' => [],
-            'columns' => [],
-            'rows' => [],
-            'emptyText' => '',
-        ]);
     }
 }

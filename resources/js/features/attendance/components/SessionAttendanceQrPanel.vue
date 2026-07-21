@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AttendanceWindowFields from '@/features/attendance/components/AttendanceWindowFields.vue';
+import type { PagePropsWithQrFlash } from './SessionAttendanceQrPanel.types';
 import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/sessions/attendance-qr';
 
 const props = defineProps<{
@@ -21,21 +22,6 @@ const props = defineProps<{
     sessionEndTime?: string | null;
     backHref?: string;
 }>();
-
-type AttendanceQrFlash = {
-    token?: string;
-    scan_url?: string;
-    opens_at?: string | null;
-    closes_at?: string | null;
-    generated_at?: string | null;
-};
-
-type PagePropsWithQrFlash = {
-    flash?: {
-        attendanceQr?: AttendanceQrFlash;
-        attendanceQrStatus?: string;
-    };
-};
 
 const page = usePage<PagePropsWithQrFlash>();
 const qrDataUrl = ref<string | null>(null);
