@@ -125,6 +125,8 @@ class AttendanceController extends Controller
         $this->authorize('update', $attendance);
 
         $status = $request->validated()['status'];
+        $user = $request->user();
+        $canCorrectPastAttendance = $user?->isAdmin() || $user?->isCoach();
 
         if ((string) $attendance->status === $status) {
             if ($request->expectsJson()) {
@@ -137,7 +139,7 @@ class AttendanceController extends Controller
             return back();
         }
 
-        if ($this->attendanceRows->isLocked($attendance)) {
+        if (! $canCorrectPastAttendance && $this->attendanceRows->isLocked($attendance)) {
             $message = 'Attendance cannot be changed because the session time has passed.';
 
             if ($request->expectsJson()) {
@@ -158,7 +160,10 @@ class AttendanceController extends Controller
             'attendance',
             'Updated attendance status',
             $attendance,
-            ['status' => $attendance->status],
+            [
+                'status' => $attendance->status,
+                'corrected_after_lock' => $this->attendanceRows->isLocked($attendance),
+            ],
         );
 
         if ($request->expectsJson()) {
@@ -174,6 +179,8 @@ class AttendanceController extends Controller
     public function bulkUpdate(BulkUpdateAttendanceRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $user = $request->user();
+        $canCorrectPastAttendance = $user?->isAdmin() || $user?->isCoach();
 
         $attendanceRows = Attendance::query()
             ->with(['athlete', 'session'])
@@ -181,7 +188,7 @@ class AttendanceController extends Controller
             ->get();
 
         abort_unless(
-            $attendanceRows->every(fn (Attendance $attendance) => $this->attendanceVisibility->userCanUpdate($request->user(), $attendance) && ! $this->attendanceRows->isLocked($attendance)),
+            $attendanceRows->every(fn (Attendance $attendance) => $this->attendanceVisibility->userCanUpdate($user, $attendance) && ($canCorrectPastAttendance || ! $this->attendanceRows->isLocked($attendance))),
             403,
         );
 
