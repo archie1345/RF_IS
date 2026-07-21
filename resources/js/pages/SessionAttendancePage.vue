@@ -5,7 +5,6 @@ import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
@@ -280,35 +279,6 @@ function submit() {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <AppAlert
-                v-if="attendanceUpdateError"
-                tone="danger"
-                title="Attendance update failed"
-                :description="attendanceUpdateError"
-                :secondary-action="{ label: 'Dismiss', variant: 'outline' }"
-                @secondary="attendanceUpdateError = ''"
-            />
-            <AppAlert
-                v-if="pendingBulkStatus"
-                tone="warning"
-                title="Update all loaded athletes?"
-                :description="`This will mark every loaded athlete as ${pendingBulkStatus === 'PRESENT' ? 'present' : 'absent'}. Existing statuses will be changed.`"
-                :primary-action="{ label: 'Apply update' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmBulkUpdate"
-                @secondary="pendingBulkStatus = null"
-            />
-            <AppAlert
-                v-if="pendingCoachDeleteId"
-                tone="danger"
-                title="Remove this coach row?"
-                description="This removes the coach from this session attendance table."
-                :primary-action="{ label: 'Remove coach', variant: 'destructive' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmRemoveCoach"
-                @secondary="pendingCoachDeleteId = null"
-            />
-
             <PageSection
                 eyebrow="Unified session edit"
                 :title="props.session.title"
@@ -431,6 +401,36 @@ function submit() {
                 </template>
             </DataTable>
         </div>
+
+        <FormModal :open="Boolean(attendanceUpdateError)" max-width-class="max-w-lg" @close="attendanceUpdateError = ''">
+            <PageSection title="Attendance update failed" :description="attendanceUpdateError">
+                <div class="flex justify-end">
+                    <Button type="button" variant="outline" @click="attendanceUpdateError = ''">Close</Button>
+                </div>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="Boolean(pendingBulkStatus)" max-width-class="max-w-xl" @close="pendingBulkStatus = null">
+            <PageSection
+                v-if="pendingBulkStatus"
+                title="Update all loaded athletes?"
+                :description="`This will mark every loaded athlete as ${pendingBulkStatus === 'PRESENT' ? 'present' : 'absent'}. Existing statuses will be changed.`"
+            >
+                <div class="flex flex-wrap gap-3">
+                    <Button type="button" variant="destructive" @click="confirmBulkUpdate">Apply update</Button>
+                    <Button type="button" variant="outline" @click="pendingBulkStatus = null">Cancel</Button>
+                </div>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="Boolean(pendingCoachDeleteId)" max-width-class="max-w-xl" @close="pendingCoachDeleteId = null">
+            <PageSection title="Remove this coach row?" description="This removes the coach from this session attendance table.">
+                <div class="flex flex-wrap gap-3">
+                    <Button type="button" variant="destructive" @click="confirmRemoveCoach">Remove coach</Button>
+                    <Button type="button" variant="outline" @click="pendingCoachDeleteId = null">Cancel</Button>
+                </div>
+            </PageSection>
+        </FormModal>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
             <PageSection

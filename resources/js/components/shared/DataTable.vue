@@ -5,7 +5,16 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter, TableFilterValue, TableRow } from '@/types/resource-table';
+import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+
+type DataTableFilterValue = string | string[];
+type DataTableFilterColumns = 1 | 2 | 3 | 4 | 5 | 6 | 'auto';
+type DataTableFilterSpan = 1 | 2 | 3 | 4 | 5 | 6 | 'full';
+type DataTableFilter = Omit<TableFilter, 'match'> & {
+    multiple?: boolean;
+    span?: DataTableFilterSpan;
+    match?: (row: TableRow, value: string) => boolean;
+};
 
 const props = withDefaults(
     defineProps<{
@@ -24,6 +33,7 @@ const props = withDefaults(
         rowsPerPageOptions?: number[];
         filters?: TableFilter[];
         filterable?: boolean;
+        filterColumns?: DataTableFilterColumns;
         rowClickable?: boolean;
         rowClickLabel?: string;
     }>(),
@@ -37,6 +47,7 @@ const props = withDefaults(
         rowsPerPageOptions: () => [10, 25, 50],
         filters: () => [],
         filterable: false,
+        filterColumns: 'auto',
         rowClickable: false,
         rowClickLabel: 'Click a row to open details.',
     },
@@ -54,16 +65,20 @@ const sortKey = ref('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
 const selectedRowsPerPage = ref(String(props.initialLimit));
 const visibleLimit = ref(props.initialLimit);
-const filterValues = reactive<Record<string, TableFilterValue>>({});
+const filterValues = reactive<Record<string, DataTableFilterValue>>({});
 
 const rowsPerPageSelectId = computed(() => `rows-per-page-${safeId(props.title)}`);
-const normalizedFilters = computed(() => props.filters ?? []);
+const normalizedFilters = computed<DataTableFilter[]>(() => (props.filters ?? []) as DataTableFilter[]);
 const textFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'text'));
 const selectFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'select'));
+const orderedFilters = computed(() => [...textFilters.value, ...selectFilters.value]);
 const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
-const activeFilterSignature = computed(() => normalizedFilters.value.map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`).join('|'));
+const activeFilterSignature = computed(() =>
+    normalizedFilters.value.map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`).join('|'),
+);
 const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => filterSelections(filter).length > 0));
 const clickableHint = computed(() => props.rowClickLabel.trim() || 'Click a row to open details.');
+const filterGridClass = computed(() => filterColumnsClass(props.filterColumns));
 
 const rowsPerPageOptions = computed<SelectOption[]>(() => {
     const numericOptions = new Set(
@@ -91,7 +106,7 @@ function safeId(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'table';
 }
 
-function filterInputId(filter: TableFilter): string {
+function filterInputId(filter: DataTableFilter): string {
     return `table-filter-${safeId(props.title)}-${safeId(filter.key)}`;
 }
 
@@ -124,20 +139,20 @@ function linkText(value: string): string {
     return 'Open';
 }
 
-function filterType(filter: TableFilter): 'text' | 'select' {
+function filterType(filter: DataTableFilter): 'text' | 'select' {
     return filter.type ?? 'text';
 }
 
-function filterMultiple(filter: TableFilter): boolean {
+function filterMultiple(filter: DataTableFilter): boolean {
     return filterType(filter) === 'select' && filter.multiple !== false;
 }
 
-function filterText(filter: TableFilter, row: TableRow): string {
+function filterText(filter: DataTableFilter, row: TableRow): string {
     const value = filter.accessor ? filter.accessor(row) : getCellValue(row, filter.columnKey ?? filter.key);
     return String(getCellText(value)).trim();
 }
 
-function filterSelections(filter: TableFilter): string[] {
+function filterSelections(filter: DataTableFilter): string[] {
     const value = filterValues[filter.key];
     if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
 
@@ -145,7 +160,7 @@ function filterSelections(filter: TableFilter): string[] {
     return singleValue ? [singleValue] : [];
 }
 
-function filterOptions(filter: TableFilter): SelectOption[] {
+function filterOptions(filter: DataTableFilter): SelectOption[] {
     if (filter.options) return filter.options;
 
     return Array.from(
@@ -159,13 +174,51 @@ function filterOptions(filter: TableFilter): SelectOption[] {
         .map((value) => ({ value, label: value }));
 }
 
+function filterColumnsClass(columns: DataTableFilterColumns): string {
+    switch (columns) {
+        case 1:
+            return 'grid-cols-1';
+        case 2:
+            return 'grid-cols-1 md:grid-cols-2';
+        case 3:
+            return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
+        case 4:
+            return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
+        case 5:
+            return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-5';
+        case 6:
+            return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-6';
+        default:
+            return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3';
+    }
+}
+
+function filterSpanClass(filter: DataTableFilter): string {
+    switch (filter.span) {
+        case 2:
+            return 'md:col-span-2';
+        case 3:
+            return 'xl:col-span-3';
+        case 4:
+            return 'xl:col-span-4';
+        case 5:
+            return 'xl:col-span-5';
+        case 6:
+            return 'xl:col-span-6';
+        case 'full':
+            return 'md:col-span-full';
+        default:
+            return '';
+    }
+}
+
 function rowMatchesFilters(row: TableRow): boolean {
     if (!hasTableFilters.value) return true;
 
     return normalizedFilters.value.every((filter) => {
         const values = filterSelections(filter);
         if (values.length === 0) return true;
-        if (filter.match) return filter.match(row, filterMultiple(filter) ? values : values[0]);
+        if (filter.match) return values.some((value) => filter.match?.(row, value));
 
         const candidate = filterText(filter, row).toLowerCase();
 
@@ -233,7 +286,9 @@ const visibleRows = computed(() => {
 
     return filteredRows.value.slice(0, visibleLimit.value);
 });
-const canShowMore = computed(() => props.paginate && selectedRowsPerPage.value !== 'all' && visibleRows.value.length < filteredRows.value.length);
+const canShowMore = computed(
+    () => props.paginate && selectedRowsPerPage.value !== 'all' && visibleRows.value.length < filteredRows.value.length,
+);
 
 function resetVisibleLimit() {
     visibleLimit.value = activePageSize.value || props.initialLimit;
@@ -316,27 +371,32 @@ function showAllRows() {
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters">Clear filters</Button>
                 </div>
-                <div class="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <label v-for="filter in textFilters" :key="filter.key" class="grid gap-2 text-sm font-semibold">
-                        {{ filter.label }}
-                        <input
-                            v-model="filterValues[filter.key]"
-                            type="text"
-                            class="min-h-12 rounded-2xl border bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-ring/30 focus:outline-none"
-                            :placeholder="filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`"
-                        />
-                    </label>
-                    <FormSelectField
-                        v-for="filter in selectFilters"
+                <div :class="['grid items-end gap-3', filterGridClass]">
+                    <div
+                        v-for="filter in orderedFilters"
                         :key="filter.key"
-                        :id="filterInputId(filter)"
-                        v-model="filterValues[filter.key]"
-                        :label="filter.label"
-                        :options="filterOptions(filter)"
-                        :placeholder="filter.placeholder ?? `All ${filter.label.toLowerCase()}`"
-                        :search-placeholder="filter.searchPlaceholder ?? `Search ${filter.label.toLowerCase()}...`"
-                        :multiple="filterMultiple(filter)"
-                    />
+                        :class="['grid gap-2 text-sm font-semibold', filterSpanClass(filter)]"
+                    >
+                        <label v-if="filterType(filter) === 'text'" class="grid gap-2">
+                            {{ filter.label }}
+                            <input
+                                v-model="filterValues[filter.key]"
+                                type="text"
+                                class="min-h-12 rounded-2xl border bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-ring/30 focus:outline-none"
+                                :placeholder="filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`"
+                            />
+                        </label>
+                        <FormSelectField
+                            v-else
+                            :id="filterInputId(filter)"
+                            v-model="filterValues[filter.key]"
+                            :label="filter.label"
+                            :options="filterOptions(filter)"
+                            :placeholder="filter.placeholder ?? `All ${filter.label.toLowerCase()}`"
+                            :search-placeholder="filter.searchPlaceholder ?? `Search ${filter.label.toLowerCase()}...`"
+                            :multiple="filterMultiple(filter)"
+                        />
+                    </div>
                 </div>
             </div>
         </CardHeader>
@@ -352,11 +412,7 @@ function showAllRows() {
                                 class="px-3 py-4 font-bold first:pl-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1 hover:text-primary"
-                                    @click="setSort(column)"
-                                >
+                                <button type="button" class="inline-flex items-center gap-1 hover:text-primary" @click="setSort(column)">
                                     {{ column.label }}
                                     <ArrowDownUp
                                         class="size-3"
