@@ -18,7 +18,7 @@ import type { AppRole, AttendanceRow } from '@/types/domain';
 import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 import type { AttendanceStatusValue, AttendanceUpdateResponse } from './AttendancePage.types';
 import { dashboard } from '@/routes';
-import { index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
+import { index as attendanceIndex, store as attendanceStore, update as attendanceUpdate } from '@/routes/attendance';
 import { store as sessionsStore } from '@/routes/sessions';
 
 const props = defineProps<{
@@ -70,14 +70,17 @@ const attendanceUpdateError = ref('');
 const coachSessionName = ref('');
 const coachSessionError = ref('');
 const showSessionForm = ref(false);
+const showParentCheckInForm = ref(false);
 
-const { isAdmin, isCoach, isAthlete } = useRole(toRef(props, 'role'));
+const { isAdmin, isCoach, isParent, isAthlete } = useRole(toRef(props, 'role'));
 const roleTitle = computed(() => {
     if (isAdmin.value) return 'Admin attendance management';
     if (isCoach.value) return 'Coach attendance management';
+    if (isParent.value) return 'Children attendance tracking';
     if (isAthlete.value) return 'Athlete QR attendance';
     return 'Attendance tracking';
 });
+const childSessionOptions = computed(() => props.sessions.map((session) => ({ value: session.value, label: session.label })));
 
 watch(
     () => props.rows,
@@ -90,6 +93,11 @@ function todayDate() {
     const date = new Date();
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     return date.toISOString().slice(0, 10);
+}
+
+function currentTime() {
+    const date = new Date();
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 function rowStatusText(row: AttendanceRow | TableRow) {
@@ -228,6 +236,29 @@ function applySessionDate(sessionValue: string) {
     form.date = todayDate();
 }
 
+function openParentCheckIn() {
+    form.reset();
+    form.status = 'PRESENT';
+    form.athlete_id = props.athletes.length === 1 ? String(props.athletes[0].value) : '';
+    form.training_session_id = props.sessions.length === 1 ? String(props.sessions[0].value) : '';
+    form.date = todayDate();
+    form.checked_in_time = currentTime();
+    form.notes = 'Checked in by parent.';
+    if (form.training_session_id) applySessionDate(form.training_session_id);
+    form.clearErrors();
+    showParentCheckInForm.value = true;
+}
+
+function submitAttendance() {
+    form.post(attendanceStore.url(), {
+        preserveScroll: true,
+        onSuccess: () => {
+            showParentCheckInForm.value = false;
+            form.reset();
+        },
+    });
+}
+
 function submitSession() {
     sessionForm.post(sessionsStore.url(), {
         onSuccess: () => {
@@ -266,12 +297,17 @@ onMounted(() => {
             <PageSection
                 eyebrow="Attendance workspace"
                 :title="roleTitle"
-                description="Role-specific attendance flow for athlete, coach, and admin."
+                description="Role-specific attendance flow for athlete, coach, parent, and admin."
             >
                 <template #actions>
-                    <Button v-if="isAdmin || isCoach" type="button" variant="outline" @click="showSessionForm = true">
-                        New attendance session
-                    </Button>
+                    <div class="flex flex-wrap gap-2">
+                        <Button v-if="isParent" type="button" variant="outline" @click="openParentCheckIn">
+                            Check in child
+                        </Button>
+                        <Button v-if="isAdmin || isCoach" type="button" variant="outline" @click="showSessionForm = true">
+                            New attendance session
+                        </Button>
+                    </div>
                 </template>
 
                 <div class="grid gap-4 md:grid-cols-3">
@@ -303,6 +339,48 @@ onMounted(() => {
                             </template>
                         </DataTable>
                     </div>
+                </PageSection>
+
+                <PageSection
+                    v-if="isParent"
+                    title="Children attendance"
+                    description="Track all linked children attendance records. Use coach QR on a phone, or check in a child manually for an eligible session."
+                >
+                    <DataTable
+                        title="Children attendance records"
+                        description="All linked child attendance rows are shown together."
+                        :columns="columns"
+                        :rows="attendanceRows"
+                        empty-text="No child attendance records yet."
+                        searchable
+                        search-placeholder="Search child/session/coach..."
+                        action-label="Attendance"
+                    >
+                        <template #row-actions="{ row }">
+                            <span v-if="row.is_locked" class="text-xs text-muted-foreground">Closed</span>
+                            <span v-else-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">View only</span>
+                            <ActionButtonsRow v-else>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    :disabled="rowStatusText(row) === 'Present' || isAttendancePending(String(row.id))"
+                                    @click="setAttendanceStatus(String(row.id), 'PRESENT')"
+                                >
+                                    Attend
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    :disabled="rowStatusText(row) === 'Absent' || isAttendancePending(String(row.id))"
+                                    @click="setAttendanceStatus(String(row.id), 'ABSENT')"
+                                >
+                                    Not attend
+                                </Button>
+                            </ActionButtonsRow>
+                        </template>
+                    </DataTable>
                 </PageSection>
 
                 <PageSection
@@ -371,6 +449,49 @@ onMounted(() => {
                 </PageSection>
             </div>
         </div>
+
+        <FormModal :open="showParentCheckInForm && isParent" max-width-class="max-w-2xl" @close="showParentCheckInForm = false">
+            <PageSection title="Check in child" description="Mark a linked child as present for an eligible attendance session.">
+                <form class="grid gap-4" @submit.prevent="submitAttendance">
+                    <FormSelectField
+                        id="parent-child-athlete"
+                        v-model="form.athlete_id"
+                        label="Child"
+                        :options="props.athletes"
+                        placeholder="Select child"
+                        :multiple="false"
+                        :error="form.errors.athlete_id"
+                    />
+                    <FormSelectField
+                        id="parent-child-session"
+                        v-model="form.training_session_id"
+                        label="Session"
+                        :options="childSessionOptions"
+                        placeholder="Select session"
+                        :multiple="false"
+                        :error="form.errors.training_session_id"
+                        @update:model-value="applySessionDate(String($event))"
+                    />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormInputField id="parent-check-date" v-model="form.date" label="Date" type="date" :error="form.errors.date" />
+                        <FormInputField
+                            id="parent-check-time"
+                            v-model="form.checked_in_time"
+                            label="Check-in time"
+                            type="time"
+                            :error="form.errors.checked_in_time"
+                        />
+                    </div>
+                    <FormInputField id="parent-notes" v-model="form.notes" label="Notes" :error="form.errors.notes" />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">
+                            {{ form.processing ? 'Saving...' : 'Save child check-in' }}
+                        </Button>
+                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showParentCheckInForm = false">Cancel</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
 
         <FormModal
             :open="showSessionForm && (isCoach || isAdmin)"
