@@ -385,15 +385,17 @@ watch(
 
             <DataTable
                 title="Daftar Kelas"
-                description="Kelola kelas, kategori, jadwal, dan peserta dari tabel bersama agar filter dan pagination konsisten."
+                description="Klik baris kelas untuk melihat daftar atlet. Filter dan pagination tetap memakai tabel bersama."
                 :columns="classTableColumns"
                 :rows="classTableRows"
                 :filters="classTableFilters"
                 filterable
                 searchable
+                row-clickable
                 search-placeholder="Cari kelas, kategori, atlet, lokasi, atau coach..."
                 empty-text="Belum ada kelas."
                 action-label="Aksi"
+                @row-click="openClassAthletesFromRow"
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
