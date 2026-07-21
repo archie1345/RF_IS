@@ -19,7 +19,8 @@ class TrainingClassController extends Controller
 
     public function index(Request $request): Response
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        $user = $request->user();
+        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
         $weeklySchedules = WeeklyTrainingSchedule::query()->get();
         $groups = Group::query()
@@ -50,7 +51,9 @@ class TrainingClassController extends Controller
 
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',
-            'subtitle' => 'Master data kelas. Tipe private memilih atlet khusus, bukan kategori grup atlet.',
+            'subtitle' => $user?->isCoach()
+                ? 'Coach bisa menambahkan kelas latihan. Admin tetap mengelola edit dan hapus kelas.'
+                : 'Master data kelas. Tipe private memilih atlet khusus, bukan kategori grup atlet.',
             'classes' => $this->groupPayload($groups, $weeklySchedules),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'trainingGroupOptions' => $trainingGroups->map(fn (TrainingGroup $group) => ['value' => $group->id, 'label' => $group->name])->values(),
@@ -60,6 +63,9 @@ class TrainingClassController extends Controller
             ])->values(),
             'coachOptions' => $this->coachOptions(),
             'beltOptions' => $this->beltOptions(),
+            'canCreateClasses' => (bool) ($user?->isAdmin() || $user?->isCoach()),
+            'canEditClasses' => (bool) $user?->isAdmin(),
+            'canDeleteClasses' => (bool) $user?->isAdmin(),
         ]);
     }
 }
