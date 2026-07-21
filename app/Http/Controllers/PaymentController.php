@@ -66,14 +66,17 @@ class PaymentController extends Controller
             ->latest('payment_date')
             ->get();
 
+        $tuitionMetrics = $this->monthlyTuitionMetrics($payments);
+
         return Inertia::render('PaymentsPage', [
             'isAdmin' => (bool) $user?->isAdmin(),
             'canSubmitPaymentProof' => (bool) ($user?->isAthlete() || $user?->isParent()),
             'coachPaymentLimitation' => $user?->isCoach() ? 'Coach payment uploads are hidden. This installation only safely supports coach salary/payment history records, not coach proof uploads.' : null,
             'metrics' => [
-                ['label' => 'Approved payments', 'value' => $this->rupiah((float) $payments->sum('paid_amount')), 'detail' => 'Receipts approved or marked paid', 'tone' => 'success'],
-                ['label' => 'Outstanding balance', 'value' => $this->rupiah((float) $payments->sum('remaining_amount')), 'detail' => 'Still open across all active invoices', 'tone' => 'warning'],
-                ['label' => 'Open payment items', 'value' => (string) $payments->where('remaining_amount', '>', 0)->count(), 'detail' => 'Invoices still waiting for completion', 'tone' => 'info'],
+                ['label' => 'Paid tuition', 'value' => (string) $tuitionMetrics['paid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills fully paid', 'tone' => 'success'],
+                ['label' => 'Unpaid tuition', 'value' => (string) $tuitionMetrics['unpaid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills with no approved payment', 'tone' => 'warning'],
+                ['label' => 'Partial tuition', 'value' => (string) $tuitionMetrics['partial'], 'detail' => $tuitionMetrics['month_label'].' tuition bills paid partly', 'tone' => 'info'],
+                ['label' => 'Previous unpaid', 'value' => (string) $tuitionMetrics['previous_unpaid'], 'detail' => 'Unpaid tuition bills before '.$tuitionMetrics['month_label'], 'tone' => 'danger'],
             ],
             'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
             'athletes' => Athlete::query()
@@ -253,6 +256,44 @@ class PaymentController extends Controller
         ]);
 
         return redirect()->route('payments.index');
+    }
+
+    private function monthlyTuitionMetrics($payments): array
+    {
+        $now = now(config('app.timezone', 'Asia/Jakarta'));
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
+        $monthLabel = $now->format('F Y');
+
+        $tuitionPayments = $payments->filter(fn (Payment $payment): bool =>
+            strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'INVOICE'
+            && strtoupper((string) $payment->payment_type) === 'TUITION'
+        );
+
+        $currentMonthTuition = $tuitionPayments->filter(fn (Payment $payment): bool =>
+            $payment->payment_date
+            && $payment->payment_date->betweenIncluded($monthStart, $monthEnd)
+        );
+
+        return [
+            'month_label' => $monthLabel,
+            'paid' => $currentMonthTuition
+                ->filter(fn (Payment $payment): bool => (float) ($payment->remaining_amount ?? 0) <= 0.0)
+                ->count(),
+            'unpaid' => $currentMonthTuition
+                ->filter(fn (Payment $payment): bool => (float) ($payment->paid_amount ?? 0) <= 0.0 && (float) ($payment->remaining_amount ?? 0) > 0.0)
+                ->count(),
+            'partial' => $currentMonthTuition
+                ->filter(fn (Payment $payment): bool => (float) ($payment->paid_amount ?? 0) > 0.0 && (float) ($payment->remaining_amount ?? 0) > 0.0)
+                ->count(),
+            'previous_unpaid' => $tuitionPayments
+                ->filter(fn (Payment $payment): bool =>
+                    $payment->payment_date
+                    && $payment->payment_date->lt($monthStart)
+                    && (float) ($payment->remaining_amount ?? 0) > 0.0
+                )
+                ->count(),
+        ];
     }
 
 }
