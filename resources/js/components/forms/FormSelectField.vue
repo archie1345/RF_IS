@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';
 
@@ -39,6 +39,8 @@ const emit = defineEmits<{
 
 const open = ref(false);
 const search = ref('');
+const instanceId = `select-${props.id}-${Math.random().toString(36).slice(2)}`;
+const closeEventName = 'rf-select-opened';
 
 const selectedValues = computed(() =>
     Array.isArray(props.modelValue)
@@ -66,10 +68,40 @@ function optionSelected(value: string | number) {
     return selectedValues.value.includes(String(value));
 }
 
+function closeDropdown() {
+    open.value = false;
+}
+
+function announceDropdownOpen() {
+    window.dispatchEvent(new CustomEvent(closeEventName, { detail: { instanceId } }));
+}
+
+function toggleDropdown() {
+    if (props.disabled) return;
+
+    if (open.value) {
+        closeDropdown();
+        return;
+    }
+
+    announceDropdownOpen();
+    open.value = true;
+}
+
+function handleOtherDropdownOpened(event: Event) {
+    const detail = (event as CustomEvent<{ instanceId?: string }>).detail;
+    if (detail?.instanceId !== instanceId) closeDropdown();
+}
+
+window.addEventListener(closeEventName, handleOtherDropdownOpened);
+onBeforeUnmount(() => {
+    window.removeEventListener(closeEventName, handleOtherDropdownOpened);
+});
+
 function selectValue(value: string | number) {
     if (!props.multiple) {
         emit('update:modelValue', String(value));
-        open.value = false;
+        closeDropdown();
         search.value = '';
         return;
     }
@@ -114,7 +146,7 @@ function removeValue(value: string | number) {
             :aria-invalid="Boolean(props.error)"
             class="flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border bg-background px-3 py-2 text-left text-sm shadow-sm transition focus:ring-2 focus:ring-ring/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             :class="props.error ? 'border-destructive ring-2 ring-destructive/15' : 'border-input hover:border-ring/60'"
-            @click="open = !open"
+            @click="toggleDropdown"
         >
             <span v-if="props.multiple && selectedOptions.length" class="flex max-w-[calc(100%-2rem)] flex-wrap gap-1.5">
                 <span
