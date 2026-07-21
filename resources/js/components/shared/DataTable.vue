@@ -25,6 +25,7 @@ const props = withDefaults(
         filters?: TableFilter[];
         filterable?: boolean;
         rowClickable?: boolean;
+        rowClickLabel?: string;
     }>(),
     {
         paginate: true,
@@ -35,6 +36,7 @@ const props = withDefaults(
         filters: () => [],
         filterable: false,
         rowClickable: false,
+        rowClickLabel: 'Click a row to open details.',
     },
 );
 
@@ -58,6 +60,7 @@ const selectFilters = computed(() => normalizedFilters.value.filter((filter) => 
 const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
 const activeFilterSignature = computed(() => normalizedFilters.value.map((filter) => `${filter.key}:${filterValues[filter.key] ?? ''}`).join('|'));
 const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => (filterValues[filter.key] ?? '').trim() !== ''));
+const clickableHint = computed(() => props.rowClickLabel.trim() || 'Click a row to open details.');
 
 const rowsPerPageOptions = computed<SelectOption[]>(() => {
     const numericOptions = new Set(
@@ -176,6 +179,13 @@ function handleRowClick(row: TableRow) {
     if (props.rowClickable) emit('rowClick', row);
 }
 
+function handleRowKeydown(event: KeyboardEvent, row: TableRow) {
+    if (!props.rowClickable || !['Enter', ' '].includes(event.key)) return;
+
+    event.preventDefault();
+    handleRowClick(row);
+}
+
 const filteredRows = computed(() => {
     const keyword = search.value.trim().toLowerCase();
     const baseRows = props.rows.filter((row) => {
@@ -244,6 +254,9 @@ function showAllRows() {
                 <div>
                     <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
                     <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
+                    <p v-if="props.rowClickable" class="mt-1 text-xs font-semibold text-muted-foreground">
+                        {{ clickableHint }}
+                    </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                     <FormSelectField
@@ -333,8 +346,12 @@ function showAllRows() {
                             v-for="row in visibleRows"
                             :key="row.id"
                             class="rounded-xl bg-muted/35 text-sm text-foreground transition-all hover:-translate-y-0.5 hover:bg-muted/70 hover:shadow-sm"
-                            :class="props.rowClickable ? 'cursor-pointer' : ''"
+                            :class="props.rowClickable ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none' : ''"
+                            :role="props.rowClickable ? 'button' : undefined"
+                            :tabindex="props.rowClickable ? 0 : undefined"
+                            :title="props.rowClickable ? clickableHint : undefined"
                             @click="handleRowClick(row)"
+                            @keydown="handleRowKeydown($event, row)"
                         >
                             <td
                                 v-for="column in props.columns"
