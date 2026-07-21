@@ -18,10 +18,11 @@ import {
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
-type SessionVisibility = 'upcoming' | 'past' | 'all';
+type SessionVisibility = 'upcoming' | 'archived' | 'all';
 type SessionFilters = {
-    visibility: SessionVisibility;
-    past_count: number;
+    visibility: SessionVisibility | 'past';
+    archived_count?: number;
+    past_count?: number;
     upcoming_count: number;
     all_count: number;
 };
@@ -59,20 +60,26 @@ const sessionTableFilters: TableFilter[] = [
 
 const pendingDeleteSessionId = ref<number | null>(null);
 
-const effectiveFilters = computed<SessionFilters>(() => {
+const effectiveFilters = computed<{
+    visibility: SessionVisibility;
+    archived_count: number;
+    upcoming_count: number;
+    all_count: number;
+}>(() => {
     const fallbackCount = props.rows.length;
+    const visibility = props.filters?.visibility === 'past' ? 'archived' : (props.filters?.visibility ?? 'upcoming');
 
     return {
-        visibility: props.filters?.visibility ?? 'upcoming',
-        past_count: props.filters?.past_count ?? 0,
+        visibility,
+        archived_count: props.filters?.archived_count ?? props.filters?.past_count ?? 0,
         upcoming_count: props.filters?.upcoming_count ?? fallbackCount,
         all_count: props.filters?.all_count ?? fallbackCount,
     };
 });
 
-const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: keyof SessionFilters }> = [
+const visibilityOptions: Array<{ value: SessionVisibility; label: string; countKey: 'upcoming_count' | 'archived_count' | 'all_count' }> = [
     { value: 'upcoming', label: 'Upcoming', countKey: 'upcoming_count' },
-    { value: 'past', label: 'Past', countKey: 'past_count' },
+    { value: 'archived', label: 'Archived', countKey: 'archived_count' },
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
 
@@ -136,7 +143,7 @@ function joinSession(row: TableRow) {
 
             <PageSection
                 title="Session"
-                description="Sessions are generated from Admin → Kelas Latihan. Past sessions are hidden by default."
+                description="Sessions are generated from Admin → Kelas Latihan. Archived sessions are hidden by default. Finished one-day classes move into Archived automatically."
             >
                 <div class="grid gap-4 md:grid-cols-3">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
@@ -149,7 +156,7 @@ function joinSession(row: TableRow) {
                         <div>
                             <h2 class="text-base font-black">Session visibility</h2>
                             <p class="text-sm text-muted-foreground">
-                                Default view shows today and future sessions. Use this to review history.
+                                Default view shows today and future sessions. Archived stores finished sessions and completed one-day classes.
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
