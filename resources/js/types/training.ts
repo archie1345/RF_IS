@@ -51,6 +51,7 @@ export type ClassRecord = {
     athletes_count: number;
     athletes?: ClassAthleteRecord[];
     is_active: boolean;
+    is_archived?: boolean;
     weekly_schedule_id?: number | null;
     weekly_schedule_status: string;
 };
