@@ -128,6 +128,10 @@ function filterType(filter: TableFilter): 'text' | 'select' {
     return filter.type ?? 'text';
 }
 
+function filterMultiple(filter: TableFilter): boolean {
+    return filterType(filter) === 'select' && filter.multiple !== false;
+}
+
 function filterText(filter: TableFilter, row: TableRow): string {
     const value = filter.accessor ? filter.accessor(row) : getCellValue(row, filter.columnKey ?? filter.key);
     return String(getCellText(value)).trim();
@@ -161,7 +165,7 @@ function rowMatchesFilters(row: TableRow): boolean {
     return normalizedFilters.value.every((filter) => {
         const values = filterSelections(filter);
         if (values.length === 0) return true;
-        if (filter.match) return filter.match(row, filter.multiple ? values : values[0]);
+        if (filter.match) return filter.match(row, filterMultiple(filter) ? values : values[0]);
 
         const candidate = filterText(filter, row).toLowerCase();
 
@@ -175,7 +179,7 @@ function rowMatchesFilters(row: TableRow): boolean {
 
 function clearFilters() {
     normalizedFilters.value.forEach((filter) => {
-        filterValues[filter.key] = filter.multiple ? [] : '';
+        filterValues[filter.key] = filterMultiple(filter) ? [] : '';
     });
 }
 
@@ -240,14 +244,14 @@ watch(
     (filters) => {
         filters.forEach((filter) => {
             if (filterValues[filter.key] === undefined) {
-                filterValues[filter.key] = filter.multiple ? [] : '';
+                filterValues[filter.key] = filterMultiple(filter) ? [] : '';
             }
 
-            if (filter.multiple && !Array.isArray(filterValues[filter.key])) {
+            if (filterMultiple(filter) && !Array.isArray(filterValues[filter.key])) {
                 filterValues[filter.key] = filterValues[filter.key] ? [String(filterValues[filter.key])] : [];
             }
 
-            if (!filter.multiple && Array.isArray(filterValues[filter.key])) {
+            if (!filterMultiple(filter) && Array.isArray(filterValues[filter.key])) {
                 filterValues[filter.key] = '';
             }
         });
@@ -331,7 +335,7 @@ function showAllRows() {
                         :options="filterOptions(filter)"
                         :placeholder="filter.placeholder ?? `All ${filter.label.toLowerCase()}`"
                         :search-placeholder="filter.searchPlaceholder ?? `Search ${filter.label.toLowerCase()}...`"
-                        :multiple="filter.multiple ?? false"
+                        :multiple="filterMultiple(filter)"
                     />
                 </div>
             </div>
