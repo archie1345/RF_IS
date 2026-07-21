@@ -8,6 +8,7 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Services\AttendanceQrTokenService;
+use App\Services\ParentChildContextService;
 use App\Support\ActivityLogger;
 use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\BeltRank;
@@ -23,16 +24,18 @@ class AttendanceScanController extends Controller
     public function __construct(
         private readonly AttendanceQrTokenService $tokens,
         private readonly RecordQrAttendance $recordQrAttendance,
+        private readonly ParentChildContextService $childContext,
     ) {}
 
     public function show(Request $request, string $token): Response
     {
         $session = $this->tokens->findActiveSessionByToken($token);
         $user = $request->user();
-        $athlete = $user?->athleteProfile;
+        $children = $user?->isParent() ? $this->childContext->childrenFor($user) : collect();
+        $athlete = $this->scanAthleteFor($request, $session);
         $attendance = $this->findAttendance($session, $athlete);
         $deviceAllowed = $this->phoneCheckAllowed($request);
-        [$state, $message] = $this->scanState($session, $athlete, $attendance, $deviceAllowed);
+        [$state, $message] = $this->scanState($session, $athlete, $attendance, $deviceAllowed, $user?->isParent() === true, $children->isNotEmpty());
         $scanResult = null;
 
         return Inertia::render('AttendanceScanPage', [
@@ -46,6 +49,13 @@ class AttendanceScanController extends Controller
                 'name' => $athlete->user?->name ?? $user?->name ?? 'Athlete',
                 'current_status' => $attendance?->status,
             ] : null,
+            'children' => $children
+                ->map(fn (Athlete $child) => [
+                    'value' => $child->athlete_id,
+                    'label' => $child->user?->name ?? 'Unknown athlete',
+                    'current_status' => $this->findAttendance($session, $child)?->status,
+                ])
+                ->values(),
             'currentStatus' => $attendance?->status,
             'canSubmit' => $state === 'ready',
             'scanResult' => $scanResult,
@@ -61,7 +71,8 @@ class AttendanceScanController extends Controller
             return back()->withErrors(['attendance' => 'QR attendance is only available on phones and tablets.']);
         }
 
-        [$attendance, $alreadyRecorded] = $this->recordQrAttendance->handle($request->user(), $session);
+        $selectedAthlete = $this->scanAthleteFor($request, $session, true);
+        [$attendance, $alreadyRecorded] = $this->recordQrAttendance->handle($request->user(), $session, $selectedAthlete);
 
         ActivityLogger::log(
             $request,
@@ -76,6 +87,42 @@ class AttendanceScanController extends Controller
             'status' => $alreadyRecorded ? 'already_recorded' : 'recorded',
             'message' => $alreadyRecorded ? 'Attendance was already recorded.' : 'Attendance recorded successfully.',
         ]);
+    }
+
+    private function scanAthleteFor(Request $request, ?TrainingSession $session, bool $requireParentSelection = false): ?Athlete
+    {
+        $user = $request->user();
+        if (! $user) {
+            return null;
+        }
+
+        if ($user->isAthlete()) {
+            return $user->athleteProfile;
+        }
+
+        if (! $user->isParent()) {
+            return null;
+        }
+
+        $children = $this->childContext->childrenFor($user);
+        if ($children->isEmpty()) {
+            return null;
+        }
+
+        $requestedAthleteId = (string) ($request->input('athlete_id') ?: $request->query('athlete_id', ''));
+        if ($requestedAthleteId !== '') {
+            return $children->first(fn (Athlete $child) => (string) $child->athlete_id === $requestedAthleteId);
+        }
+
+        if ($requireParentSelection && $children->count() > 1) {
+            return null;
+        }
+
+        if ($session) {
+            return $children->first(fn (Athlete $child) => $this->athleteEligibleForSession($child, $session)) ?? $children->first();
+        }
+
+        return $children->first();
     }
 
     private function findAttendance(?TrainingSession $session, ?Athlete $athlete): ?Attendance
@@ -128,7 +175,7 @@ class AttendanceScanController extends Controller
         ];
     }
 
-    private function scanState(?TrainingSession $session, ?Athlete $athlete, ?Attendance $attendance, bool $deviceAllowed): array
+    private function scanState(?TrainingSession $session, ?Athlete $athlete, ?Attendance $attendance, bool $deviceAllowed, bool $isParent = false, bool $parentHasChildren = false): array
     {
         if (! $session) {
             return ['invalid', 'This QR attendance code is invalid or has been closed.'];
@@ -153,48 +200,57 @@ class AttendanceScanController extends Controller
         }
 
         if (! $athlete) {
-            return ['athlete_required', 'Please log in using an athlete account before checking in.'];
+            return $isParent && ! $parentHasChildren
+                ? ['athlete_required', 'No child athlete is linked to this parent account.']
+                : ['athlete_required', $isParent ? 'Select a child before checking in.' : 'Please log in using an athlete account before checking in.'];
         }
 
         $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
 
-        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
-            return ['not_eligible', 'You are not eligible for this session branch.'];
-        }
-
-        if (($session->group?->class_type ?? null) === 'private') {
-            $allowedAthleteIds = $session->group
-                ->privateAthletes
-                ->pluck('athlete_id')
-                ->map(fn ($id) => (string) $id);
-
-            if (! $allowedAthleteIds->contains((string) $athlete->athlete_id)) {
-                return ['not_eligible', 'You are not assigned to this private session.'];
-            }
-        } else {
-            if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
-                return ['not_eligible', 'You are not the assigned athlete for this private session.'];
-            }
-
-            $requiredTrainingGroupId = $session->group?->training_group_id;
-            if ($requiredTrainingGroupId !== null) {
-                $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
-
-                if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
-                    return ['not_eligible', 'You are not in the required group category for this session.'];
-                }
-            } elseif ($session->group_id !== null
-                && (string) $athlete->group_id !== (string) $session->group_id
-                && ! BeltRank::eligible($athlete->geup, $session->group?->min_belt)) {
-                return ['not_eligible', 'Your belt level is not eligible for this session.'];
-            }
+        if (! $this->athleteEligibleForSession($athlete, $session)) {
+            return ['not_eligible', $isParent ? 'This child is not eligible for this session.' : 'You are not eligible for this session.'];
         }
 
         if ($attendance?->status === AttendanceStatus::PRESENT) {
-            return ['already_present', 'You are already checked in for this session.'];
+            return ['already_present', $isParent ? 'This child is already checked in for this session.' : 'You are already checked in for this session.'];
         }
 
-        return ['ready', 'Attendance is being saved from this QR.'];
+        return ['ready', $isParent ? 'Attendance is ready to be saved for the selected child.' : 'Attendance is being saved from this QR.'];
+    }
+
+    private function athleteEligibleForSession(Athlete $athlete, TrainingSession $session): bool
+    {
+        $session->loadMissing('group.trainingGroup', 'group.privateAthletes');
+        $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
+
+        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
+            return false;
+        }
+
+        if (($session->group?->class_type ?? null) === 'private') {
+            return $session->group
+                ->privateAthletes
+                ->pluck('athlete_id')
+                ->map(fn ($id) => (string) $id)
+                ->contains((string) $athlete->athlete_id);
+        }
+
+        if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
+            return false;
+        }
+
+        $requiredTrainingGroupId = $session->group?->training_group_id;
+        if ($requiredTrainingGroupId !== null) {
+            $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
+
+            return (string) $athleteTrainingGroupId === (string) $requiredTrainingGroupId;
+        }
+
+        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
+            return BeltRank::eligible($athlete->geup, $session->group?->min_belt);
+        }
+
+        return true;
     }
 
     private function phoneCheckAllowed(Request $request): bool
