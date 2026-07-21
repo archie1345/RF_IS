@@ -291,13 +291,13 @@ function showAllRows() {
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters">Clear filters</Button>
                 </div>
-                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div class="grid items-end gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <label v-for="filter in textFilters" :key="filter.key" class="grid gap-2 text-sm font-semibold">
                         {{ filter.label }}
                         <input
                             v-model="filterValues[filter.key]"
                             type="text"
-                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            class="min-h-12 rounded-2xl border bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-ring/30 focus:outline-none"
                             :placeholder="filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`"
                         />
                     </label>
