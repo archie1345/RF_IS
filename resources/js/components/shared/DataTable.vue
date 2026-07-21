@@ -10,7 +10,7 @@ import type { SelectOption, TableBadgeCell, TableCell, TableColumn, TableFilter,
 const props = withDefaults(
     defineProps<{
         title: string;
-        description: string;
+        description?: string;
         columns: TableColumn[];
         rows: TableRow[];
         emptyText?: string;
@@ -28,10 +28,12 @@ const props = withDefaults(
         rowClickLabel?: string;
     }>(),
     {
-        paginate: true,
+        description: '',
+        searchable: false,
+        paginate: false,
         initialLimit: 10,
         pageSize: 10,
-        showRowsPerPage: true,
+        showRowsPerPage: false,
         rowsPerPageOptions: () => [10, 25, 50],
         filters: () => [],
         filterable: false,
@@ -46,6 +48,7 @@ const emit = defineEmits<{
 
 const slots = useSlots();
 const hasRowActions = Boolean(slots['row-actions']);
+const hasHeaderActions = Boolean(slots.actions);
 const search = ref('');
 const sortKey = ref('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
@@ -249,16 +252,19 @@ function showAllRows() {
 
 <template>
     <Card class="w-full max-w-full overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
-        <CardHeader class="space-y-3 px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <CardTitle class="text-lg sm:text-xl">{{ title }}</CardTitle>
-                    <CardDescription class="text-sm leading-6">{{ description }}</CardDescription>
-                    <p v-if="props.rowClickable" class="mt-1 text-xs font-semibold text-muted-foreground">
+        <CardHeader class="space-y-4 px-5 pt-5 pb-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div class="min-w-0 space-y-1">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <CardTitle class="text-xl font-black sm:text-2xl">{{ title }}</CardTitle>
+                        <slot v-if="hasHeaderActions" name="actions" />
+                    </div>
+                    <CardDescription v-if="description" class="text-sm leading-6">{{ description }}</CardDescription>
+                    <p v-if="props.rowClickable" class="text-xs font-semibold text-muted-foreground">
                         {{ clickableHint }}
                     </p>
                 </div>
-                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-end">
                     <FormSelectField
                         v-if="props.paginate && props.showRowsPerPage"
                         :id="rowsPerPageSelectId"
@@ -267,19 +273,19 @@ function showAllRows() {
                         :options="rowsPerPageOptions"
                         placeholder="Rows per page"
                     />
-                    <div class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                    <div v-if="props.paginate" class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
                         {{ visibleRows.length }} / {{ filteredRows.length }} shown<span v-if="filteredRows.length !== props.rows.length"> · {{ props.rows.length }} total</span>
                     </div>
+                    <div v-if="props.searchable" class="relative w-full sm:w-80 lg:w-96">
+                        <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            v-model="search"
+                            type="text"
+                            class="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 text-sm shadow-sm focus:ring-2 focus:ring-ring/25 focus:outline-none"
+                            :placeholder="props.searchPlaceholder ?? 'Search table...'"
+                        />
+                    </div>
                 </div>
-            </div>
-            <div v-if="props.searchable" class="relative pt-1">
-                <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                    v-model="search"
-                    type="text"
-                    class="h-11 w-full rounded-xl border border-input bg-background pr-3 pl-10 text-sm shadow-sm focus:ring-2 focus:ring-ring/25 focus:outline-none"
-                    :placeholder="props.searchPlaceholder ?? 'Search table...'"
-                />
             </div>
             <div v-if="hasTableFilters" class="rounded-2xl border bg-muted/25 p-3">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -312,31 +318,31 @@ function showAllRows() {
                 </div>
             </div>
         </CardHeader>
-        <CardContent class="px-0 pb-3 sm:px-5 sm:pb-5">
-            <div class="px-4 pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
-            <div class="w-full max-w-full overflow-x-auto px-2 sm:px-0">
-                <table class="w-max min-w-full border-separate border-spacing-y-3">
+        <CardContent class="px-5 pb-5">
+            <div class="pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
+            <div class="w-full max-w-full overflow-x-auto">
+                <table class="w-max min-w-full border-collapse">
                     <thead>
-                        <tr class="text-left text-xs tracking-[0.16em] text-muted-foreground uppercase">
+                        <tr class="border-b border-border/80 text-left text-sm text-foreground">
                             <th
                                 v-for="column in props.columns"
                                 :key="column.key"
-                                class="px-3 py-2 font-semibold sm:px-4"
+                                class="px-3 py-4 font-bold first:pl-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-1 hover:text-foreground"
+                                    class="inline-flex items-center gap-1 hover:text-primary"
                                     @click="setSort(column)"
                                 >
                                     {{ column.label }}
                                     <ArrowDownUp
                                         class="size-3"
-                                        :class="sortKey === column.key ? 'text-primary' : 'opacity-40'"
+                                        :class="sortKey === column.key ? 'text-primary' : 'opacity-0 group-hover:opacity-40'"
                                     />
                                 </button>
                             </th>
-                            <th v-if="hasRowActions" class="px-3 py-2 text-right font-semibold sm:px-4">
+                            <th v-if="hasRowActions" class="px-3 py-4 text-right font-bold">
                                 {{ props.actionLabel ?? 'Action' }}
                             </th>
                         </tr>
@@ -345,7 +351,7 @@ function showAllRows() {
                         <tr
                             v-for="row in visibleRows"
                             :key="row.id"
-                            class="group text-sm text-foreground transition-all hover:-translate-y-0.5"
+                            class="group border-b border-border/70 text-sm text-foreground transition-colors hover:bg-muted/25"
                             :class="props.rowClickable ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none' : ''"
                             :role="props.rowClickable ? 'button' : undefined"
                             :tabindex="props.rowClickable ? 0 : undefined"
@@ -356,11 +362,10 @@ function showAllRows() {
                             <td
                                 v-for="(column, columnIndex) in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="border-y border-border/70 bg-card px-3 py-4 shadow-sm transition-colors first:rounded-l-2xl first:border-l last:rounded-r-2xl last:border-r group-hover:border-primary/30 group-hover:bg-muted/40 sm:px-4"
+                                class="px-3 py-4 align-middle"
                                 :class="[
                                     column.align === 'right' ? 'text-right' : 'text-left',
-                                    columnIndex === 0 ? 'font-semibold text-foreground' : 'text-muted-foreground',
-                                    hasRowActions ? 'last:rounded-r-none last:border-r-0' : '',
+                                    columnIndex === 0 ? 'font-semibold text-foreground' : '',
                                 ]"
                             >
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
@@ -382,11 +387,7 @@ function showAllRows() {
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
-                            <td
-                                v-if="hasRowActions"
-                                class="rounded-r-2xl border-y border-r border-border/70 bg-card px-3 py-4 text-right shadow-sm transition-colors group-hover:border-primary/30 group-hover:bg-muted/40 sm:px-4"
-                                @click.stop
-                            >
+                            <td v-if="hasRowActions" class="px-3 py-4 text-right align-middle" @click.stop>
                                 <slot name="row-actions" :row="row" />
                             </td>
                         </tr>
@@ -403,7 +404,7 @@ function showAllRows() {
                     </tbody>
                 </table>
             </div>
-            <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 px-4 pt-4 sm:px-0">
+            <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 pt-4">
                 <Button type="button" variant="outline" size="sm" @click="showMoreRows">Show {{ activePageSize }} more</Button>
                 <Button type="button" variant="ghost" size="sm" @click="showAllRows">Show all {{ filteredRows.length }}</Button>
             </div>
