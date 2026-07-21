@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
+use App\Services\ParentChildContextService;
 use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\BeltRank;
 use App\Support\Domain\SessionStatus;
@@ -14,13 +15,23 @@ use Illuminate\Validation\ValidationException;
 
 class RecordQrAttendance
 {
-    public function handle(User $user, TrainingSession $session): array
+    public function __construct(private readonly ParentChildContextService $childContext) {}
+
+    public function handle(User $user, TrainingSession $session, ?Athlete $selectedAthlete = null): array
     {
-        $athlete = $user->athleteProfile;
+        $athlete = $user->isParent() ? $selectedAthlete : $user->athleteProfile;
+
+        if ($user->isParent()) {
+            if (! $athlete || ! $this->childContext->belongsToParent($user, $athlete)) {
+                throw ValidationException::withMessages([
+                    'athlete_id' => 'Select a child linked to this parent account.',
+                ]);
+            }
+        }
 
         if (! $athlete) {
             throw ValidationException::withMessages([
-                'attendance' => 'Only athlete accounts can record QR attendance.',
+                'attendance' => 'Only athlete accounts or linked parent accounts can record QR attendance.',
             ]);
         }
 
@@ -95,7 +106,7 @@ class RecordQrAttendance
         $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
 
         if ((string) $athlete->branch_id !== (string) $session->branch_id) {
-            throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session branch.']);
+            throw ValidationException::withMessages(['attendance' => 'This athlete is not eligible for this session branch.']);
         }
 
         if (($session->group?->class_type ?? null) === 'private') {
@@ -105,14 +116,14 @@ class RecordQrAttendance
                 ->map(fn ($id) => (string) $id);
 
             if (! $allowedAthleteIds->contains((string) $athlete->athlete_id)) {
-                throw ValidationException::withMessages(['attendance' => 'You are not assigned to this private session.']);
+                throw ValidationException::withMessages(['attendance' => 'This athlete is not assigned to this private session.']);
             }
 
             return;
         }
 
         if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
-            throw ValidationException::withMessages(['attendance' => 'You are not the assigned athlete for this private session.']);
+            throw ValidationException::withMessages(['attendance' => 'This athlete is not the assigned athlete for this private session.']);
         }
 
         $requiredTrainingGroupId = $session->group?->training_group_id;
@@ -120,7 +131,7 @@ class RecordQrAttendance
             $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
 
             if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
-                throw ValidationException::withMessages(['attendance' => 'You are not in the required group category for this session.']);
+                throw ValidationException::withMessages(['attendance' => 'This athlete is not in the required group category for this session.']);
             }
 
             return;
@@ -130,7 +141,7 @@ class RecordQrAttendance
             $minimumBelt = $session->group?->min_belt;
 
             if (blank($minimumBelt) || ! BeltRank::eligible($athlete->geup, $minimumBelt)) {
-                throw ValidationException::withMessages(['attendance' => 'You are not eligible for this session group.']);
+                throw ValidationException::withMessages(['attendance' => 'This athlete is not eligible for this session group.']);
             }
         }
     }
