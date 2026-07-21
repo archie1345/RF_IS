@@ -44,13 +44,6 @@ const locationTableColumns: TableColumn[] = [
 ];
 
 const locationTableFilters: TableFilter[] = [
-    {
-        key: 'location',
-        label: 'Lokasi',
-        type: 'text',
-        placeholder: 'Cari lokasi/alamat...',
-        accessor: (row) => [row.name, row.location_label, row.address, row.area].filter(Boolean).join(' '),
-    },
     { key: 'area', label: 'Kota / Provinsi', type: 'select', columnKey: 'area', placeholder: 'Semua area' },
     {
         key: 'status',

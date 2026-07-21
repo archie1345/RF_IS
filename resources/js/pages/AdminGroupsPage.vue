@@ -49,13 +49,6 @@ const groupTableColumns: TableColumn[] = [
 
 const groupTableFilters: TableFilter[] = [
     {
-        key: 'group',
-        label: 'Grup',
-        type: 'text',
-        placeholder: 'Cari nama/deskripsi grup...',
-        accessor: (row) => [row.name, row.description].filter(Boolean).join(' '),
-    },
-    {
         key: 'status',
         label: 'Status',
         type: 'select',

@@ -72,15 +72,7 @@ const exportUrl = computed(() => {
 const usesClassFilter = computed(() => props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)));
 
 const reportFilters = computed<TableFilter[]>(() => {
-    const filters: TableFilter[] = [
-        {
-            key: 'member',
-            label: props.mode === 'instructor-attendance' ? 'Coach' : 'Member',
-            type: 'text',
-            placeholder: 'Nama atau kode member...',
-            accessor: (row) => [row.Atlet, row.Coach, row.Member, row.Anggota, row.Nama, row.No].filter(Boolean).join(' '),
-        },
-    ];
+    const filters: TableFilter[] = [];
 
     if (usesClassFilter.value) {
         filters.push({

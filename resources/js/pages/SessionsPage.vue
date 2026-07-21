@@ -50,11 +50,9 @@ const columns: TableColumn[] = [
 ];
 
 const sessionTableFilters: TableFilter[] = [
-    { key: 'session', label: 'Session', type: 'text', columnKey: 'session', placeholder: 'Filter by session' },
     { key: 'branch', label: 'Branch', type: 'select', columnKey: 'branch', placeholder: 'All branches', searchPlaceholder: 'Search branch...' },
     { key: 'group', label: 'Group', type: 'select', columnKey: 'group', placeholder: 'All groups', searchPlaceholder: 'Search group...' },
     { key: 'coach', label: 'Coach', type: 'select', columnKey: 'coach', placeholder: 'All coaches', searchPlaceholder: 'Search coach...' },
-    { key: 'schedule', label: 'Schedule', type: 'text', columnKey: 'schedule', placeholder: 'Filter by date or time' },
     { key: 'status', label: 'Status', type: 'select', columnKey: 'status', placeholder: 'All statuses', searchPlaceholder: 'Search status...' },
 ];
 
