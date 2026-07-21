@@ -34,7 +34,7 @@ class SessionController extends Controller
         private readonly SessionRowPresenter $sessionRows,
         private readonly CreateSession $createSession,
         private readonly UpdateSession $updateSession,
-        private readonly InitializeSessionAttendance $initializeAttendance,
+        private readonly InitializeSessionAttendance,
     ) {}
 
     public function index(Request $request): Response
@@ -47,9 +47,10 @@ class SessionController extends Controller
         $today = $now->toDateString();
         $currentTime = $now->format('H:i:s');
         $visibility = $request->query('visibility', 'upcoming');
-        $visibility = in_array($visibility, ['upcoming', 'past', 'all'], true) ? $visibility : 'upcoming';
+        $visibility = $visibility === 'past' ? 'archived' : $visibility;
+        $visibility = in_array($visibility, ['upcoming', 'archived', 'all'], true) ? $visibility : 'upcoming';
 
-        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
+        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name,schedule_mode,single_session_date'];
         if ($hasCoachPivot) {
             $with[] = 'assignedCoaches.user:id,name';
         }
@@ -62,9 +63,9 @@ class SessionController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        $pastCountQuery = TrainingSession::query();
-        $this->applySessionVisibility($pastCountQuery, 'past', $today, $currentTime);
-        $pastCount = $pastCountQuery->count();
+        $archivedCountQuery = TrainingSession::query();
+        $this->applySessionVisibility($archivedCountQuery, 'archived', $today, $currentTime);
+        $archivedCount = $archivedCountQuery->count();
 
         $upcomingCountQuery = TrainingSession::query();
         $this->applySessionVisibility($upcomingCountQuery, 'upcoming', $today, $currentTime);
@@ -72,15 +73,15 @@ class SessionController extends Controller
 
         return Inertia::render('SessionsPage', [
             'metrics' => [
-                ['label' => 'Scheduled sessions', 'value' => (string) $sessions->count(), 'detail' => $visibility === 'all' ? 'All visible sessions' : ($visibility === 'past' ? 'Past sessions only' : 'Current and future sessions'), 'tone' => 'info'],
+                ['label' => 'Scheduled sessions', 'value' => (string) $sessions->count(), 'detail' => $visibility === 'all' ? 'All visible sessions' : ($visibility === 'archived' ? 'Archived sessions only' : 'Current and future sessions'), 'tone' => 'info'],
                 ['label' => 'Confirmed coverage', 'value' => (string) $sessions->where('status', 'CONFIRMED')->count(), 'detail' => 'Sessions fully staffed and approved', 'tone' => 'success'],
                 ['label' => 'Need support', 'value' => (string) $sessions->where('status', 'NEEDS_ASSISTANT')->count(), 'detail' => 'Still waiting for coach support', 'tone' => 'warning'],
             ],
             'filters' => [
                 'visibility' => $visibility,
-                'past_count' => $pastCount,
+                'archived_count' => $archivedCount,
                 'upcoming_count' => $upcomingCount,
-                'all_count' => $pastCount + $upcomingCount,
+                'all_count' => $archivedCount + $upcomingCount,
             ],
             'rows' => $sessions->map(fn (TrainingSession $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
@@ -301,7 +302,7 @@ class SessionController extends Controller
             });
         }
 
-        if ($visibility === 'past') {
+        if ($visibility === 'archived') {
             return $query->where(function ($query) use ($today, $currentTime): void {
                 $query->whereDate('session_date', '<', $today)
                     ->orWhere(function ($sameDay) use ($today, $currentTime): void {
