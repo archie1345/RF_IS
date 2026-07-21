@@ -43,6 +43,12 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return $this->renderAttendanceReport(
             'Rekap Presensi Atlet',
             'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama',
+            [
+                ['label' => 'Total Atlet', 'value' => (string) $athletes->count(), 'tone' => 'info'],
+                ['label' => 'Total Catatan', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
+                ['label' => 'Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
+                ['label' => 'Alpha', 'value' => (string) $attendances->where('status', 'ABSENT')->count(), 'tone' => 'warning'],
+            ],
             ['No', 'Atlet', 'Kelas', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
             'Belum ada data presensi atlet.',
             'attendance',
