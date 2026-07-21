@@ -28,24 +28,26 @@ class PaymentVisibilityService
         }
 
         if ($user->isParent()) {
-            $childIds = $this->childContext->visibleChildAthleteIds($request);
-            $childUserIds = $this->childContext->visibleChildUserIds($request);
+            $childIds = $this->childContext->visibleChildAthleteIds($request, false);
+            $childUserIds = $this->childContext->visibleChildUserIds($request, false);
 
-            return $query->where(function ($inner) use ($user, $childIds, $childUserIds): void {
-                $inner->where('billable_user_id', $user->id)
-                    ->orWhere('payee_user_id', $user->id)
-                    ->when(count($childIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('athlete_id', $childIds))
-                    ->when(count($childUserIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('billable_user_id', $childUserIds));
-            });
+            return $this->tuitionOnly($query)
+                ->where(function ($inner) use ($user, $childIds, $childUserIds): void {
+                    $inner->where('billable_user_id', $user->id)
+                        ->orWhere('payee_user_id', $user->id)
+                        ->when(count($childIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('athlete_id', $childIds))
+                        ->when(count($childUserIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('billable_user_id', $childUserIds));
+                });
         }
 
         if ($user->isAthlete()) {
             $athleteId = $user->athleteProfile?->athlete_id;
 
-            return $query->where(function ($inner) use ($user, $athleteId): void {
-                $inner->where('billable_user_id', $user->id)
-                    ->when($athleteId, fn ($athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
-            });
+            return $this->tuitionOnly($query)
+                ->where(function ($inner) use ($user, $athleteId): void {
+                    $inner->where('billable_user_id', $user->id)
+                        ->when($athleteId, fn ($athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
+                });
         }
 
         if ($user->isCoach()) {
@@ -55,7 +57,7 @@ class PaymentVisibilityService
             });
         }
 
-        return $query->where('billable_user_id', $user->id);
+        return $this->tuitionOnly($query)->where('billable_user_id', $user->id);
     }
 
     public function userCanSubmitProof(?User $user, Payment $payment): bool
@@ -65,6 +67,10 @@ class PaymentVisibilityService
         }
 
         if ($user->isAdmin() || $user->isCoach()) {
+            return false;
+        }
+
+        if (! $this->isTuitionPayment($payment)) {
             return false;
         }
 
@@ -97,5 +103,18 @@ class PaymentVisibilityService
         }
 
         return false;
+    }
+
+    private function tuitionOnly(Builder $query): Builder
+    {
+        return $query
+            ->where('bill_kind', 'INVOICE')
+            ->where('payment_type', 'TUITION');
+    }
+
+    private function isTuitionPayment(Payment $payment): bool
+    {
+        return strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'INVOICE'
+            && strtoupper((string) $payment->payment_type) === 'TUITION';
     }
 }
