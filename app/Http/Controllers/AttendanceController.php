@@ -140,7 +140,7 @@ class AttendanceController extends Controller
             ['status' => $attendance->status],
         );
 
-        return redirect()->route('attendance.index');
+        return back();
     }
 
     public function bulkUpdate(BulkUpdateAttendanceRequest $request): RedirectResponse
