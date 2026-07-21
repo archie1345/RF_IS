@@ -43,6 +43,8 @@ export type SelectOption = {
 
 export type TableFilterType = 'text' | 'select';
 
+export type TableFilterValue = string | string[];
+
 export type TableFilter = {
     key: string;
     label: string;
@@ -51,8 +53,9 @@ export type TableFilter = {
     placeholder?: string;
     searchPlaceholder?: string;
     options?: SelectOption[];
+    multiple?: boolean;
     accessor?: (row: TableRow) => TableCell | string | number | boolean | null | undefined;
-    match?: (row: TableRow, value: string) => boolean;
+    match?: (row: TableRow, value: TableFilterValue) => boolean;
 };
 
 export type RoleDashboardContent = {
