@@ -32,7 +32,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'metrics' => $this->dashboardMetrics($request, $role),
-            'activityPreviewRows' => $this->activityPreviewRows(),
+            'activityPreviewRows' => $role === 'admin' ? $this->activityPreviewRows() : [],
             'announcements' => $this->announcements($request, $role),
             'upcomingEvents' => $this->upcomingEvents(),
             'attendanceRows' => $this->attendanceRows($request, $role),

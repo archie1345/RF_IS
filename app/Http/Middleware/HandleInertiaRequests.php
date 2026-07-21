@@ -49,7 +49,10 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ? [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'role' => $user->role,
+                    // Keep every client-side role decision aligned with the resolver used by
+                    // policies and controllers. The legacy column is only a fallback now that
+                    // accounts can have role assignments.
+                    'role' => $user->primaryRole(),
                     'roles' => $user->assignedRoles(),
                     'avatar' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
                 ] : null,

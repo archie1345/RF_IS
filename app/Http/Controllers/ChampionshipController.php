@@ -69,15 +69,26 @@ class ChampionshipController extends Controller
     {
         $user = $request->user();
         $event->load(['registrations.athlete.user:id,name,email', 'coachRegistrations.coach.user:id,name,email']);
+        $registrations = $event->registrations;
+
+        if ($user?->isAthlete() && ! $user->isAdmin() && ! $user->isCoach()) {
+            $registrations = $registrations->where('athlete_id', $user->athleteProfile?->athlete_id);
+        } elseif ($user?->isParent() && ! $user->isAdmin() && ! $user->isCoach()) {
+            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id);
+            $registrations = $registrations->filter(fn (EventRegistration $registration) => $childIds->contains((string) $registration->athlete_id));
+        }
+
+        $canManageEvent = (bool) ($user?->isAdmin() || $user?->isCoach());
+
         return Inertia::render('ChampionshipDetailPage', [
             'isAdmin' => $user?->isAdmin() ?? false,
             'isAthlete' => $user?->isAthlete() ?? false,
-            'canManageCoaches' => $user?->isAdmin() || $user?->isCoach(),
-            'canRecordResult' => $user?->isAdmin() || $user?->isCoach(),
+            'canManageCoaches' => $canManageEvent,
+            'canRecordResult' => $canManageEvent,
             'event' => ['id' => $event->event_id, 'name' => $event->e_name, 'date' => Carbon::parse($event->e_date)->format('d M Y'), 'location' => $event->location ?? '-', 'gmaps_url' => $event->gmaps_url, 'entry_fee' => (float) $event->entry_fee, 'status' => $event->status],
-            'athleteRows' => $event->registrations->map(fn (EventRegistration $registration) => ['id' => 'ATHREG-'.$registration->evrid, 'registration_id' => $registration->evrid, 'athlete_user_id' => $registration->athlete?->user?->id, 'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete', 'category' => $registration->category, 'classification' => $registration->classification ?? '-', 'class_name' => $registration->class_name ?? '-', 'division' => $registration->division ?? '-', 'team_contingent' => $registration->team_contingent ?? 'Rhino Fighter', 'status' => $registration->status])->values(),
-            'coachRows' => $event->coachRegistrations->map(fn (EventCoachRegistration $registration) => ['id' => 'COAREG-'.$registration->id, 'coach' => $registration->coach?->user?->name ?? 'Unknown coach', 'role' => $registration->role ?? '-'])->values(),
-            'coachOptions' => Coach::query()->with('user:id,name')->where('status', 'active')->get()->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])->values(),
+            'athleteRows' => $registrations->map(fn (EventRegistration $registration) => ['id' => 'ATHREG-'.$registration->evrid, 'registration_id' => $registration->evrid, 'athlete_user_id' => $registration->athlete?->user?->id, 'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete', 'category' => $registration->category, 'classification' => $registration->classification ?? '-', 'class_name' => $registration->class_name ?? '-', 'division' => $registration->division ?? '-', 'team_contingent' => $registration->team_contingent ?? 'Rhino Fighter', 'status' => $registration->status])->values(),
+            'coachRows' => ($canManageEvent ? $event->coachRegistrations : collect())->map(fn (EventCoachRegistration $registration) => ['id' => 'COAREG-'.$registration->id, 'coach' => $registration->coach?->user?->name ?? 'Unknown coach', 'role' => $registration->role ?? '-'])->values(),
+            'coachOptions' => ($canManageEvent ? Coach::query()->with('user:id,name')->where('status', 'active')->get() : collect())->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])->values(),
         ]);
     }
 
@@ -86,6 +97,7 @@ class ChampionshipController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate(['name' => ['required', 'string', 'max:100'], 'date' => ['required', 'date'], 'location' => ['required', 'string', 'max:255'], 'gmaps_url' => ['nullable', 'url', 'max:255'], 'entry_fee' => ['required', 'numeric', 'min:0'], 'max_slots' => ['nullable', 'integer', 'min:1'], 'level' => ['nullable', Rule::in(['LOCAL', 'REGIONAL', 'NATIONAL', 'INTERNATIONAL'])]]);
         Event::create(['e_name' => $validated['name'], 'e_date' => $validated['date'], 'location' => $validated['location'], 'gmaps_url' => $validated['gmaps_url'] ?? null, 'level' => $validated['level'] ?? 'LOCAL', 'entry_fee' => $validated['entry_fee'], 'max_slots' => $validated['max_slots'] ?? 24, 'status' => 'SCHEDULED']);
+
         return redirect()->route('championships.index');
     }
 
@@ -95,15 +107,22 @@ class ChampionshipController extends Controller
         $validated = $request->validate($this->registrationRules());
         $event = Event::query()->withCount(['registrations' => fn ($query) => $query->whereNull('deleted_at')])->findOrFail($validated['event_id']);
         $user = $request->user();
-        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== (string) $validated['athlete_id']) return back()->withErrors(['athlete_id' => 'Athlete can only register own account.']);
+        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== (string) $validated['athlete_id']) {
+            return back()->withErrors(['athlete_id' => 'Athlete can only register own account.']);
+        }
         if ($user?->isParent()) {
             $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all();
-            if (! in_array((string) $validated['athlete_id'], $childIds, true)) return back()->withErrors(['athlete_id' => 'Parent can only register linked children.']);
+            if (! in_array((string) $validated['athlete_id'], $childIds, true)) {
+                return back()->withErrors(['athlete_id' => 'Parent can only register linked children.']);
+            }
         }
-        if ($event->registrations_count >= $event->max_slots) return back()->withErrors(['event_id' => 'This championship has reached its maximum slot capacity.']);
+        if ($event->registrations_count >= $event->max_slots) {
+            return back()->withErrors(['event_id' => 'This championship has reached its maximum slot capacity.']);
+        }
         $registration = EventRegistration::create(['athlete_id' => $validated['athlete_id'], 'event_id' => $validated['event_id'], 'category' => $validated['category'], 'classification' => $validated['classification'] ?? null, 'class_name' => $validated['class_name'] ?? null, 'division' => $validated['division'] ?? null, 'team_contingent' => $validated['team_contingent'] ?: 'Rhino Fighter', 'status' => 'PENDING']);
         Payment::query()->firstOrCreate(['reference_id' => $registration->evrid], ['athlete_id' => $registration->athlete_id, 'billable_user_id' => $registration->athlete?->id, 'bill_kind' => 'INVOICE', 'payment_type' => 'CHAMPIONSHIP', 'amount' => (float) $event->entry_fee, 'total_amount' => (float) $event->entry_fee, 'paid_amount' => 0, 'remaining_amount' => (float) $event->entry_fee, 'payment_date' => now()->toDateString(), 'status' => 'PENDING', 'notes' => 'Event registration #'.$registration->evrid]);
         ActivityLogger::log($request, 'event.registration.created', 'event', 'Created event registration', $registration, ['event_id' => $registration->event_id, 'athlete_id' => $registration->athlete_id]);
+
         return redirect()->route('championships.index');
     }
 
@@ -113,6 +132,7 @@ class ChampionshipController extends Controller
         $validated = $request->validate($this->registrationRules(false));
         $validated['team_contingent'] = $validated['team_contingent'] ?: 'Rhino Fighter';
         $registration->update($validated);
+
         return back();
     }
 
@@ -121,12 +141,21 @@ class ChampionshipController extends Controller
         $validated = $request->validate(['paid_amount' => ['required', 'numeric', 'min:0']]);
         $user = $request->user();
         $athleteId = (string) $payment->athlete_id;
-        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== $athleteId) abort(403);
-        if ($user?->isParent()) { $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all(); if (! in_array($athleteId, $childIds, true)) abort(403); }
+        abort_unless($user?->isAdmin() || $user?->isParent() || $user?->isAthlete(), 403);
+        if ($user?->isAthlete() && (string) $user->athleteProfile?->athlete_id !== $athleteId) {
+            abort(403);
+        }
+        if ($user?->isParent()) {
+            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all();
+            if (! in_array($athleteId, $childIds, true)) {
+                abort(403);
+            }
+        }
         $total = (float) ($payment->total_amount ?? $payment->amount ?? 0);
         $newPaid = min((float) $payment->paid_amount + (float) $validated['paid_amount'], $total);
         $remaining = max($total - $newPaid, 0);
         $payment->update(['paid_amount' => $newPaid, 'remaining_amount' => $remaining, 'status' => $remaining <= 0 ? 'COMPLETED' : 'PENDING']);
+
         return redirect()->route('championships.index');
     }
 
@@ -135,8 +164,11 @@ class ChampionshipController extends Controller
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
         $validated = $request->validate(['coach_id' => ['nullable', 'exists:coaches,coach_id'], 'role' => ['nullable', 'string', 'max:120']]);
         $coachId = $request->user()?->isAdmin() ? (string) ($validated['coach_id'] ?? '') : (string) ($request->user()?->coachProfile?->coach_id ?? '');
-        if ($coachId === '') return back()->withErrors(['coach_id' => 'Coach profile not found.']);
+        if ($coachId === '') {
+            return back()->withErrors(['coach_id' => 'Coach profile not found.']);
+        }
         EventCoachRegistration::query()->firstOrCreate(['event_id' => $event->event_id, 'coach_id' => $coachId], ['role' => $validated['role'] ?? null]);
+
         return redirect()->route('championships.show', $event);
     }
 
@@ -147,7 +179,10 @@ class ChampionshipController extends Controller
         $registration->update(['result_medal' => $validated['medal'], 'result_class_name' => $validated['class_name'] ?? null, 'result_division' => $validated['division'] ?? null, 'result_category' => $validated['category'] ?? null, 'status' => 'CONFIRMED']);
         $registration->loadMissing(['athlete.user', 'event']);
         $user = $registration->athlete?->user;
-        if ($user) UserAchievement::query()->updateOrCreate(['event_registration_id' => $registration->evrid], ['user_id' => $user->id, 'event_id' => $registration->event_id, 'championship_name' => $registration->event?->e_name ?? 'Championship', 'medal' => $validated['medal'], 'location' => $registration->event?->location, 'event_date' => $registration->event?->e_date, 'class_name' => $validated['class_name'] ?? null, 'division' => $validated['division'] ?? null, 'category' => $validated['category'] ?? null, 'is_auto_recorded' => true]);
+        if ($user) {
+            UserAchievement::query()->updateOrCreate(['event_registration_id' => $registration->evrid], ['user_id' => $user->id, 'event_id' => $registration->event_id, 'championship_name' => $registration->event?->e_name ?? 'Championship', 'medal' => $validated['medal'], 'location' => $registration->event?->location, 'event_date' => $registration->event?->e_date, 'class_name' => $validated['class_name'] ?? null, 'division' => $validated['division'] ?? null, 'category' => $validated['category'] ?? null, 'is_auto_recorded' => true]);
+        }
+
         return back();
     }
 
@@ -158,17 +193,29 @@ class ChampionshipController extends Controller
 
     private function eventBadge(Event $event): array
     {
-        if ($event->status === 'SCHEDULED' && $event->registrations_count >= max($event->max_slots - 3, 1)) return $this->badge('Closing soon', 'warning');
-        return match ($event->status) { 'SCHEDULED' => $this->badge('Open', 'success'), 'ONGOING' => $this->badge('Ongoing', 'info'), 'COMPLETED' => $this->badge('Completed', 'neutral'), default => $this->badge('Canceled', 'danger') };
+        if ($event->status === 'SCHEDULED' && $event->registrations_count >= max($event->max_slots - 3, 1)) {
+            return $this->badge('Closing soon', 'warning');
+        }
+
+        return match ($event->status) {
+            'SCHEDULED' => $this->badge('Open', 'success'), 'ONGOING' => $this->badge('Ongoing', 'info'), 'COMPLETED' => $this->badge('Completed', 'neutral'), default => $this->badge('Canceled', 'danger')
+        };
     }
 
     private function eventPaymentBadge(Event $event): array
     {
         $expected = (float) ($event->entry_fee * $event->registrations_count);
         $paid = (float) Payment::query()->where('payment_type', 'CHAMPIONSHIP')->whereIn('reference_id', $event->registrations()->pluck('evrid'))->sum('paid_amount');
-        if ($expected <= 0) return $this->badge('No bill', 'neutral');
-        if ($paid >= $expected) return $this->badge('Full', 'success');
-        if ($paid > 0) return $this->badge('Partial', 'warning');
+        if ($expected <= 0) {
+            return $this->badge('No bill', 'neutral');
+        }
+        if ($paid >= $expected) {
+            return $this->badge('Full', 'success');
+        }
+        if ($paid > 0) {
+            return $this->badge('Partial', 'warning');
+        }
+
         return $this->badge('Unpaid', 'danger');
     }
 }
