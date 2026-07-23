@@ -30,7 +30,7 @@ test('admin can post a targeted announcement and still see it in the announcemen
             ->component('AnnouncementsPage')
             ->has('rows', 1)
             ->where('rows.0.title', 'Training schedule update')
-            ->where('rows.0.target', 'Athletes'));
+            ->where('rows.0.target', 'Atlet'));
 });
 
 test('admin issues a bill, user uploads proof, and admin approves it', function () {
