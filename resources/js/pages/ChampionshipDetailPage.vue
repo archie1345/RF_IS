@@ -113,6 +113,12 @@ function openRegistrationEdit(row: TableRow) {
     showRegistrationEditForm.value = true;
 }
 
+function athleteProfileUrl(row: TableRow): string | null {
+    const userId = routeId(row.athlete_user_id);
+
+    return userId === null ? null : userShow.url(userId);
+}
+
 function saveRegistrationEdit() {
     if (!activeRegistrationId.value) return;
     editForm.put(championshipRegistrationUpdate.url(activeRegistrationId.value), {
@@ -195,8 +201,8 @@ function saveResult() {
                             @click="openRegistrationEdit(row)"
                             >Edit entry</Button
                         >
-                        <Button v-if="row.athlete_user_id" as-child type="button" size="sm" variant="outline"
-                            ><Link :href="userShow.url(String(row.athlete_user_id))">Edit athlete</Link></Button
+                        <Button v-if="athleteProfileUrl(row)" as-child type="button" size="sm" variant="outline"
+                            ><Link :href="athleteProfileUrl(row) ?? '#'">Edit athlete</Link></Button
                         >
                         <Button
                             v-if="props.canRecordResult"
