@@ -116,11 +116,10 @@ class ReviewPaymentProof
     private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes, string $previousPaymentStatus, string $previousProofStatus, float $newRemaining): string
     {
         return collect([
-            'Proof approved.',
+            filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved.',
             'Previous payment status: '.$previousPaymentStatus.'.',
             'Previous proof status: '.$previousProofStatus.'.',
             'New payment state: '.($newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING).'.',
-            filled($adminNotes) ? 'Admin note: '.$adminNotes : null,
             filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
         ])->filter()->implode("\n");
     }
