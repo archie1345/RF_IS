@@ -17,7 +17,6 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 import type { PaymentHistoryEntry } from './PaymentsPage.types';
 import { dashboard } from '@/routes';
-import { exportMethod as dataTransferExport } from '@/routes/admin/data-transfer';
 import {
     destroy as paymentDestroy,
     index as paymentsIndex,
@@ -219,6 +218,7 @@ const reviewForm = useForm({
     decision: 'APPROVED',
     approved_amount: '',
     notes: '',
+    proof_review: '',
 });
 
 const manualPaymentForm = useForm({
@@ -315,7 +315,7 @@ function exportInvoice(paymentId: unknown) {
 }
 
 function exportPaymentCsv() {
-    window.location.href = dataTransferExport.url({ query: { entity: 'payments' } });
+    window.location.href = '/payments/export';
 }
 
 function openCreate() {
@@ -400,6 +400,7 @@ function openReviewModal(row: TableRow) {
     reviewForm.decision = 'APPROVED';
     reviewForm.approved_amount = String(Math.max(remainingAmount(row), 0));
     reviewForm.notes = '';
+    reviewForm.proof_review = '';
     reviewForm.clearErrors();
     showReviewForm.value = true;
 }
