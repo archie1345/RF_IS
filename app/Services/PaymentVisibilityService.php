@@ -119,13 +119,15 @@ class PaymentVisibilityService
 
     private function currentRequestFor(User $user): ?Request
     {
-        if (app()->runningInConsole() || ! app()->bound('request')) {
+        if (! app()->bound('request')) {
             return null;
         }
 
         $request = request();
 
-        return (int) $request->user()?->id === (int) $user->id ? $request : null;
+        return $request->hasSession() && (int) $request->user()?->id === (int) $user->id
+            ? $request
+            : null;
     }
 
     private function tuitionOnly(Builder $query): Builder
