@@ -12,6 +12,7 @@ class ApplicationDataSeeder extends Seeder
             FreshApplicationSeeder::class,
             AllRoleDemoSeeder::class,
             FinanceLedgerDemoSeeder::class,
+            MemberNumberSeeder::class,
         ]);
     }
 }
