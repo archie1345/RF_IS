@@ -39,6 +39,7 @@ const props = defineProps<{
         branch: string;
         group: string;
         coach: string;
+        is_private: boolean;
         athlete_attendance_summary: string;
         coach_attendance_summary: string;
         attendance_qr: {
@@ -206,6 +207,8 @@ function confirmBulkUpdate() {
 }
 
 function addCoach() {
+    if (!props.session.is_private) return;
+
     coachForm.post(sessionCoachAttendanceStore.url(props.session.id), {
         preserveScroll: true,
         onSuccess: () => coachForm.reset(),
@@ -298,14 +301,18 @@ function submit() {
 
             <PageSection
                 title="Coach attendance table"
-                description="Add or update every coach assigned to this session. Use this area when the coach or session creator needs to modify who teaches."
+                :description="props.session.is_private ? 'Private group sessions can add a private coach from this area.' : 'Regular group sessions use the assigned class/session coach. Extra coach selection is only available for private groups.'"
             >
-                <form class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]" @submit.prevent="addCoach">
+                <form
+                    v-if="props.session.is_private"
+                    class="mb-4 grid gap-2 md:grid-cols-[1fr_auto]"
+                    @submit.prevent="addCoach"
+                >
                     <div class="grid gap-2">
                         <FormSelectField
                             id="coach-picker"
                             v-model="coachForm.coach_id"
-                            label="Add coach"
+                            label="Add private coach"
                             :options="props.coachOptions"
                             placeholder="Select coach"
                         />
@@ -316,13 +323,16 @@ function submit() {
                         <Button type="button" variant="outline" @click="resetCoachForm">Cancel</Button>
                     </div>
                 </form>
+                <p v-else class="mb-4 rounded-xl border border-dashed bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                    Coach selection is hidden because this session belongs to a regular group. Change the class to private if it needs a dedicated private coach.
+                </p>
 
                 <DataTable
                     title="Coach teaching status"
                     description="Use Teach / Not teach to control which coaches are counted for this session. Delete removes mistaken coach entries."
                     :columns="coachColumns"
                     :rows="props.coachRows"
-                    empty-text="No coach attendance rows yet. Add a coach above if another coach helped with this session."
+                    empty-text="No coach attendance rows yet."
                     searchable
                     search-placeholder="Search coach..."
                     action-label="Actions"
