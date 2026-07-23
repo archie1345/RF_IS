@@ -8,6 +8,9 @@ class ApplicationDataSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(FreshApplicationSeeder::class);
+        $this->call([
+            FreshApplicationSeeder::class,
+            AllRoleDemoSeeder::class,
+        ]);
     }
 }
