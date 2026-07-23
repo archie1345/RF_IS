@@ -1,4 +1,3 @@
-
 export type AttendanceQrFlash = {
     token?: string;
     scan_url?: string;
