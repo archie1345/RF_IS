@@ -189,6 +189,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
 
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('coach-sessions/{session}/attend', 'attendAsCoach')->name('coach-attend');
         Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
         Route::post('manual', 'store')->name('store');
         Route::post('bulk-update', 'bulkUpdate')->name('bulk-update');
