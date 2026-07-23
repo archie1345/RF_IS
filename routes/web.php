@@ -198,6 +198,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('/', [PaymentController::class, 'store'])->name('store');
         Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
         Route::delete('{payment}', [PaymentController::class, 'destroy'])->name('destroy');
+        Route::post('{payment}/transactions', [PaymentController::class, 'recordPayment'])->name('transactions.store');
         Route::put('{payment}/status', [PaymentController::class, 'updateStatus'])->name('status.update');
         Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])->name('proof.submit');
         Route::put('{payment}/proof-review', [PaymentController::class, 'reviewProof'])->name('proof.review');
