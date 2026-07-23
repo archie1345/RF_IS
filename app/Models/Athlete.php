@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\MemberNumberGenerator;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,8 @@ class Athlete extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'member_number',
+        'joined_at',
         'height_cm',
         'weight_kg',
         'nik_hash',
@@ -46,9 +49,21 @@ class Athlete extends Model
 
     protected $dates = ['deleted_at'];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Athlete $athlete): void {
+            $athlete->joined_at ??= today();
+
+            if (blank($athlete->member_number)) {
+                $athlete->member_number = app(MemberNumberGenerator::class)->generate($athlete->joined_at);
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
+            'joined_at' => 'date',
             'nik_ciphertext' => 'encrypted',
             'bpjs_ciphertext' => 'encrypted',
         ];
