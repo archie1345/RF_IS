@@ -11,8 +11,13 @@ use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+
+afterEach(function (): void {
+    Carbon::setTestNow();
+});
 
 function makeAthleteWithProfile(string $name = 'Athlete User'): array
 {
@@ -34,6 +39,8 @@ function makeAthleteWithProfile(string $name = 'Athlete User'): array
 }
 
 test('athlete can mark their own open attendance record', function () {
+    Carbon::setTestNow('2026-07-23 12:00:00');
+
     [$athleteUser, $athlete, $branch, $group] = makeAthleteWithProfile();
     $coachUser = User::factory()->create(['role' => 'coach']);
     $coach = Coach::create(['id' => $coachUser->id, 'status' => 'active']);
