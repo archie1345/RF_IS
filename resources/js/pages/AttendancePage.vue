@@ -388,20 +388,6 @@ onMounted(() => {
                     title="Session attendance sheet"
                     description="Pick a session, open the dedicated attendance sheet page, and update athlete statuses there."
                 >
-                    <form
-                        v-if="isCoach"
-                        class="mt-6 grid gap-3 border-t pt-5"
-                        @submit.prevent="openSessionFromCoachInput"
-                    >
-                        <FormInputField
-                            id="coach-session-name"
-                            v-model="coachSessionName"
-                            label="Coach session panel"
-                            placeholder="Type your session name"
-                            :error="coachSessionError"
-                        />
-                        <Button type="submit" variant="outline">Open session attendance</Button>
-                    </form>
 
                     <DataTable
                         title="Session check-ins"
