@@ -62,6 +62,7 @@ export type ProfileAchievement = {
     division?: string;
     category?: string;
     notes?: string;
+    is_auto_recorded?: boolean;
     fileName?: string | null;
     fileUrl?: string | null;
 };
