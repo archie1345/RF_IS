@@ -6,6 +6,7 @@ use App\Models\Coach;
 use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
+use App\Support\RoleResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +22,7 @@ class UserRoleManagementService
                 'email' => $data['email'],
                 'password' => Hash::make($data['password'] ?? str()->random(40)),
                 'gender' => $data['gender'] ?? 'MALE',
-                'role' => $this->defaultRole($roles),
+                'role' => $roles[0],
                 ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $data['status']] : []),
             ]);
 
@@ -38,7 +39,7 @@ class UserRoleManagementService
             $user->update([
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'role' => $this->defaultRole($roles),
+                'role' => $roles[0],
                 ...(! empty($data['password']) ? ['password' => Hash::make($data['password'])] : []),
                 ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $data['status']] : []),
             ]);
@@ -131,20 +132,10 @@ class UserRoleManagementService
     {
         return collect($roles)
             ->map(fn ($role) => strtolower(trim((string) $role)))
-            ->filter(fn (string $role) => in_array($role, ['admin', 'coach', 'parent', 'athlete'], true))
+            ->filter(fn (string $role) => in_array($role, RoleResolver::ROLES, true))
             ->unique()
+            ->sortBy(fn (string $role): int => array_search($role, RoleResolver::ROLES, true))
             ->values()
             ->all();
-    }
-
-    private function defaultRole(array $roles): string
-    {
-        foreach (['admin', 'coach', 'parent', 'athlete'] as $role) {
-            if (in_array($role, $roles, true)) {
-                return $role;
-            }
-        }
-
-        return 'athlete';
     }
 }
