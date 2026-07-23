@@ -8,13 +8,11 @@ import {
     ClipboardCheck,
     Contact,
     Dumbbell,
-    HandCoins,
     History,
     LayoutDashboard,
     MapPinned,
     Megaphone,
     Network,
-    ReceiptText,
     ScanLine,
     ScrollText,
     Trophy,
@@ -41,7 +39,6 @@ import {
     attendance as adminAttendance,
     classes as adminClasses,
     dashboard as adminDashboard,
-    events as adminEvents,
     index as adminIndex,
     instructorAttendance as adminInstructorAttendance,
     locations as adminLocations,
@@ -56,7 +53,7 @@ import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import { index as usersIndex } from '@/routes/users';
-import { type NavItem } from '@/types';
+import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
 import AppLogo from './AppLogo.vue';
@@ -67,59 +64,109 @@ const activeRole = computed<AppRole>(() =>
     page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
 );
 
-const adminNavItems: NavItem[] = [
-    { title: 'Ringkasan Operasional', href: adminDashboard.url(), icon: LayoutDashboard },
-    { title: 'Jadwal Mingguan', href: trainingScheduleIndex.url(), icon: CalendarRange },
-    { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPinned },
-    { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network },
-    { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell },
-    { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock },
-    { title: 'Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck },
-    { title: 'Kehadiran Pelatih', href: adminInstructorAttendance.url(), icon: BadgeCheck },
-    { title: 'Keuangan', href: paymentsIndex.url(), icon: WalletCards },
-    { title: 'Akun Pengguna', href: adminIndex.url(), icon: UserCog },
-    { title: 'Data Atlet', href: usersIndex.url(), icon: Contact },
-    { title: 'Kejuaraan & UKT', href: adminEvents.url(), icon: Trophy },
-    { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History },
-    { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone },
-    { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: ScrollText },
+const assignedRoles = computed<AppRole[]>(() => {
+    const roles = page.props.auth.user?.roles ?? [];
+
+    return roles.length > 0 ? roles : [activeRole.value];
+});
+
+const allRoles: AppRole[] = ['admin', 'coach', 'parent', 'athlete'];
+
+const navigation: NavSection[] = [
+    {
+        label: 'Utama',
+        items: [
+            {
+                title: 'Beranda',
+                href: dashboard.url(),
+                icon: LayoutDashboard,
+                roles: allRoles,
+            },
+        ],
+    },
+    {
+        label: 'Latihan',
+        items: [
+            { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarRange, roles: allRoles },
+            { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPinned, roles: ['admin'] },
+            { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
+            { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
+            { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock, roles: ['admin', 'coach'] },
+            {
+                title: 'Absensi & Check-in',
+                href: attendanceIndex.url(),
+                icon: ScanLine,
+                roles: ['coach', 'parent', 'athlete'],
+            },
+            { title: 'Laporan Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck, roles: ['admin'] },
+            {
+                title: 'Kehadiran Pelatih',
+                href: adminInstructorAttendance.url(),
+                icon: BadgeCheck,
+                roles: ['admin'],
+            },
+        ],
+    },
+    {
+        label: 'Akun & Keluarga',
+        items: [
+            { title: 'Profil Anak', href: parentChildrenIndex.url(), icon: UsersRound, roles: ['parent'] },
+            { title: 'Akun Pengguna', href: adminIndex.url(), icon: UserCog, roles: ['admin'] },
+            { title: 'Data Atlet', href: usersIndex.url(), icon: Contact, roles: ['admin'] },
+        ],
+    },
+    {
+        label: 'Keuangan',
+        items: [
+            {
+                title: 'Keuangan & Pembayaran',
+                href: paymentsIndex.url(),
+                icon: WalletCards,
+                roles: allRoles,
+            },
+        ],
+    },
+    {
+        label: 'Kompetisi',
+        items: [
+            {
+                title: 'Kejuaraan & UKT',
+                href: championshipsIndex.url(),
+                icon: Trophy,
+                roles: allRoles,
+            },
+            {
+                title: 'Prestasi & Sertifikat',
+                href: achievementsIndex.url(),
+                icon: Award,
+                roles: ['coach', 'parent', 'athlete'],
+            },
+            { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History, roles: ['admin'] },
+        ],
+    },
+    {
+        label: 'Informasi & Sistem',
+        items: [
+            { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone, roles: allRoles },
+            { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: ScrollText, roles: ['admin'] },
+        ],
+    },
 ];
 
-const navByRole: Record<AppRole, NavItem[]> = {
-    admin: adminNavItems,
-    coach: [
-        { title: 'Ringkasan Pelatih', href: dashboard.url(), icon: LayoutDashboard },
-        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarRange },
-        { title: 'Kelas Binaan', href: adminClasses.url(), icon: Dumbbell },
-        { title: 'Sesi Saya', href: sessionsIndex.url(), icon: CalendarClock },
-        { title: 'Honor Pelatih', href: paymentsIndex.url(), icon: HandCoins },
-        { title: 'Absensi Latihan', href: attendanceIndex.url(), icon: ScanLine },
-        { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Prestasi & Sertifikat', href: achievementsIndex.url(), icon: Award },
-        { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone },
-    ],
-    parent: [
-        { title: 'Ringkasan Anak', href: dashboard.url(), icon: LayoutDashboard },
-        { title: 'Jadwal Anak', href: trainingScheduleIndex.url(), icon: CalendarRange },
-        { title: 'Profil Anak', href: parentChildrenIndex.url(), icon: UsersRound },
-        { title: 'Tagihan & Pembayaran', href: paymentsIndex.url(), icon: ReceiptText },
-        { title: 'Riwayat Absensi', href: attendanceIndex.url(), icon: ClipboardCheck },
-        { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Prestasi Anak', href: achievementsIndex.url(), icon: Award },
-        { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone },
-    ],
-    athlete: [
-        { title: 'Ringkasan Saya', href: dashboard.url(), icon: LayoutDashboard },
-        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarRange },
-        { title: 'Tagihan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards },
-        { title: 'Absensi Saya', href: attendanceIndex.url(), icon: ScanLine },
-        { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Prestasi Saya', href: achievementsIndex.url(), icon: Award },
-        { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone },
-    ],
-};
+function canSee(item: NavItem): boolean {
+    return !item.roles?.length || item.roles.some((role) => assignedRoles.value.includes(role));
+}
 
-const mainNavItems = computed(() => navByRole[activeRole.value]);
+const mainNavSections = computed<NavSection[]>(() =>
+    navigation
+        .map((section) => ({
+            ...section,
+            items: section.items.filter(canSee),
+        }))
+        .filter((section) => section.items.length > 0),
+);
+
+const homeHref = computed(() => (activeRole.value === 'admin' ? adminDashboard.url() : dashboard.url()));
 const footerNavItems: NavItem[] = [];
 </script>
 
@@ -129,7 +176,7 @@ const footerNavItems: NavItem[] = [];
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard.url()">
+                        <Link :href="homeHref">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -138,7 +185,7 @@ const footerNavItems: NavItem[] = [];
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :sections="mainNavSections" />
         </SidebarContent>
 
         <SidebarFooter>
