@@ -121,7 +121,7 @@ it('does not allow bill edits to overwrite approved balances', function () {
     expect((float) $payment->total_amount)->toBe(350000.0)
         ->and((float) $payment->paid_amount)->toBe(125000.0)
         ->and((float) $payment->remaining_amount)->toBe(225000.0)
-        ->and($payment->transactions()->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)->sum('amount'))->toBe('125000.00');
+        ->and((float) $payment->transactions()->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)->sum('amount'))->toBe(125000.0);
 });
 
 it('supports multiple receipt installments while preserving monetary history', function () {
@@ -166,6 +166,54 @@ it('supports multiple receipt installments while preserving monetary history', f
         ->and((float) $payment->paid_amount)->toBe(250000.0)
         ->and((float) $payment->remaining_amount)->toBe(0.0)
         ->and($payment->transactions()->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)->count())->toBe(2);
+});
+
+it('blocks forced completion and records refunds as ledger movements', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $recipient = User::factory()->create(['role' => 'athlete']);
+    $payment = Payment::query()->create([
+        'billable_user_id' => $recipient->id,
+        'bill_kind' => 'INVOICE',
+        'payment_type' => 'TUITION',
+        'amount' => 200000,
+        'total_amount' => 200000,
+        'paid_amount' => 0,
+        'remaining_amount' => 200000,
+        'payment_date' => now(),
+        'due_date' => now()->addDays(14),
+        'collection_method' => 'TRANSFER',
+        'status' => 'PENDING',
+        'proof_status' => 'NONE',
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('payments.index'))
+        ->put(route('payments.status.update', $payment), ['status' => 'COMPLETED'])
+        ->assertSessionHasErrors('status');
+
+    expect($payment->refresh()->status)->toBe('PENDING');
+
+    $this->actingAs($admin)->post(route('payments.transactions.store', $payment), [
+        'amount' => 200000,
+        'transaction_date' => now()->toDateString(),
+        'payment_method' => 'TRANSFER',
+    ])->assertRedirect(route('payments.index'));
+
+    $this->actingAs($admin)->put(route('payments.status.update', $payment), [
+        'status' => 'REFUNDED',
+    ])->assertRedirect(route('payments.index'));
+
+    $payment->refresh();
+    expect($payment->status)->toBe('REFUNDED')
+        ->and((float) $payment->paid_amount)->toBe(0.0)
+        ->and((float) $payment->remaining_amount)->toBe(200000.0)
+        ->and($payment->transactions()->where('transaction_type', 'REFUND')->count())->toBe(1)
+        ->and($payment->transactions()->where('transaction_type', PaymentTransaction::TYPE_STATUS_CHANGE)->count())->toBe(1);
+
+    $this->actingAs($admin)
+        ->from(route('payments.index'))
+        ->put(route('payments.status.update', $payment), ['status' => 'PENDING'])
+        ->assertSessionHasErrors('status');
 });
 
 it('prioritizes receipt review and overdue bills for the admin', function () {
