@@ -1,13 +1,13 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AthleteController;
 use App\Http\Controllers\Api\BranchController;
-use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\CoachController;
+use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\UserController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();

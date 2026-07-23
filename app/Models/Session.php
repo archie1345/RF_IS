@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Session extends Model
 {
@@ -15,8 +15,11 @@ class Session extends Model
     public $timestamps = true;
 
     protected $primaryKey = 'csid';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     protected $fillable = [
         'coach_id',
         'branch_id',
@@ -35,16 +38,16 @@ class Session extends Model
         'attendance_qr_revoked_at',
     ];
 
-    protected $dates = ['deleted_at','session_date','start_time','end_time','attendance_opens_at','attendance_closes_at','attendance_qr_generated_at','attendance_qr_revoked_at'];
+    protected $dates = ['deleted_at', 'session_date', 'start_time', 'end_time', 'attendance_opens_at', 'attendance_closes_at', 'attendance_qr_generated_at', 'attendance_qr_revoked_at'];
 
     public function coach()
     {
-        return $this->belongsTo(Coach::class,'coach_id');
+        return $this->belongsTo(Coach::class, 'coach_id');
     }
 
     public function branch()
     {
-        return $this->belongsTo(Branch::class,'branch_id');
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function group()

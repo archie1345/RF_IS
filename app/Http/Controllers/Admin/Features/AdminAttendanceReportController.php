@@ -253,6 +253,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         if (preg_match('/^\d{4}-\d{2}$/', $month) === 1) {
             $from = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
             $to = $from->copy()->endOfMonth()->endOfDay();
+
             return [$from, $to, $from->format('Y-m')];
         }
 
@@ -285,7 +286,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
 
     private function downloadAttendanceWorkbook(string $title, CarbonInterface $from, CarbonInterface $to, array $records, string $filename, array $headings = ['No', 'Tanggal', 'Nama', 'Kelas', 'Check In', 'Check Out', 'Status']): BinaryFileResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Absensi');
 

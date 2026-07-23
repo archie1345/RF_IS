@@ -12,8 +12,11 @@ class Result extends Model
     protected $table = 'event_results';
 
     protected $primaryKey = 'evrid';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [

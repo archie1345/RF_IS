@@ -6,9 +6,7 @@ use App\Actions\Attendance\InitializeSessionAttendance;
 use App\Actions\Sessions\GenerateWeeklyTrainingSessions;
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
-use App\Models\Branch;
 use App\Models\Group;
-use App\Models\TrainingGroup;
 use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
@@ -18,8 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
@@ -184,6 +180,7 @@ class GroupController extends Controller
     {
         if (($validated['class_type'] ?? null) !== 'private') {
             $group->privateAthletes()->detach();
+
             return;
         }
 
@@ -208,6 +205,7 @@ class GroupController extends Controller
             $previousSchedule?->update(['is_active' => false]);
             $result = $this->syncOneDaySession($group);
             $result['removed'] += $this->sessionGenerator->removeFutureSessionsForSchedule($previousSchedule);
+
             return $result;
         }
 
@@ -242,6 +240,7 @@ class GroupController extends Controller
 
         if (! $isSchedulable) {
             $existing?->update(['is_active' => false]);
+
             return null;
         }
 
@@ -283,6 +282,7 @@ class GroupController extends Controller
 
         if (! $this->isOneDaySchedulable($group)) {
             $result['removed'] += $this->removeFutureOneDaySessions($group);
+
             return $result;
         }
 
@@ -378,6 +378,7 @@ class GroupController extends Controller
     {
         $classType = str($validated['class_type'] ?? 'reguler')->lower()->slug('_')->toString();
         $scheduleMode = $validated['schedule_mode'] ?? 'weekly';
+
         return filled($validated['name'] ?? null)
             && filled($validated['branch_id'] ?? null)
             && filled($validated['start_time'] ?? null)

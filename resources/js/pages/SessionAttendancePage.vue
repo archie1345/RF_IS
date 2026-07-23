@@ -11,6 +11,7 @@ import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import type { BreadcrumbItem } from '@/types';
 import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 import type { AttendanceStatusValue, AttendanceUpdateResponse } from './SessionAttendancePage.types';
@@ -166,7 +167,11 @@ function isAttendancePending(rowId: string): boolean {
 async function updateStatus(rowId: string, status: AttendanceStatusValue) {
     if (isAttendancePending(rowId)) return;
 
-    const attendanceId = rowId.replace('ATT-', '');
+    const attendanceId = routeId(rowId);
+    if (!attendanceId) {
+        attendanceUpdateError.value = 'Invalid attendance row selected.';
+        return;
+    }
     attendanceUpdateError.value = '';
     pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, rowId];
 
@@ -201,8 +206,8 @@ function confirmBulkUpdate() {
     const status = pendingBulkStatus.value;
     pendingBulkStatus.value = null;
     const attendanceIds = attendanceRows.value
-        .map((row) => Number(String(row.id).replace('ATT-', '')))
-        .filter((id) => !Number.isNaN(id));
+        .map((row) => routeId(row.id))
+        .filter((id): id is number => id !== null);
     router.post(attendanceBulkUpdate.url(), { attendance_ids: attendanceIds, status }, { preserveScroll: true });
 }
 
@@ -216,7 +221,8 @@ function addCoach() {
 }
 
 function updateCoachStatus(rowId: string, status: 'TEACH' | 'NOT_TEACH') {
-    const coachAttendanceId = rowId.replace('SCA-', '');
+    const coachAttendanceId = routeId(rowId);
+    if (!coachAttendanceId) return;
     router.put(sessionCoachAttendanceUpdate.url(coachAttendanceId), { status }, { preserveScroll: true });
 }
 
@@ -226,8 +232,9 @@ function requestRemoveCoach(rowId: string) {
 
 function confirmRemoveCoach() {
     if (!pendingCoachDeleteId.value) return;
-    const coachAttendanceId = pendingCoachDeleteId.value.replace('SCA-', '');
+    const coachAttendanceId = routeId(pendingCoachDeleteId.value);
     pendingCoachDeleteId.value = null;
+    if (!coachAttendanceId) return;
     router.delete(sessionCoachAttendanceDestroy.url(coachAttendanceId), { preserveScroll: true });
 }
 function resetCoachForm() {

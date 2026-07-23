@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Http\Controllers\Controller;
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Actions\Profiles\SaveUserCertification;
 use App\Actions\Profiles\UpdateAccountProfile;
-use App\Http\Requests\Settings\ProfileDeleteRequest;
-use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Profiles\SaveUserAchievementRequest;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
+use App\Http\Requests\Settings\ProfileDeleteRequest;
+use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Support\Profile\ProfilePageData;
@@ -25,8 +25,7 @@ class ProfileController extends Controller
 {
     public function __construct(
         private readonly ProfilePageData $profilePageData,
-    ) {
-    }
+    ) {}
 
     /**
      * Show the user's profile settings page.
@@ -126,5 +125,4 @@ class ProfileController extends Controller
 
         return to_route('profile.edit');
     }
-
 }

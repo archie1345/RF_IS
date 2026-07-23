@@ -90,6 +90,7 @@ test('coach attendance page does not call an undefined coaches relationship', fu
 
 test('duplicate coach attend clicks are idempotent', function () {
     [$athleteUser, $athlete, $branch, $group] = qaAthlete('Coach Attend');
+    $group->update(['class_type' => 'private']);
     [$coachUser, $coach, $session] = qaSession($branch, $group);
 
     $payload = ['coach_id' => $coach->coach_id];

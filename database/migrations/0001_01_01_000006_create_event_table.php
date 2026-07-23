@@ -32,9 +32,9 @@ return new class extends Migration
             $table->id('evrid');
             $table->foreignId('athlete_id')->constrained('athletes', 'athlete_id')->cascadeOnDelete();
             $table->foreignId('event_id')->constrained('events', 'event_id')->cascadeOnDelete();
-            $table->enum('category', ['KYORUGI','POOMSAE','FREESTYLE','UNKNOWN'])->default('UNKNOWN')->index();
+            $table->enum('category', ['KYORUGI', 'POOMSAE', 'FREESTYLE', 'UNKNOWN'])->default('UNKNOWN')->index();
             $table->timestamp('registered_at')->useCurrent();
-            $table->enum('status', ['REGISTERED', 'CANCELED','PENDING','CONFIRMED'])->default('PENDING')->index();
+            $table->enum('status', ['REGISTERED', 'CANCELED', 'PENDING', 'CONFIRMED'])->default('PENDING')->index();
             $table->timestamps();
             $table->softDeletes();
         });

@@ -62,6 +62,7 @@ class GenerateMonthlyTuitionBills extends Command
 
                     if ($exists) {
                         $skipped++;
+
                         continue;
                     }
 

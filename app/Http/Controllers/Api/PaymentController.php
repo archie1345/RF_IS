@@ -44,11 +44,9 @@ class PaymentController extends Controller
     {
         $payment = Payment::findOrFail($id);
 
-        if(!$payment){
+        if (! $payment) {
             return response()->json(['message' => 'Payment not found'], 404);
         }
-
-        
 
         $request->validate([
             'amount' => 'sometimes|required|numeric|min:0',
@@ -68,7 +66,7 @@ class PaymentController extends Controller
     {
         $payment = Payment::findOrFail($id);
 
-        if (!$payment) {
+        if (! $payment) {
             return response()->json(['message' => 'Payment not found'], 404);
         }
 

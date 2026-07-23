@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -24,14 +24,15 @@ class UserController extends Controller
         $validated = $request->validate([
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:ADMIN,COACH,ATHLETE'
+            'role' => 'required|in:ADMIN,COACH,ATHLETE',
         ]);
 
         $user = User::create([
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),
-            'role' => $validated['role']
+            'role' => $validated['role'],
         ]);
+
         return response()->json($user, 201);
     }
 
@@ -52,11 +53,12 @@ class UserController extends Controller
 
         $data = $request->all();
 
-        if(isset($request->password)){
+        if (isset($request->password)) {
             $data['password'] = bcrypt($request->password);
         }
 
         $user->update($data);
+
         return response()->json($user);
     }
 
@@ -67,6 +69,6 @@ class UserController extends Controller
     {
         User::destroy($id);
 
-        return response()->json(['message'=>'deleted']);
+        return response()->json(['message' => 'deleted']);
     }
 }

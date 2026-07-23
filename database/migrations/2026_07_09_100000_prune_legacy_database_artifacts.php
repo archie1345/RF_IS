@@ -59,7 +59,7 @@ return new class extends Migration
     }
 
     /**
-     * @param array<int, string> $columns
+     * @param  array<int, string>  $columns
      */
     private function dropColumnsIfPresent(string $table, array $columns): void
     {

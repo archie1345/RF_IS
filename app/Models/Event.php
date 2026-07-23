@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-
 class Event extends Model
 {
     use SoftDeletes;
@@ -13,8 +12,11 @@ class Event extends Model
     protected $table = 'events';
 
     protected $primaryKey = 'event_id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [
