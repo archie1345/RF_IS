@@ -25,6 +25,11 @@ class PaymentPolicy
         return $user->isAdmin();
     }
 
+    public function recordPayment(User $user, Payment $payment): bool
+    {
+        return $user->isAdmin();
+    }
+
     public function submitProof(User $user, Payment $payment): bool
     {
         return $this->paymentVisibility->userCanSubmitProof($user, $payment);
