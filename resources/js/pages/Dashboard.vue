@@ -3,7 +3,6 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, type PropType } from 'vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
-import DashboardRoleWorkspace from '@/components/dashboard/DashboardRoleWorkspace.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -11,7 +10,7 @@ import { dashboard } from '@/routes';
 import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
-import type { AppRole, Metric, TableRow, AttendanceRow, TrainingDay } from '@/types/resource-table';
+import type { AppRole, AttendanceRow, Metric, TableRow, TrainingDay } from '@/types/resource-table';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -39,12 +38,6 @@ const role = computed<AppRole>(() => {
     return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
         ? userRole
         : 'athlete';
-});
-
-const roles = computed<AppRole[]>(() => {
-    const assignedRoles = page.props.auth?.user?.roles ?? [];
-
-    return assignedRoles.length > 0 ? assignedRoles : [role.value];
 });
 
 const children = computed(() => page.props.auth.children ?? []);
@@ -78,14 +71,6 @@ useLiveReload(
                 :children="children"
                 :active-child="activeChild"
                 @switch-child="switchChild"
-            />
-
-            <DashboardRoleWorkspace
-                :role="role"
-                :roles="roles"
-                :announcements="props.announcements"
-                :training-days="props.trainingDays"
-                :payment-rows="props.paymentRows"
             />
 
             <DashboardOverviewSections
