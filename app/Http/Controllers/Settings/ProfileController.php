@@ -18,6 +18,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,13 +28,9 @@ class ProfileController extends Controller
         private readonly ProfilePageData $profilePageData,
     ) {}
 
-    /**
-     * Show the user's profile settings page.
-     */
     public function edit(Request $request): Response
     {
         $user = $request->user();
-
         $this->profilePageData->loadUser($user);
 
         return Inertia::render('profiles/ProfileDetailsPage', [
@@ -52,9 +49,6 @@ class ProfileController extends Controller
         ]);
     }
 
-    /**
-     * Update the user's profile information.
-     */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $request->user()->fill($request->validated());
@@ -65,64 +59,101 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Profil berhasil diperbarui.');
     }
 
-    public function updateAccountProfile(UpdateAccountProfileRequest $request, UpdateAccountProfile $updateAccountProfile): RedirectResponse
-    {
-        $user = $request->user();
+    public function updateAccountProfile(
+        UpdateAccountProfileRequest $request,
+        UpdateAccountProfile $updateAccountProfile,
+    ): RedirectResponse {
+        $updateAccountProfile->handle($request->user(), $request->validated(), $request);
 
-        $updateAccountProfile->handle($user, $request->validated(), $request);
-
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Detail profil berhasil diperbarui.');
     }
 
-    /**
-     * Delete the user's profile.
-     */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {
         $user = $request->user();
-
         Auth::logout();
-
         $user->forceDelete();
-
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect('/');
     }
 
-    public function storeCertification(SaveUserCertificationRequest $request, SaveUserCertification $saveUserCertification): RedirectResponse
-    {
+    public function storeCertification(
+        SaveUserCertificationRequest $request,
+        SaveUserCertification $saveUserCertification,
+    ): RedirectResponse {
         $saveUserCertification->store($request->user(), $request->validated(), $request);
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Sertifikasi berhasil ditambahkan.');
     }
 
-    public function updateCertification(SaveUserCertificationRequest $request, UserCertification $certification, SaveUserCertification $saveUserCertification): RedirectResponse
-    {
+    public function updateCertification(
+        SaveUserCertificationRequest $request,
+        UserCertification $certification,
+        SaveUserCertification $saveUserCertification,
+    ): RedirectResponse {
         abort_unless((int) $certification->user_id === (int) $request->user()->id, 404);
-
         $saveUserCertification->update($request->user(), $certification, $request->validated(), $request);
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Sertifikasi berhasil diperbarui.');
     }
 
-    public function storeAchievement(SaveUserAchievementRequest $request, SaveUserAchievement $saveUserAchievement): RedirectResponse
+    public function destroyCertification(Request $request, UserCertification $certification): RedirectResponse
     {
+        abort_unless((int) $certification->user_id === (int) $request->user()->id, 404);
+        $file = $certification->file;
+        $certification->delete();
+        $this->deleteAttachedFile($file);
+
+        return to_route('profile.edit')->with('status', 'Sertifikasi berhasil dihapus.');
+    }
+
+    public function storeAchievement(
+        SaveUserAchievementRequest $request,
+        SaveUserAchievement $saveUserAchievement,
+    ): RedirectResponse {
         $saveUserAchievement->store($request->user(), $request->validated(), $request);
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Prestasi berhasil ditambahkan.');
     }
 
-    public function updateAchievement(SaveUserAchievementRequest $request, UserAchievement $achievement, SaveUserAchievement $saveUserAchievement): RedirectResponse
-    {
+    public function updateAchievement(
+        SaveUserAchievementRequest $request,
+        UserAchievement $achievement,
+        SaveUserAchievement $saveUserAchievement,
+    ): RedirectResponse {
         abort_unless((int) $achievement->user_id === (int) $request->user()->id, 404);
-
+        abort_if($achievement->is_auto_recorded, 403, 'Automatic achievements are managed from championship results.');
         $saveUserAchievement->update($request->user(), $achievement, $request->validated(), $request);
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('status', 'Prestasi berhasil diperbarui.');
+    }
+
+    public function destroyAchievement(Request $request, UserAchievement $achievement): RedirectResponse
+    {
+        abort_unless((int) $achievement->user_id === (int) $request->user()->id, 404);
+        abort_if($achievement->is_auto_recorded, 403, 'Automatic achievements are managed from championship results.');
+        $file = $achievement->file;
+        $achievement->delete();
+        $this->deleteAttachedFile($file);
+
+        return to_route('profile.edit')->with('status', 'Prestasi berhasil dihapus.');
+    }
+
+    private function deleteAttachedFile($file): void
+    {
+        if (! $file) {
+            return;
+        }
+
+        if ($file->file_path) {
+            Storage::disk('public')->delete($file->file_path);
+        }
+
+        $file->delete();
     }
 }
