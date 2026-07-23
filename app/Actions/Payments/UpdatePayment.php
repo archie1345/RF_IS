@@ -38,9 +38,13 @@ class UpdatePayment
                 ]);
             }
 
-            if ($lockedPayment->transactions_count > 0 && $this->identityChanged($lockedPayment, $validated)) {
+            $hasFinancialOrProofHistory = $lockedPayment->transactions_count > 0
+                || filled($lockedPayment->proof_path)
+                || ($lockedPayment->proof_status ?? PaymentStatus::PROOF_NONE) !== PaymentStatus::PROOF_NONE;
+
+            if ($hasFinancialOrProofHistory && $this->identityChanged($lockedPayment, $validated)) {
                 throw ValidationException::withMessages([
-                    'billable_user_id' => 'The recipient, bill kind, and category cannot be changed after financial activity has been recorded. Create a new bill instead.',
+                    'billable_user_id' => 'The recipient, bill kind, and category cannot be changed after payment or proof activity. Create a new bill instead.',
                 ]);
             }
 
