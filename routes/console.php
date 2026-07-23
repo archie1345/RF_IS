@@ -29,7 +29,8 @@ Artisan::command('app:database-audit', function () {
     $requirements = [
         'users' => ['id', 'email', 'role', 'deleted_at'],
         'user_role_assignments' => ['user_id', 'role'],
-        'athletes' => ['athlete_id', 'id', 'branch_id', 'training_group_id'],
+        'athletes' => ['athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'training_group_id'],
+        'member_number_sequences' => ['joined_on', 'last_sequence'],
         'coaches' => ['coach_id', 'id', 'status'],
         'branches' => ['branch_id', 'branch_name', 'is_active'],
         'training_groups' => ['id', 'name', 'is_active'],
