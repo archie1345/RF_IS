@@ -22,6 +22,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentExportController;
 use App\Http\Controllers\PaymentPageController;
 use App\Http\Controllers\ProfileAccessController;
 use App\Http\Controllers\Profiles\CoachProfileController;
@@ -195,6 +196,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
 
     Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('/', PaymentPageController::class)->name('index');
+        Route::get('export', PaymentExportController::class)->name('export.csv');
         Route::post('/', [PaymentController::class, 'store'])->name('store');
         Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
         Route::delete('{payment}', [PaymentController::class, 'destroy'])->name('destroy');
