@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, type PropType } from 'vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
+import DashboardRoleWorkspace from '@/components/dashboard/DashboardRoleWorkspace.vue';
 import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -40,6 +41,12 @@ const role = computed<AppRole>(() => {
         : 'athlete';
 });
 
+const roles = computed<AppRole[]>(() => {
+    const assignedRoles = page.props.auth?.user?.roles ?? [];
+
+    return assignedRoles.length > 0 ? assignedRoles : [role.value];
+});
+
 const children = computed(() => page.props.auth.children ?? []);
 const activeChild = computed(() => page.props.auth.activeChild ?? null);
 
@@ -71,6 +78,14 @@ useLiveReload(
                 :children="children"
                 :active-child="activeChild"
                 @switch-child="switchChild"
+            />
+
+            <DashboardRoleWorkspace
+                :role="role"
+                :roles="roles"
+                :announcements="props.announcements"
+                :training-days="props.trainingDays"
+                :payment-rows="props.paymentRows"
             />
 
             <DashboardOverviewSections
