@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ActiveRoleContextService;
 use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -38,9 +39,13 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $roleContext = app(ActiveRoleContextService::class);
         $childContext = app(ParentChildContextService::class);
-        $children = $childContext->sharedChildrenFor($user);
-        $activeChild = $childContext->activeChildFor($request);
+        $roles = $roleContext->availableRoles($user);
+        $activeRole = $roleContext->activeRole($request, $user);
+        $primaryRole = $user?->primaryRole() ?? $activeRole;
+        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
+        $activeChild = $activeRole === 'parent' ? $childContext->activeChildFor($request) : null;
 
         return [
             ...parent::share($request),
@@ -49,12 +54,17 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ? [
                     'id' => $user->id,
                     'name' => $user->name,
-                    // Keep every client-side role decision aligned with the resolver used by
-                    // policies and controllers. The legacy column is only a fallback now that
-                    // accounts can have role assignments.
-                    'role' => $user->primaryRole(),
-                    'roles' => $user->assignedRoles(),
-                    'avatar' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
+                    'email' => $user->email,
+                    // `role` remains a compatibility alias for the selected role so existing
+                    // pages become multi-role aware without reading the legacy users.role column.
+                    'role' => $activeRole,
+                    'activeRole' => $activeRole,
+                    'primaryRole' => $primaryRole,
+                    'roles' => $roles,
+                    'isMultiRole' => count($roles) > 1,
+                    'avatar' => $user->profile?->profile_picture_path
+                        ? Storage::url($user->profile->profile_picture_path)
+                        : null,
                 ] : null,
                 'children' => $children,
                 'activeChild' => $activeChild,
