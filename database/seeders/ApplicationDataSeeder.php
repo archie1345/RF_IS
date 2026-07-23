@@ -11,6 +11,7 @@ class ApplicationDataSeeder extends Seeder
         $this->call([
             FreshApplicationSeeder::class,
             AllRoleDemoSeeder::class,
+            FinanceLedgerDemoSeeder::class,
         ]);
     }
 }
