@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Payment extends Model
 {
@@ -22,6 +23,7 @@ class Payment extends Model
     protected $keyType = 'int';
 
     protected $fillable = [
+        'invoice_number',
         'athlete_id',
         'billable_user_id',
         'payee_user_id',
@@ -34,6 +36,8 @@ class Payment extends Model
         'paid_amount',
         'remaining_amount',
         'payment_date',
+        'due_date',
+        'collection_method',
         'status',
         'notes',
         'proof_path',
@@ -41,11 +45,45 @@ class Payment extends Model
         'proof_notes',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Payment $payment): void {
+            $issuedOn = Carbon::parse($payment->payment_date ?? today());
+            $payment->payment_date ??= $issuedOn->toDateString();
+            $payment->due_date ??= strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'PAYROLL'
+                ? $issuedOn->toDateString()
+                : $issuedOn->copy()->addDays(14)->toDateString();
+            $payment->collection_method ??= 'TRANSFER';
+        });
+
+        static::created(function (Payment $payment): void {
+            if (blank($payment->invoice_number)) {
+                $issuedOn = Carbon::parse($payment->payment_date ?? $payment->created_at ?? today());
+                $payment->forceFill([
+                    'invoice_number' => 'INV-'.$issuedOn->format('Ym').'-'.str_pad((string) $payment->payment_id, 6, '0', STR_PAD_LEFT),
+                ])->saveQuietly();
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
+            'amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'remaining_amount' => 'decimal:2',
             'payment_date' => 'date',
+            'due_date' => 'date',
         ];
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->status === 'PENDING'
+            && (float) ($this->remaining_amount ?? 0) > 0
+            && $this->due_date !== null
+            && $this->due_date->isBefore(today());
     }
 
     public function athlete(): BelongsTo
