@@ -27,8 +27,9 @@ export type TableCell = string | number | boolean | null | TableBadgeCell | Reco
 
 export type TableRow = {
     id: string;
+    [key: string]: TableCell;
+} & {
     status?: string | TableBadgeCell;
-    [key: string]: TableCell | undefined;
 };
 
 export type TableColumn = {
