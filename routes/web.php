@@ -57,10 +57,16 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::post('sessions/{session}/coach-attendance', [SessionController::class, 'addCoachAttendance'])->name('sessions.coach-attendance.store');
     Route::put('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'updateCoachAttendance'])->name('sessions.coach-attendance.update');
     Route::delete('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'destroyCoachAttendance'])->name('sessions.coach-attendance.destroy');
+
     Route::get('achievements', [UserAchievementController::class, 'index'])->name('achievements.index');
     Route::post('achievements', [UserAchievementController::class, 'storeAchievement'])->name('achievements.store');
+    Route::put('achievements/{achievement}', [UserAchievementController::class, 'updateAchievement'])->name('achievements.update');
+    Route::delete('achievements/{achievement}', [UserAchievementController::class, 'destroyAchievement'])->name('achievements.destroy');
+
     Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
     Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+    Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+    Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
     Route::middleware('throttle:qr-scan')->group(function () {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
@@ -83,8 +89,10 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::delete('{user}/force', 'forceDelete')->name('users.force-delete');
         Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store');
         Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update');
+        Route::delete('{user}/certifications/{certification}', [UserCertificationController::class, 'destroy'])->name('users.certifications.destroy');
         Route::post('{user}/achievements', [ProfileUserAchievementController::class, 'store'])->name('users.achievements.store');
         Route::put('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'update'])->name('users.achievements.update');
+        Route::delete('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'destroy'])->name('users.achievements.destroy');
     });
 
     Route::prefix('parents')->group(function () {
@@ -101,12 +109,16 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::prefix('championships')->name('championships.')->group(function () {
         Route::get('/', ChampionshipPageController::class)->name('index');
         Route::post('events', [ChampionshipController::class, 'storeEvent'])->name('events.store');
+        Route::put('events/{event}', [ChampionshipController::class, 'updateEvent'])->name('events.update');
+        Route::delete('events/{event}', [ChampionshipController::class, 'destroyEvent'])->name('events.destroy');
         Route::get('{event}', [ChampionshipController::class, 'show'])->name('show');
         Route::get('{event}/export', ChampionshipExportController::class)->name('export');
         Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
         Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
+        Route::delete('registrations/{registration}', [ChampionshipController::class, 'destroyRegistration'])->name('registrations.destroy');
         Route::post('payments/{payment}/settle', [ChampionshipController::class, 'settleRegistrationPayment'])->name('payments.settle');
         Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
+        Route::delete('coaches/{coachRegistration}', [ChampionshipController::class, 'destroyCoachRegistration'])->name('coaches.destroy');
         Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
     });
 
@@ -136,9 +148,9 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
         Route::get('members', [AdminPeopleFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminPeopleFeatureController::class, 'instructors'])->name('instructors');
-        Route::get('events', [AdminEventFeatureController::class, 'index'])->name('events');
+        Route::redirect('events', '/championships')->name('events');
         Route::get('events/history', [AdminEventFeatureController::class, 'history'])->name('events.history');
-        Route::redirect('events/schedule', '/admin/events')->name('events.schedule');
+        Route::redirect('events/schedule', '/championships')->name('events.schedule');
         Route::get('locations', [TrainingLocationController::class, 'index'])->name('locations');
         Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
         Route::get('groups', [TrainingGroupController::class, 'index'])->name('groups');
