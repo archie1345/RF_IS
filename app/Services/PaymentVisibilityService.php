@@ -54,10 +54,9 @@ class PaymentVisibilityService
         }
 
         if ($mode === 'coach') {
-            return $query->where(function ($inner) use ($user): void {
-                $inner->where('billable_user_id', $user->id)
-                    ->orWhere('payee_user_id', $user->id);
-            });
+            return $query
+                ->where('bill_kind', 'PAYROLL')
+                ->where('payee_user_id', $user->id);
         }
 
         return $query->whereRaw('1 = 0');
