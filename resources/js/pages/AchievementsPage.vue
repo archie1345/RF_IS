@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
-import { index as achievementsIndex, store as achievementsStore } from '@/routes/achievements';
+import {
+    destroy as achievementsDestroy,
+    index as achievementsIndex,
+    store as achievementsStore,
+    update as achievementsUpdate,
+} from '@/routes/achievements';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
@@ -21,23 +28,31 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Achievements', href: achievementsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Prestasi & Sertifikat', href: achievementsIndex.url() },
 ];
 
 const achievementColumns: TableColumn[] = [
-    { key: 'subject', label: 'Person' },
-    { key: 'championship_name', label: 'Championship' },
-    { key: 'medal', label: 'Medal' },
-    { key: 'location', label: 'Location' },
-    { key: 'event_date', label: 'Date' },
-    { key: 'class_name', label: 'Class' },
-    { key: 'division', label: 'Division' },
-    { key: 'category', label: 'Category' },
-    { key: 'file_name', label: 'File' },
+    { key: 'subject', label: 'Nama' },
+    { key: 'championship_name', label: 'Kejuaraan' },
+    { key: 'medal', label: 'Medali' },
+    { key: 'location', label: 'Lokasi' },
+    { key: 'event_date', label: 'Tanggal' },
+    { key: 'class_name', label: 'Kelas' },
+    { key: 'division', label: 'Divisi' },
+    { key: 'category', label: 'Kategori' },
+    { key: 'file_name', label: 'Berkas' },
 ];
-const showAchievementModal = ref(false);
 
+const medalOptions = [
+    { value: 'GOLD', label: 'Emas' },
+    { value: 'SILVER', label: 'Perak' },
+    { value: 'BRONZE', label: 'Perunggu' },
+    { value: 'NONE', label: 'Tanpa medali' },
+];
+
+const showAchievementModal = ref(false);
+const editingId = ref<number | null>(null);
 const achievementForm = useForm({
     championship_name: '',
     medal: 'NONE',
@@ -50,43 +65,92 @@ const achievementForm = useForm({
     file: null as File | null,
 });
 
-function onAchievementFileChange(event: Event) {
+function resetForm(): void {
+    achievementForm.reset();
+    achievementForm.clearErrors();
+    achievementForm.medal = 'NONE';
+    editingId.value = null;
+}
+
+function openCreate(): void {
+    resetForm();
+    showAchievementModal.value = true;
+}
+
+function openEdit(row: TableRow): void {
+    if (row.can_manage !== true) return;
+    const id = routeId(row.achievement_id ?? row.id);
+    if (id === null) return;
+
+    achievementForm.clearErrors();
+    editingId.value = id;
+    achievementForm.championship_name = String(row.championship_name ?? '');
+    achievementForm.medal = String(row.medal ?? 'NONE');
+    achievementForm.location = row.location === '-' ? '' : String(row.location ?? '');
+    achievementForm.event_date = row.event_date === '-' ? '' : String(row.event_date ?? '');
+    achievementForm.class_name = row.class_name === '-' ? '' : String(row.class_name ?? '');
+    achievementForm.division = row.division === '-' ? '' : String(row.division ?? '');
+    achievementForm.category = row.category === '-' ? '' : String(row.category ?? '');
+    achievementForm.notes = String(row.notes ?? '');
+    achievementForm.file = null;
+    showAchievementModal.value = true;
+}
+
+function closeForm(): void {
+    showAchievementModal.value = false;
+    resetForm();
+}
+
+function onAchievementFileChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     achievementForm.file = target.files?.[0] ?? null;
 }
 
-function addAchievement() {
+function saveAchievement(): void {
     if (!props.canCreate) return;
 
-    achievementForm.post(achievementsStore.url(), {
+    const options = {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => {
-            showAchievementModal.value = false;
-            achievementForm.reset();
-            achievementForm.medal = 'NONE';
-        },
-    });
+        onSuccess: closeForm,
+    };
+
+    if (editingId.value !== null) {
+        achievementForm.put(achievementsUpdate.url(editingId.value), options);
+        return;
+    }
+
+    achievementForm.post(achievementsStore.url(), options);
+}
+
+function removeAchievement(row: TableRow): void {
+    if (row.can_manage !== true) return;
+    const id = routeId(row.achievement_id ?? row.id);
+    if (id === null || !window.confirm(`Hapus prestasi “${String(row.championship_name ?? '')}”?`)) return;
+
+    router.delete(achievementsDestroy.url(id), { preserveScroll: true });
 }
 </script>
 
 <template>
     <Head :title="props.pageTitle" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
             <PageSection :title="props.pageTitle" :description="props.pageDescription">
                 <template v-if="props.canCreate" #actions>
-                    <Button type="button" @click="showAchievementModal = true">Add achievement</Button>
+                    <Button type="button" @click="openCreate">Tambah prestasi</Button>
                 </template>
             </PageSection>
+
             <DataTable
                 :title="props.pageTitle"
                 :description="props.pageDescription"
                 :columns="achievementColumns"
                 :rows="props.achievements"
-                empty-text="No achievement records are available for this role context."
+                action-label="Tindakan"
+                empty-text="Belum ada catatan prestasi untuk konteks akun ini."
                 searchable
-                search-placeholder="Search person, championship, medal, class, or category..."
+                search-placeholder="Cari nama, kejuaraan, medali, kelas, atau kategori..."
             >
                 <template #cell="{ row, column, value }">
                     <a
@@ -97,92 +161,106 @@ function addAchievement() {
                     >
                         {{ value }}
                     </a>
+                    <span v-else-if="column.key === 'championship_name' && row.is_auto_recorded">
+                        {{ value }}
+                        <span class="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">Otomatis</span>
+                    </span>
                     <span v-else>{{ value ?? '-' }}</span>
+                </template>
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow v-if="row.can_manage === true">
+                        <Button type="button" size="sm" variant="outline" @click="openEdit(row)">Ubah</Button>
+                        <Button type="button" size="sm" variant="destructive" @click="removeAchievement(row)">
+                            Hapus
+                        </Button>
+                    </ActionButtonsRow>
+                    <span v-else class="text-xs text-muted-foreground">
+                        {{ row.is_auto_recorded ? 'Dikelola dari hasil kejuaraan' : 'Hanya dapat dilihat' }}
+                    </span>
                 </template>
             </DataTable>
         </div>
+
         <FormModal
             :open="showAchievementModal && props.canCreate"
             max-width-class="max-w-2xl"
-            @close="showAchievementModal = false"
+            @close="closeForm"
         >
             <PageSection
-                title="Add achievement"
-                description="Record past achievements manually with details and an optional supporting file."
+                :title="editingId === null ? 'Tambah prestasi' : 'Ubah prestasi'"
+                description="Catat prestasi manual dan lampirkan sertifikat, lembar hasil, foto medali, atau PDF bila tersedia."
             >
-                <form class="grid gap-4 md:grid-cols-2" @submit.prevent="addAchievement">
+                <form class="grid min-w-0 gap-4 sm:grid-cols-2" @submit.prevent="saveAchievement">
                     <FormInputField
-                        id="ach-name"
+                        id="achievement-name"
                         v-model="achievementForm.championship_name"
-                        label="Championship name"
+                        label="Nama kejuaraan atau prestasi"
+                        required
                         :error="achievementForm.errors.championship_name"
                     />
                     <FormSelectField
-                        id="ach-medal"
+                        id="achievement-medal"
                         v-model="achievementForm.medal"
-                        label="Medal"
-                        :options="[
-                            { value: 'GOLD', label: 'Gold' },
-                            { value: 'SILVER', label: 'Silver' },
-                            { value: 'BRONZE', label: 'Bronze' },
-                            { value: 'NONE', label: 'None' },
-                        ]"
+                        label="Medali"
+                        :options="medalOptions"
                         :error="achievementForm.errors.medal"
                     />
                     <FormInputField
-                        id="ach-location"
+                        id="achievement-location"
                         v-model="achievementForm.location"
-                        label="Location"
+                        label="Lokasi"
                         :error="achievementForm.errors.location"
                     />
                     <FormInputField
-                        id="ach-date"
+                        id="achievement-date"
                         v-model="achievementForm.event_date"
                         type="date"
-                        label="Date"
+                        label="Tanggal"
                         :error="achievementForm.errors.event_date"
                     />
                     <FormInputField
-                        id="ach-class"
+                        id="achievement-class"
                         v-model="achievementForm.class_name"
-                        label="Class"
+                        label="Kelas"
                         :error="achievementForm.errors.class_name"
                     />
                     <FormInputField
-                        id="ach-division"
+                        id="achievement-division"
                         v-model="achievementForm.division"
-                        label="Division"
+                        label="Divisi"
                         :error="achievementForm.errors.division"
                     />
                     <FormInputField
-                        id="ach-category"
+                        id="achievement-category"
                         v-model="achievementForm.category"
-                        label="Category"
+                        label="Kategori"
                         :error="achievementForm.errors.category"
                     />
                     <FormInputField
-                        id="ach-notes"
+                        id="achievement-notes"
                         v-model="achievementForm.notes"
-                        label="Notes"
+                        label="Catatan"
                         :error="achievementForm.errors.notes"
                     />
-                    <div class="grid gap-2 md:col-span-2">
-                        <label class="text-sm font-medium">Attach file (optional)</label>
+                    <div class="grid min-w-0 gap-2 sm:col-span-2">
+                        <label for="achievement-file" class="text-sm font-medium">Lampiran opsional</label>
                         <input
+                            id="achievement-file"
                             type="file"
-                            class="h-10 rounded-lg border border-input px-3 py-2 text-sm"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp"
+                            class="min-h-11 min-w-0 max-w-full rounded-lg border border-input px-3 py-2 text-sm file:max-w-full"
                             @change="onAchievementFileChange"
                         />
-                        <p v-if="!achievementForm.errors.file" class="text-xs leading-5 text-muted-foreground">
-                            Attach a certificate, result sheet, medal photo, or PDF.
+                        <p class="text-xs leading-5 text-muted-foreground">
+                            Berkas baru akan menggantikan lampiran lama ketika data diperbarui.
                         </p>
                         <p v-if="achievementForm.errors.file" class="text-sm text-destructive">
                             {{ achievementForm.errors.file }}
                         </p>
                     </div>
-                    <div class="flex gap-3 md:col-span-2">
-                        <Button type="submit" :disabled="achievementForm.processing">Save</Button>
-                        <Button type="button" variant="outline" @click="showAchievementModal = false">Cancel</Button>
+                    <div class="grid grid-cols-1 gap-2 sm:col-span-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="closeForm">Batal</Button>
+                        <Button type="submit" :disabled="achievementForm.processing">Simpan prestasi</Button>
                     </div>
                 </form>
             </PageSection>
