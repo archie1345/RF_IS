@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\User;
+use App\Services\ActiveRoleContextService;
 use Illuminate\Support\Collection;
 
 class RoleResolver
@@ -28,7 +29,19 @@ class RoleResolver
 
     public function primaryRoleFor(?User $user, string $default = 'athlete'): string
     {
-        return $this->rolesFor($user)[0] ?? $default;
+        $roles = $this->rolesFor($user);
+
+        if ($this->requestCanProvideRoleContext($user)) {
+            $storedRole = $this->normalizeRole(
+                request()->session()->get(ActiveRoleContextService::SESSION_KEY),
+            );
+
+            if ($storedRole !== null && in_array($storedRole, $roles, true)) {
+                return $storedRole;
+            }
+        }
+
+        return $roles[0] ?? $default;
     }
 
     public function hasRole(?User $user, string $role): bool
@@ -57,5 +70,16 @@ class RoleResolver
         $normalized = strtolower(trim((string) $role));
 
         return in_array($normalized, self::ROLES, true) ? $normalized : null;
+    }
+
+    private function requestCanProvideRoleContext(?User $user): bool
+    {
+        if (! $user || app()->runningInConsole() || ! app()->bound('request')) {
+            return false;
+        }
+
+        $request = request();
+
+        return $request->hasSession() && (int) $request->user()?->id === (int) $user->id;
     }
 }
