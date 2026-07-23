@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
-import { FileText, PencilLine } from 'lucide-vue-next';
+import { router, useForm } from '@inertiajs/vue3';
+import { FileText, PencilLine, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ const certificationEditForm = useForm({
     file: null as File | null,
 });
 
-function addCertification() {
+function addCertification(): void {
     certForm.post(props.storeUrl, {
         forceFormData: true,
         preserveScroll: true,
@@ -51,13 +52,15 @@ function addCertification() {
             certForm.reset();
             certForm.cert_type = 'BELT';
         },
-        onError: (errors) => console.error('Cert Errors:', errors),
     });
 }
 
-function openCertificationEdit(row: TableRow) {
-    const certification = props.certifications.find((item) => String(item.id) === String(row.id));
+function findCertification(row: TableRow): ProfileCertification | undefined {
+    return props.certifications.find((item) => String(item.id) === String(row.id));
+}
 
+function openCertificationEdit(row: TableRow): void {
+    const certification = findCertification(row);
     if (!certification) return;
 
     editingCertification.value = certification;
@@ -71,13 +74,13 @@ function openCertificationEdit(row: TableRow) {
     certificationEditForm.clearErrors();
 }
 
-function closeCertificationEdit() {
+function closeCertificationEdit(): void {
     editingCertification.value = null;
     certificationEditForm.reset();
     certificationEditForm.clearErrors();
 }
 
-function saveCertificationEdit() {
+function saveCertificationEdit(): void {
     if (!editingCertification.value) return;
 
     certificationEditForm
@@ -85,29 +88,32 @@ function saveCertificationEdit() {
         .post(props.updateUrl(editingCertification.value.id), {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => {
-                closeCertificationEdit();
-            },
-            onFinish: () => {
-                certificationEditForm.transform((data) => data);
-            },
+            onSuccess: closeCertificationEdit,
+            onFinish: () => certificationEditForm.transform((data) => data),
         });
+}
+
+function removeCertification(row: TableRow): void {
+    const certification = findCertification(row);
+    if (!certification || !window.confirm(`Hapus sertifikasi “${certification.title}”?`)) return;
+
+    router.delete(props.updateUrl(certification.id), { preserveScroll: true });
 }
 </script>
 
 <template>
-    <div class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+    <div class="min-w-0 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
         <h4 class="mb-3 flex items-center gap-2 font-semibold">
             <FileText class="h-4 w-4 text-muted-foreground" />
-            Certifications
+            Sertifikasi
         </h4>
         <DataTable
-            title="Certifications"
-            description="View all certifications for this user."
+            title="Sertifikasi"
+            description="Daftar sertifikasi sabuk, pelatih, atau wasit untuk pengguna ini."
             :columns="certificationColumns"
             :rows="rows"
-            action-label="Manage"
-            empty-text="No certifications found."
+            action-label="Tindakan"
+            empty-text="Belum ada sertifikasi."
         >
             <template #cell="{ row, column, value }">
                 <a
@@ -121,131 +127,130 @@ function saveCertificationEdit() {
                 <span v-else>{{ value ?? '-' }}</span>
             </template>
             <template v-if="props.canManage" #row-actions="{ row }">
-                <Button type="button" variant="outline" size="sm" class="gap-2" @click="openCertificationEdit(row)">
-                    <PencilLine class="h-3.5 w-3.5" />
-                    Edit
-                </Button>
+                <ActionButtonsRow>
+                    <Button type="button" variant="outline" size="sm" class="gap-2" @click="openCertificationEdit(row)">
+                        <PencilLine class="h-3.5 w-3.5" />
+                        Ubah
+                    </Button>
+                    <Button type="button" variant="destructive" size="sm" class="gap-2" @click="removeCertification(row)">
+                        <Trash2 class="h-3.5 w-3.5" />
+                        Hapus
+                    </Button>
+                </ActionButtonsRow>
             </template>
         </DataTable>
+
         <div v-if="props.canManage" class="mt-6 border-t border-border pt-4">
-            <h5 class="mb-2 font-medium">Add Certification</h5>
-            <form class="grid gap-3" @submit.prevent="addCertification">
-                <div class="grid gap-2 md:grid-cols-2">
+            <h5 class="mb-2 font-medium">Tambah sertifikasi</h5>
+            <form class="grid min-w-0 gap-3" @submit.prevent="addCertification">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormSelectField
                         id="cert-type"
                         v-model="certForm.cert_type"
-                        label="Type"
+                        label="Jenis"
                         :options="certificationTypeOptions"
                     />
                     <FormInputField
                         id="cert-title"
                         v-model="certForm.title"
-                        label="Title"
+                        label="Nama sertifikasi"
                         required
                         :error="certForm.errors.title"
                     />
                 </div>
-                <div class="grid gap-2 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="cert-issuer"
                         v-model="certForm.issuer"
-                        label="Issuer"
+                        label="Penerbit"
                         :error="certForm.errors.issuer"
                     />
-                    <FormInputField id="cert-date" v-model="certForm.certified_at" label="Certified at" type="date" />
+                    <FormInputField id="cert-date" v-model="certForm.certified_at" label="Tanggal sertifikasi" type="date" />
                 </div>
-                <div class="grid gap-2 md:grid-cols-2">
-                    <FormInputField id="cert-expires" v-model="certForm.expires_at" label="Expires at" type="date" />
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <FormInputField id="cert-expires" v-model="certForm.expires_at" label="Berlaku sampai" type="date" />
                     <FormInputField
                         id="cert-notes"
                         v-model="certForm.notes"
-                        label="Notes"
+                        label="Catatan"
                         :error="certForm.errors.notes"
                     />
                 </div>
                 <FormFileField
                     id="cert-file"
                     v-model="certForm.file"
-                    label="Certificate File"
+                    label="Berkas sertifikat"
                     :accept="documentFileAccept"
                     :error="certForm.errors.file"
                 />
-                <div>
-                    <Button type="submit" :disabled="certForm.processing">Add Certification</Button>
-                </div>
+                <Button type="submit" class="w-full sm:w-fit" :disabled="certForm.processing">Tambah sertifikasi</Button>
             </form>
         </div>
 
-        <FormModal :open="Boolean(editingCertification)" max-width-class="max-w-4xl" @close="closeCertificationEdit">
-            <form class="grid gap-4" @submit.prevent="saveCertificationEdit">
+        <FormModal :open="Boolean(editingCertification)" max-width-class="max-w-2xl" @close="closeCertificationEdit">
+            <form class="grid min-w-0 gap-4" @submit.prevent="saveCertificationEdit">
                 <div>
-                    <h3 class="text-lg font-semibold">Edit Certification</h3>
-                    <p class="text-sm text-muted-foreground">Update the record details or replace the attached file.</p>
+                    <h3 class="text-lg font-semibold">Ubah sertifikasi</h3>
+                    <p class="text-sm text-muted-foreground">Perbarui detail atau ganti berkas sertifikat.</p>
                 </div>
-
-                <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormSelectField
                         id="cert-edit-type"
                         v-model="certificationEditForm.cert_type"
-                        label="Type"
+                        label="Jenis"
                         :options="certificationTypeOptions"
                         :error="certificationEditForm.errors.cert_type"
                     />
                     <FormInputField
                         id="cert-edit-title"
                         v-model="certificationEditForm.title"
-                        label="Title"
+                        label="Nama sertifikasi"
                         required
                         :error="certificationEditForm.errors.title"
                     />
                 </div>
-                <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="cert-edit-issuer"
                         v-model="certificationEditForm.issuer"
-                        label="Issuer"
+                        label="Penerbit"
                         :error="certificationEditForm.errors.issuer"
                     />
                     <FormInputField
                         id="cert-edit-date"
                         v-model="certificationEditForm.certified_at"
-                        label="Certified at"
+                        label="Tanggal sertifikasi"
                         type="date"
                         :error="certificationEditForm.errors.certified_at"
                     />
                 </div>
-                <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="cert-edit-expires"
                         v-model="certificationEditForm.expires_at"
-                        label="Expires at"
+                        label="Berlaku sampai"
                         type="date"
                         :error="certificationEditForm.errors.expires_at"
                     />
                     <FormInputField
                         id="cert-edit-notes"
                         v-model="certificationEditForm.notes"
-                        label="Notes"
+                        label="Catatan"
                         :error="certificationEditForm.errors.notes"
                     />
                 </div>
                 <FormFileField
                     id="cert-edit-file"
                     v-model="certificationEditForm.file"
-                    label="Replace Certificate File"
+                    label="Ganti berkas sertifikat"
                     :accept="documentFileAccept"
                     :error="certificationEditForm.errors.file"
                     :current-file-name="editingCertification?.fileName"
                     :current-file-url="editingCertification?.fileUrl"
                 />
-
-                <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                    <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeCertificationEdit"
-                        >Cancel</Button
-                    >
-                    <Button type="submit" class="w-full sm:w-auto" :disabled="certificationEditForm.processing"
-                        >Save Certification</Button
-                    >
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="closeCertificationEdit">Batal</Button>
+                    <Button type="submit" :disabled="certificationEditForm.processing">Simpan sertifikasi</Button>
                 </div>
             </form>
         </FormModal>
