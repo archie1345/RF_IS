@@ -11,8 +11,8 @@ trait PaymentMutationRules
         return [
             'athlete_id' => ['nullable', 'exists:athletes,athlete_id'],
             'payment_type' => ['required', Rule::in(['TUITION', 'UNIFORM', 'LICENSE', 'CHAMPIONSHIP', 'OTHER', 'UNKNOWN'])],
-            'total_amount' => ['required', 'numeric', 'gt:0', 'max:999999999999.99'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'total_amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'payment_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:payment_date'],
             'notes' => ['nullable', 'string'],
