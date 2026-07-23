@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
 use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
@@ -149,10 +150,11 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
         Route::post('invoice-template', [InvoiceTemplateController::class, 'update'])->name('invoice-template.update');
 
+        Route::post('accounts', [AdminAccountController::class, 'store'])->name('accounts.store');
+        Route::put('accounts/{user}', [AdminAccountController::class, 'update'])->name('accounts.update');
+
         Route::controller(AdminController::class)->group(function () {
-            Route::post('accounts', 'store')->name('accounts.store');
             Route::get('accounts/{user}', 'show')->name('accounts.show');
-            Route::put('accounts/{user}', 'update')->name('accounts.update');
             Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend');
             Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy');
             Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
