@@ -38,7 +38,7 @@ function makeAthleteWithProfile(string $name = 'Athlete User'): array
     return [$user, $athlete, $branch, $group];
 }
 
-test('athlete can mark their own open attendance record', function () {
+test('athlete cannot bypass QR by manually updating attendance', function () {
     Carbon::setTestNow('2026-07-23 12:00:00');
 
     [$athleteUser, $athlete, $branch, $group] = makeAthleteWithProfile();
@@ -65,9 +65,9 @@ test('athlete can mark their own open attendance record', function () {
 
     $this->actingAs($athleteUser)
         ->put(route('attendance.update', $attendance), ['status' => 'PRESENT'])
-        ->assertRedirect(route('attendance.index'));
+        ->assertForbidden();
 
-    expect($attendance->refresh()->status)->toBe('PRESENT');
+    expect($attendance->refresh()->status)->toBe('ABSENT');
 });
 
 test('parent can see and upload proof for a tuition bill issued to their child user account', function () {
