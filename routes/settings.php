@@ -15,8 +15,10 @@ Route::middleware(['auth', 'account.active'])->group(function () {
     Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
     Route::post('settings/profile/certifications', [ProfileController::class, 'storeCertification'])->name('profile.certifications.store');
     Route::put('settings/profile/certifications/{certification}', [ProfileController::class, 'updateCertification'])->name('profile.certifications.update');
+    Route::delete('settings/profile/certifications/{certification}', [ProfileController::class, 'destroyCertification'])->name('profile.certifications.destroy');
     Route::post('settings/profile/achievements', [ProfileController::class, 'storeAchievement'])->name('profile.achievements.store');
     Route::put('settings/profile/achievements/{achievement}', [ProfileController::class, 'updateAchievement'])->name('profile.achievements.update');
+    Route::delete('settings/profile/achievements/{achievement}', [ProfileController::class, 'destroyAchievement'])->name('profile.achievements.destroy');
 });
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
