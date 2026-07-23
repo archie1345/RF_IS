@@ -17,6 +17,7 @@ class GenerateSessionAttendanceQr
         $session = DB::transaction(function () use ($session, $token): TrainingSession {
             $session->update([
                 'attendance_token_hash' => $this->tokens->hashToken($token),
+                'attendance_qr_token' => $token,
                 'attendance_opens_at' => now(),
                 'attendance_closes_at' => null,
                 'attendance_qr_generated_at' => now(),
