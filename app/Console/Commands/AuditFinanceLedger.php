@@ -54,10 +54,14 @@ class AuditFinanceLedger extends Command
                     ];
 
                     if ($this->option('repair') && ! $metadataMissing && $balanceMismatch) {
+                        $derivedStatus = in_array($payment->status, ['FAILED', 'REFUNDED'], true)
+                            ? $payment->status
+                            : ($expectedRemaining <= 0 ? 'COMPLETED' : 'PENDING');
+
                         $payment->update([
                             'paid_amount' => $expectedPaid,
                             'remaining_amount' => $expectedRemaining,
-                            'status' => $expectedRemaining <= 0 ? 'COMPLETED' : 'PENDING',
+                            'status' => $derivedStatus,
                         ]);
                         $repaired++;
                     }
