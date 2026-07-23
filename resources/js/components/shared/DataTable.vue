@@ -13,7 +13,7 @@ import type {
     TableFilter,
     TableRow,
 } from '@/types/resource-table';
-import type { DataTableFilterValue, DataTableFilterColumns, DataTableFilter } from './DataTable.types';
+import type { DataTableFilterColumns, DataTableFilterValue } from './DataTable.types';
 
 const props = withDefaults(
     defineProps<{
@@ -48,7 +48,7 @@ const props = withDefaults(
         filterable: false,
         filterColumns: 'auto',
         rowClickable: false,
-        rowClickLabel: 'Click a row to open details.',
+        rowClickLabel: 'Tap a record to open details.',
     },
 );
 
@@ -67,10 +67,11 @@ const visibleLimit = ref(props.initialLimit);
 const filterValues = reactive<Record<string, DataTableFilterValue>>({});
 
 const rowsPerPageSelectId = computed(() => `rows-per-page-${safeId(props.title)}`);
-const normalizedFilters = computed<DataTableFilter[]>(() => (props.filters ?? []) as DataTableFilter[]);
-const textFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'text'));
-const selectFilters = computed(() => normalizedFilters.value.filter((filter) => filterType(filter) === 'select'));
-const orderedFilters = computed(() => [...textFilters.value, ...selectFilters.value]);
+const normalizedFilters = computed<TableFilter[]>(() => props.filters ?? []);
+const orderedFilters = computed(() => [
+    ...normalizedFilters.value.filter((filter) => filterType(filter) === 'text'),
+    ...normalizedFilters.value.filter((filter) => filterType(filter) === 'select'),
+]);
 const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
 const activeFilterSignature = computed(() =>
     normalizedFilters.value
@@ -78,21 +79,21 @@ const activeFilterSignature = computed(() =>
         .join('|'),
 );
 const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => filterSelections(filter).length > 0));
-const clickableHint = computed(() => props.rowClickLabel.trim() || 'Click a row to open details.');
+const clickableHint = computed(() => props.rowClickLabel.trim() || 'Tap a record to open details.');
 const filterGridClass = computed(() => filterColumnsClass(props.filterColumns));
 
 const rowsPerPageOptions = computed<SelectOption[]>(() => {
     const numericOptions = new Set(
         [...props.rowsPerPageOptions, props.initialLimit, props.pageSize]
-            .map((value) => Number(value))
+            .map(Number)
             .filter((value) => Number.isFinite(value) && value > 0),
     );
 
     return [
         ...Array.from(numericOptions)
             .sort((left, right) => left - right)
-            .map((value) => ({ value: String(value), label: `${value} rows` })),
-        { value: 'all', label: 'All rows' },
+            .map((value) => ({ value: String(value), label: `${value} baris` })),
+        { value: 'all', label: 'Semua baris' },
     ];
 });
 
@@ -112,7 +113,7 @@ function safeId(value: string): string {
     );
 }
 
-function filterInputId(filter: DataTableFilter): string {
+function filterInputId(filter: TableFilter): string {
     return `table-filter-${safeId(props.title)}-${safeId(filter.key)}`;
 }
 
@@ -131,7 +132,7 @@ function badgeCell(value: TableCell | undefined): TableBadgeCell | null {
 function getCellText(value: unknown): string | number | boolean {
     if (isBadgeCell(value)) return String(value.text);
     if (Array.isArray(value)) return value.join(', ');
-    if (value === null || value === undefined) return '-';
+    if (value === null || value === undefined || value === '') return '-';
     if (typeof value === 'object') return JSON.stringify(value);
     return value as string | number | boolean;
 }
@@ -141,36 +142,36 @@ function isExternalUrl(value: TableCell | undefined): value is string {
 }
 
 function linkText(value: string): string {
-    if (value.includes('wa.me')) return 'Open WA';
-    return 'Open';
+    return value.includes('wa.me') ? 'Buka WhatsApp' : 'Buka';
 }
 
-function filterType(filter: DataTableFilter): 'text' | 'select' {
+function filterType(filter: TableFilter): 'text' | 'select' {
     return filter.type ?? 'text';
 }
 
-function filterMultiple(filter: DataTableFilter): boolean {
+function filterMultiple(filter: TableFilter): boolean {
     return filterType(filter) === 'select' && filter.multiple !== false;
 }
 
-function filterText(filter: DataTableFilter, row: TableRow): string {
+function filterText(filter: TableFilter, row: TableRow): string {
     const value = filter.accessor ? filter.accessor(row) : getCellValue(row, filter.columnKey ?? filter.key);
     return String(getCellText(value)).trim();
 }
 
-function filterSelections(filter: DataTableFilter): string[] {
+function filterSelections(filter: TableFilter): string[] {
     const value = filterValues[filter.key];
-    if (Array.isArray(value))
+    if (Array.isArray(value)) {
         return value
             .map(String)
             .map((entry) => entry.trim())
             .filter(Boolean);
+    }
 
     const singleValue = String(value ?? '').trim();
     return singleValue ? [singleValue] : [];
 }
 
-function filterOptions(filter: DataTableFilter): SelectOption[] {
+function filterOptions(filter: TableFilter): SelectOption[] {
     if (filter.options) return filter.options;
 
     return Array.from(
@@ -199,7 +200,7 @@ function filterColumnsClass(columns: DataTableFilterColumns): string {
     }
 }
 
-function filterSpanClass(filter: DataTableFilter): string {
+function filterSpanClass(filter: TableFilter): string {
     switch (filter.span) {
         case 2:
             return 'md:col-span-2';
@@ -227,7 +228,6 @@ function rowMatchesFilters(row: TableRow): boolean {
         if (filter.match) return values.some((value) => filter.match?.(row, value));
 
         const candidate = filterText(filter, row).toLowerCase();
-
         if (filterType(filter) === 'select') {
             return values.some((value) => candidate === value.toLowerCase());
         }
@@ -236,13 +236,13 @@ function rowMatchesFilters(row: TableRow): boolean {
     });
 }
 
-function clearFilters() {
+function clearFilters(): void {
     normalizedFilters.value.forEach((filter) => {
         filterValues[filter.key] = filterMultiple(filter) ? [] : '';
     });
 }
 
-function setSort(column: TableColumn) {
+function setSort(column: TableColumn): void {
     if (sortKey.value === column.key) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
         return;
@@ -252,11 +252,11 @@ function setSort(column: TableColumn) {
     sortDirection.value = 'asc';
 }
 
-function handleRowClick(row: TableRow) {
+function handleRowClick(row: TableRow): void {
     if (props.rowClickable) emit('rowClick', row);
 }
 
-function handleRowKeydown(event: KeyboardEvent, row: TableRow) {
+function handleRowKeydown(event: KeyboardEvent, row: TableRow): void {
     if (!props.rowClickable || !['Enter', ' '].includes(event.key)) return;
 
     event.preventDefault();
@@ -289,14 +289,14 @@ const filteredRows = computed(() => {
 
 const visibleRows = computed(() => {
     if (!props.paginate || selectedRowsPerPage.value === 'all') return filteredRows.value;
-
     return filteredRows.value.slice(0, visibleLimit.value);
 });
+
 const canShowMore = computed(
     () => props.paginate && selectedRowsPerPage.value !== 'all' && visibleRows.value.length < filteredRows.value.length,
 );
 
-function resetVisibleLimit() {
+function resetVisibleLimit(): void {
     visibleLimit.value = activePageSize.value || props.initialLimit;
 }
 
@@ -329,11 +329,11 @@ watch(
     resetVisibleLimit,
 );
 
-function showMoreRows() {
+function showMoreRows(): void {
     visibleLimit.value += activePageSize.value || props.pageSize;
 }
 
-function showAllRows() {
+function showAllRows(): void {
     selectedRowsPerPage.value = 'all';
     visibleLimit.value = filteredRows.value.length;
 }
@@ -341,32 +341,35 @@ function showAllRows() {
 
 <template>
     <Card class="w-full max-w-full overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
-        <CardHeader class="space-y-4 px-5 pt-5 pb-4">
+        <CardHeader class="space-y-4 px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0 space-y-1">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <CardTitle class="text-xl font-black sm:text-2xl">{{ title }}</CardTitle>
-                        <slot v-if="hasHeaderActions" name="actions" />
+                    <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                        <CardTitle class="break-words text-xl font-black sm:text-2xl">{{ title }}</CardTitle>
+                        <div v-if="hasHeaderActions" class="flex w-full flex-wrap gap-2 sm:w-auto">
+                            <slot name="actions" />
+                        </div>
                     </div>
                     <CardDescription v-if="description" class="text-sm leading-6">{{ description }}</CardDescription>
                     <p v-if="props.rowClickable" class="text-xs font-semibold text-muted-foreground">
                         {{ clickableHint }}
                     </p>
                 </div>
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-end">
+
+                <div class="flex w-full flex-col gap-2 sm:flex-row sm:items-end lg:w-auto lg:justify-end">
                     <FormSelectField
                         v-if="props.paginate && props.showRowsPerPage"
                         :id="rowsPerPageSelectId"
                         v-model="selectedRowsPerPage"
-                        label="Rows per page"
+                        label="Baris per halaman"
                         :options="rowsPerPageOptions"
-                        placeholder="Rows per page"
+                        placeholder="Jumlah baris"
                     />
                     <div
                         v-if="props.paginate"
-                        class="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
+                        class="self-start rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground sm:self-end"
                     >
-                        {{ visibleRows.length }} / {{ filteredRows.length }} shown<span
+                        {{ visibleRows.length }} / {{ filteredRows.length }} ditampilkan<span
                             v-if="filteredRows.length !== props.rows.length"
                         >
                             · {{ props.rows.length }} total</span
@@ -376,31 +379,32 @@ function showAllRows() {
                         <Search class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                             v-model="search"
-                            type="text"
+                            type="search"
                             class="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-10 text-sm shadow-sm focus:ring-2 focus:ring-ring/25 focus:outline-none"
-                            :placeholder="props.searchPlaceholder ?? 'Search table...'"
+                            :placeholder="props.searchPlaceholder ?? 'Cari data...'"
                         />
                     </div>
                 </div>
             </div>
+
             <div v-if="hasTableFilters">
                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters"
-                        >Clear filters</Button
-                    >
+                    <Button v-if="hasActiveFilters" type="button" variant="outline" size="sm" @click="clearFilters">
+                        Hapus filter
+                    </Button>
                 </div>
                 <div :class="['grid items-end gap-3', filterGridClass]">
                     <div
                         v-for="filter in orderedFilters"
                         :key="filter.key"
-                        :class="['grid gap-2 text-sm font-semibold', filterSpanClass(filter)]"
+                        :class="['grid min-w-0 gap-2 text-sm font-semibold', filterSpanClass(filter)]"
                     >
-                        <label v-if="filterType(filter) === 'text'" class="grid gap-2">
+                        <label v-if="filterType(filter) === 'text'" class="grid min-w-0 gap-2">
                             {{ filter.label }}
                             <input
                                 v-model="filterValues[filter.key]"
                                 type="text"
-                                class="min-h-12 rounded-2xl border bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-ring/30 focus:outline-none"
+                                class="min-h-12 min-w-0 rounded-2xl border bg-background px-3 text-sm shadow-sm focus:ring-2 focus:ring-ring/30 focus:outline-none"
                                 :placeholder="filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`"
                             />
                         </label>
@@ -410,17 +414,71 @@ function showAllRows() {
                             v-model="filterValues[filter.key]"
                             :label="filter.label"
                             :options="filterOptions(filter)"
-                            :placeholder="filter.placeholder ?? `All ${filter.label.toLowerCase()}`"
-                            :search-placeholder="filter.searchPlaceholder ?? `Search ${filter.label.toLowerCase()}...`"
+                            :placeholder="filter.placeholder ?? `Semua ${filter.label.toLowerCase()}`"
+                            :search-placeholder="filter.searchPlaceholder ?? `Cari ${filter.label.toLowerCase()}...`"
                             :multiple="filterMultiple(filter)"
                         />
                     </div>
                 </div>
             </div>
         </CardHeader>
-        <CardContent class="px-5 pb-5">
-            <div class="pb-2 text-xs text-muted-foreground sm:hidden">Swipe horizontally to view all columns</div>
-            <div class="w-full max-w-full overflow-x-auto">
+
+        <CardContent class="px-4 pb-4 sm:px-5 sm:pb-5">
+            <div v-if="visibleRows.length > 0" class="grid gap-3 sm:hidden">
+                <article
+                    v-for="row in visibleRows"
+                    :key="row.id"
+                    class="min-w-0 rounded-xl border border-border/70 bg-background p-4 shadow-sm"
+                    :class="props.rowClickable ? 'cursor-pointer active:bg-muted/40' : ''"
+                    :role="props.rowClickable ? 'button' : undefined"
+                    :tabindex="props.rowClickable ? 0 : undefined"
+                    :aria-label="props.rowClickable ? clickableHint : undefined"
+                    @click="handleRowClick(row)"
+                    @keydown="handleRowKeydown($event, row)"
+                >
+                    <dl class="grid gap-3">
+                        <div
+                            v-for="column in props.columns"
+                            :key="`${row.id}-${column.key}-mobile`"
+                            class="grid min-w-0 grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] gap-3 border-b border-border/60 pb-3 last:border-0 last:pb-0"
+                        >
+                            <dt class="break-words text-xs font-semibold text-muted-foreground">{{ column.label }}</dt>
+                            <dd class="min-w-0 break-words text-right text-sm" :class="column.key === props.columns[0]?.key ? 'font-semibold' : ''">
+                                <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
+                                    <StatusBadge
+                                        v-if="badgeCell(getCellValue(row, column.key))"
+                                        :label="badgeCell(getCellValue(row, column.key))?.text ?? ''"
+                                        :tone="badgeCell(getCellValue(row, column.key))?.tone"
+                                    />
+                                    <a
+                                        v-else-if="isExternalUrl(getCellValue(row, column.key))"
+                                        :href="String(getCellValue(row, column.key))"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="font-semibold text-primary underline-offset-4 hover:underline"
+                                        @click.stop
+                                    >
+                                        {{ linkText(String(getCellValue(row, column.key))) }}
+                                    </a>
+                                    <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
+                                </slot>
+                            </dd>
+                        </div>
+                    </dl>
+                    <div v-if="hasRowActions" class="mt-4 border-t border-border/70 pt-4" @click.stop>
+                        <p class="mb-2 text-xs font-semibold text-muted-foreground">
+                            {{ props.actionLabel ?? 'Tindakan' }}
+                        </p>
+                        <slot name="row-actions" :row="row" />
+                    </div>
+                </article>
+            </div>
+
+            <div v-else class="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground sm:hidden">
+                {{ props.emptyText ?? 'Belum ada data.' }}
+            </div>
+
+            <div class="hidden w-full max-w-full overflow-x-auto sm:block">
                 <table class="w-max min-w-full border-collapse">
                     <thead>
                         <tr class="border-b border-border/80 text-left text-sm text-foreground">
@@ -430,22 +488,13 @@ function showAllRows() {
                                 class="px-3 py-4 font-bold first:pl-3"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-1 hover:text-primary"
-                                    @click="setSort(column)"
-                                >
+                                <button type="button" class="inline-flex items-center gap-1 hover:text-primary" @click="setSort(column)">
                                     {{ column.label }}
-                                    <ArrowDownUp
-                                        class="size-3"
-                                        :class="
-                                            sortKey === column.key ? 'text-primary' : 'opacity-0 group-hover:opacity-40'
-                                        "
-                                    />
+                                    <ArrowDownUp class="size-3" :class="sortKey === column.key ? 'text-primary' : 'opacity-30'" />
                                 </button>
                             </th>
                             <th v-if="hasRowActions" class="px-3 py-4 text-right font-bold">
-                                {{ props.actionLabel ?? 'Action' }}
+                                {{ props.actionLabel ?? 'Tindakan' }}
                             </th>
                         </tr>
                     </thead>
@@ -454,11 +503,7 @@ function showAllRows() {
                             v-for="row in visibleRows"
                             :key="row.id"
                             class="group border-b border-border/70 text-sm text-foreground transition-colors hover:bg-muted/25"
-                            :class="
-                                props.rowClickable
-                                    ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none'
-                                    : ''
-                            "
+                            :class="props.rowClickable ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none' : ''"
                             :role="props.rowClickable ? 'button' : undefined"
                             :tabindex="props.rowClickable ? 0 : undefined"
                             :title="props.rowClickable ? clickableHint : undefined"
@@ -468,7 +513,7 @@ function showAllRows() {
                             <td
                                 v-for="(column, columnIndex) in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="px-3 py-4 align-middle"
+                                class="max-w-sm break-words px-3 py-4 align-middle"
                                 :class="[
                                     column.align === 'right' ? 'text-right' : 'text-left',
                                     columnIndex === 0 ? 'font-semibold text-foreground' : '',
@@ -504,19 +549,20 @@ function showAllRows() {
                                 :colspan="props.columns.length + (hasRowActions ? 1 : 0)"
                                 class="px-3 py-10 text-center text-sm text-muted-foreground"
                             >
-                                {{ props.emptyText ?? 'No records available yet.' }}
+                                {{ props.emptyText ?? 'Belum ada data.' }}
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            <div v-if="canShowMore" class="flex flex-wrap items-center justify-center gap-2 pt-4">
-                <Button type="button" variant="outline" size="sm" @click="showMoreRows"
-                    >Show {{ activePageSize }} more</Button
-                >
-                <Button type="button" variant="ghost" size="sm" @click="showAllRows"
-                    >Show all {{ filteredRows.length }}</Button
-                >
+
+            <div v-if="canShowMore" class="flex flex-col items-stretch justify-center gap-2 pt-4 sm:flex-row sm:items-center">
+                <Button type="button" variant="outline" size="sm" @click="showMoreRows">
+                    Tampilkan {{ activePageSize }} lagi
+                </Button>
+                <Button type="button" variant="ghost" size="sm" @click="showAllRows">
+                    Tampilkan semua {{ filteredRows.length }}
+                </Button>
             </div>
         </CardContent>
     </Card>
