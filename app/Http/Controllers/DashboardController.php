@@ -44,7 +44,7 @@ class DashboardController extends Controller
             'attendanceRows' => $this->attendanceRows($request, $role),
             'trainingDays' => $this->trainingDays($request, $role),
             'paymentRows' => $this->paymentRows($request, $role),
-            'medalRows' => $this->beltDistributionRows(),
+            'medalRows' => $role === 'admin' ? $this->beltDistributionRows() : [],
             'profileSummary' => $this->profileSummary($request, $role),
             'children' => $children,
             'activeChild' => $activeChild,
@@ -77,7 +77,7 @@ class DashboardController extends Controller
             'coach' => [
                 ['label' => 'Session attendance', 'value' => (string) $presentAttendance, 'detail' => 'Present athlete records from assigned sessions', 'tone' => 'success'],
                 ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Scheduled events ahead', 'tone' => 'info'],
-                ['label' => 'Account balance', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Bills or payouts linked to this coach account', 'tone' => 'warning'],
+                ['label' => 'Remaining payroll', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Outstanding payout assigned to this coach account', 'tone' => 'warning'],
             ],
             default => [
                 ['label' => 'Attendance entries', 'value' => (string) $presentAttendance, 'detail' => 'Recorded present sessions for this athlete', 'tone' => 'success'],
