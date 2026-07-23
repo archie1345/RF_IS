@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
         $childContext = app(ParentChildContextService::class);
         $roles = $roleContext->availableRoles($user);
         $activeRole = $roleContext->activeRole($request, $user);
-        $primaryRole = $user?->primaryRole() ?? $activeRole;
+        $primaryRole = $roles[0] ?? $activeRole;
         $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
         $activeChild = $activeRole === 'parent' ? $childContext->activeChildFor($request) : null;
 
