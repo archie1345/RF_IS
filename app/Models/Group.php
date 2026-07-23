@@ -67,6 +67,12 @@ class Group extends Model
         return $this->belongsTo(Coach::class, 'coach_id', 'coach_id');
     }
 
+    public function coaches(): BelongsToMany
+    {
+        return $this->belongsToMany(Coach::class, 'class_group_coaches', 'group_id', 'coach_id', 'group_id', 'coach_id')
+            ->withTimestamps();
+    }
+
     public function dedicatedAthlete(): BelongsTo
     {
         return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
