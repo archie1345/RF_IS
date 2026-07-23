@@ -42,7 +42,7 @@ Artisan::command('app:database-audit', function () {
         'athlete_attendance' => ['training_session_id', 'athlete_id', 'status'],
         'payments' => ['payment_id', 'payment_type', 'status', 'total_amount', 'paid_amount', 'remaining_amount'],
         'announcements' => ['id', 'title', 'target_role', 'is_active'],
-        'events' => ['event_id', 'name', 'status'],
+        'events' => ['event_id', 'e_name', 'status'],
         'event_registrations' => ['evrid', 'event_id', 'athlete_id', 'status'],
     ];
 
