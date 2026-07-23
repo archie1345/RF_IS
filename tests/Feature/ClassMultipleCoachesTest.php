@@ -7,6 +7,7 @@ use App\Models\TrainingGroup;
 use App\Models\TrainingSession;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function classCoachTestCoach(string $name): Coach
 {
@@ -67,6 +68,15 @@ it('assigns multiple coaches to a class and its generated sessions', function ()
     expect((string) $session->coach_id)->toBe((string) $firstCoach->coach_id)
         ->and($session->assignedCoaches()->pluck('coaches.coach_id')->map(fn ($id) => (string) $id)->sort()->values()->all())
         ->toBe(collect([$firstCoach->coach_id, $secondCoach->coach_id])->map(fn ($id) => (string) $id)->sort()->values()->all());
+
+    $this->actingAs($admin)
+        ->get(route('admin.classes'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AdminClassesPage')
+            ->has('classes', 1)
+            ->has('classes.0.coach_ids', 2)
+            ->where('classes.0.coach', 'Coach Satu, Coach Dua'));
 });
 
 it('keeps the legacy single coach payload compatible', function () {
