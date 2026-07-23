@@ -21,6 +21,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentPageController;
 use App\Http\Controllers\ProfileAccessController;
 use App\Http\Controllers\Profiles\CoachProfileController;
 use App\Http\Controllers\Profiles\ParentProfileController;
@@ -178,15 +179,15 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         });
     });
 
-    Route::prefix('payments')->name('payments.')->controller(PaymentController::class)->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('/', 'store')->name('store');
-        Route::put('{payment}', 'update')->name('update');
-        Route::delete('{payment}', 'destroy')->name('destroy');
-        Route::put('{payment}/status', 'updateStatus')->name('status.update');
-        Route::post('{payment}/proof', 'submitProof')->name('proof.submit');
-        Route::put('{payment}/proof-review', 'reviewProof')->name('proof.review');
-        Route::get('{payment}/export', 'exportInvoice')->name('export');
+    Route::prefix('payments')->name('payments.')->group(function () {
+        Route::get('/', PaymentPageController::class)->name('index');
+        Route::post('/', [PaymentController::class, 'store'])->name('store');
+        Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
+        Route::delete('{payment}', [PaymentController::class, 'destroy'])->name('destroy');
+        Route::put('{payment}/status', [PaymentController::class, 'updateStatus'])->name('status.update');
+        Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])->name('proof.submit');
+        Route::put('{payment}/proof-review', [PaymentController::class, 'reviewProof'])->name('proof.review');
+        Route::get('{payment}/export', [PaymentController::class, 'exportInvoice'])->name('export');
     });
 
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
