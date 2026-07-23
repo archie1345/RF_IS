@@ -18,6 +18,7 @@ use App\Http\Controllers\AttendanceScanController;
 use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\ChampionshipExportController;
 use App\Http\Controllers\ChampionshipPageController;
+use App\Http\Controllers\ChampionshipPaymentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
@@ -117,7 +118,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
         Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
         Route::delete('registrations/{registration}', [ChampionshipController::class, 'destroyRegistration'])->name('registrations.destroy');
-        Route::post('payments/{payment}/settle', [ChampionshipController::class, 'settleRegistrationPayment'])->name('payments.settle');
+        Route::post('payments/{payment}/settle', ChampionshipPaymentController::class)->name('payments.settle');
         Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
         Route::delete('coaches/{coachRegistration}', [ChampionshipController::class, 'destroyCoachRegistration'])->name('coaches.destroy');
         Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
