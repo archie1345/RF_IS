@@ -10,8 +10,6 @@ use Inertia\Inertia;
 Route::middleware(['auth', 'account.active'])->group(function () {
     Route::redirect('settings', '/settings/profile');
 
-    Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
-
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
@@ -22,6 +20,8 @@ Route::middleware(['auth', 'account.active'])->group(function () {
 });
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
+    Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
+
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('user-password.edit');
