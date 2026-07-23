@@ -30,21 +30,29 @@ class ChampionshipPageController extends Controller
             'isAthlete' => $role === 'athlete',
             'canRegister' => in_array($role, ['admin', 'parent', 'athlete'], true),
             'metrics' => [
-                ['label' => 'Open registrations', 'value' => (string) $events->where('status', 'SCHEDULED')->count(), 'detail' => 'Published events currently taking entries', 'tone' => 'warning'],
-                ['label' => 'Visible entries', 'value' => (string) $registrations->count(), 'detail' => 'Registration records available in the active role context', 'tone' => 'info'],
-                ['label' => 'Confirmed entries', 'value' => (string) $registrations->where('status', 'CONFIRMED')->count(), 'detail' => 'Confirmed registrations in the active role context', 'tone' => 'success'],
+                ['label' => 'Pendaftaran dibuka', 'value' => (string) $events->where('status', 'SCHEDULED')->count(), 'detail' => 'Kejuaraan yang masih menerima peserta', 'tone' => 'warning'],
+                ['label' => 'Entri terlihat', 'value' => (string) $registrations->count(), 'detail' => 'Pendaftaran dalam konteks peran aktif', 'tone' => 'info'],
+                ['label' => 'Entri terkonfirmasi', 'value' => (string) $registrations->where('status', 'CONFIRMED')->count(), 'detail' => 'Pendaftaran yang sudah dikonfirmasi', 'tone' => 'success'],
             ],
             'rows' => $events->map(fn (Event $event) => [
                 'id' => 'EVT-'.$event->event_id,
                 'event_id' => $event->event_id,
                 'event' => $event->e_name,
                 'date' => Carbon::parse($event->e_date)->format('d M Y'),
+                'date_value' => Carbon::parse($event->e_date)->format('Y-m-d'),
                 'location' => $event->location ?? 'TBD',
-                'slots' => $event->registrations_count.' / '.$event->max_slots.' athletes',
+                'gmaps_url' => $event->gmaps_url,
+                'entry_fee' => (float) $event->entry_fee,
+                'max_slots' => (int) $event->max_slots,
+                'level' => $event->level ?? 'LOCAL',
+                'status_value' => $event->status ?? 'SCHEDULED',
+                'status' => $event->status ?? 'SCHEDULED',
+                'registrations_count' => (int) $event->registrations_count,
+                'slots' => $event->registrations_count.' / '.$event->max_slots.' atlet',
             ])->values(),
             'athletes' => $athleteOptions,
             'events' => in_array($role, ['admin', 'parent', 'athlete'], true)
-                ? $events->map(fn (Event $event) => [
+                ? $events->where('status', 'SCHEDULED')->map(fn (Event $event) => [
                     'value' => $event->event_id,
                     'label' => $event->e_name,
                 ])->values()
@@ -72,7 +80,7 @@ class ChampionshipPageController extends Controller
             ->get()
             ->map(fn (Athlete $athlete) => [
                 'value' => $athlete->athlete_id,
-                'label' => $athlete->user?->name ?? 'Unknown athlete',
+                'label' => $athlete->user?->name ?? 'Atlet tidak dikenal',
             ])
             ->sortBy('label')
             ->values();
@@ -103,7 +111,7 @@ class ChampionshipPageController extends Controller
             ->get()
             ->map(fn (Payment $payment) => [
                 'payment_id' => $payment->payment_id,
-                'athlete' => $payment->athlete?->user?->name ?? 'Unknown athlete',
+                'athlete' => $payment->athlete?->user?->name ?? 'Atlet tidak dikenal',
                 'amount' => (float) ($payment->total_amount ?? $payment->amount ?? 0),
                 'remaining' => (float) ($payment->remaining_amount ?? 0),
             ])
