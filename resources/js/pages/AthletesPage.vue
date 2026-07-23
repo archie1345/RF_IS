@@ -288,7 +288,7 @@ function toggleChild(value: string | number) {
 function saveParentChildren() {
     if (!editingParentChildrenId.value) return;
 
-    parentChildrenForm.put(parentChildrenSync.url(editingParentChildrenId.value), {
+    parentChildrenForm.put(parentChildrenSync.url(String(editingParentChildrenId.value)), {
         preserveScroll: true,
         onSuccess: closeParentChildrenModal,
     });
