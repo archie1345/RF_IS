@@ -68,6 +68,7 @@ const achievementForm = useForm({
 function resetForm(): void {
     achievementForm.reset();
     achievementForm.clearErrors();
+    achievementForm.transform((data) => data);
     achievementForm.medal = 'NONE';
     editingId.value = null;
 }
@@ -109,18 +110,23 @@ function onAchievementFileChange(event: Event): void {
 function saveAchievement(): void {
     if (!props.canCreate) return;
 
-    const options = {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: closeForm,
-    };
-
     if (editingId.value !== null) {
-        achievementForm.put(achievementsUpdate.url(editingId.value), options);
+        achievementForm
+            .transform((data) => ({ ...data, _method: 'put' }))
+            .post(achievementsUpdate.url(editingId.value), {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: closeForm,
+                onFinish: () => achievementForm.transform((data) => data),
+            });
         return;
     }
 
-    achievementForm.post(achievementsStore.url(), options);
+    achievementForm.post(achievementsStore.url(), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: closeForm,
+    });
 }
 
 function removeAchievement(row: TableRow): void {
