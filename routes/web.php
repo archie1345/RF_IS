@@ -133,7 +133,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::redirect('finance-output', '/payments')->name('finance-output');
         Route::redirect('monthly-dues', '/payments')->name('monthly-dues');
         Route::post('monthly-dues/settings', [AdminFinanceFeatureController::class, 'updateBillingSettings'])->name('monthly-dues.settings');
-        Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('schedules.generate-week');
+        Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
         Route::get('members', [AdminPeopleFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminPeopleFeatureController::class, 'instructors'])->name('instructors');
         Route::get('events', [AdminEventFeatureController::class, 'index'])->name('events');
