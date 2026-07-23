@@ -51,21 +51,9 @@ import AppLogo from './AppLogo.vue';
 
 const page = usePage<{ auth: Auth }>();
 
-const roles = computed<AppRole[]>(() => {
-    const assignedRoles = page.props.auth?.user?.roles ?? [];
-    const validRoles = assignedRoles.filter((item): item is AppRole =>
-        ['admin', 'coach', 'parent', 'athlete'].includes(item),
-    );
-
-    if (validRoles.length > 0) {
-        return validRoles;
-    }
-
-    const userRole = page.props.auth?.user?.role;
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
-        ? [userRole]
-        : ['athlete'];
-});
+const activeRole = computed<AppRole>(() =>
+    page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
+);
 
 const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: adminDashboard.url(), icon: LayoutGrid },
@@ -119,21 +107,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     ],
 };
 
-const mainNavItems = computed(() => {
-    const seen = new Set<string>();
-
-    return roles.value
-        .flatMap((entry) => navByRole[entry])
-        .filter((item) => {
-            const href = String(item.href);
-            if (seen.has(href)) {
-                return false;
-            }
-            seen.add(href);
-            return true;
-        });
-});
-
+const mainNavItems = computed(() => navByRole[activeRole.value]);
 const footerNavItems: NavItem[] = [];
 </script>
 
