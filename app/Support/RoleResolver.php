@@ -62,6 +62,7 @@ class RoleResolver
             ->map(fn ($role) => $this->normalizeRole($role))
             ->filter()
             ->unique()
+            ->sortBy(fn (string $role): int => array_search($role, self::ROLES, true))
             ->values();
     }
 
