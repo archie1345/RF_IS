@@ -1,0 +1,68 @@
+type RouteParams = unknown;
+
+type RouteDefinition = ((params?: RouteParams) => string) & {
+    url: (params?: RouteParams) => string;
+    method?: string;
+    route?: string;
+};
+
+export const home: RouteDefinition;
+export const dashboard: RouteDefinition;
+export const login: RouteDefinition;
+export const logout: RouteDefinition;
+export const register: RouteDefinition;
+export const password: RouteDefinition;
+export const confirmation: RouteDefinition;
+export const verification: RouteDefinition;
+export const profile: RouteDefinition;
+export const appearance: RouteDefinition;
+export const twoFactor: RouteDefinition;
+
+export const index: RouteDefinition;
+export const show: RouteDefinition;
+export const create: RouteDefinition;
+export const store: RouteDefinition;
+export const edit: RouteDefinition;
+export const update: RouteDefinition;
+export const destroy: RouteDefinition;
+export const deleteMethod: RouteDefinition;
+export const restore: RouteDefinition;
+export const forceDelete: RouteDefinition;
+export const clear: RouteDefinition;
+export const switchMethod: RouteDefinition;
+export const sync: RouteDefinition;
+export const exportMethod: RouteDefinition;
+export const exportAthletes: RouteDefinition;
+export const exportCoaches: RouteDefinition;
+export const exportCsv: RouteDefinition;
+export const downloadTemplate: RouteDefinition;
+export const importCsv: RouteDefinition;
+export const bulkUpdate: RouteDefinition;
+export const updateStatus: RouteDefinition;
+export const submitProof: RouteDefinition;
+export const reviewProof: RouteDefinition;
+export const attendance: RouteDefinition;
+export const join: RouteDefinition;
+export const result: RouteDefinition;
+export const history: RouteDefinition;
+export const settings: RouteDefinition;
+export const generate: RouteDefinition;
+export const generateWeek: RouteDefinition;
+export const resend: RouteDefinition;
+export const settle: RouteDefinition;
+export const manual: RouteDefinition;
+export const qr: RouteDefinition;
+
+export const dashboardRoute: RouteDefinition;
+export const attendanceRoute: RouteDefinition;
+export const instructorAttendance: RouteDefinition;
+export const events: RouteDefinition;
+export const locations: RouteDefinition;
+export const classes: RouteDefinition;
+export const groups: RouteDefinition;
+export const schedules: RouteDefinition;
+export const payments: RouteDefinition;
+export const members: RouteDefinition;
+export const instructors: RouteDefinition;
+export const activityLogs: RouteDefinition;
+export const invoiceTemplate: RouteDefinition;
