@@ -12,7 +12,9 @@ use App\Models\Event;
 use App\Models\Payment;
 use App\Models\TrainingSession;
 use App\Models\UserCertification;
+use App\Services\AttendanceVisibilityService;
 use App\Services\ParentChildContextService;
+use App\Services\PaymentVisibilityService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +23,11 @@ class DashboardController extends Controller
 {
     use FormatsPresentationData;
 
-    public function __construct(private readonly ParentChildContextService $childContext) {}
+    public function __construct(
+        private readonly ParentChildContextService $childContext,
+        private readonly AttendanceVisibilityService $attendanceVisibility,
+        private readonly PaymentVisibilityService $paymentVisibility,
+    ) {}
 
     public function __invoke(Request $request): Response
     {
@@ -33,7 +39,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'metrics' => $this->dashboardMetrics($request, $role),
             'activityPreviewRows' => $role === 'admin' ? $this->activityPreviewRows() : [],
-            'announcements' => $this->announcements($request, $role),
+            'announcements' => $this->announcements($role),
             'upcomingEvents' => $this->upcomingEvents(),
             'attendanceRows' => $this->attendanceRows($request, $role),
             'trainingDays' => $this->trainingDays($request, $role),
@@ -49,10 +55,12 @@ class DashboardController extends Controller
     {
         $athleteCount = Athlete::count();
         $coachCount = Coach::count();
-        $visiblePayments = $this->visiblePaymentsQuery($request, $role);
+        $visiblePayments = $this->paymentVisibility->visiblePaymentsQuery($request, $role);
+        $visibleAttendance = $this->attendanceVisibility->scopedAttendanceQuery($request, $role);
         $outstandingBalance = (float) (clone $visiblePayments)->sum('remaining_amount');
         $upcomingEvents = Event::query()->whereDate('e_date', '>=', now()->toDateString())->count();
-        $attendanceToday = Attendance::query()->whereDate('date', now()->toDateString())->count();
+        $attendanceToday = (clone $visibleAttendance)->whereDate('date', now()->toDateString())->count();
+        $presentAttendance = (clone $visibleAttendance)->where('status', 'PRESENT')->count();
 
         return match ($role) {
             'admin' => [
@@ -66,10 +74,15 @@ class DashboardController extends Controller
                 ['label' => 'Outstanding bills', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Only linked child bills are counted', 'tone' => 'warning'],
                 ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Open events and competitions', 'tone' => 'success'],
             ],
-            default => [
-                ['label' => 'Attendance entries', 'value' => (string) Attendance::query()->where('status', 'PRESENT')->count(), 'detail' => 'Recorded present sessions', 'tone' => 'success'],
+            'coach' => [
+                ['label' => 'Session attendance', 'value' => (string) $presentAttendance, 'detail' => 'Present athlete records from assigned sessions', 'tone' => 'success'],
                 ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Scheduled events ahead', 'tone' => 'info'],
-                ['label' => 'Unpaid balance', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Pending bills for this account', 'tone' => 'warning'],
+                ['label' => 'Account balance', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Bills or payouts linked to this coach account', 'tone' => 'warning'],
+            ],
+            default => [
+                ['label' => 'Attendance entries', 'value' => (string) $presentAttendance, 'detail' => 'Recorded present sessions for this athlete', 'tone' => 'success'],
+                ['label' => 'Upcoming events', 'value' => (string) $upcomingEvents, 'detail' => 'Scheduled events ahead', 'tone' => 'info'],
+                ['label' => 'Unpaid balance', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Pending bills for this athlete account', 'tone' => 'warning'],
             ],
         };
     }
@@ -93,16 +106,10 @@ class DashboardController extends Controller
             ->all();
     }
 
-    private function announcements(Request $request, string $role): array
+    private function announcements(string $role): array
     {
-        $user = $request->user();
-        $isAdmin = (bool) $user?->isAdmin();
-        $roleTargets = collect($user?->assignedRoles() ?? [$role])
-            ->filter()
-            ->map(fn (string $role) => strtoupper($role))
-            ->push('ALL')
-            ->unique()
-            ->values();
+        $isAdmin = $role === 'admin';
+        $roleTargets = [strtoupper($role), 'ALL'];
 
         return Announcement::query()
             ->with('creator:id,name')
@@ -144,23 +151,22 @@ class DashboardController extends Controller
 
     private function attendanceRows(Request $request, string $role): array
     {
-        $query = Attendance::query()->with('athlete.user:id,name')->latest('date')->latest('athlete_attendance_id');
-
-        if ($role === 'parent') {
-            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
-            $query->whereIn('athlete_id', $childIds);
-        } elseif ($role === 'athlete') {
-            $athleteId = $request->user()?->athleteProfile?->athlete_id;
-            $query->when($athleteId, fn ($inner) => $inner->where('athlete_id', $athleteId));
-        }
-
-        return $query->limit(30)->get()->map(fn (Attendance $record) => [
-            'id' => 'DA-'.$record->athlete_attendance_id,
-            'athlete' => $record->athlete?->user?->name ?? 'Unknown',
-            'date' => optional($record->date)->format('Y-m-d') ?? '-',
-            'status_value' => $record->status,
-            'status' => $this->badge((string) $record->status, $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger')),
-        ])->values()->all();
+        return $this->attendanceVisibility
+            ->scopedAttendanceQuery($request, $role)
+            ->with('athlete.user:id,name')
+            ->latest('date')
+            ->latest('athlete_attendance_id')
+            ->limit(30)
+            ->get()
+            ->map(fn (Attendance $record) => [
+                'id' => 'DA-'.$record->athlete_attendance_id,
+                'athlete' => $record->athlete?->user?->name ?? 'Unknown',
+                'date' => optional($record->date)->format('Y-m-d') ?? '-',
+                'status_value' => $record->status,
+                'status' => $this->badge((string) $record->status, $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger')),
+            ])
+            ->values()
+            ->all();
     }
 
     private function trainingDays(Request $request, string $role): array
@@ -198,9 +204,15 @@ class DashboardController extends Controller
                     });
                 }
             });
-        } elseif ($role === 'coach' && ! $user?->isAdmin()) {
+        } elseif ($role === 'coach') {
             $coachId = $user?->coachProfile?->coach_id;
-            $query->where(fn ($inner) => $inner->where('coach_id', $coachId)->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId)));
+            if (! $coachId) {
+                return [];
+            }
+
+            $query->where(fn ($inner) => $inner
+                ->where('coach_id', $coachId)
+                ->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId)));
         }
 
         return $query->orderBy('session_date')->get()->map(fn (TrainingSession $session) => [
@@ -215,19 +227,23 @@ class DashboardController extends Controller
 
     private function paymentRows(Request $request, string $role): array
     {
-        $query = $this->visiblePaymentsQuery($request, $role)
+        return $this->paymentVisibility
+            ->visiblePaymentsQuery($request, $role)
             ->with(['athlete.user:id,name', 'billableUser:id,name', 'payeeUser:id,name'])
             ->latest('payment_date')
-            ->latest('payment_id');
-
-        return $query->limit(8)->get()->map(fn (Payment $payment) => [
-            'id' => 'DP-'.$payment->payment_id,
-            'athlete' => $this->paymentSubject($payment),
-            'total' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
-            'paid' => $this->rupiah((float) ($payment->paid_amount ?? 0)),
-            'remaining' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
-            'status' => $this->badge((float) ($payment->remaining_amount ?? 0) <= 0 ? 'Full' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'), (float) ($payment->remaining_amount ?? 0) <= 0 ? 'success' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'warning' : 'danger')),
-        ])->values()->all();
+            ->latest('payment_id')
+            ->limit(8)
+            ->get()
+            ->map(fn (Payment $payment) => [
+                'id' => 'DP-'.$payment->payment_id,
+                'athlete' => $this->paymentSubject($payment),
+                'total' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
+                'paid' => $this->rupiah((float) ($payment->paid_amount ?? 0)),
+                'remaining' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
+                'status' => $this->badge((float) ($payment->remaining_amount ?? 0) <= 0 ? 'Full' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'), (float) ($payment->remaining_amount ?? 0) <= 0 ? 'success' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'warning' : 'danger')),
+            ])
+            ->values()
+            ->all();
     }
 
     private function beltDistributionRows(): array
@@ -280,26 +296,5 @@ class DashboardController extends Controller
             'PARENT' => 'Parents',
             default => $target ? str((string) $target)->headline()->toString() : 'All roles',
         };
-    }
-
-    private function visiblePaymentsQuery(Request $request, string $role)
-    {
-        $query = Payment::query();
-        $user = $request->user();
-
-        if ($role === 'parent') {
-            $athleteIds = $this->childContext->visibleChildAthleteIds($request, true, true);
-            $childUserIds = Athlete::query()->whereIn('athlete_id', $athleteIds)->pluck('id');
-            $query->where(function ($inner) use ($athleteIds, $childUserIds, $user) {
-                $inner->whereIn('athlete_id', $athleteIds)
-                    ->orWhereIn('billable_user_id', $childUserIds)
-                    ->orWhere('payer_user_id', $user?->id);
-            });
-        } elseif ($role === 'athlete') {
-            $athleteId = $user?->athleteProfile?->athlete_id;
-            $query->where(fn ($inner) => $inner->where('athlete_id', $athleteId)->orWhere('billable_user_id', $user?->id));
-        }
-
-        return $query;
     }
 }
