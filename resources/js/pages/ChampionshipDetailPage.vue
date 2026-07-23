@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -16,10 +16,14 @@ import {
     index as championshipsIndex,
     show as championshipShow,
 } from '@/routes/championships';
-import { store as championshipCoachStore } from '@/routes/championships/coaches';
 import {
-    update as championshipRegistrationUpdate,
+    destroy as championshipCoachDestroy,
+    store as championshipCoachStore,
+} from '@/routes/championships/coaches';
+import {
+    destroy as championshipRegistrationDestroy,
     result as championshipRegistrationResult,
+    update as championshipRegistrationUpdate,
 } from '@/routes/championships/registrations';
 import { show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
@@ -29,6 +33,7 @@ const props = defineProps<{
     isAdmin: boolean;
     canManageCoaches: boolean;
     canRecordResult: boolean;
+    canDeleteRegistration: boolean;
     event: {
         id: number;
         name: string;
@@ -44,29 +49,38 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Championships', href: championshipsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
     { title: props.event.name, href: championshipShow.url(props.event.id) },
 ];
 
 const athleteColumns: TableColumn[] = [
-    { key: 'athlete', label: 'Athlete' },
+    { key: 'athlete', label: 'Atlet' },
     { key: 'classification', label: 'Klasifikasi' },
     { key: 'division', label: 'Divisi' },
-    { key: 'class_name', label: 'Class' },
+    { key: 'class_name', label: 'Kelas' },
     { key: 'category', label: 'Kategori' },
     { key: 'team_contingent', label: 'Tim/Kontingen' },
     { key: 'status', label: 'Status' },
 ];
+
 const coachColumns: TableColumn[] = [
-    { key: 'coach', label: 'Coach' },
-    { key: 'role', label: 'Role' },
+    { key: 'coach', label: 'Pelatih' },
+    { key: 'role', label: 'Peran' },
 ];
+
 const categoryOptions = [
     { value: 'KYORUGI', label: 'Kyorugi' },
     { value: 'POOMSAE', label: 'Poomsae' },
     { value: 'FREESTYLE', label: 'Freestyle' },
-    { value: 'UNKNOWN', label: 'Unknown' },
+    { value: 'UNKNOWN', label: 'Belum ditentukan' },
+];
+
+const medalOptions = [
+    { value: 'GOLD', label: 'Emas' },
+    { value: 'SILVER', label: 'Perak' },
+    { value: 'BRONZE', label: 'Perunggu' },
+    { value: 'NONE', label: 'Tanpa medali' },
 ];
 
 const showCoachForm = ref(false);
@@ -80,10 +94,10 @@ const editForm = useForm({
     classification: '',
     class_name: '',
     division: '',
-    team_contingent: 'rhino fighter',
+    team_contingent: 'Rhino Fighter',
 });
 
-function addCoach() {
+function addCoach(): void {
     coachForm.post(championshipCoachStore.url(props.event.id), {
         onSuccess: () => {
             coachForm.reset();
@@ -92,35 +106,40 @@ function addCoach() {
     });
 }
 
-function openResultForm(row: TableRow) {
-    const registrationId = routeId(row.id);
-    if (!registrationId) return;
+function openResultForm(row: TableRow): void {
+    const registrationId = routeId(row.registration_id ?? row.id);
+    if (registrationId === null) return;
+
     activeRegistrationId.value = registrationId;
     resultForm.reset();
     resultForm.medal = 'NONE';
+    resultForm.class_name = row.class_name === '-' ? '' : String(row.class_name ?? '');
+    resultForm.division = row.division === '-' ? '' : String(row.division ?? '');
+    resultForm.category = String(row.category ?? '');
     showResultForm.value = true;
 }
 
-function openRegistrationEdit(row: TableRow) {
-    const registrationId = routeId(row.id);
-    if (!registrationId) return;
+function openRegistrationEdit(row: TableRow): void {
+    const registrationId = routeId(row.registration_id ?? row.id);
+    if (registrationId === null) return;
+
     activeRegistrationId.value = registrationId;
     editForm.category = String(row.category ?? 'KYORUGI');
     editForm.classification = row.classification === '-' ? '' : String(row.classification ?? '');
     editForm.class_name = row.class_name === '-' ? '' : String(row.class_name ?? '');
     editForm.division = row.division === '-' ? '' : String(row.division ?? '');
-    editForm.team_contingent = String(row.team_contingent ?? 'rhino fighter');
+    editForm.team_contingent = String(row.team_contingent ?? 'Rhino Fighter');
     showRegistrationEditForm.value = true;
 }
 
 function athleteProfileUrl(row: TableRow): string | null {
     const userId = routeId(row.athlete_user_id);
-
     return userId === null ? null : userShow.url(userId);
 }
 
-function saveRegistrationEdit() {
-    if (!activeRegistrationId.value) return;
+function saveRegistrationEdit(): void {
+    if (activeRegistrationId.value === null) return;
+
     editForm.put(championshipRegistrationUpdate.url(activeRegistrationId.value), {
         onSuccess: () => {
             showRegistrationEditForm.value = false;
@@ -129,8 +148,9 @@ function saveRegistrationEdit() {
     });
 }
 
-function saveResult() {
-    if (!activeRegistrationId.value) return;
+function saveResult(): void {
+    if (activeRegistrationId.value === null) return;
+
     resultForm.post(championshipRegistrationResult.url(activeRegistrationId.value), {
         onSuccess: () => {
             showResultForm.value = false;
@@ -138,57 +158,81 @@ function saveResult() {
         },
     });
 }
+
+function removeRegistration(row: TableRow): void {
+    const registrationId = routeId(row.registration_id ?? row.id);
+    if (registrationId === null || !window.confirm(`Hapus pendaftaran ${String(row.athlete ?? '')}?`)) return;
+
+    router.delete(championshipRegistrationDestroy.url(registrationId), { preserveScroll: true });
+}
+
+function removeCoach(row: TableRow): void {
+    const registrationId = routeId(row.registration_id ?? row.id);
+    if (registrationId === null || !window.confirm(`Hapus penugasan ${String(row.coach ?? '')}?`)) return;
+
+    router.delete(championshipCoachDestroy.url(registrationId), { preserveScroll: true });
+}
 </script>
 
 <template>
-    <Head :title="`Championship - ${props.event.name}`" />
+    <Head :title="`Kejuaraan - ${props.event.name}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
             <PageSection
-                eyebrow="Championship Detail"
+                eyebrow="Detail kejuaraan"
                 :title="props.event.name"
-                description="Participants overview for this championship."
+                description="Kelola peserta, pelatih pendamping, hasil pertandingan, dan data ekspor."
             >
                 <template #actions>
-                    <div class="flex flex-wrap gap-2">
-                        <Button as-child type="button" variant="outline"
-                            ><Link :href="championshipsIndex.url()">Back to championships</Link></Button
-                        >
-                        <Button v-if="props.canManageCoaches" type="button" @click="showCoachForm = true"
-                            >Add coach join</Button
-                        >
-                        <Button v-if="props.canManageCoaches" as-child type="button" variant="outline"
-                            ><a :href="championshipExport.url(props.event.id)">Export CSV</a></Button
-                        >
-                    </div>
+                    <Button as-child type="button" variant="outline">
+                        <Link :href="championshipsIndex.url()">Kembali</Link>
+                    </Button>
+                    <Button v-if="props.canManageCoaches" type="button" @click="showCoachForm = true">
+                        Tambah pelatih
+                    </Button>
+                    <Button v-if="props.canManageCoaches" as-child type="button" variant="outline">
+                        <a :href="championshipExport.url(props.event.id)">Ekspor CSV</a>
+                    </Button>
                 </template>
-                <div class="grid gap-2 text-sm text-muted-foreground">
-                    <p><span class="font-medium text-foreground">Date:</span> {{ props.event.date }}</p>
-                    <p><span class="font-medium text-foreground">Location:</span> {{ props.event.location }}</p>
-                    <p>
-                        <span class="font-medium text-foreground">Entry fee:</span> Rp
-                        {{ props.event.entry_fee.toLocaleString() }}
-                    </p>
-                    <p>
-                        <span class="font-medium text-foreground">Maps:</span>
+
+                <div class="grid gap-3 rounded-xl border bg-card p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                        <p class="text-xs text-muted-foreground">Tanggal</p>
+                        <p class="mt-1 font-semibold">{{ props.event.date }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Lokasi</p>
+                        <p class="mt-1 break-words font-semibold">{{ props.event.location }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Biaya masuk</p>
+                        <p class="mt-1 font-semibold">Rp {{ props.event.entry_fee.toLocaleString('id-ID') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Status</p>
+                        <p class="mt-1 font-semibold">{{ props.event.status }}</p>
+                    </div>
+                    <div v-if="props.event.gmaps_url" class="sm:col-span-2 lg:col-span-4">
                         <a
-                            v-if="props.event.gmaps_url"
                             :href="props.event.gmaps_url"
                             target="_blank"
-                            class="underline underline-offset-2"
-                            >Open location</a
-                        ><span v-else>-</span>
-                    </p>
+                            rel="noreferrer"
+                            class="font-medium text-primary underline underline-offset-4"
+                        >
+                            Buka lokasi di peta
+                        </a>
+                    </div>
                 </div>
             </PageSection>
 
             <DataTable
-                title="Athletes joined"
-                description="Edit athlete championship data, open athlete profile, or record results."
+                title="Peserta terdaftar"
+                description="Ubah data pertandingan, buka profil atlet, catat hasil, atau hapus entri yang belum memiliki pembayaran."
                 :columns="athleteColumns"
                 :rows="props.athleteRows"
-                action-label="Actions"
+                action-label="Tindakan"
+                empty-text="Belum ada atlet yang terdaftar."
                 searchable
             >
                 <template #row-actions="{ row }">
@@ -199,29 +243,55 @@ function saveResult() {
                             size="sm"
                             variant="outline"
                             @click="openRegistrationEdit(row)"
-                            >Edit entry</Button
                         >
-                        <Button v-if="athleteProfileUrl(row)" as-child type="button" size="sm" variant="outline"
-                            ><Link :href="athleteProfileUrl(row) ?? '#'">Edit athlete</Link></Button
+                            Ubah entri
+                        </Button>
+                        <Button
+                            v-if="props.isAdmin && athleteProfileUrl(row)"
+                            as-child
+                            type="button"
+                            size="sm"
+                            variant="outline"
                         >
+                            <Link :href="athleteProfileUrl(row) ?? '#'">Profil atlet</Link>
+                        </Button>
                         <Button
                             v-if="props.canRecordResult"
                             type="button"
                             size="sm"
                             variant="outline"
                             @click="openResultForm(row)"
-                            >Record result</Button
                         >
+                            Catat hasil
+                        </Button>
+                        <Button
+                            v-if="props.canDeleteRegistration"
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            @click="removeRegistration(row)"
+                        >
+                            Hapus
+                        </Button>
                     </ActionButtonsRow>
                 </template>
             </DataTable>
+
             <DataTable
-                title="Coaches joined"
-                description="Coaches assigned to this championship."
+                title="Pelatih pendamping"
+                description="Pelatih yang ditugaskan untuk mendampingi kejuaraan ini."
                 :columns="coachColumns"
                 :rows="props.coachRows"
+                action-label="Tindakan"
+                empty-text="Belum ada pelatih yang ditugaskan."
                 searchable
-            />
+            >
+                <template v-if="props.isAdmin" #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button type="button" size="sm" variant="destructive" @click="removeCoach(row)">Hapus</Button>
+                    </ActionButtonsRow>
+                </template>
+            </DataTable>
         </div>
 
         <FormModal
@@ -229,29 +299,27 @@ function saveResult() {
             max-width-class="max-w-xl"
             @close="showCoachForm = false"
         >
-            <PageSection title="Add coach to championship" description="Assign an active coach to this event.">
-                <form class="grid gap-4" @submit.prevent="addCoach">
+            <PageSection title="Tambah pelatih" description="Tugaskan pelatih aktif untuk mendampingi kejuaraan ini.">
+                <form class="grid min-w-0 gap-4" @submit.prevent="addCoach">
                     <FormSelectField
                         v-if="props.isAdmin"
-                        id="coach-event"
+                        id="championship-coach"
                         v-model="coachForm.coach_id"
-                        label="Coach"
+                        label="Pelatih"
                         :options="props.coachOptions"
+                        placeholder="Pilih pelatih"
                         :error="coachForm.errors.coach_id"
                     />
                     <FormInputField
-                        id="coach-role"
+                        id="championship-coach-role"
                         v-model="coachForm.role"
-                        label="Role"
-                        placeholder="Head coach / Assistant"
+                        label="Peran"
+                        placeholder="Pelatih utama / Pendamping"
                         :error="coachForm.errors.role"
                     />
-                    <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="coachForm.processing"
-                            >Add coach</Button
-                        ><Button type="button" class="w-full sm:w-auto" variant="outline" @click="showCoachForm = false"
-                            >Cancel</Button
-                        >
+                    <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="showCoachForm = false">Batal</Button>
+                        <Button type="submit" :disabled="coachForm.processing">Tambahkan</Button>
                     </div>
                 </form>
             </PageSection>
@@ -263,14 +331,14 @@ function saveResult() {
             @close="showRegistrationEditForm = false"
         >
             <PageSection
-                title="Edit athlete championship entry"
-                description="Update classification, class, division, category, and team/contingent for export."
+                title="Ubah entri peserta"
+                description="Perbarui klasifikasi, kelas, divisi, kategori, dan kontingen peserta."
             >
-                <form class="grid gap-4" @submit.prevent="saveRegistrationEdit">
+                <form class="grid min-w-0 gap-4" @submit.prevent="saveRegistrationEdit">
                     <FormSelectField
                         id="edit-category"
                         v-model="editForm.category"
-                        label="Class/Kategori"
+                        label="Kategori"
                         :options="categoryOptions"
                         :error="editForm.errors.category"
                     />
@@ -283,7 +351,7 @@ function saveResult() {
                     <FormInputField
                         id="edit-class-name"
                         v-model="editForm.class_name"
-                        label="Class"
+                        label="Kelas"
                         :error="editForm.errors.class_name"
                     />
                     <FormInputField
@@ -298,11 +366,9 @@ function saveResult() {
                         label="Tim/Kontingen"
                         :error="editForm.errors.team_contingent"
                     />
-                    <div class="flex gap-3">
-                        <Button type="submit" :disabled="editForm.processing">Save entry</Button
-                        ><Button type="button" variant="outline" @click="showRegistrationEditForm = false"
-                            >Cancel</Button
-                        >
+                    <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="showRegistrationEditForm = false">Batal</Button>
+                        <Button type="submit" :disabled="editForm.processing">Simpan entri</Button>
                     </div>
                 </form>
             </PageSection>
@@ -314,43 +380,38 @@ function saveResult() {
             @close="showResultForm = false"
         >
             <PageSection
-                title="Record result"
-                description="This will auto-create or update achievement and medal counter for this athlete."
+                title="Catat hasil pertandingan"
+                description="Hasil ini otomatis membuat atau memperbarui prestasi atlet."
             >
-                <form class="grid gap-4" @submit.prevent="saveResult">
+                <form class="grid min-w-0 gap-4" @submit.prevent="saveResult">
                     <FormSelectField
                         id="result-medal"
                         v-model="resultForm.medal"
-                        label="Medal"
-                        :options="[
-                            { value: 'GOLD', label: 'Gold' },
-                            { value: 'SILVER', label: 'Silver' },
-                            { value: 'BRONZE', label: 'Bronze' },
-                            { value: 'NONE', label: 'None' },
-                        ]"
+                        label="Medali"
+                        :options="medalOptions"
                         :error="resultForm.errors.medal"
                     />
                     <FormInputField
                         id="result-class"
                         v-model="resultForm.class_name"
-                        label="Class"
+                        label="Kelas"
                         :error="resultForm.errors.class_name"
                     />
                     <FormInputField
                         id="result-division"
                         v-model="resultForm.division"
-                        label="Division"
+                        label="Divisi"
                         :error="resultForm.errors.division"
                     />
                     <FormInputField
                         id="result-category"
                         v-model="resultForm.category"
-                        label="Category"
+                        label="Kategori"
                         :error="resultForm.errors.category"
                     />
-                    <div class="flex gap-3">
-                        <Button type="submit" :disabled="resultForm.processing">Save result</Button
-                        ><Button type="button" variant="outline" @click="showResultForm = false">Cancel</Button>
+                    <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="showResultForm = false">Batal</Button>
+                        <Button type="submit" :disabled="resultForm.processing">Simpan hasil</Button>
                     </div>
                 </form>
             </PageSection>
