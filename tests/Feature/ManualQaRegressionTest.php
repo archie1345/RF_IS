@@ -106,7 +106,7 @@ test('payment proof actions are hidden for admin and coach dashboards', function
     Payment::create(['billable_user_id' => $coachUser->id, 'bill_kind' => 'PAYROLL', 'payment_type' => 'OTHER', 'amount' => 1000, 'total_amount' => 1000, 'paid_amount' => 0, 'remaining_amount' => 1000, 'payment_date' => now()->toDateString(), 'status' => 'PENDING']);
 
     $this->actingAs($admin)->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canSubmitPaymentProof', false));
-    $this->actingAs($coachUser)->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canSubmitPaymentProof', false)->where('coachPaymentLimitation', 'Coach payment uploads are hidden. This installation only safely supports coach salary/payment history records, not coach proof uploads.'));
+    $this->actingAs($coachUser)->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canSubmitPaymentProof', false));
 });
 
 test('parent can upload linked child proof but unrelated child access is blocked', function () {

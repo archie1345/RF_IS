@@ -71,7 +71,6 @@ class PaymentController extends Controller
         return Inertia::render('PaymentsPage', [
             'isAdmin' => (bool) $user?->isAdmin(),
             'canSubmitPaymentProof' => (bool) ($user?->isAthlete() || $user?->isParent()),
-            'coachPaymentLimitation' => $user?->isCoach() ? 'Coach payment uploads are hidden. This installation only safely supports coach salary/payment history records, not coach proof uploads.' : null,
             'metrics' => [
                 ['label' => 'Paid tuition', 'value' => (string) $tuitionMetrics['paid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills fully paid', 'tone' => 'success'],
                 ['label' => 'Unpaid tuition', 'value' => (string) $tuitionMetrics['unpaid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills with no approved payment', 'tone' => 'warning'],

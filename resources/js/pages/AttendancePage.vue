@@ -316,10 +316,6 @@ onMounted(() => {
                 </PageSection>
 
                 <PageSection v-if="isCoach || isAdmin" title="Session attendance sheet" description="Use the table to update loaded attendance rows or open a dedicated session sheet.">
-                    <form v-if="isCoach" class="mt-6 grid gap-3 border-t pt-5" @submit.prevent="openSessionFromCoachInput">
-                        <FormInputField id="coach-session-name" v-model="coachSessionName" label="Open session by name" placeholder="Type your session name" :error="coachSessionError" />
-                        <Button type="submit" variant="outline">Open session attendance</Button>
-                    </form>
 
                     <DataTable title="Session check-ins" description="Coach rows are scoped to sessions they can access. Admin can correct all visible rows." :columns="columns" :rows="attendanceRows" searchable search-placeholder="Search athlete/session/coach..." action-label="Attendance">
                         <template #row-actions="{ row }">
@@ -339,7 +335,7 @@ onMounted(() => {
         <FormModal :open="showParentCheckInForm && isParent" max-width-class="max-w-2xl" @close="showParentCheckInForm = false">
             <PageSection title="Check in child" description="Mark a linked child as present for an eligible attendance session.">
                 <form class="grid gap-4" @submit.prevent="submitAttendance">
-                    <FormSelectField id="parent-child-athlete" v-model="form.athlete_id" label="Child" :options="props.athletes" placeholder="Select child" :multiple="false" :error="form.errors.athlete_id" />
+                    <FormSelectField id="parent-child-athlete" v-model="form.athlete_id" label="Child   " :options="props.athletes" placeholder="Select child" :multiple="false" :error="form.errors.athlete_id" />
                     <FormSelectField id="parent-child-session" v-model="form.training_session_id" label="Session" :options="childSessionOptions" placeholder="Select session" :multiple="false" :error="form.errors.training_session_id" @update:model-value="applySessionDate(String($event))" />
                     <div class="grid gap-4 md:grid-cols-2">
                         <FormInputField id="parent-check-date" v-model="form.date" label="Date" type="date" :error="form.errors.date" />
