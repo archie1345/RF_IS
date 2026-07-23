@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <title>{{ $invoice['invoice_number'] }}</title>
@@ -15,7 +15,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 8px; }
         th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 4px; text-align: left; }
         th.right, td.right { text-align: right; }
-        .totals { margin-top: 12px; width: 280px; margin-left: auto; }
+        .totals { margin-top: 12px; width: 300px; margin-left: auto; }
         .totals td { border: none; padding: 4px 0; }
         .totals tr.total td { font-weight: 700; }
         .footer { margin-top: 24px; font-size: 12px; color: #4b5563; }
@@ -36,47 +36,51 @@
         <div class="col right">
             <p class="title">INVOICE</p>
             <p><strong>{{ $invoice['invoice_number'] }}</strong></p>
-            <p class="muted">{{ $invoice['invoice_date'] }}</p>
+            <p class="muted">
+                Diterbitkan: {{ $invoice['invoice_date'] }}<br>
+                Jatuh tempo: {{ $invoice['due_date'] ?? '-' }}
+            </p>
         </div>
     </div>
 
     <div class="card">
-        <strong>Bill To</strong><br>
+        <strong>Ditagihkan kepada</strong><br>
         {{ $invoice['athlete_name'] }}<br>
-        <span class="muted">{{ $invoice['athlete_email'] }}</span>
+        <span class="muted">{{ $invoice['athlete_email'] }}</span><br>
+        <span class="muted">Metode pembayaran: {{ $invoice['collection_method'] ?? 'TRANSFER' }}</span>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>Description</th>
+                <th>Deskripsi</th>
                 <th>Status</th>
-                <th class="right">Amount</th>
+                <th class="right">Total</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>{{ $invoice['payment_type'] }}</td>
                 <td>{{ $invoice['status'] }}</td>
-                <td class="right">Rp {{ number_format($invoice['total_amount'], 2, '.', ',') }}</td>
+                <td class="right">Rp {{ number_format($invoice['total_amount'], 2, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
 
     <table class="totals">
         <tr>
-            <td>Paid</td>
-            <td class="right">Rp {{ number_format($invoice['paid_amount'], 2, '.', ',') }}</td>
+            <td>Sudah dibayar</td>
+            <td class="right">Rp {{ number_format($invoice['paid_amount'], 2, ',', '.') }}</td>
         </tr>
         <tr class="total">
-            <td>Remaining</td>
-            <td class="right">Rp {{ number_format($invoice['remaining_amount'], 2, '.', ',') }}</td>
+            <td>Sisa pembayaran</td>
+            <td class="right">Rp {{ number_format($invoice['remaining_amount'], 2, ',', '.') }}</td>
         </tr>
     </table>
 
     @if(!empty($invoice['notes']) || !empty($template->payment_notes))
         <div class="card">
-            <strong>Notes</strong>
+            <strong>Catatan</strong>
             @if(!empty($invoice['notes']))
                 <p>{{ $invoice['notes'] }}</p>
             @endif
