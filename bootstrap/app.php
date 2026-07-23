@@ -3,14 +3,11 @@
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
-use Illuminate\Auth\Middleware\Authenticate;
-use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Middleware\ThrottleRequests;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -25,9 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
-            'auth' => Authenticate::class,
-            'verified' => EnsureEmailIsVerified::class,
-            'throttle' => ThrottleRequests::class,
             'account.active' => EnsureAccountIsActive::class,
         ]);
 
