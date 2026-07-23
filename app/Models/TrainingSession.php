@@ -37,16 +37,23 @@ class TrainingSession extends Model
         'status',
         'metadata',
         'attendance_token_hash',
+        'attendance_qr_token',
         'attendance_opens_at',
         'attendance_closes_at',
         'attendance_qr_generated_at',
         'attendance_qr_revoked_at',
     ];
 
+    protected $hidden = [
+        'attendance_token_hash',
+        'attendance_qr_token',
+    ];
+
     protected $dates = ['deleted_at', 'session_date', 'start_time', 'end_time'];
 
     protected $casts = [
         'metadata' => 'array',
+        'attendance_qr_token' => 'encrypted',
         'attendance_opens_at' => 'datetime',
         'attendance_closes_at' => 'datetime',
         'attendance_qr_generated_at' => 'datetime',
