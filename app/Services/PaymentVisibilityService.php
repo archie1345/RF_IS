@@ -55,18 +55,9 @@ class PaymentVisibilityService
         }
 
         if ($mode === 'coach') {
-            return $query->where(function ($inner) use ($user): void {
-                $inner->where(function ($payroll) use ($user): void {
-                    $payroll->where('bill_kind', 'PAYROLL')
-                        ->where('payee_user_id', $user->id);
-                })->orWhere(function ($invoice) use ($user): void {
-                    $invoice->where('bill_kind', 'INVOICE')
-                        ->where(function ($owner) use ($user): void {
-                            $owner->where('billable_user_id', $user->id)
-                                ->orWhere('payer_user_id', $user->id);
-                        });
-                });
-            });
+            return $query
+                ->where('bill_kind', 'PAYROLL')
+                ->where('payee_user_id', $user->id);
         }
 
         return $this->invoiceOnly($query)
