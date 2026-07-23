@@ -33,10 +33,13 @@ const switchingHref = ref<string | null>(null);
 const activeRole = computed<AppRole>(() =>
     page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
 );
+const assignedRoles = computed<AppRole[]>(() => {
+    const roles = page.props.auth.user?.roles ?? [];
+    return roles.length > 0 ? roles : [activeRole.value];
+});
 
 const visibleSections = computed<NavSection[]>(() => {
     if (props.sections.length > 0) return props.sections.filter((section) => section.items.length > 0);
-
     return props.items.length > 0 ? [{ label: 'Menu', items: props.items }] : [];
 });
 
@@ -47,7 +50,7 @@ function hrefText(item: NavItem): string {
 function requiredRole(item: NavItem): AppRole | null {
     if (!item.roles?.length || item.roles.includes(activeRole.value)) return null;
 
-    return item.roles[0] ?? null;
+    return item.roles.find((role) => assignedRoles.value.includes(role)) ?? null;
 }
 
 function openItem(event: MouseEvent, item: NavItem): void {
