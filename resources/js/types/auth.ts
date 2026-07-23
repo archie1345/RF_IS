@@ -24,7 +24,7 @@ export type ParentChild = {
 };
 
 export type Auth = {
-    user: User | null;
+    user: User;
     children?: ParentChild[];
     activeChild?: ParentChild | null;
 };
