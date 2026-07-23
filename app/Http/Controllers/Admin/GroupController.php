@@ -61,7 +61,7 @@ class GroupController extends Controller
         $group->update($this->payload($validated));
         $this->syncCoaches($group, $validated);
         $this->syncPrivateAthletes($group, $validated);
-        $result = $this->syncSessionsForGroup($group->refresh());
+        $result = $this->syncSessionsForGroup($group->refresh(), $existingSchedule);
 
         ActivityLogger::log($request, 'admin.group.updated', 'admin', 'Updated class', $group, [
             'group_name' => $group->group_name,
