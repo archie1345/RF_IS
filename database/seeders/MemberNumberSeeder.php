@@ -27,10 +27,14 @@ class MemberNumberSeeder extends Seeder
             $athletes = Athlete::query()
                 ->with('user:id,email')
                 ->get()
-                ->sortBy(fn (Athlete $athlete) => [
-                    $joinedDates[$athlete->user?->email ?? ''] ?? $athlete->created_at?->toDateString() ?? now()->toDateString(),
-                    $athlete->user?->email ?? '',
-                ]);
+                ->sortBy(function (Athlete $athlete) use ($joinedDates): string {
+                    $email = $athlete->user?->email ?? '';
+                    $joinedAt = $joinedDates[$email]
+                        ?? $athlete->created_at?->toDateString()
+                        ?? now()->toDateString();
+
+                    return $joinedAt.'|'.$email;
+                });
 
             foreach ($athletes as $athlete) {
                 $joinedAt = $joinedDates[$athlete->user?->email ?? '']
