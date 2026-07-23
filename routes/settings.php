@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActiveRoleContextController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
@@ -8,6 +9,8 @@ use Inertia\Inertia;
 
 Route::middleware(['auth', 'account.active'])->group(function () {
     Route::redirect('settings', '/settings/profile');
+
+    Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
