@@ -30,7 +30,6 @@ class UserDirectoryController extends Controller
         if ($user && $user->isParent()) {
             $children = $user->children()->pluck('athletes.athlete_id');
             $activeChildId = request()->session()->get('active_child_id');
-
             $parentScopedAthleteIds = $activeChildId
                 ? $children->where(fn ($id) => $id === $activeChildId)
                 : $children;
@@ -43,10 +42,15 @@ class UserDirectoryController extends Controller
             ->get();
 
         $athleteUsers = User::query()
-            ->with(['roleAssignments', 'athleteProfile.branch:branch_id,branch_name', 'athleteProfile.group:group_id,group_name', 'athleteProfile.parent.user:id,name'])
+            ->with([
+                'roleAssignments',
+                'athleteProfile.branch:branch_id,branch_name',
+                'athleteProfile.group:group_id,group_name',
+                'athleteProfile.parent.user:id,name',
+            ])
             ->whereNull('deleted_at')
             ->get()
-            ->filter(fn (User $user) => $user->hasRole('athlete'))
+            ->filter(fn (User $directoryUser) => $directoryUser->hasRole('athlete'))
             ->values();
 
         return Inertia::render('AthletesPage', [
@@ -70,101 +74,79 @@ class UserDirectoryController extends Controller
                     'tone' => 'info',
                 ],
             ],
-
-            'rows' => $athleteUsers->map(function (User $user) use ($canViewSensitiveIdentifiers) {
-                $athlete = $user->athleteProfile;
+            'rows' => $athleteUsers->map(function (User $directoryUser) use ($canViewSensitiveIdentifiers) {
+                $athlete = $directoryUser->athleteProfile;
 
                 return [
-                    'id' => 'USR-'.$user->id,
-                    'user_id' => $user->id,
+                    'id' => 'USR-'.$directoryUser->id,
+                    'user_id' => $directoryUser->id,
                     'athlete_id' => $athlete?->athlete_id,
-
-                    'athlete' => $user->name ?? 'Unknown athlete',
-                    'account_email' => $user->email ?? '-',
-
+                    'member_number' => $athlete?->member_number ?? 'Belum tersedia',
+                    'joined_at' => $athlete?->joined_at?->format('d M Y') ?? '-',
+                    'athlete' => $directoryUser->name ?? 'Unknown athlete',
+                    'account_email' => $directoryUser->email ?? '-',
                     'parent' => $athlete?->parent?->user?->name ?? 'Not linked',
-
                     'branch' => $athlete?->branch?->branch_name ?? 'Unassigned',
-
                     'group' => $athlete?->group?->group_name ?? 'Unassigned',
-
                     'height_cm' => $athlete?->height_cm !== null
                         ? number_format((float) $athlete->height_cm, 1).' cm'
                         : '-',
-
                     'weight_kg' => $athlete?->weight_kg !== null
                         ? number_format((float) $athlete->weight_kg, 1).' kg'
                         : '-',
-
                     'nik' => $canViewSensitiveIdentifiers
                         ? ($athlete?->displayValue('nik') ?? 'Not stored')
                         : null,
-
                     'bpjs' => $canViewSensitiveIdentifiers
                         ? ($athlete?->displayValue('bpjs') ?? 'Not stored')
                         : null,
-
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
-
                     'status' => $athlete
                         ? $this->badge('Active', 'success')
                         : $this->badge('Profile incomplete', 'warning'),
                 ];
             })->values(),
-
             'coachRows' => User::query()
-                ->with(['coachProfile'])
+                ->with('coachProfile')
                 ->whereNull('deleted_at')
                 ->get()
-                ->filter(fn (User $user) => $user->hasRole('coach'))
-                ->map(function (User $user) {
-                    $coach = $user->coachProfile;
+                ->filter(fn (User $directoryUser) => $directoryUser->hasRole('coach'))
+                ->map(function (User $directoryUser) {
+                    $coach = $directoryUser->coachProfile;
 
                     return [
-                        'id' => $user->id,
-                        'user_id' => $user->id,
+                        'id' => $directoryUser->id,
+                        'user_id' => $directoryUser->id,
                         'coach_id' => $coach?->coach_id,
-                        'name' => $user->name ?? 'Unknown coach',
-                        'email' => $user->email ?? '-',
+                        'name' => $directoryUser->name ?? 'Unknown coach',
+                        'email' => $directoryUser->email ?? '-',
                         'role' => 'Coach',
-
                         'status' => $this->badge('Active', 'success'),
-
-                        'specialization' => $coach?->specialization
-                            ?? $coach?->license_type
-                            ?? '-',
+                        'specialization' => $coach?->specialization ?? $coach?->license_type ?? '-',
                     ];
                 })
                 ->values(),
-
             'parentRows' => User::query()
-                ->with(['parentProfile.athletes.user:id,name'])
+                ->with('parentProfile.athletes.user:id,name')
                 ->whereNull('deleted_at')
                 ->get()
-                ->filter(fn (User $user) => $user->hasRole('parent'))
-                ->map(function (User $user) {
-                    $parent = $user->parentProfile;
+                ->filter(fn (User $directoryUser) => $directoryUser->hasRole('parent'))
+                ->map(function (User $directoryUser) {
+                    $parent = $directoryUser->parentProfile;
 
                     return [
-                        'id' => $user->id,
-                        'user_id' => $user->id,
+                        'id' => $directoryUser->id,
+                        'user_id' => $directoryUser->id,
                         'parent_id' => $parent?->parent_id,
-
-                        'name' => $user->name ?? 'Unknown parent',
-
-                        'email' => $user->email ?? '-',
-
+                        'name' => $directoryUser->name ?? 'Unknown parent',
+                        'email' => $directoryUser->email ?? '-',
                         'role' => 'Parent',
-
                         'relation' => $parent?->relation ?? 'Guardian',
-
                         'occupation' => $parent?->occupation ?? '-',
-
                         'children' => $parent?->athletes
                             ?->map(fn (Athlete $athlete) => $athlete->user?->name ?? 'Unknown athlete')
                             ->filter()
                             ->implode(', ') ?: '-',
-
                         'child_ids' => $parent?->athletes
                             ?->pluck('athlete_id')
                             ->map(fn ($id) => (string) $id)
@@ -172,28 +154,18 @@ class UserDirectoryController extends Controller
                     ];
                 })
                 ->values(),
-
             'branches' => Branch::query()
                 ->orderBy('branch_name')
-                ->get([
-                    'branch_id as value',
-                    'branch_name as label',
-                ]),
-
+                ->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()
                 ->orderBy('group_name')
-                ->get([
-                    'group_id as value',
-                    'group_name as label',
-                ]),
-
+                ->get(['group_id as value', 'group_name as label']),
             'athletes' => $athletes
                 ->map(fn (Athlete $athlete) => [
                     'value' => $athlete->athlete_id,
-                    'label' => $athlete->user?->name ?? 'Unknown athlete',
+                    'label' => trim(($athlete->member_number ? $athlete->member_number.' · ' : '').($athlete->user?->name ?? 'Unknown athlete')),
                 ])
                 ->values(),
-
             'parents' => ParentProfile::query()
                 ->with('user:id,name')
                 ->orderBy('parent_id')
@@ -203,7 +175,6 @@ class UserDirectoryController extends Controller
                     'label' => $parent->user?->name ?? 'Unknown parent',
                 ])
                 ->values(),
-
             'canViewSensitiveIdentifiers' => $canViewSensitiveIdentifiers,
         ]);
     }
@@ -211,26 +182,14 @@ class UserDirectoryController extends Controller
     public function show(Request $request, Athlete $athlete): JsonResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
-
-        $athlete->loadMissing(['user:id,name,email,gender,bday,phone', 'branch:branch_id,branch_name', 'group:group_id,group_name', 'parent:parent_id,id']);
-
-        return response()->json([
-            'athlete_id' => $athlete->athlete_id,
-            'name' => $athlete->user?->name ?? '',
-            'email' => $athlete->user?->email ?? '',
-            'gender' => $athlete->user?->gender ?? 'MALE',
-            'bday' => $athlete->user?->bday?->format('Y-m-d') ?? '',
-            'phone' => $athlete->user?->phone ?? '',
-            'height_cm' => (string) ($athlete->height_cm ?? ''),
-            'weight_kg' => (string) ($athlete->weight_kg ?? ''),
-            'alamat' => $athlete->alamat ?? '',
-            'branch_id' => (string) ($athlete->branch_id ?? ''),
-            'group_id' => (string) ($athlete->group_id ?? ''),
-            'geup' => $athlete->geup ?? 'GEUP_10',
-            'parent_id' => (string) ($athlete->parent_id ?? ''),
-            'nik' => $athlete->displayValue('nik'),
-            'bpjs' => $athlete->displayValue('bpjs'),
+        $athlete->loadMissing([
+            'user:id,name,email,gender,bday,phone',
+            'branch:branch_id,branch_name',
+            'group:group_id,group_name',
+            'parent:parent_id,id',
         ]);
+
+        return response()->json($this->athleteFormPayload($athlete));
     }
 
     public function store(Request $request): RedirectResponse
@@ -241,14 +200,10 @@ class UserDirectoryController extends Controller
     public function linkParent(Request $request, Athlete $athlete): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'parent_id' => ['nullable', 'exists:parents,parent_id'],
         ]);
-
-        $athlete->update([
-            'parent_id' => $validated['parent_id'] ?? null,
-        ]);
+        $athlete->update(['parent_id' => $validated['parent_id'] ?? null]);
 
         return redirect()->route('users.index');
     }
@@ -256,20 +211,14 @@ class UserDirectoryController extends Controller
     public function syncParentChildren(Request $request, ParentProfile $parent): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
-
         $validated = $request->validate([
             'athlete_ids' => ['nullable', 'array'],
             'athlete_ids.*' => ['string', 'exists:athletes,athlete_id'],
         ]);
-
-        $athleteIds = collect($validated['athlete_ids'] ?? [])
-            ->filter()
-            ->unique()
-            ->values();
+        $athleteIds = collect($validated['athlete_ids'] ?? [])->filter()->unique()->values();
 
         DB::transaction(function () use ($parent, $athleteIds): void {
-            $currentChildren = Athlete::query()
-                ->where('parent_id', $parent->parent_id);
+            $currentChildren = Athlete::query()->where('parent_id', $parent->parent_id);
 
             if ($athleteIds->isNotEmpty()) {
                 $currentChildren->whereNotIn('athlete_id', $athleteIds->all());
@@ -290,23 +239,7 @@ class UserDirectoryController extends Controller
     public function update(Request $request, Athlete $athlete): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($athlete->id, 'id')],
-            'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
-            'bday' => ['required', 'date'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'height_cm' => ['required', 'numeric', 'min:0'],
-            'weight_kg' => ['required', 'numeric', 'min:0'],
-            'alamat' => ['nullable', 'string'],
-            'geup' => ['required', Rule::in(['GEUP_1', 'GEUP_2', 'GEUP_3', 'GEUP_4', 'GEUP_5', 'GEUP_6', 'GEUP_7', 'GEUP_8', 'GEUP_9', 'GEUP_10', 'DAN'])],
-            'branch_id' => ['required', 'exists:branches,branch_id'],
-            'group_id' => ['required', 'exists:class_groups,group_id'],
-            'parent_id' => ['nullable', 'exists:parents,parent_id'],
-            'nik' => ['nullable', 'string', 'max:50'],
-            'bpjs' => ['nullable', 'string', 'max:50'],
-        ]);
+        $validated = $this->validatedAthleteData($request, $athlete->id);
 
         DB::transaction(function () use ($validated, $athlete): void {
             $athlete->user()->update([
@@ -316,28 +249,7 @@ class UserDirectoryController extends Controller
                 'bday' => $validated['bday'],
                 'phone' => $validated['phone'] ?? null,
             ]);
-
-            $athletePayload = [
-                'group_id' => $validated['group_id'],
-                'branch_id' => $validated['branch_id'],
-                'parent_id' => $validated['parent_id'] ?? null,
-                'height_cm' => $validated['height_cm'],
-                'weight_kg' => $validated['weight_kg'],
-                'alamat' => $validated['alamat'] ?? null,
-                'geup' => $validated['geup'],
-            ];
-
-            if (! empty($validated['nik'])) {
-                $athletePayload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
-                $athletePayload['nik_ciphertext'] = $validated['nik'];
-            }
-
-            if (! empty($validated['bpjs'])) {
-                $athletePayload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
-                $athletePayload['bpjs_ciphertext'] = $validated['bpjs'];
-            }
-
-            $athlete->update($athletePayload);
+            $athlete->update($this->athleteRecordPayload($validated));
         });
 
         return redirect()->route('users.index');
@@ -353,33 +265,62 @@ class UserDirectoryController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
         $athlete = Athlete::query()->where('id', $user->id)->first();
 
-        return response()->json([
-            'user_id' => $user->id,
-            'athlete_id' => $athlete?->athlete_id,
-            'name' => $user->name ?? '',
-            'email' => $user->email ?? '',
-            'gender' => $user->gender ?? 'MALE',
-            'bday' => $user->bday?->format('Y-m-d') ?? '',
-            'phone' => $user->phone ?? '',
-            'height_cm' => (string) ($athlete?->height_cm ?? ''),
-            'weight_kg' => (string) ($athlete?->weight_kg ?? ''),
-            'alamat' => $athlete?->alamat ?? '',
-            'branch_id' => (string) ($athlete?->branch_id ?? ''),
-            'group_id' => (string) ($athlete?->group_id ?? ''),
-            'geup' => $athlete?->geup ?? 'GEUP_10',
-            'parent_id' => (string) ($athlete?->parent_id ?? ''),
-            'nik' => $athlete?->displayValue('nik') ?? '',
-            'bpjs' => $athlete?->displayValue('bpjs') ?? '',
-        ]);
+        if (! $athlete) {
+            return response()->json([
+                'user_id' => $user->id,
+                'athlete_id' => null,
+                'member_number' => null,
+                'joined_at' => null,
+                'name' => $user->name ?? '',
+                'email' => $user->email ?? '',
+                'gender' => $user->gender ?? 'MALE',
+                'bday' => $user->bday?->format('Y-m-d') ?? '',
+                'phone' => $user->phone ?? '',
+                'height_cm' => '',
+                'weight_kg' => '',
+                'alamat' => '',
+                'branch_id' => '',
+                'group_id' => '',
+                'geup' => 'GEUP_10',
+                'parent_id' => '',
+                'nik' => '',
+                'bpjs' => '',
+            ]);
+        }
+
+        $athlete->setRelation('user', $user);
+
+        return response()->json($this->athleteFormPayload($athlete));
     }
 
     public function upsertByUser(Request $request, User $user): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
+        $validated = $this->validatedAthleteData($request, $user->id);
 
-        $validated = $request->validate([
+        DB::transaction(function () use ($validated, $user): void {
+            $user->update([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'gender' => $validated['gender'],
+                'bday' => $validated['bday'],
+                'phone' => $validated['phone'] ?? null,
+            ]);
+
+            Athlete::query()->updateOrCreate(
+                ['id' => $user->id],
+                $this->athleteRecordPayload($validated),
+            );
+        });
+
+        return redirect()->route('users.index');
+    }
+
+    private function validatedAthleteData(Request $request, int $userId): array
+    {
+        return $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id, 'id')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId, 'id')],
             'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
             'bday' => ['required', 'date'],
             'phone' => ['nullable', 'string', 'max:20'],
@@ -393,42 +334,54 @@ class UserDirectoryController extends Controller
             'nik' => ['nullable', 'string', 'max:50'],
             'bpjs' => ['nullable', 'string', 'max:50'],
         ]);
+    }
 
-        DB::transaction(function () use ($validated, $user): void {
-            $user->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'gender' => $validated['gender'],
-                'bday' => $validated['bday'],
-                'phone' => $validated['phone'] ?? null,
-            ]);
+    private function athleteRecordPayload(array $validated): array
+    {
+        $payload = [
+            'group_id' => $validated['group_id'],
+            'branch_id' => $validated['branch_id'],
+            'parent_id' => $validated['parent_id'] ?? null,
+            'height_cm' => $validated['height_cm'],
+            'weight_kg' => $validated['weight_kg'],
+            'alamat' => $validated['alamat'] ?? null,
+            'geup' => $validated['geup'],
+        ];
 
-            $payload = [
-                'group_id' => $validated['group_id'],
-                'branch_id' => $validated['branch_id'],
-                'parent_id' => $validated['parent_id'] ?? null,
-                'height_cm' => $validated['height_cm'],
-                'weight_kg' => $validated['weight_kg'],
-                'alamat' => $validated['alamat'] ?? null,
-                'geup' => $validated['geup'],
-            ];
+        if (! empty($validated['nik'])) {
+            $payload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
+            $payload['nik_ciphertext'] = $validated['nik'];
+        }
 
-            if (! empty($validated['nik'])) {
-                $payload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
-                $payload['nik_ciphertext'] = $validated['nik'];
-            }
+        if (! empty($validated['bpjs'])) {
+            $payload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
+            $payload['bpjs_ciphertext'] = $validated['bpjs'];
+        }
 
-            if (! empty($validated['bpjs'])) {
-                $payload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
-                $payload['bpjs_ciphertext'] = $validated['bpjs'];
-            }
+        return $payload;
+    }
 
-            Athlete::query()->updateOrCreate(
-                ['id' => $user->id],
-                $payload,
-            );
-        });
-
-        return redirect()->route('users.index');
+    private function athleteFormPayload(Athlete $athlete): array
+    {
+        return [
+            'user_id' => $athlete->id,
+            'athlete_id' => $athlete->athlete_id,
+            'member_number' => $athlete->member_number,
+            'joined_at' => $athlete->joined_at?->format('Y-m-d'),
+            'name' => $athlete->user?->name ?? '',
+            'email' => $athlete->user?->email ?? '',
+            'gender' => $athlete->user?->gender ?? 'MALE',
+            'bday' => $athlete->user?->bday?->format('Y-m-d') ?? '',
+            'phone' => $athlete->user?->phone ?? '',
+            'height_cm' => (string) ($athlete->height_cm ?? ''),
+            'weight_kg' => (string) ($athlete->weight_kg ?? ''),
+            'alamat' => $athlete->alamat ?? '',
+            'branch_id' => (string) ($athlete->branch_id ?? ''),
+            'group_id' => (string) ($athlete->group_id ?? ''),
+            'geup' => $athlete->geup ?? 'GEUP_10',
+            'parent_id' => (string) ($athlete->parent_id ?? ''),
+            'nik' => $athlete->displayValue('nik'),
+            'bpjs' => $athlete->displayValue('bpjs'),
+        ];
     }
 }
