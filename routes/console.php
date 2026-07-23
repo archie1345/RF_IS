@@ -38,7 +38,11 @@ Artisan::command('app:database-audit', function () {
         'class_group_private_athletes' => ['group_id', 'athlete_id'],
         'class_group_coaches' => ['group_id', 'coach_id'],
         'weekly_training_schedules' => ['weekly_training_schedule_id', 'group_id', 'coach_id', 'session_type', 'is_active'],
-        'training_sessions' => ['training_session_id', 'weekly_training_schedule_id', 'group_id', 'coach_id', 'session_type', 'metadata', 'deleted_at'],
+        'training_sessions' => [
+            'training_session_id', 'weekly_training_schedule_id', 'group_id', 'coach_id', 'session_type', 'metadata',
+            'attendance_token_hash', 'attendance_qr_token', 'attendance_opens_at', 'attendance_closes_at',
+            'attendance_qr_generated_at', 'attendance_qr_revoked_at', 'deleted_at',
+        ],
         'training_session_coaches' => ['training_session_id', 'coach_id'],
         'athlete_attendance' => ['training_session_id', 'athlete_id', 'status'],
         'payments' => [
@@ -51,7 +55,10 @@ Artisan::command('app:database-audit', function () {
         ],
         'announcements' => ['id', 'title', 'target_role', 'is_active'],
         'events' => ['event_id', 'e_name', 'status'],
-        'event_registrations' => ['evrid', 'event_id', 'athlete_id', 'status'],
+        'event_registrations' => [
+            'evrid', 'event_id', 'athlete_id', 'status', 'result_medal',
+            'result_class_name', 'result_division', 'result_category',
+        ],
     ];
 
     $missingTables = [];
