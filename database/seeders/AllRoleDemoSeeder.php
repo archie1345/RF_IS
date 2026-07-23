@@ -15,7 +15,9 @@ use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Models\UserRoleAssignment;
+use App\Services\MemberNumberGenerator;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AllRoleDemoSeeder extends Seeder
@@ -63,44 +65,38 @@ class AllRoleDemoSeeder extends Seeder
             $juniorClass = Group::query()->where('group_name', 'Junior Sparring')->firstOrFail();
             $privateClass = Group::query()->where('group_name', 'Private Performance')->firstOrFail();
 
-            $allRoleAthlete = Athlete::query()->updateOrCreate(
-                ['id' => $allRoleUser->id],
-                [
-                    'joined_at' => '2023-03-01',
-                    'group_id' => $competitionClass->group_id,
-                    'training_group_id' => $competitionClass->training_group_id,
-                    'parent_id' => null,
-                    'branch_id' => $competitionClass->branch_id,
-                    'height_cm' => 165.00,
-                    'weight_kg' => 55.00,
-                    'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-NIK'),
-                    'nik_ciphertext' => 'RFIS-ALL-ROLE-NIK',
-                    'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-BPJS'),
-                    'bpjs_ciphertext' => 'RFIS-ALL-ROLE-BPJS',
-                    'alamat' => 'Jl. Demo Semua Peran, Malang',
-                    'school_origin' => 'RFIS Senior Academy',
-                    'geup' => 'DAN',
-                ],
-            );
-            $childAthlete = Athlete::query()->updateOrCreate(
-                ['id' => $childUser->id],
-                [
-                    'joined_at' => '2026-07-24',
-                    'group_id' => $juniorClass->group_id,
-                    'training_group_id' => $juniorClass->training_group_id,
-                    'parent_id' => $parent->parent_id,
-                    'branch_id' => $juniorClass->branch_id,
-                    'height_cm' => 142.00,
-                    'weight_kg' => 36.00,
-                    'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-NIK'),
-                    'nik_ciphertext' => 'RFIS-ALL-ROLE-CHILD-NIK',
-                    'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-BPJS'),
-                    'bpjs_ciphertext' => 'RFIS-ALL-ROLE-CHILD-BPJS',
-                    'alamat' => 'Jl. Demo Semua Peran, Malang',
-                    'school_origin' => 'RFIS Junior Academy',
-                    'geup' => 'GEUP_9',
-                ],
-            );
+            $allRoleAthlete = $this->seedAthleteProfile($allRoleUser, [
+                'joined_at' => '2023-03-01',
+                'group_id' => $competitionClass->group_id,
+                'training_group_id' => $competitionClass->training_group_id,
+                'parent_id' => null,
+                'branch_id' => $competitionClass->branch_id,
+                'height_cm' => 165.00,
+                'weight_kg' => 55.00,
+                'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-NIK'),
+                'nik_ciphertext' => 'RFIS-ALL-ROLE-NIK',
+                'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-BPJS'),
+                'bpjs_ciphertext' => 'RFIS-ALL-ROLE-BPJS',
+                'alamat' => 'Jl. Demo Semua Peran, Malang',
+                'school_origin' => 'RFIS Senior Academy',
+                'geup' => 'DAN',
+            ]);
+            $childAthlete = $this->seedAthleteProfile($childUser, [
+                'joined_at' => '2026-07-24',
+                'group_id' => $juniorClass->group_id,
+                'training_group_id' => $juniorClass->training_group_id,
+                'parent_id' => $parent->parent_id,
+                'branch_id' => $juniorClass->branch_id,
+                'height_cm' => 142.00,
+                'weight_kg' => 36.00,
+                'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-NIK'),
+                'nik_ciphertext' => 'RFIS-ALL-ROLE-CHILD-NIK',
+                'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-BPJS'),
+                'bpjs_ciphertext' => 'RFIS-ALL-ROLE-CHILD-BPJS',
+                'alamat' => 'Jl. Demo Semua Peran, Malang',
+                'school_origin' => 'RFIS Junior Academy',
+                'geup' => 'GEUP_9',
+            ]);
 
             foreach ([$competitionClass, $privateClass] as $class) {
                 $class->coaches()->syncWithoutDetaching([$coach->coach_id]);
@@ -155,6 +151,22 @@ class AllRoleDemoSeeder extends Seeder
         }
 
         return $user;
+    }
+
+    private function seedAthleteProfile(User $user, array $attributes): Athlete
+    {
+        $joinedAt = Carbon::parse($attributes['joined_at'])->startOfDay();
+        $memberNumberPrefix = 'G'.$joinedAt->format('Ymd');
+        $athlete = Athlete::query()->firstOrNew(['id' => $user->id]);
+        $athlete->fill($attributes);
+
+        if ($athlete->exists && ! str_starts_with((string) $athlete->member_number, $memberNumberPrefix)) {
+            $athlete->member_number = app(MemberNumberGenerator::class)->generate($joinedAt);
+        }
+
+        $athlete->save();
+
+        return $athlete->refresh();
     }
 
     private function seedInvoices(User $payer, Athlete $member, Athlete $child): void
