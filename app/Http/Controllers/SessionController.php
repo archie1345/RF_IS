@@ -20,6 +20,7 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -50,7 +51,7 @@ class SessionController extends Controller
         $visibility = $visibility === 'past' ? 'archived' : $visibility;
         $visibility = in_array($visibility, ['upcoming', 'archived', 'all'], true) ? $visibility : 'upcoming';
 
-        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name,schedule_mode,single_session_date'];
+        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name,schedule_mode,single_session_date,class_type'];
         if ($hasCoachPivot) {
             $with[] = 'assignedCoaches.user:id,name';
         }
@@ -86,12 +87,9 @@ class SessionController extends Controller
             'rows' => $sessions->map(fn (TrainingSession $session) => $this->sessionRows->row($session, $currentCoachId))->values(),
             'branches' => Branch::query()->orderBy('branch_name')->get(['branch_id as value', 'branch_name as label']),
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
-            'coaches' => Coach::query()
-                ->with('user:id,name')
-                ->get()
-                ->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
-                ->sortBy('label')
-                ->values(),
+            'coaches' => $sessions->contains(fn (TrainingSession $session): bool => $this->sessionUsesPrivateGroup($session))
+                ? $this->coachOptions()
+                : collect(),
         ]);
     }
 
@@ -150,11 +148,12 @@ class SessionController extends Controller
         $user = request()->user();
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
-        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name'];
+        $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name,class_type'];
         if ($this->sessionVisibility->hasCoachPivotTable()) {
             $with[] = 'assignedCoaches.user:id,name';
         }
         $session->load($with);
+        $isPrivateSession = $this->sessionUsesPrivateGroup($session);
 
         $this->initializeAttendance->handle($session);
 
@@ -204,6 +203,7 @@ class SessionController extends Controller
                 'branch' => $session->branch?->branch_name ?? 'Unassigned',
                 'group' => $session->group?->group_name ?? 'All groups',
                 'coach' => $this->coachNames($session),
+                'is_private' => $isPrivateSession,
                 'athlete_attendance_summary' => $athletePresentCount.' / '.$attendance->count(),
                 'coach_attendance_summary' => $coachTeachCount.' / '.$coachAttendance->count(),
                 'attendance_qr' => [
@@ -227,18 +227,18 @@ class SessionController extends Controller
                 'status' => $row->status === 'TEACH' ? $this->badge('Teach', 'success') : $this->badge('Not teach', 'danger'),
                 'checked_at' => $row->checked_at ? Carbon::parse((string) $row->checked_at)->format('d/m/Y H:i') : '-',
             ])->values(),
-            'coachOptions' => Coach::query()
-                ->with('user:id,name')
-                ->orderBy('coach_id')
-                ->get()
-                ->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
-                ->values(),
+            'coachOptions' => $isPrivateSession ? $this->coachOptions() : collect(),
         ]);
     }
 
     public function addCoachAttendance(TrainingSession $session, Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin() || $request->user()?->isCoach(), 403);
+
+        $session->loadMissing('group:group_id,group_name,class_type');
+        if (! $this->sessionUsesPrivateGroup($session)) {
+            return back()->withErrors(['coach_id' => 'Coach selection is only available for private class sessions.']);
+        }
 
         if (! Schema::hasTable('coach_attendance')) {
             return back()->withErrors(['coach_id' => 'Coach attendance table not ready. Run migrations first.']);
@@ -348,6 +348,22 @@ class SessionController extends Controller
             ->concat($assistantNames)
             ->unique()
             ->join(', ') ?: 'Unassigned';
+    }
+
+    private function sessionUsesPrivateGroup(TrainingSession $session): bool
+    {
+        return strtolower((string) ($session->session_type ?? '')) === 'private'
+            || strtolower((string) ($session->group?->class_type ?? '')) === 'private';
+    }
+
+    private function coachOptions(): Collection
+    {
+        return Coach::query()
+            ->with('user:id,name')
+            ->get()
+            ->map(fn (Coach $coach): array => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
+            ->sortBy('label')
+            ->values();
     }
 
     private function formatDateYmd(mixed $value): string
