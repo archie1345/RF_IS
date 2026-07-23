@@ -4,7 +4,7 @@ import { AlertCircle, ArrowLeft, Home, RefreshCw } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { httpErrorPresentation } from '@/lib/httpErrors';
+import { httpStatusPresentation } from '@/lib/httpStatuses';
 
 const props = defineProps<{
     status: number;
@@ -14,11 +14,12 @@ const props = defineProps<{
     diagnosis?: string;
 }>();
 
-const configuredError = computed(() => httpErrorPresentation(props.status, props.statusText));
-const title = computed(() => props.title ?? configuredError.value.title);
-const message = computed(() => props.message ?? configuredError.value.message);
-const diagnosis = computed(() => props.diagnosis ?? configuredError.value.diagnosis);
-const isServerError = computed(() => props.status >= 500);
+const configuredStatus = computed(() => httpStatusPresentation(props.status, props.statusText));
+const category = computed(() => configuredStatus.value.category);
+const title = computed(() => props.title ?? configuredStatus.value.title);
+const message = computed(() => props.message ?? configuredStatus.value.message);
+const diagnosis = computed(() => props.diagnosis ?? configuredStatus.value.diagnosis);
+const isError = computed(() => props.status >= 400);
 const homeLabel = computed(() => (props.status === 401 ? 'Go to sign in' : 'Go to home'));
 const homeHref = computed(() => (props.status === 401 ? '/login' : '/'));
 
@@ -48,12 +49,15 @@ function reloadPage() {
         <section class="relative grid w-full max-w-2xl gap-6 rounded-2xl border border-border/70 bg-card/95 p-6 shadow-sm backdrop-blur sm:p-8">
             <div class="space-y-4">
                 <div class="flex items-center gap-3">
-                    <div class="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                    <div
+                        class="flex size-11 items-center justify-center rounded-xl"
+                        :class="isError ? 'bg-destructive/10 text-destructive' : 'bg-muted text-foreground'"
+                    >
                         <AlertCircle class="size-6" />
                     </div>
                     <div>
                         <p class="text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-                            {{ isServerError ? 'Server error' : 'Request error' }}
+                            {{ category }}
                         </p>
                         <p class="text-sm font-medium text-muted-foreground">HTTP {{ status }}</p>
                     </div>
@@ -65,9 +69,9 @@ function reloadPage() {
                 </div>
             </div>
 
-            <Alert variant="destructive" class="shadow-sm">
+            <Alert :variant="isError ? 'destructive' : 'default'" class="shadow-sm">
                 <AlertCircle class="size-4" />
-                <AlertTitle>What happened</AlertTitle>
+                <AlertTitle>{{ isError ? 'What happened' : 'Response details' }}</AlertTitle>
                 <AlertDescription>
                     {{ diagnosis }}
                 </AlertDescription>
@@ -91,8 +95,8 @@ function reloadPage() {
             </div>
 
             <p class="text-xs leading-5 text-muted-foreground">
-                Do not repeatedly submit the same action while an error is still occurring. Record the HTTP code when
-                reporting the problem to an administrator.
+                Keep the HTTP code when reporting an unexpected response to an administrator. Avoid repeatedly
+                submitting the same action while the underlying problem is still occurring.
             </p>
         </section>
     </main>
