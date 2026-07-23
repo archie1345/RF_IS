@@ -32,7 +32,7 @@ const props = withDefaults(
     },
 );
 
-const isSwitching = ref(false);
+const switchingRole = ref<AppRole | null>(null);
 
 const roleLabels: Record<AppRole, string> = {
     admin: 'Admin',
@@ -55,7 +55,14 @@ const availableRoles = computed<AppRole[]>(() => {
 });
 
 const isMultiRole = computed(() => availableRoles.value.length > 1);
-const today = new Date().toISOString().slice(0, 10);
+const isSwitching = computed(() => switchingRole.value !== null);
+
+const currentDate = new Date();
+const today = [
+    currentDate.getFullYear(),
+    String(currentDate.getMonth() + 1).padStart(2, '0'),
+    String(currentDate.getDate()).padStart(2, '0'),
+].join('-');
 
 const nextTraining = computed(() =>
     [...props.trainingDays]
@@ -105,10 +112,10 @@ function switchRole(role: AppRole): void {
             preserveScroll: false,
             preserveState: false,
             onStart: () => {
-                isSwitching.value = true;
+                switchingRole.value = role;
             },
             onFinish: () => {
-                isSwitching.value = false;
+                switchingRole.value = null;
             },
         },
     );
@@ -146,7 +153,7 @@ function switchRole(role: AppRole): void {
                     class="gap-2"
                     @click="switchRole(availableRole)"
                 >
-                    <LoaderCircle v-if="isSwitching && availableRole !== props.role" class="size-3.5 animate-spin" />
+                    <LoaderCircle v-if="switchingRole === availableRole" class="size-3.5 animate-spin" />
                     <Check v-else-if="availableRole === props.role" class="size-3.5" />
                     {{ roleLabels[availableRole] }}
                 </Button>
