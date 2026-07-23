@@ -19,7 +19,7 @@ class AdminEventFeatureController extends BaseAdminFeatureController
             'Pendaftar' => (string) $event->registrations_count,
             'Biaya' => 'Rp '.number_format((float) $event->entry_fee, 0, ',', '.'),
             'Tipe & Visibilitas' => ($event->level ?? '-').' · '.($event->status ?? '-'),
-            'Aksi' => 'Detail',
+            'Aksi' => route('championships.show', $event),
         ])->values()->all());
     }
 
@@ -27,19 +27,34 @@ class AdminEventFeatureController extends BaseAdminFeatureController
     {
         $this->authorizeAdmin($request);
         $events = Event::query()
-            ->withCount('registrations')
-            ->whereDate('e_date', '<', now()->toDateString())
+            ->withCount([
+                'registrations',
+                'registrations as results_count' => fn ($query) => $query->whereNotNull('result_medal'),
+            ])
+            ->where(function ($query): void {
+                $query->whereDate('e_date', '<', now()->toDateString())
+                    ->orWhere('status', 'COMPLETED');
+            })
             ->latest('e_date')
             ->take(100)
             ->get();
 
-        return $this->renderFeature('Riwayat Event & UKT', 'Event yang pernah diselenggarakan.', [], ['Event', 'Tanggal', 'Penyelenggara', 'Total Peserta', 'Tipe', 'Aksi'], 'Tidak ada riwayat event', 'event-history', $events->map(fn (Event $event) => [
-            'Event' => $event->e_name,
-            'Tanggal' => optional($event->e_date)->format('d M Y') ?? '-',
-            'Penyelenggara' => $event->organizer ?? '-',
-            'Total Peserta' => (string) $event->registrations_count,
-            'Tipe' => $event->level ?? '-',
-            'Aksi' => 'Detail',
-        ])->values()->all());
+        return $this->renderFeature(
+            'Riwayat Event & UKT',
+            'Buka kembali detail event lama untuk melihat peserta dan memperbaiki hasil pertandingan atau UKT bila diperlukan.',
+            [],
+            ['Event', 'Tanggal', 'Penyelenggara', 'Total Peserta', 'Hasil Tercatat', 'Tipe', 'Aksi'],
+            'Tidak ada riwayat event',
+            'event-history',
+            $events->map(fn (Event $event) => [
+                'Event' => $event->e_name,
+                'Tanggal' => optional($event->e_date)->format('d M Y') ?? '-',
+                'Penyelenggara' => $event->organizer ?? '-',
+                'Total Peserta' => (string) $event->registrations_count,
+                'Hasil Tercatat' => $event->results_count.' / '.$event->registrations_count,
+                'Tipe' => $event->level ?? '-',
+                'Aksi' => route('championships.show', $event),
+            ])->values()->all(),
+        );
     }
 }
