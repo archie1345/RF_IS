@@ -35,6 +35,7 @@ class TrainingSession extends Model
         'start_time',
         'end_time',
         'status',
+        'metadata',
         'attendance_token_hash',
         'attendance_opens_at',
         'attendance_closes_at',
@@ -45,6 +46,7 @@ class TrainingSession extends Model
     protected $dates = ['deleted_at', 'session_date', 'start_time', 'end_time'];
 
     protected $casts = [
+        'metadata' => 'array',
         'attendance_opens_at' => 'datetime',
         'attendance_closes_at' => 'datetime',
         'attendance_qr_generated_at' => 'datetime',
