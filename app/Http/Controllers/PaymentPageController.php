@@ -42,6 +42,7 @@ class PaymentPageController extends Controller
 
         if ($role === 'coach') {
             return Inertia::render('CoachPayrollPage', [
+                'canSubmitPaymentProof' => false,
                 'metrics' => $this->coachPayrollMetrics($payments),
                 'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
             ]);
