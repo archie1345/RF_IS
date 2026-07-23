@@ -50,7 +50,9 @@ export type ClassRecord = {
     branch_id?: number | null;
     branch: string;
     coach_id?: string | null;
+    coach_ids?: Array<string | number>;
     coach: string;
+    coaches?: string[];
     dedicated_athlete_ids?: Array<string | number>;
     dedicated_athlete?: string | null;
     day_of_week?: number | null;
@@ -85,7 +87,9 @@ export type WeeklySchedule = {
     dedicated_athlete?: string | null;
     session_type?: string | null;
     coach_id?: string | null;
+    coach_ids?: Array<string | number>;
     coach?: string | null;
+    coaches?: string[];
     day_of_week: number;
     day_label?: string | null;
     start_time?: string | null;
