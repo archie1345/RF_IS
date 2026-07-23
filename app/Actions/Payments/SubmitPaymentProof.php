@@ -3,7 +3,6 @@
 namespace App\Actions\Payments;
 
 use App\Models\Payment;
-use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Http\UploadedFile;
@@ -32,21 +31,6 @@ class SubmitPaymentProof
                 if (($lockedPayment->proof_status ?? PaymentStatus::PROOF_NONE) === PaymentStatus::PROOF_SUBMITTED) {
                     throw ValidationException::withMessages(['proof_file' => 'Another receipt is already waiting for admin review.']);
                 }
-
-                PaymentTransaction::query()->create([
-                    'payment_id' => $lockedPayment->payment_id,
-                    'verified_by' => $payer->id,
-                    'amount' => 0,
-                    'transaction_date' => now(),
-                    'payment_method' => $lockedPayment->collection_method ?? 'TRANSFER',
-                    'transaction_type' => PaymentTransaction::TYPE_PROOF_SUBMITTED,
-                    'notes' => collect([
-                        'Payment proof submitted for review.',
-                        filled($notes) ? trim((string) $notes) : null,
-                    ])->filter()->implode("\n"),
-                    'proof_path' => $path,
-                    'proof_notes' => $notes,
-                ]);
 
                 $lockedPayment->update([
                     'payer_user_id' => $payer->id,
