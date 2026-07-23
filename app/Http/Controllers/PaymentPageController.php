@@ -139,8 +139,10 @@ class PaymentPageController extends Controller
     {
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
-        $receivedThisMonth = (float) $payments
-            ->flatMap->transactions
+        $transactions = $payments->flatMap(
+            fn (Payment $payment): Collection => $payment->transactions,
+        );
+        $receivedThisMonth = (float) $transactions
             ->filter(fn (PaymentTransaction $transaction): bool => $transaction->transaction_type === PaymentTransaction::TYPE_PAYMENT
                 && $transaction->transaction_date?->betweenIncluded($monthStart, $monthEnd))
             ->sum('amount');
