@@ -92,6 +92,7 @@ const eventForm = useForm({
     max_slots: '24',
     level: 'LOCAL',
     status: 'SCHEDULED',
+    event: '',
 });
 
 const showRegistrationForm = ref(false);
@@ -125,6 +126,7 @@ function resetEventForm(): void {
     eventForm.max_slots = '24';
     eventForm.level = 'LOCAL';
     eventForm.status = 'SCHEDULED';
+    eventForm.event = '';
     editingEventId.value = null;
 }
 
@@ -147,6 +149,7 @@ function openEditEvent(row: TableRow): void {
     eventForm.max_slots = String(row.max_slots ?? '24');
     eventForm.level = String(row.level ?? 'LOCAL');
     eventForm.status = String(row.status_value ?? row.status ?? 'SCHEDULED');
+    eventForm.event = '';
     showEventForm.value = true;
 }
 
