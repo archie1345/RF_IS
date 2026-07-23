@@ -63,32 +63,47 @@ it('seeds the current application schema with representative role data', functio
     $this->seed();
 
     $multiRoleUser = User::query()
-        ->with('roleAssignments')
+        ->with(['roleAssignments', 'athleteProfile'])
         ->where('email', 'multirole@rfis.test')
         ->firstOrFail();
 
     expect($multiRoleUser->roleAssignments->pluck('role')->sort()->values()->all())
-        ->toBe(['athlete', 'coach', 'parent']);
+        ->toBe(['athlete', 'coach', 'parent'])
+        ->and($multiRoleUser->athleteProfile?->member_number)->toBe('G202201150001')
+        ->and($multiRoleUser->athleteProfile?->joined_at?->toDateString())->toBe('2022-01-15');
+
+    $allRoleUser = User::query()
+        ->with(['roleAssignments', 'athleteProfile', 'coachProfile', 'parentProfile'])
+        ->where('email', 'allroles@rfis.test')
+        ->firstOrFail();
+
+    expect($allRoleUser->roleAssignments->pluck('role')->sort()->values()->all())
+        ->toBe(['admin', 'athlete', 'coach', 'parent'])
+        ->and($allRoleUser->primaryRole())->toBe('admin')
+        ->and($allRoleUser->athleteProfile)->not->toBeNull()
+        ->and($allRoleUser->coachProfile)->not->toBeNull()
+        ->and($allRoleUser->parentProfile)->not->toBeNull()
+        ->and($allRoleUser->athleteProfile?->member_number)->toBe('G202303010001')
+        ->and($allRoleUser->athleteProfile?->joined_at?->toDateString())->toBe('2023-03-01');
+
+    expect(Athlete::query()->where('parent_id', $allRoleUser->parentProfile?->parent_id)->count())->toBeGreaterThan(0);
 
     $this->assertDatabaseHas('athletes', [
-        'id' => $multiRoleUser->id,
-        'member_number' => 'G202201150001',
-        'joined_at' => '2022-01-15',
-    ]);
-    $this->assertDatabaseHas('athletes', [
         'member_number' => 'G202407010001',
-        'joined_at' => '2024-07-01',
     ]);
     $this->assertDatabaseHas('athletes', [
         'member_number' => 'G202407010002',
-        'joined_at' => '2024-07-01',
+    ]);
+    $this->assertDatabaseHas('athletes', [
+        'id' => $allRoleUser->id,
+        'member_number' => 'G202303010001',
     ]);
 
-    expect(DB::table('class_group_coaches')->count())->toBeGreaterThanOrEqual(6)
+    expect(DB::table('class_group_coaches')->count())->toBeGreaterThanOrEqual(8)
         ->and(DB::table('training_session_coaches')->count())->toBeGreaterThan(0)
         ->and(TrainingSession::query()->where('metadata->class_schedule_mode', 'one_day')->exists())->toBeTrue();
 
-    $this->assertDatabaseHas('payments', ['bill_kind' => 'PAYROLL']);
+    $this->assertDatabaseHas('payments', ['bill_kind' => 'PAYROLL', 'payee_user_id' => $allRoleUser->id]);
     $this->assertDatabaseHas('events', ['status' => 'SCHEDULED']);
     $this->assertDatabaseHas('announcements', ['target_role' => 'ALL']);
 });
