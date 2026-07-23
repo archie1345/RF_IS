@@ -11,7 +11,6 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
-import RoleSwitcher from '@/components/RoleSwitcher.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
@@ -38,7 +37,6 @@ const emit = defineEmits<{
 
 const page = usePage<{ auth: Auth }>();
 const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'Pengguna');
-const isMultiRole = computed(() => (page.props.auth.user?.roles?.length ?? 0) > 1);
 
 const childOptions = (children: ParentChild[]) => [
     { value: '', label: 'Semua anak' },
@@ -53,9 +51,7 @@ const heading = computed(() => {
     if (props.role === 'admin') return `Selamat datang, ${firstName.value}`;
     if (props.role === 'coach') return `Siap untuk latihan hari ini, ${firstName.value}?`;
     if (props.role === 'parent') {
-        return props.activeChild?.name
-            ? `Perkembangan ${props.activeChild.name}`
-            : 'Ringkasan anak Anda';
+        return props.activeChild?.name ? `Perkembangan ${props.activeChild.name}` : 'Ringkasan anak Anda';
     }
 
     return `Tetap konsisten, ${firstName.value}`;
@@ -150,22 +146,19 @@ const quickActions = computed(() => {
 <template>
     <PageSection :eyebrow="eyebrow" :title="heading" :description="description">
         <template #actions>
-            <div class="flex flex-wrap items-center gap-2">
-                <RoleSwitcher v-if="isMultiRole" />
-                <Button
-                    v-for="action in quickActions"
-                    :key="action.href"
-                    as-child
-                    variant="outline"
-                    size="sm"
-                    class="gap-2"
-                >
-                    <Link :href="action.href">
-                        <component :is="action.icon" class="size-4" />
-                        {{ action.label }}
-                    </Link>
-                </Button>
-            </div>
+            <Button
+                v-for="action in quickActions"
+                :key="action.href"
+                as-child
+                variant="outline"
+                size="sm"
+                class="gap-2"
+            >
+                <Link :href="action.href">
+                    <component :is="action.icon" class="size-4" />
+                    {{ action.label }}
+                </Link>
+            </Button>
         </template>
 
         <div v-if="props.role === 'parent' && props.children.length > 1" class="mb-5 max-w-sm">
