@@ -20,6 +20,16 @@ class UpdatePaymentStatus
             $remaining = (float) ($lockedPayment->remaining_amount ?? max($total - $paid, 0));
             $previousStatus = $lockedPayment->status ?? PaymentStatus::PENDING;
 
+            if ($status === $previousStatus) {
+                return $lockedPayment;
+            }
+
+            if ($previousStatus === PaymentStatus::REFUNDED) {
+                throw ValidationException::withMessages([
+                    'status' => 'A refunded bill is closed permanently. Create a new bill when another charge is required.',
+                ]);
+            }
+
             if ($status === PaymentStatus::COMPLETED && $remaining > 0) {
                 throw ValidationException::withMessages([
                     'status' => 'A bill can only be completed after its balance reaches zero through recorded transactions.',
