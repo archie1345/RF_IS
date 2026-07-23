@@ -74,7 +74,7 @@ class RoleResolver
 
     private function requestCanProvideRoleContext(?User $user): bool
     {
-        if (! $user || app()->runningInConsole() || ! app()->bound('request')) {
+        if (! $user || ! app()->bound('request')) {
             return false;
         }
 
