@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Eye, Pencil, Trash2, Users } from 'lucide-vue-next';
+import { CalendarDays, Eye, Pencil, Trash2, UserRoundCheck, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -19,7 +19,13 @@ import {
 } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
-import type { ClassAthleteRecord, ClassRecord, ClassScheduleMode, ClassSessionRecord, SelectOption } from '@/types/training';
+import type {
+    ClassAthleteRecord,
+    ClassRecord,
+    ClassScheduleMode,
+    ClassSessionRecord,
+    SelectOption,
+} from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -37,7 +43,7 @@ const props = withDefaults(
     }>(),
     {
         title: 'Kelas Latihan',
-        subtitle: 'Master data kelas. Private adalah tipe kelas dengan satu atau beberapa atlet khusus.',
+        subtitle: 'Master data kelas, peserta, jadwal, dan pelatih kelas.',
         classes: () => [],
         branchOptions: () => [],
         trainingGroupOptions: () => [],
@@ -81,7 +87,7 @@ const scheduleModeOptions: Array<{ value: ClassScheduleMode; label: string; deta
 const classTableColumns: TableColumn[] = [
     { key: 'class', label: 'Kelas' },
     { key: 'branch', label: 'Lokasi' },
-    { key: 'coach', label: 'Coach' },
+    { key: 'coach', label: 'Pelatih' },
     { key: 'schedule', label: 'Jadwal' },
     { key: 'participants', label: 'Peserta' },
     { key: 'session_summary', label: 'Sesi' },
@@ -100,7 +106,7 @@ const sessionTableColumns: TableColumn[] = [
     { key: 'title', label: 'Sesi' },
     { key: 'date', label: 'Tanggal' },
     { key: 'time', label: 'Jam' },
-    { key: 'coach', label: 'Coach' },
+    { key: 'coach', label: 'Pelatih' },
     { key: 'status', label: 'Status' },
     { key: 'archive_state', label: 'Tampilan' },
 ];
@@ -126,10 +132,10 @@ const form = useForm({
     class_type: 'reguler',
     training_group_id: '',
     dedicated_athlete_ids: [] as string[],
+    coach_ids: [] as string[],
     schedule_mode: 'weekly' as ClassScheduleMode,
     single_session_date: '',
     branch_id: '',
-    coach_id: '',
     day_of_week: '1',
     start_time: '16:00',
     end_time: '18:00',
@@ -141,8 +147,8 @@ const form = useForm({
 const isPrivateClass = computed(() => form.class_type === 'private');
 const isOneDayClass = computed(() => form.schedule_mode === 'one_day');
 
-const classCanBeActive = computed(() => {
-    return Boolean(
+const classCanBeActive = computed(() =>
+    Boolean(
         form.name.trim() &&
             form.class_type &&
             (isPrivateClass.value ? form.dedicated_athlete_ids.length > 0 : form.training_group_id) &&
@@ -150,20 +156,20 @@ const classCanBeActive = computed(() => {
             form.start_time &&
             form.end_time &&
             (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
-            (!isPrivateClass.value || form.coach_id),
-    );
-});
+            (!isPrivateClass.value || form.coach_ids.length > 0),
+    ),
+);
 
 const activationHint = computed(() => {
     if (classCanBeActive.value) {
         return isPrivateClass.value
-            ? 'Data lengkap. Kelas private hanya membuat presensi untuk atlet-atlet khusus yang dipilih.'
-            : 'Data lengkap. Kelas hanya bisa diikuti atlet dari kategori yang dipilih.';
+            ? 'Data lengkap. Sesi private hanya berlaku untuk atlet dan pelatih yang dipilih.'
+            : 'Data lengkap. Pelatih yang dipilih akan otomatis ditugaskan ke sesi kelas.';
     }
 
     return isPrivateClass.value
-        ? 'Lengkapi nama, tipe private, atlet private, coach private, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.'
-        : 'Lengkapi nama, tipe kelas, kategori atlet, lokasi aktif, jadwal/tanggal, jam mulai, dan jam selesai.';
+        ? 'Lengkapi kelas, atlet private, minimal satu pelatih, lokasi, dan jadwal sebelum diaktifkan.'
+        : 'Lengkapi nama, tipe kelas, kategori atlet, lokasi, dan jadwal sebelum diaktifkan.';
 });
 
 const classTableRows = computed<TableRow[]>(() =>
@@ -171,11 +177,13 @@ const classTableRows = computed<TableRow[]>(() =>
         const typeLabel = classTypeLabel(item.class_type);
         const minBelt = item.min_belt || '-';
         const privateAthlete = privateAthleteLabel(item);
-        const classMeta = normalizeClassType(item.class_type) === 'private'
-            ? `${typeLabel} · ${privateAthlete}`
-            : `${typeLabel} · min ${minBelt}`;
+        const classMeta =
+            normalizeClassType(item.class_type) === 'private'
+                ? `${typeLabel} · ${privateAthlete}`
+                : `${typeLabel} · min ${minBelt}`;
         const activeSessions = Number(item.active_sessions_count ?? 0);
         const archivedSessions = Number(item.archived_sessions_count ?? 0);
+        const coachNames = item.coaches?.length ? item.coaches : item.coach && item.coach !== 'Belum ada coach' ? [item.coach] : [];
 
         return {
             id: String(item.id),
@@ -186,7 +194,8 @@ const classTableRows = computed<TableRow[]>(() =>
             category: normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
             private_athlete: privateAthlete,
             branch: item.branch || '-',
-            coach: item.coach || '-',
+            coach: coachNames.join(', ') || 'Belum ada pelatih',
+            coach_names: coachNames,
             schedule: `${item.day_label} · ${item.start_time} - ${item.end_time}`,
             schedule_day: item.day_label,
             schedule_time: `${item.start_time} - ${item.end_time}`,
@@ -211,6 +220,7 @@ const selectedClassAthleteRows = computed<TableRow[]>(() =>
 
 const sessionRows = computed<TableRow[]>(() => {
     const sessions = selectedSessionClass.value?.sessions ?? [];
+
     return sessions
         .filter((session) => {
             if (sessionViewMode.value === 'all') return true;
@@ -240,8 +250,7 @@ function normalizeScheduleMode(value?: string | null): ClassScheduleMode {
 }
 
 function classTypeLabel(value?: string | null): string {
-    const normalized = normalizeClassType(value);
-    const option = classTypeOptions.find((item) => item.value === normalized);
+    const option = classTypeOptions.find((item) => item.value === normalizeClassType(value));
     return option?.label ?? '-';
 }
 
@@ -265,10 +274,10 @@ function resetForm() {
     form.class_type = 'reguler';
     form.training_group_id = '';
     form.dedicated_athlete_ids = [];
+    form.coach_ids = [];
     form.schedule_mode = 'weekly';
     form.single_session_date = '';
     form.branch_id = '';
-    form.coach_id = '';
     form.day_of_week = '1';
     form.start_time = '16:00';
     form.end_time = '18:00';
@@ -338,19 +347,17 @@ function openAttendance(row: TableRow) {
 
 function editClass(item: ClassRecord) {
     const classType = normalizeClassType(item.class_type);
-    const scheduleMode = normalizeScheduleMode(item.schedule_mode);
     editingClassId.value = item.id;
     form.clearErrors();
     form.name = item.name;
     form.class_type = classType;
     form.training_group_id = classType === 'private' ? '' : item.training_group_id ? String(item.training_group_id) : '';
-    form.dedicated_athlete_ids = classType === 'private'
-        ? (item.dedicated_athlete_ids ?? []).map((id) => String(id))
-        : [];
-    form.schedule_mode = scheduleMode;
+    form.dedicated_athlete_ids =
+        classType === 'private' ? (item.dedicated_athlete_ids ?? []).map((id) => String(id)) : [];
+    form.coach_ids = (item.coach_ids ?? (item.coach_id ? [item.coach_id] : [])).map((id) => String(id));
+    form.schedule_mode = normalizeScheduleMode(item.schedule_mode);
     form.single_session_date = item.single_session_date ?? '';
     form.branch_id = item.branch_id ? String(item.branch_id) : '';
-    form.coach_id = classType === 'private' ? (item.coach_id ?? '') : '';
     form.day_of_week = String(item.day_of_week ?? 1);
     form.start_time = item.start_time || '16:00';
     form.end_time = item.end_time || '18:00';
@@ -371,7 +378,6 @@ function saveClass() {
         form.training_group_id = '';
         form.min_belt = '';
     } else {
-        form.coach_id = '';
         form.dedicated_athlete_ids = [];
     }
 
@@ -401,10 +407,10 @@ watch(
         form.class_type,
         form.training_group_id,
         form.dedicated_athlete_ids.join(','),
+        form.coach_ids.join(','),
         form.schedule_mode,
         form.single_session_date,
         form.branch_id,
-        form.coach_id,
         form.day_of_week,
         form.start_time,
         form.end_time,
@@ -426,7 +432,7 @@ watch(
                 searchable
                 row-clickable
                 row-click-label="Klik baris untuk melihat daftar atlet. Gunakan tombol mata untuk melihat semua sesi kelas."
-                search-placeholder="Cari kelas..."
+                search-placeholder="Cari kelas, lokasi, atau pelatih..."
                 empty-text="Belum ada kelas."
                 action-label="Aksi"
                 @row-click="openClassAthletesFromRow"
@@ -434,10 +440,24 @@ watch(
                 <template #actions>
                     <Button v-if="props.canCreateClasses" type="button" @click="openCreateClass">Tambah Kelas</Button>
                 </template>
+
                 <template #cell="{ row, column, value }">
                     <div v-if="column.key === 'class'" class="grid gap-0.5">
                         <span class="font-bold text-foreground">{{ value }}</span>
                         <span class="text-xs font-normal text-muted-foreground">{{ row.class_meta }}</span>
+                    </div>
+                    <div v-else-if="column.key === 'coach'" class="flex flex-wrap gap-1.5">
+                        <span
+                            v-for="coachName in Array.isArray(row.coach_names) ? row.coach_names : []"
+                            :key="String(coachName)"
+                            class="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary"
+                        >
+                            <UserRoundCheck class="size-3.5" />
+                            {{ coachName }}
+                        </span>
+                        <span v-if="!Array.isArray(row.coach_names) || row.coach_names.length === 0" class="text-muted-foreground">
+                            Belum ada pelatih
+                        </span>
                     </div>
                     <div v-else-if="column.key === 'schedule'" class="grid gap-0.5">
                         <span class="inline-flex items-center gap-1 font-medium text-foreground">
@@ -457,15 +477,30 @@ watch(
                     </span>
                     <span v-else>{{ value }}</span>
                 </template>
+
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button type="button" size="sm" variant="outline" title="Lihat sesi kelas" @click="openClassSessionsFromRow(row)">
                             <Eye class="size-4" />
                         </Button>
-                        <Button v-if="props.canEditClasses" type="button" size="sm" variant="outline" title="Edit kelas" @click="editClassFromRow(row)">
+                        <Button
+                            v-if="props.canEditClasses"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            title="Edit kelas"
+                            @click="editClassFromRow(row)"
+                        >
                             <Pencil class="size-4" />
                         </Button>
-                        <Button v-if="props.canDeleteClasses" type="button" size="sm" variant="destructive" title="Hapus/nonaktifkan kelas" @click="deleteClassFromRow(row)">
+                        <Button
+                            v-if="props.canDeleteClasses"
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            title="Hapus/nonaktifkan kelas"
+                            @click="deleteClassFromRow(row)"
+                        >
                             <Trash2 class="size-4" />
                         </Button>
                     </ActionButtonsRow>
@@ -473,53 +508,195 @@ watch(
             </DataTable>
 
             <FormModal :open="showClassForm" max-width-class="max-w-3xl" @close="closeClassForm">
-                <form class="grid gap-4" @submit.prevent="saveClass">
-                    <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        Kategori membatasi kelas reguler. Untuk kelas private, pilih Tipe Kelas = Private lalu pilih satu atau beberapa atlet private.
-                    </p>
+                <form class="grid min-w-0 gap-4" @submit.prevent="saveClass">
+                    <div>
+                        <h2 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas' }}</h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Atur peserta, pelatih, lokasi, dan jadwal. Satu kelas dapat ditangani oleh beberapa pelatih.
+                        </p>
+                    </div>
 
-                    <div class="mt-5 grid gap-3">
-                        <FormInputField id="class-name" v-model="form.name" label="Nama Kelas" placeholder="Contoh: Junior Sparring" :error="form.errors.name" required />
+                    <div class="grid gap-3">
+                        <FormInputField
+                            id="class-name"
+                            v-model="form.name"
+                            label="Nama Kelas"
+                            placeholder="Contoh: Junior Sparring"
+                            :error="form.errors.name"
+                            required
+                        />
 
-                        <FormSelectField id="class-type" v-model="form.class_type" label="Tipe Kelas" :options="classTypeOptions" placeholder="Pilih tipe kelas" search-placeholder="Cari tipe kelas..." :error="form.errors.class_type" required />
+                        <FormSelectField
+                            id="class-type"
+                            v-model="form.class_type"
+                            label="Tipe Kelas"
+                            :options="classTypeOptions"
+                            placeholder="Pilih tipe kelas"
+                            search-placeholder="Cari tipe kelas..."
+                            :error="form.errors.class_type"
+                            required
+                        />
 
-                        <FormSelectField v-if="!isPrivateClass" id="training-group" v-model="form.training_group_id" label="Kategori Atlet" :options="props.trainingGroupOptions" placeholder="Pilih kategori atlet" search-placeholder="Cari kategori..." help="Hanya atlet dari kategori ini yang dibuatkan presensi dan boleh scan QR kelas ini." :error="form.errors.training_group_id" required />
+                        <FormSelectField
+                            v-if="!isPrivateClass"
+                            id="training-group"
+                            v-model="form.training_group_id"
+                            label="Kategori Atlet"
+                            :options="props.trainingGroupOptions"
+                            placeholder="Pilih kategori atlet"
+                            search-placeholder="Cari kategori..."
+                            help="Hanya atlet dari kategori ini yang dibuatkan presensi dan boleh scan QR kelas ini."
+                            :error="form.errors.training_group_id"
+                            required
+                        />
 
-                        <FormSelectField v-if="isPrivateClass" id="private-athletes" v-model="form.dedicated_athlete_ids" label="Atlet Private" :options="athleteNameOptions" placeholder="Pilih atlet private" search-placeholder="Cari atlet..." help="Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private." :error="form.errors.dedicated_athlete_ids" required multiple />
+                        <FormSelectField
+                            v-if="isPrivateClass"
+                            id="private-athletes"
+                            v-model="form.dedicated_athlete_ids"
+                            label="Atlet Private"
+                            :options="athleteNameOptions"
+                            placeholder="Pilih atlet private"
+                            search-placeholder="Cari atlet..."
+                            help="Pilih satu atau beberapa atlet. Hanya atlet ini yang dibuatkan presensi dan boleh scan QR kelas private."
+                            :error="form.errors.dedicated_athlete_ids"
+                            required
+                            multiple
+                        />
 
-                        <FormSelectField id="schedule-mode" v-model="form.schedule_mode" label="Pola Jadwal" :options="scheduleModeOptions" placeholder="Pilih pola jadwal" search-placeholder="Cari pola..." :help="scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail" :error="form.errors.schedule_mode" required />
+                        <section class="grid gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                            <div class="flex items-start gap-3">
+                                <div class="rounded-lg bg-primary/10 p-2 text-primary">
+                                    <UserRoundCheck class="size-5" />
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-foreground">Pelatih Kelas</h3>
+                                    <p class="text-xs leading-5 text-muted-foreground">
+                                        Pilih satu atau beberapa pelatih. Semua pelatih terpilih akan melihat dan menangani sesi yang dibuat dari kelas ini.
+                                    </p>
+                                </div>
+                            </div>
+                            <FormSelectField
+                                id="class-coaches"
+                                v-model="form.coach_ids"
+                                label="Pelatih yang ditugaskan"
+                                :options="props.coachOptions"
+                                placeholder="Pilih pelatih"
+                                search-placeholder="Cari nama pelatih..."
+                                :help="isPrivateClass ? 'Kelas private wajib memiliki minimal satu pelatih.' : 'Pelatih bersifat opsional untuk kelas non-private.'"
+                                :error="form.errors.coach_ids"
+                                :required="isPrivateClass"
+                                multiple
+                            />
+                        </section>
 
-                        <FormSelectField id="branch" v-model="form.branch_id" label="Lokasi" :options="props.branchOptions" placeholder="Pilih lokasi aktif" search-placeholder="Cari lokasi..." :error="form.errors.branch_id" required />
+                        <FormSelectField
+                            id="schedule-mode"
+                            v-model="form.schedule_mode"
+                            label="Pola Jadwal"
+                            :options="scheduleModeOptions"
+                            placeholder="Pilih pola jadwal"
+                            search-placeholder="Cari pola..."
+                            :help="scheduleModeOptions.find((option) => option.value === form.schedule_mode)?.detail"
+                            :error="form.errors.schedule_mode"
+                            required
+                        />
 
-                        <FormSelectField v-if="isPrivateClass" id="private-coach" v-model="form.coach_id" label="Coach Private" :options="props.coachOptions" placeholder="Pilih coach private" search-placeholder="Cari coach..." :error="form.errors.coach_id" required />
+                        <FormSelectField
+                            id="branch"
+                            v-model="form.branch_id"
+                            label="Lokasi"
+                            :options="props.branchOptions"
+                            placeholder="Pilih lokasi aktif"
+                            search-placeholder="Cari lokasi..."
+                            :error="form.errors.branch_id"
+                            required
+                        />
 
-                        <FormInputField v-if="isOneDayClass" id="single-session-date" v-model="form.single_session_date" label="Tanggal Sesi" type="date" :error="form.errors.single_session_date" required />
+                        <FormInputField
+                            v-if="isOneDayClass"
+                            id="single-session-date"
+                            v-model="form.single_session_date"
+                            label="Tanggal Sesi"
+                            type="date"
+                            :error="form.errors.single_session_date"
+                            required
+                        />
 
-                        <FormSelectField v-else id="day-of-week" v-model="form.day_of_week" label="Hari" :options="dayOptions" placeholder="Pilih hari" search-placeholder="Cari hari..." :error="form.errors.day_of_week" required />
+                        <FormSelectField
+                            v-else
+                            id="day-of-week"
+                            v-model="form.day_of_week"
+                            label="Hari"
+                            :options="dayOptions"
+                            placeholder="Pilih hari"
+                            search-placeholder="Cari hari..."
+                            :error="form.errors.day_of_week"
+                            required
+                        />
 
                         <div class="grid gap-3 md:grid-cols-2">
-                            <FormInputField id="class-start-time" v-model="form.start_time" label="Mulai" type="time" :error="form.errors.start_time" required />
-                            <FormInputField id="class-end-time" v-model="form.end_time" label="Selesai" type="time" :error="form.errors.end_time" required />
+                            <FormInputField
+                                id="class-start-time"
+                                v-model="form.start_time"
+                                label="Mulai"
+                                type="time"
+                                :error="form.errors.start_time"
+                                required
+                            />
+                            <FormInputField
+                                id="class-end-time"
+                                v-model="form.end_time"
+                                label="Selesai"
+                                type="time"
+                                :error="form.errors.end_time"
+                                required
+                            />
                         </div>
 
-                        <FormSelectField v-if="!isPrivateClass" id="minimum-belt" v-model="form.min_belt" label="Minimal Sabuk" :options="props.beltOptions" placeholder="Tanpa minimal" search-placeholder="Cari sabuk..." :error="form.errors.min_belt" />
+                        <FormSelectField
+                            v-if="!isPrivateClass"
+                            id="minimum-belt"
+                            v-model="form.min_belt"
+                            label="Minimal Sabuk"
+                            :options="props.beltOptions"
+                            placeholder="Tanpa minimal"
+                            search-placeholder="Cari sabuk..."
+                            :error="form.errors.min_belt"
+                        />
 
                         <label class="grid gap-1 text-sm font-semibold">
                             Deskripsi
-                            <textarea v-model="form.description" class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Deskripsi kelas"></textarea>
+                            <textarea
+                                v-model="form.description"
+                                class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
+                                placeholder="Deskripsi kelas"
+                            />
                         </label>
 
-                        <label class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold" :class="!classCanBeActive ? 'opacity-80' : ''">
-                            <span class="flex h-7 items-center gap-2">
-                                <input v-model="form.is_active" type="checkbox" :disabled="!classCanBeActive" class="disabled:cursor-not-allowed disabled:opacity-50" /> Aktif
+                        <label
+                            class="grid gap-1 rounded-lg border bg-background px-3 py-2 text-sm font-semibold"
+                            :class="!classCanBeActive ? 'opacity-80' : ''"
+                        >
+                            <span class="flex min-h-7 items-center gap-2">
+                                <input
+                                    v-model="form.is_active"
+                                    type="checkbox"
+                                    :disabled="!classCanBeActive"
+                                    class="disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                Aktif
                             </span>
-                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">{{ activationHint }}</span>
+                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                                {{ activationHint }}
+                            </span>
                         </label>
 
-                        <div class="flex gap-2">
-                            <Button type="submit" :disabled="form.processing">{{ form.processing ? 'Saving...' : 'Save Kelas' }}</Button>
+                        <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
                             <Button type="button" variant="outline" @click="closeClassForm">Batal</Button>
+                            <Button type="submit" :disabled="form.processing">
+                                {{ form.processing ? 'Menyimpan...' : 'Simpan Kelas' }}
+                            </Button>
                         </div>
                     </div>
                 </form>
@@ -533,10 +710,25 @@ watch(
                         <p class="text-sm text-muted-foreground">
                             {{ normalizeClassType(selectedClass.class_type) === 'private' ? 'Atlet private' : `Kategori: ${selectedClass.training_group || 'Belum ada kategori'}` }}
                         </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Pelatih: {{ selectedClass.coach || 'Belum ada pelatih' }}
+                        </p>
                     </div>
-                    <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ athleteModalError }}</p>
+                    <p
+                        v-if="athleteModalError"
+                        class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                        {{ athleteModalError }}
+                    </p>
                     <p v-if="athleteModalLoading" class="text-sm text-muted-foreground">Loading athletes...</p>
-                    <DataTable v-else title="Atlet kelas" description="Daftar atlet yang dapat mengikuti kelas ini." :columns="athleteTableColumns" :rows="selectedClassAthleteRows" empty-text="Belum ada atlet." />
+                    <DataTable
+                        v-else
+                        title="Atlet kelas"
+                        description="Daftar atlet yang dapat mengikuti kelas ini."
+                        :columns="athleteTableColumns"
+                        :rows="selectedClassAthleteRows"
+                        empty-text="Belum ada atlet."
+                    />
                 </section>
             </FormModal>
 
@@ -547,18 +739,50 @@ watch(
                             <p class="text-xs font-black tracking-wide text-red-500 uppercase">Riwayat Sesi Kelas</p>
                             <h2 class="text-2xl font-black">{{ selectedSessionClass.name }}</h2>
                             <p class="text-sm text-muted-foreground">
-                                {{ selectedSessionClass.active_sessions_count ?? 0 }} sesi aktif/mendatang · {{ selectedSessionClass.archived_sessions_count ?? 0 }} sesi arsip/past
+                                {{ selectedSessionClass.active_sessions_count ?? 0 }} sesi aktif/mendatang ·
+                                {{ selectedSessionClass.archived_sessions_count ?? 0 }} sesi arsip/past
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" :variant="sessionViewMode === 'active' ? 'default' : 'outline'" @click="sessionViewMode = 'active'">Aktif</Button>
-                            <Button type="button" size="sm" :variant="sessionViewMode === 'archived' ? 'default' : 'outline'" @click="sessionViewMode = 'archived'">Archived/Past</Button>
-                            <Button type="button" size="sm" :variant="sessionViewMode === 'all' ? 'default' : 'outline'" @click="sessionViewMode = 'all'">Semua</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                :variant="sessionViewMode === 'active' ? 'default' : 'outline'"
+                                @click="sessionViewMode = 'active'"
+                            >
+                                Aktif
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                :variant="sessionViewMode === 'archived' ? 'default' : 'outline'"
+                                @click="sessionViewMode = 'archived'"
+                            >
+                                Archived/Past
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                :variant="sessionViewMode === 'all' ? 'default' : 'outline'"
+                                @click="sessionViewMode = 'all'"
+                            >
+                                Semua
+                            </Button>
                         </div>
                     </div>
-                    <DataTable title="Sesi kelas" description="Buka presensi dari sesi tertentu tanpa pindah ke daftar semua sesi." :columns="sessionTableColumns" :rows="sessionRows" empty-text="Belum ada sesi untuk kelas ini." searchable action-label="Presensi">
+                    <DataTable
+                        title="Sesi kelas"
+                        description="Buka presensi dari sesi tertentu tanpa pindah ke daftar semua sesi."
+                        :columns="sessionTableColumns"
+                        :rows="sessionRows"
+                        empty-text="Belum ada sesi untuk kelas ini."
+                        searchable
+                        action-label="Presensi"
+                    >
                         <template #row-actions="{ row }">
-                            <Button type="button" size="sm" variant="outline" @click="openAttendance(row)">Buka Presensi</Button>
+                            <Button type="button" size="sm" variant="outline" @click="openAttendance(row)">
+                                Buka Presensi
+                            </Button>
                         </template>
                     </DataTable>
                 </section>
