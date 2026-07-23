@@ -139,32 +139,44 @@ class PaymentPageController extends Controller
     {
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
-        $transactions = $payments->flatMap(
+        $invoicePayments = $payments->filter(
+            fn (Payment $payment): bool => ($payment->bill_kind ?? 'INVOICE') === 'INVOICE',
+        );
+        $payrollPayments = $payments->filter(
+            fn (Payment $payment): bool => $payment->bill_kind === 'PAYROLL',
+        );
+        $invoiceTransactions = $invoicePayments->flatMap(
             fn (Payment $payment): Collection => $payment->transactions,
         );
-        $receivedThisMonth = (float) $transactions
+        $payrollTransactions = $payrollPayments->flatMap(
+            fn (Payment $payment): Collection => $payment->transactions,
+        );
+        $receivedThisMonth = (float) $invoiceTransactions
+            ->filter(fn (PaymentTransaction $transaction): bool => $transaction->transaction_type === PaymentTransaction::TYPE_PAYMENT
+                && $transaction->transaction_date?->betweenIncluded($monthStart, $monthEnd))
+            ->sum('amount');
+        $payrollPaidThisMonth = (float) $payrollTransactions
             ->filter(fn (PaymentTransaction $transaction): bool => $transaction->transaction_type === PaymentTransaction::TYPE_PAYMENT
                 && $transaction->transaction_date?->betweenIncluded($monthStart, $monthEnd))
             ->sum('amount');
 
-        $outstandingInvoices = (float) $payments
-            ->filter(fn (Payment $payment): bool => ($payment->bill_kind ?? 'INVOICE') === 'INVOICE'
-                && $payment->status === PaymentStatus::PENDING)
+        $outstandingInvoices = (float) $invoicePayments
+            ->where('status', PaymentStatus::PENDING)
             ->sum(fn (Payment $payment): float => (float) ($payment->remaining_amount ?? 0));
-        $overdueAmount = (float) $payments
-            ->filter(fn (Payment $payment): bool => $payment->isOverdue())
+        $overdueInvoices = $invoicePayments
+            ->filter(fn (Payment $payment): bool => $payment->isOverdue());
+        $overdueAmount = (float) $overdueInvoices
             ->sum(fn (Payment $payment): float => (float) ($payment->remaining_amount ?? 0));
-        $payrollOutstanding = (float) $payments
-            ->filter(fn (Payment $payment): bool => $payment->bill_kind === 'PAYROLL'
-                && $payment->status === PaymentStatus::PENDING)
+        $payrollOutstanding = (float) $payrollPayments
+            ->where('status', PaymentStatus::PENDING)
             ->sum(fn (Payment $payment): float => (float) ($payment->remaining_amount ?? 0));
 
         return [
-            ['label' => 'Diterima bulan ini', 'value' => $this->rupiah($receivedThisMonth), 'detail' => 'Total transaksi pembayaran yang disetujui bulan ini', 'tone' => 'success'],
+            ['label' => 'Diterima bulan ini', 'value' => $this->rupiah($receivedThisMonth), 'detail' => 'Pemasukan dari transaksi tagihan anggota yang disetujui', 'tone' => 'success'],
             ['label' => 'Piutang anggota', 'value' => $this->rupiah($outstandingInvoices), 'detail' => 'Sisa seluruh tagihan anggota yang masih aktif', 'tone' => 'warning'],
-            ['label' => 'Sudah jatuh tempo', 'value' => $this->rupiah($overdueAmount), 'detail' => $attention['overdue_count'].' tagihan perlu ditindaklanjuti', 'tone' => 'danger'],
+            ['label' => 'Sudah jatuh tempo', 'value' => $this->rupiah($overdueAmount), 'detail' => $overdueInvoices->count().' tagihan anggota perlu ditindaklanjuti', 'tone' => 'danger'],
             ['label' => 'Bukti menunggu review', 'value' => (string) $attention['proof_review_count'], 'detail' => 'Prioritas pertama dalam antrean keuangan', 'tone' => 'info'],
-            ['label' => 'Payroll belum dibayar', 'value' => $this->rupiah($payrollOutstanding), 'detail' => 'Sisa kewajiban pembayaran kepada pelatih', 'tone' => 'warning'],
+            ['label' => 'Payroll belum dibayar', 'value' => $this->rupiah($payrollOutstanding), 'detail' => $this->rupiah($payrollPaidThisMonth).' sudah dibayar bulan ini', 'tone' => 'warning'],
         ];
     }
 
