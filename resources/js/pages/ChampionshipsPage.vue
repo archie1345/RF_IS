@@ -9,6 +9,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
 import { index as championshipsIndex, show as championshipShow } from '@/routes/championships';
 import { store as championshipEventStore } from '@/routes/championships/events';
@@ -106,6 +107,12 @@ function openRegistrationForEvent(row: TableRow) {
     showRegistrationForm.value = true;
 }
 
+function championshipUrl(row: TableRow): string | null {
+    const eventId = routeId(row.event_id);
+
+    return eventId === null ? null : championshipShow.url(eventId);
+}
+
 onMounted(() => {
     if (props.isAthlete && !form.athlete_id && props.athletes.length === 1)
         form.athlete_id = String(props.athletes[0].value);
@@ -158,8 +165,8 @@ onMounted(() => {
                             @click="openRegistrationForEvent(row)"
                             >Register</Button
                         >
-                        <Button as-child type="button" size="sm" variant="outline"
-                            ><Link :href="championshipShow.url(String(row.event_id))">View participants</Link></Button
+                        <Button v-if="championshipUrl(row)" as-child type="button" size="sm" variant="outline"
+                            ><Link :href="championshipUrl(row) ?? '#'">View participants</Link></Button
                         >
                     </ActionButtonsRow>
                 </template>
