@@ -17,13 +17,9 @@ class AnnouncementController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $isAdmin = (bool) $user?->isAdmin();
-        $roleTargets = collect($user?->assignedRoles() ?? [$user?->role ?? 'athlete'])
-            ->filter()
-            ->map(fn (string $role) => strtoupper($role))
-            ->push('ALL')
-            ->unique()
-            ->values();
+        $activeRole = $user?->primaryRole() ?? 'athlete';
+        $isAdmin = $activeRole === 'admin';
+        $roleTargets = collect([strtoupper($activeRole), 'ALL']);
 
         $announcements = Announcement::query()
             ->with('creator:id,name')
