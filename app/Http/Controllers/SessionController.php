@@ -145,8 +145,7 @@ class SessionController extends Controller
 
     public function attendanceSheet(TrainingSession $session): Response
     {
-        $user = request()->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
+        $this->authorize('manageAttendance', $session);
 
         $with = ['primaryCoach.user:id,name', 'branch:branch_id,branch_name', 'group:group_id,group_name,class_type'];
         if ($this->sessionVisibility->hasCoachPivotTable()) {
@@ -173,7 +172,7 @@ class SessionController extends Controller
             foreach ($assignedCoachIds as $coachId) {
                 CoachAttendance::query()->firstOrCreate(
                     ['training_session_id' => $session->training_session_id, 'coach_id' => $coachId],
-                    ['status' => 'TEACH']
+                    ['status' => 'TEACH'],
                 );
             }
         }
@@ -188,6 +187,7 @@ class SessionController extends Controller
 
         $athletePresentCount = $attendance->where('status', 'PRESENT')->count();
         $coachTeachCount = $coachAttendance->where('status', 'TEACH')->count();
+        $qrActive = $session->attendance_token_hash !== null && $session->attendance_qr_revoked_at === null;
 
         return Inertia::render('SessionAttendancePage', [
             'session' => [
@@ -207,7 +207,10 @@ class SessionController extends Controller
                 'athlete_attendance_summary' => $athletePresentCount.' / '.$attendance->count(),
                 'coach_attendance_summary' => $coachTeachCount.' / '.$coachAttendance->count(),
                 'attendance_qr' => [
-                    'is_active' => $session->attendance_token_hash !== null && $session->attendance_qr_revoked_at === null,
+                    'is_active' => $qrActive,
+                    'scan_url' => $qrActive && filled($session->attendance_qr_token)
+                        ? $this->attendanceScanUrl((string) $session->attendance_qr_token)
+                        : null,
                     'opens_at' => $session->attendance_opens_at?->toIso8601String(),
                     'closes_at' => $session->attendance_closes_at?->toIso8601String(),
                     'generated_at' => $session->attendance_qr_generated_at?->toIso8601String(),
@@ -250,7 +253,7 @@ class SessionController extends Controller
 
         CoachAttendance::query()->updateOrCreate(
             ['training_session_id' => $session->training_session_id, 'coach_id' => $validated['coach_id']],
-            ['status' => 'TEACH', 'checked_at' => now()]
+            ['status' => 'TEACH', 'checked_at' => now()],
         );
 
         if ($this->sessionVisibility->hasCoachPivotTable()) {
@@ -326,6 +329,7 @@ class SessionController extends Controller
         return match ($status) {
             'PRESENT' => $this->badge('Present', 'success'),
             'EXCUSED' => $this->badge('Excused', 'info'),
+            'LATE' => $this->badge('Late', 'warning'),
             default => $this->badge('Absent', 'danger'),
         };
     }
@@ -364,6 +368,18 @@ class SessionController extends Controller
             ->map(fn (Coach $coach): array => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
             ->sortBy('label')
             ->values();
+    }
+
+    private function attendanceScanUrl(string $token): string
+    {
+        $relativeUrl = route('attendance.scan.show', $token, false);
+        $host = request()->getHost();
+
+        if (app()->environment('local') || in_array($host, ['localhost', '127.0.0.1'], true)) {
+            return url($relativeUrl);
+        }
+
+        return secure_url($relativeUrl);
     }
 
     private function formatDateYmd(mixed $value): string
