@@ -15,7 +15,7 @@ class RecordManualPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'gt:0', 'max:999999999999.99'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'transaction_date' => ['required', 'date', 'before_or_equal:today'],
             'payment_method' => ['required', Rule::in(['CASH', 'CARD', 'TRANSFER', 'OTHER'])],
             'notes' => ['nullable', 'string', 'max:2000'],
