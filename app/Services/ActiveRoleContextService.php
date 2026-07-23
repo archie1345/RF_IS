@@ -26,6 +26,18 @@ class ActiveRoleContextService
             return 'athlete';
         }
 
+        // Preserve backward compatibility with the attendance page's existing mode query
+        // while making that selection the global account context for every following page.
+        $requestedRole = $request->routeIs('attendance.index')
+            ? strtolower(trim((string) $request->query('mode', '')))
+            : '';
+
+        if (in_array($requestedRole, $availableRoles, true)) {
+            $request->session()->put(self::SESSION_KEY, $requestedRole);
+
+            return $requestedRole;
+        }
+
         $storedRole = strtolower(trim((string) $request->session()->get(self::SESSION_KEY, '')));
         if (in_array($storedRole, $availableRoles, true)) {
             return $storedRole;
