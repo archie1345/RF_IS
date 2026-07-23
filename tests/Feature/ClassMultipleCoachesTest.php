@@ -34,7 +34,7 @@ it('assigns multiple coaches to a class and its generated sessions', function ()
         'is_active' => true,
     ]);
     $trainingGroup = TrainingGroup::query()->create([
-        'name' => 'Junior',
+        'name' => 'Multi Coach Test Category',
         'is_active' => true,
     ]);
 
@@ -90,7 +90,7 @@ it('keeps the legacy single coach payload compatible', function () {
         'is_active' => true,
     ]);
     $trainingGroup = TrainingGroup::query()->create([
-        'name' => 'Senior',
+        'name' => 'Legacy Coach Test Category',
         'is_active' => true,
     ]);
 
