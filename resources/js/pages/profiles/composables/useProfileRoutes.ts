@@ -1,16 +1,29 @@
 import { computed } from 'vue';
 import type { ProfileUser } from '@/pages/profiles/types';
 import { update as profileUpdate } from '@/routes/profile';
-import { store as profileAchievementStore, update as profileAchievementUpdate } from '@/routes/profile/achievements';
 import {
+    destroy as profileAchievementDestroy,
+    store as profileAchievementStore,
+    update as profileAchievementUpdate,
+} from '@/routes/profile/achievements';
+import {
+    destroy as profileCertificationDestroy,
     store as profileCertificationStore,
     update as profileCertificationUpdate,
 } from '@/routes/profile/certifications';
 import { update as profileDetailsUpdate } from '@/routes/profile/details';
 import { update as userAccountUpdate } from '@/routes/users/account';
-import { store as userAchievementStore, update as userAchievementUpdate } from '@/routes/users/achievements';
+import {
+    destroy as userAchievementDestroy,
+    store as userAchievementStore,
+    update as userAchievementUpdate,
+} from '@/routes/users/achievements';
 import { update as userAthleteProfileUpdate } from '@/routes/users/athlete-profile';
-import { store as userCertificationStore, update as userCertificationUpdate } from '@/routes/users/certifications';
+import {
+    destroy as userCertificationDestroy,
+    store as userCertificationStore,
+    update as userCertificationUpdate,
+} from '@/routes/users/certifications';
 import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
 import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
 import { update as userProfileUpdate } from '@/routes/users/profile';
@@ -56,18 +69,30 @@ export function useProfileRoutes(options: {
 
     const certificationUpdateUrl = (id: number | string) => {
         const certificationId = routeId(id);
-
         return options.context === 'settings'
             ? profileCertificationUpdate.url(certificationId)
             : userCertificationUpdate.url({ user: userId.value, certification: certificationId });
     };
 
+    const certificationDestroyUrl = (id: number | string) => {
+        const certificationId = routeId(id);
+        return options.context === 'settings'
+            ? profileCertificationDestroy.url(certificationId)
+            : userCertificationDestroy.url({ user: userId.value, certification: certificationId });
+    };
+
     const achievementUpdateUrl = (id: number | string) => {
         const achievementId = routeId(id);
-
         return options.context === 'settings'
             ? profileAchievementUpdate.url(achievementId)
             : userAchievementUpdate.url({ user: userId.value, achievement: achievementId });
+    };
+
+    const achievementDestroyUrl = (id: number | string) => {
+        const achievementId = routeId(id);
+        return options.context === 'settings'
+            ? profileAchievementDestroy.url(achievementId)
+            : userAchievementDestroy.url({ user: userId.value, achievement: achievementId });
     };
 
     const athleteProfileUpdateUrl = computed(() => userAthleteProfileUpdate.url(userId.value));
@@ -81,7 +106,9 @@ export function useProfileRoutes(options: {
         certificationStoreUrl,
         achievementStoreUrl,
         certificationUpdateUrl,
+        certificationDestroyUrl,
         achievementUpdateUrl,
+        achievementDestroyUrl,
         athleteProfileUpdateUrl,
         coachProfileUpdateUrl,
         parentProfileUpdateUrl,
