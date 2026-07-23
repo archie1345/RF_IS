@@ -100,6 +100,7 @@ class ProfilePageData
                 'division' => $achievement->division,
                 'category' => $achievement->category,
                 'notes' => $achievement->notes,
+                'is_auto_recorded' => (bool) $achievement->is_auto_recorded,
                 'fileName' => $achievement->file?->original_name,
                 'fileUrl' => $achievement->file?->file_path ? Storage::url($achievement->file->file_path) : null,
             ]),
