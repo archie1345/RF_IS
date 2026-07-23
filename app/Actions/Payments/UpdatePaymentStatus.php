@@ -67,7 +67,7 @@ class UpdatePaymentStatus
                 'amount' => 0,
                 'transaction_date' => now(),
                 'transaction_type' => PaymentTransaction::TYPE_STATUS_CHANGE,
-                'payment_method' => 'MANUAL_STATUS',
+                'payment_method' => 'OTHER',
                 'notes' => "Payment status changed from {$previousStatus} to {$status}. Paid: {$paid}. Remaining: {$remaining}.",
                 'proof_path' => $lockedPayment->proof_path,
                 'proof_notes' => $lockedPayment->proof_notes,
