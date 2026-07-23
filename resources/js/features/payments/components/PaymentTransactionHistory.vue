@@ -11,8 +11,8 @@ const props = withDefaults(
         bordered?: boolean;
     }>(),
     {
-        title: 'Transaction History',
-        emptyText: 'No approved installments yet.',
+        title: 'Riwayat transaksi',
+        emptyText: 'Belum ada transaksi pembayaran yang disetujui.',
         showVerifier: true,
         bordered: true,
     },
@@ -44,12 +44,12 @@ const props = withDefaults(
                 <span class="text-xs text-muted-foreground">
                     {{ history.date
                     }}<template v-if="props.showVerifier && history.verified_by">
-                        by {{ history.verified_by }}</template
+                        oleh {{ history.verified_by }}</template
                     >
                 </span>
             </div>
             <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span v-if="history.type">{{ history.type }}</span>
+                <span v-if="history.type" class="font-medium text-foreground">{{ history.type }}</span>
                 <span v-if="history.method">{{ history.method }}</span>
                 <a
                     v-if="history.proof_url"
@@ -58,7 +58,7 @@ const props = withDefaults(
                     rel="noopener noreferrer"
                     class="font-medium text-foreground underline underline-offset-4"
                 >
-                    Proof snapshot
+                    Lihat bukti
                 </a>
             </div>
             <p v-if="history.notes" class="text-xs leading-5 whitespace-pre-line text-muted-foreground">
