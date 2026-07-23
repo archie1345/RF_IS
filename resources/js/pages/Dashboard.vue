@@ -3,7 +3,6 @@ import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, type PropType } from 'vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
-import ParentSettingsCard from '@/components/dashboard/ParentSettingsCard.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -84,8 +83,6 @@ useLiveReload(
                 :training-days="props.trainingDays"
                 :payment-rows="props.paymentRows"
             />
-
-            <ParentSettingsCard v-if="role === 'parent'" />
         </div>
     </AppLayout>
 </template>
