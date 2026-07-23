@@ -57,35 +57,43 @@ const displayedAthleteName = computed(() => selectedChild.value?.label ?? props.
 const displayedAthleteStatus = computed(() => selectedChild.value?.current_status ?? props.athlete?.current_status ?? null);
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
+const selectedChildAlreadyPresent = computed(() => isParentScan.value && selectedChild.value?.current_status === 'PRESENT');
 const hasSaved = computed(
     () =>
-        props.state === 'already_present' ||
+        selectedChildAlreadyPresent.value ||
+        (!isParentScan.value && props.state === 'already_present') ||
         scanFlash.value?.status === 'recorded' ||
         scanFlash.value?.status === 'already_recorded',
 );
 const blockingError = computed(
     () => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.athlete_id ?? pageErrors.value.device ?? pageErrors.value.token ?? null,
 );
-const canRecordNow = computed(
-    () => props.canSubmit && props.deviceAllowed && !hasSaved.value && !isSubmitting.value && (!isParentScan.value || selectedAthleteId.value !== ''),
-);
+const parentSessionBlocked = computed(() => ['invalid', 'not_open', 'closed', 'revoked'].includes(props.state));
+const parentSelectionBlocked = computed(() => isParentScan.value && selectedAthleteId.value === '');
+const canRecordNow = computed(() => {
+    if (!props.deviceAllowed || isSubmitting.value || hasSaved.value || blockingError.value) return false;
+
+    if (isParentScan.value) {
+        return Boolean(props.session) && !parentSessionBlocked.value && !parentSelectionBlocked.value;
+    }
+
+    return props.canSubmit;
+});
 
 const stepState = computed(() => {
     if (!props.deviceAllowed) return 'blocked';
-    if (
-        blockingError.value ||
-        ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state)
-    )
+    if (blockingError.value || parentSessionBlocked.value || (!isParentScan.value && ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state))) {
         return 'blocked';
+    }
     if (hasSaved.value) return 'done';
     if (isSubmitting.value) return 'saving';
-    if (props.canSubmit) return 'prompt';
+    if (canRecordNow.value || (isParentScan.value && !parentSessionBlocked.value)) return 'prompt';
 
     return 'waiting';
 });
 
 const headline = computed(() => {
-    if (stepState.value === 'done') return 'Attendance saved';
+    if (stepState.value === 'done') return isParentScan.value ? 'Child attendance saved' : 'Attendance saved';
     if (stepState.value === 'saving') return 'Saving attendance...';
     if (stepState.value === 'prompt') return isParentScan.value ? 'Select child and save' : 'QR detected';
     if (stepState.value === 'blocked') return 'Cannot record attendance';
@@ -93,17 +101,21 @@ const headline = computed(() => {
     return 'QR attendance';
 });
 
-const statusMessage = computed(
-    () =>
+const statusMessage = computed(() => {
+    if (selectedChildAlreadyPresent.value) return 'This child is already checked in for this session.';
+    if (isParentScan.value && parentSelectionBlocked.value) return 'Select which child you want to check in.';
+
+    return (
         scanFlash.value?.message ??
         blockingError.value ??
         props.message ??
-        'Hold on while we verify your QR attendance.',
-);
+        'Hold on while we verify your QR attendance.'
+    );
+});
 
 function recordAttendance() {
     if (!canRecordNow.value) {
-        submitError.value = props.message ?? 'Attendance cannot be saved from this QR yet.';
+        submitError.value = statusMessage.value ?? 'Attendance cannot be saved from this QR yet.';
         return;
     }
 

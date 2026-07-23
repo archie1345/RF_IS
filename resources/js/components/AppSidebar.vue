@@ -90,6 +90,7 @@ const navByRole: Record<AppRole, NavItem[]> = {
     coach: [
         { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
         { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
+        { title: 'Kelas Latihan', href: adminClasses.url(), icon: Users },
         { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
         { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
         { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },

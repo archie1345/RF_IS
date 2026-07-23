@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Pencil, Trash2, Users } from 'lucide-vue-next';
+import { CalendarDays, Eye, Pencil, Trash2, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
@@ -18,7 +19,7 @@ import {
 } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
-import type { ClassAthleteRecord, ClassRecord, ClassScheduleMode, SelectOption } from '@/types/training';
+import type { ClassAthleteRecord, ClassRecord, ClassScheduleMode, ClassSessionRecord, SelectOption } from '@/types/training';
 
 const props = withDefaults(
     defineProps<{
@@ -30,6 +31,9 @@ const props = withDefaults(
         athleteOptions?: SelectOption[];
         coachOptions?: SelectOption[];
         beltOptions?: SelectOption[];
+        canCreateClasses?: boolean;
+        canEditClasses?: boolean;
+        canDeleteClasses?: boolean;
     }>(),
     {
         title: 'Kelas Latihan',
@@ -40,6 +44,9 @@ const props = withDefaults(
         athleteOptions: () => [],
         coachOptions: () => [],
         beltOptions: () => [],
+        canCreateClasses: true,
+        canEditClasses: true,
+        canDeleteClasses: true,
     },
 );
 
@@ -77,6 +84,7 @@ const classTableColumns: TableColumn[] = [
     { key: 'coach', label: 'Coach' },
     { key: 'schedule', label: 'Jadwal' },
     { key: 'participants', label: 'Peserta' },
+    { key: 'session_summary', label: 'Sesi' },
     { key: 'weekly_schedule_status', label: 'Schedule' },
     { key: 'status', label: 'Status' },
 ];
@@ -88,11 +96,22 @@ const athleteTableColumns: TableColumn[] = [
     { key: 'geup', label: 'Geup' },
 ];
 
+const sessionTableColumns: TableColumn[] = [
+    { key: 'title', label: 'Sesi' },
+    { key: 'date', label: 'Tanggal' },
+    { key: 'time', label: 'Jam' },
+    { key: 'coach', label: 'Coach' },
+    { key: 'status', label: 'Status' },
+    { key: 'archive_state', label: 'Tampilan' },
+];
+
 const editingClassId = ref<number | null>(null);
 const selectedClass = ref<ClassRecord | null>(null);
 const selectedClassAthletes = ref<ClassAthleteRecord[]>([]);
 const athleteModalLoading = ref(false);
 const athleteModalError = ref('');
+const selectedSessionClass = ref<ClassRecord | null>(null);
+const sessionViewMode = ref<'active' | 'archived' | 'all'>('active');
 const showClassForm = ref(false);
 
 const athleteNameOptions = computed<SelectOption[]>(() =>
@@ -155,6 +174,8 @@ const classTableRows = computed<TableRow[]>(() =>
         const classMeta = normalizeClassType(item.class_type) === 'private'
             ? `${typeLabel} · ${privateAthlete}`
             : `${typeLabel} · min ${minBelt}`;
+        const activeSessions = Number(item.active_sessions_count ?? 0);
+        const archivedSessions = Number(item.archived_sessions_count ?? 0);
 
         return {
             id: String(item.id),
@@ -165,11 +186,12 @@ const classTableRows = computed<TableRow[]>(() =>
             category: normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
             private_athlete: privateAthlete,
             branch: item.branch || '-',
-            coach: normalizeClassType(item.class_type) === 'private' ? item.coach || '-' : '-',
+            coach: item.coach || '-',
             schedule: `${item.day_label} · ${item.start_time} - ${item.end_time}`,
             schedule_day: item.day_label,
             schedule_time: `${item.start_time} - ${item.end_time}`,
             participants: `${item.athletes_count} atlet`,
+            session_summary: `${activeSessions} aktif · ${archivedSessions} arsip`,
             weekly_schedule_status: item.weekly_schedule_status,
             status: item.is_active ? 'AKTIF' : 'NONAKTIF',
             status_tone: item.is_active ? 'success' : 'neutral',
@@ -186,6 +208,26 @@ const selectedClassAthleteRows = computed<TableRow[]>(() =>
         geup: athlete.geup || '-',
     })),
 );
+
+const sessionRows = computed<TableRow[]>(() => {
+    const sessions = selectedSessionClass.value?.sessions ?? [];
+    return sessions
+        .filter((session) => {
+            if (sessionViewMode.value === 'all') return true;
+            if (sessionViewMode.value === 'archived') return session.is_archived;
+            return !session.is_archived;
+        })
+        .map((session: ClassSessionRecord) => ({
+            id: String(session.id),
+            title: session.title,
+            date: session.date,
+            time: session.time,
+            coach: session.coach || '-',
+            status: session.status,
+            archive_state: session.is_archived ? 'Archived/Past' : 'Active/Upcoming',
+            attendance_url: session.attendance_url || '',
+        }));
+});
 
 function normalizeClassType(value?: string | null): string {
     const normalized = (value || 'reguler').toString().toLowerCase().replace(/\s+/g, '_');
@@ -252,6 +294,11 @@ function closeAthleteModal() {
     athleteModalLoading.value = false;
 }
 
+function closeSessionModal() {
+    selectedSessionClass.value = null;
+    sessionViewMode.value = 'active';
+}
+
 async function openClassAthletes(item: ClassRecord) {
     selectedClass.value = { ...item, athletes: item.athletes ?? [] };
     selectedClassAthletes.value = item.athletes ?? [];
@@ -277,6 +324,16 @@ async function openClassAthletes(item: ClassRecord) {
 function openClassAthletesFromRow(row: TableRow) {
     const item = classFromRow(row);
     if (item) void openClassAthletes(item);
+}
+
+function openClassSessionsFromRow(row: TableRow) {
+    const item = classFromRow(row);
+    if (item) selectedSessionClass.value = item;
+}
+
+function openAttendance(row: TableRow) {
+    const url = String(row.attendance_url ?? '');
+    if (url) router.visit(url);
 }
 
 function editClass(item: ClassRecord) {
@@ -363,18 +420,19 @@ watch(
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <DataTable
                 title="Daftar Kelas"
+                :description="props.subtitle"
                 :columns="classTableColumns"
                 :rows="classTableRows"
                 searchable
                 row-clickable
-                row-click-label="Klik baris untuk melihat daftar atlet."
+                row-click-label="Klik baris untuk melihat daftar atlet. Gunakan tombol mata untuk melihat semua sesi kelas."
                 search-placeholder="Cari kelas..."
                 empty-text="Belum ada kelas."
                 action-label="Aksi"
                 @row-click="openClassAthletesFromRow"
             >
                 <template #actions>
-                    <Button type="button" @click="openCreateClass">Tambah Kelas</Button>
+                    <Button v-if="props.canCreateClasses" type="button" @click="openCreateClass">Tambah Kelas</Button>
                 </template>
                 <template #cell="{ row, column, value }">
                     <div v-if="column.key === 'class'" class="grid gap-0.5">
@@ -401,10 +459,13 @@ watch(
                 </template>
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="editClassFromRow(row)">
+                        <Button type="button" size="sm" variant="outline" title="Lihat sesi kelas" @click="openClassSessionsFromRow(row)">
+                            <Eye class="size-4" />
+                        </Button>
+                        <Button v-if="props.canEditClasses" type="button" size="sm" variant="outline" title="Edit kelas" @click="editClassFromRow(row)">
                             <Pencil class="size-4" />
                         </Button>
-                        <Button type="button" size="sm" variant="destructive" @click="deleteClassFromRow(row)">
+                        <Button v-if="props.canDeleteClasses" type="button" size="sm" variant="destructive" title="Hapus/nonaktifkan kelas" @click="deleteClassFromRow(row)">
                             <Trash2 class="size-4" />
                         </Button>
                     </ActionButtonsRow>
@@ -419,11 +480,7 @@ watch(
                     </p>
 
                     <div class="mt-5 grid gap-3">
-                        <label class="grid gap-1 text-sm font-semibold">
-                            Nama Kelas *
-                            <input v-model="form.name" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Junior Sparring" />
-                            <span v-if="form.errors.name" class="text-xs text-destructive">{{ form.errors.name }}</span>
-                        </label>
+                        <FormInputField id="class-name" v-model="form.name" label="Nama Kelas" placeholder="Contoh: Junior Sparring" :error="form.errors.name" required />
 
                         <FormSelectField id="class-type" v-model="form.class_type" label="Tipe Kelas" :options="classTypeOptions" placeholder="Pilih tipe kelas" search-placeholder="Cari tipe kelas..." :error="form.errors.class_type" required />
 
@@ -437,17 +494,13 @@ watch(
 
                         <FormSelectField v-if="isPrivateClass" id="private-coach" v-model="form.coach_id" label="Coach Private" :options="props.coachOptions" placeholder="Pilih coach private" search-placeholder="Cari coach..." :error="form.errors.coach_id" required />
 
-                        <label v-if="isOneDayClass" class="grid gap-1 text-sm font-semibold">
-                            Tanggal Sesi *
-                            <input v-model="form.single_session_date" type="date" class="h-10 rounded-lg border bg-background px-3 text-sm" />
-                            <span v-if="form.errors.single_session_date" class="text-xs text-destructive">{{ form.errors.single_session_date }}</span>
-                        </label>
+                        <FormInputField v-if="isOneDayClass" id="single-session-date" v-model="form.single_session_date" label="Tanggal Sesi" type="date" :error="form.errors.single_session_date" required />
 
                         <FormSelectField v-else id="day-of-week" v-model="form.day_of_week" label="Hari" :options="dayOptions" placeholder="Pilih hari" search-placeholder="Cari hari..." :error="form.errors.day_of_week" required />
 
                         <div class="grid gap-3 md:grid-cols-2">
-                            <label class="grid gap-1 text-sm font-semibold">Mulai *<input v-model="form.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                            <label class="grid gap-1 text-sm font-semibold">Selesai *<input v-model="form.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
+                            <FormInputField id="class-start-time" v-model="form.start_time" label="Mulai" type="time" :error="form.errors.start_time" required />
+                            <FormInputField id="class-end-time" v-model="form.end_time" label="Selesai" type="time" :error="form.errors.end_time" required />
                         </div>
 
                         <FormSelectField v-if="!isPrivateClass" id="minimum-belt" v-model="form.min_belt" label="Minimal Sabuk" :options="props.beltOptions" placeholder="Tanpa minimal" search-placeholder="Cari sabuk..." :error="form.errors.min_belt" />
@@ -484,6 +537,30 @@ watch(
                     <p v-if="athleteModalError" class="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{{ athleteModalError }}</p>
                     <p v-if="athleteModalLoading" class="text-sm text-muted-foreground">Loading athletes...</p>
                     <DataTable v-else title="Atlet kelas" description="Daftar atlet yang dapat mengikuti kelas ini." :columns="athleteTableColumns" :rows="selectedClassAthleteRows" empty-text="Belum ada atlet." />
+                </section>
+            </FormModal>
+
+            <FormModal :open="Boolean(selectedSessionClass)" max-width-class="max-w-5xl" @close="closeSessionModal">
+                <section v-if="selectedSessionClass" class="grid gap-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-black tracking-wide text-red-500 uppercase">Riwayat Sesi Kelas</p>
+                            <h2 class="text-2xl font-black">{{ selectedSessionClass.name }}</h2>
+                            <p class="text-sm text-muted-foreground">
+                                {{ selectedSessionClass.active_sessions_count ?? 0 }} sesi aktif/mendatang · {{ selectedSessionClass.archived_sessions_count ?? 0 }} sesi arsip/past
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" :variant="sessionViewMode === 'active' ? 'default' : 'outline'" @click="sessionViewMode = 'active'">Aktif</Button>
+                            <Button type="button" size="sm" :variant="sessionViewMode === 'archived' ? 'default' : 'outline'" @click="sessionViewMode = 'archived'">Archived/Past</Button>
+                            <Button type="button" size="sm" :variant="sessionViewMode === 'all' ? 'default' : 'outline'" @click="sessionViewMode = 'all'">Semua</Button>
+                        </div>
+                    </div>
+                    <DataTable title="Sesi kelas" description="Buka presensi dari sesi tertentu tanpa pindah ke daftar semua sesi." :columns="sessionTableColumns" :rows="sessionRows" empty-text="Belum ada sesi untuk kelas ini." searchable action-label="Presensi">
+                        <template #row-actions="{ row }">
+                            <Button type="button" size="sm" variant="outline" @click="openAttendance(row)">Buka Presensi</Button>
+                        </template>
+                    </DataTable>
                 </section>
             </FormModal>
         </div>

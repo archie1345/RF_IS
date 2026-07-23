@@ -6,10 +6,12 @@ use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
+use App\Models\TrainingSession;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\Domain\BeltRank;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 trait BuildsTrainingPayloads
@@ -104,6 +106,7 @@ trait BuildsTrainingPayloads
             $singleSessionDate = $group->single_session_date?->format('Y-m-d');
             $privateAthletes = $group->privateAthletes ?? collect();
             $isArchived = $this->oneDayClassArchived($group, $singleSessionDate);
+            $sessions = $this->classSessionPayload($group);
 
             return [
                 'id' => $group->group_id,
@@ -134,6 +137,10 @@ trait BuildsTrainingPayloads
                 'athletes' => ($group->class_type ?? null) === 'private'
                     ? $this->classAthletePayload($privateAthletes)
                     : $this->classAthletePayload($group->athletes ?? collect()),
+                'sessions' => $sessions,
+                'sessions_count' => $sessions->count(),
+                'active_sessions_count' => $sessions->where('is_archived', false)->count(),
+                'archived_sessions_count' => $sessions->where('is_archived', true)->count(),
                 'is_active' => (bool) ($group->is_active ?? true),
                 'is_archived' => $isArchived,
                 'weekly_schedule_id' => $schedule?->weekly_training_schedule_id,
@@ -144,6 +151,36 @@ trait BuildsTrainingPayloads
                         : ($schedule ? ($schedule->is_active ? 'Aktif' : 'Nonaktif') : 'Belum terhubung')),
             ];
         })->values();
+    }
+
+    private function classSessionPayload(Group $group): Collection
+    {
+        return TrainingSession::query()
+            ->where('group_id', $group->group_id)
+            ->with(['branch:branch_id,branch_name', 'primaryCoach.user:id,name'])
+            ->orderByDesc('session_date')
+            ->orderByDesc('start_time')
+            ->get()
+            ->map(function (TrainingSession $session): array {
+                $date = $session->session_date ? Carbon::parse((string) $session->session_date)->format('Y-m-d') : '-';
+                $start = $session->start_time ? substr((string) $session->start_time, 0, 5) : '';
+                $end = $session->end_time ? substr((string) $session->end_time, 0, 5) : '';
+                $endsAt = ($date !== '-' && $end !== '') ? Carbon::parse($date.' '.$end) : null;
+                $isArchived = $endsAt ? now()->greaterThan($endsAt) : false;
+
+                return [
+                    'id' => $session->training_session_id,
+                    'title' => $session->title,
+                    'date' => $date,
+                    'time' => trim($start.' - '.$end, ' -'),
+                    'branch' => $session->branch?->branch_name ?? '-',
+                    'coach' => $session->primaryCoach?->user?->name ?? '-',
+                    'status' => $session->status,
+                    'is_archived' => $isArchived,
+                    'attendance_url' => route('sessions.attendance', $session->training_session_id),
+                ];
+            })
+            ->values();
     }
 
     private function classAthletePayload(Collection $athletes): Collection
@@ -201,7 +238,7 @@ trait BuildsTrainingPayloads
             return false;
         }
 
-        return now()->greaterThan(\Illuminate\Support\Carbon::parse($singleSessionDate.' '.substr((string) $group->end_time, 0, 5)));
+        return now()->greaterThan(Carbon::parse($singleSessionDate.' '.substr((string) $group->end_time, 0, 5)));
     }
 
     private function dayName(int $day): string
