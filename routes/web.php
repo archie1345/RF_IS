@@ -17,6 +17,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AttendanceScanController;
 use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\ChampionshipExportController;
+use App\Http\Controllers\ChampionshipPageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
@@ -96,16 +97,16 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
     });
 
-    Route::prefix('championships')->name('championships.')->controller(ChampionshipController::class)->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::post('events', 'storeEvent')->name('events.store');
-        Route::get('{event}', 'show')->name('show');
+    Route::prefix('championships')->name('championships.')->group(function () {
+        Route::get('/', ChampionshipPageController::class)->name('index');
+        Route::post('events', [ChampionshipController::class, 'storeEvent'])->name('events.store');
+        Route::get('{event}', [ChampionshipController::class, 'show'])->name('show');
         Route::get('{event}/export', ChampionshipExportController::class)->name('export');
-        Route::post('registrations', 'storeRegistration')->name('registrations.store');
-        Route::put('registrations/{registration}', 'updateRegistration')->name('registrations.update');
-        Route::post('payments/{payment}/settle', 'settleRegistrationPayment')->name('payments.settle');
-        Route::post('{event}/coaches', 'storeCoachRegistration')->name('coaches.store');
-        Route::post('registrations/{registration}/result', 'recordResult')->name('registrations.result');
+        Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
+        Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
+        Route::post('payments/{payment}/settle', [ChampionshipController::class, 'settleRegistrationPayment'])->name('payments.settle');
+        Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
+        Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
     });
 
     Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function () {
