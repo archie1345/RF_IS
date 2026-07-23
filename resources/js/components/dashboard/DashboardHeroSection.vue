@@ -40,8 +40,10 @@ const page = usePage<{ auth: Auth }>();
 const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'Pengguna');
 const isMultiRole = computed(() => (page.props.auth.user?.roles?.length ?? 0) > 1);
 
-const childOptions = (children: ParentChild[]) =>
-    children.map((child) => ({ value: String(child.athlete_id), label: child.name }));
+const childOptions = (children: ParentChild[]) => [
+    { value: '', label: 'Semua anak' },
+    ...children.map((child) => ({ value: String(child.athlete_id), label: child.name })),
+];
 
 function switchChild(value: string | string[]): void {
     emit('switch-child', Array.isArray(value) ? (value[0] ?? '') : value);
@@ -169,7 +171,7 @@ const quickActions = computed(() => {
         <div v-if="props.role === 'parent' && props.children.length > 1" class="mb-5 max-w-sm">
             <FormSelectField
                 id="dashboard-selected-child"
-                :model-value="String(props.activeChild?.athlete_id ?? props.children[0]?.athlete_id ?? '')"
+                :model-value="String(props.activeChild?.athlete_id ?? '')"
                 label="Anak yang ditampilkan"
                 :options="childOptions(props.children)"
                 :show-placeholder="false"
