@@ -108,7 +108,7 @@ function isExpanded(eventId: number): boolean {
 
 function resultRows(event: HistoricalEvent): TableRow[] {
     return event.registrations.map((registration) => ({
-        id: registration.id,
+        id: String(registration.id),
         registration_id: registration.id,
         athlete: registration.athlete,
         entry: [registration.classification, registration.entry_category, registration.entry_class_name, registration.entry_division]
