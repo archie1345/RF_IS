@@ -37,7 +37,8 @@ const emit = defineEmits<{
 }>();
 
 const page = usePage<{ auth: Auth }>();
-const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'there');
+const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'Pengguna');
+const isMultiRole = computed(() => (page.props.auth.user?.roles?.length ?? 0) > 1);
 
 const childOptions = (children: ParentChild[]) =>
     children.map((child) => ({ value: String(child.athlete_id), label: child.name }));
@@ -52,7 +53,7 @@ const heading = computed(() => {
     if (props.role === 'parent') {
         return props.activeChild?.name
             ? `Perkembangan ${props.activeChild.name}`
-            : `Ringkasan anak Anda`;
+            : 'Ringkasan anak Anda';
     }
 
     return `Tetap konsisten, ${firstName.value}`;
@@ -74,6 +75,41 @@ const eyebrow = computed(() => {
         parent: 'Ringkasan Orang Tua',
         athlete: 'Ringkasan Atlet',
     }[props.role];
+});
+
+const displayMetrics = computed<Metric[]>(() => {
+    const copy: Record<AppRole, Array<Pick<Metric, 'label' | 'detail'>>> = {
+        admin: [
+            { label: 'Atlet aktif', detail: 'Jumlah atlet dalam roster klub' },
+            { label: 'Pelatih terdaftar', detail: 'Akun pelatih yang tercatat' },
+            { label: 'Tagihan belum lunas', detail: 'Total saldo pembayaran terbuka' },
+            { label: 'Absensi hari ini', detail: 'Catatan kehadiran yang dibuat hari ini' },
+        ],
+        coach: [
+            { label: 'Atlet hadir', detail: 'Kehadiran dari sesi yang Anda tangani' },
+            { label: 'Agenda mendatang', detail: 'Kejuaraan dan kegiatan yang dijadwalkan' },
+            { label: 'Honor tertunda', detail: 'Sisa honor yang belum diselesaikan' },
+        ],
+        parent: [
+            { label: 'Konteks anak', detail: 'Data mengikuti anak yang sedang dipilih' },
+            { label: 'Tagihan anak', detail: 'Saldo terbuka dari anak yang dapat Anda akses' },
+            { label: 'Agenda mendatang', detail: 'Kejuaraan dan kegiatan yang tersedia' },
+        ],
+        athlete: [
+            { label: 'Kehadiran saya', detail: 'Jumlah sesi dengan status hadir' },
+            { label: 'Agenda mendatang', detail: 'Kejuaraan dan kegiatan yang dijadwalkan' },
+            { label: 'Tagihan saya', detail: 'Saldo pembayaran yang belum selesai' },
+        ],
+    };
+
+    return props.metrics.map((metric, index) => ({
+        ...metric,
+        ...(copy[props.role][index] ?? {}),
+        value:
+            props.role === 'parent' && index === 0
+                ? props.activeChild?.name || (props.children.length > 1 ? 'Semua anak' : props.children[0]?.name || '-')
+                : metric.value,
+    }));
 });
 
 const quickActions = computed(() => {
@@ -113,7 +149,7 @@ const quickActions = computed(() => {
     <PageSection :eyebrow="eyebrow" :title="heading" :description="description">
         <template #actions>
             <div class="flex flex-wrap items-center gap-2">
-                <RoleSwitcher />
+                <RoleSwitcher v-if="isMultiRole" />
                 <Button
                     v-for="action in quickActions"
                     :key="action.href"
@@ -142,7 +178,7 @@ const quickActions = computed(() => {
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2" :class="role === 'admin' ? 'xl:grid-cols-4' : 'xl:grid-cols-3'">
-            <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
+            <StatCard v-for="metric in displayMetrics" :key="metric.label" v-bind="metric" />
         </div>
     </PageSection>
 </template>
