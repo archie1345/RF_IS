@@ -13,7 +13,12 @@ import { index as achievementsIndex, store as achievementsStore } from '@/routes
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{ achievements: TableRow[] }>();
+const props = defineProps<{
+    achievements: TableRow[];
+    canCreate: boolean;
+    pageTitle: string;
+    pageDescription: string;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -21,6 +26,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const achievementColumns: TableColumn[] = [
+    { key: 'subject', label: 'Person' },
     { key: 'championship_name', label: 'Championship' },
     { key: 'medal', label: 'Medal' },
     { key: 'location', label: 'Location' },
@@ -50,6 +56,8 @@ function onAchievementFileChange(event: Event) {
 }
 
 function addAchievement() {
+    if (!props.canCreate) return;
+
     achievementForm.post(achievementsStore.url(), {
         forceFormData: true,
         preserveScroll: true,
@@ -63,19 +71,22 @@ function addAchievement() {
 </script>
 
 <template>
-    <Head title="Achievements" />
+    <Head :title="props.pageTitle" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection title="My Achievements" description="Dedicated page for event and medal achievements.">
-                <template #actions>
+            <PageSection :title="props.pageTitle" :description="props.pageDescription">
+                <template v-if="props.canCreate" #actions>
                     <Button type="button" @click="showAchievementModal = true">Add achievement</Button>
                 </template>
             </PageSection>
             <DataTable
-                title="Achievements"
-                description="Your event and medal achievements."
+                :title="props.pageTitle"
+                :description="props.pageDescription"
                 :columns="achievementColumns"
                 :rows="props.achievements"
+                empty-text="No achievement records are available for this role context."
+                searchable
+                search-placeholder="Search person, championship, medal, class, or category..."
             >
                 <template #cell="{ row, column, value }">
                     <a
@@ -90,10 +101,14 @@ function addAchievement() {
                 </template>
             </DataTable>
         </div>
-        <FormModal :open="showAchievementModal" max-width-class="max-w-2xl" @close="showAchievementModal = false">
+        <FormModal
+            :open="showAchievementModal && props.canCreate"
+            max-width-class="max-w-2xl"
+            @close="showAchievementModal = false"
+        >
             <PageSection
                 title="Add achievement"
-                description="Record past achievements manually with details and optional file."
+                description="Record past achievements manually with details and an optional supporting file."
             >
                 <form class="grid gap-4 md:grid-cols-2" @submit.prevent="addAchievement">
                     <FormInputField
