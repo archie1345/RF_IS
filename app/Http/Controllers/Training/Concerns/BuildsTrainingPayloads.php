@@ -26,7 +26,14 @@ trait BuildsTrainingPayloads
             })
             ->with([
                 'branch',
-                'group' => fn ($query) => $query->with(['trainingGroup', 'privateAthletes.user'])->withCount('athletes'),
+                'group' => fn ($query) => $query
+                    ->with([
+                        'trainingGroup',
+                        'privateAthletes.user',
+                        'coach.user',
+                        'coaches.user',
+                    ])
+                    ->withCount('athletes'),
                 'dedicatedAthlete.user',
                 'coach.user',
             ])
@@ -42,38 +49,45 @@ trait BuildsTrainingPayloads
 
     private function weeklySchedulePayload(Request $request, Collection $weeklySchedules)
     {
-        return $weeklySchedules->map(fn (WeeklyTrainingSchedule $schedule) => [
-            'id' => $schedule->weekly_training_schedule_id,
-            'title' => $schedule->title,
-            'branch_id' => $schedule->branch_id,
-            'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
-            'group_id' => $schedule->group_id,
-            'dedicated_athlete_id' => $schedule->dedicated_athlete_id,
-            'dedicated_athlete' => $schedule->group && ($schedule->group->class_type ?? null) === 'private'
-                ? $schedule->group->privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', ')
-                : $schedule->dedicatedAthlete?->user?->name,
-            'session_type' => $schedule->session_type ?? 'reguler',
-            'group' => $schedule->group?->group_name ?? 'All groups',
-            'training_group_id' => $schedule->group?->training_group_id,
-            'training_group' => $schedule->group?->trainingGroup?->name,
-            'coach_id' => $schedule->coach_id,
-            'coach' => $schedule->coach?->user?->name ?? 'Belum ada coach',
-            'day_of_week' => $schedule->day_of_week,
-            'day_label' => $this->dayName((int) $schedule->day_of_week),
-            'start_time' => $schedule->start_time ? substr((string) $schedule->start_time, 0, 5) : '',
-            'end_time' => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
-            'location' => $schedule->location,
-            'latitude' => $schedule->branch?->latitude,
-            'longitude' => $schedule->branch?->longitude,
-            'google_maps_url' => $schedule->branch?->google_maps_url,
-            'is_active' => (bool) $schedule->is_active,
-            'generated_sessions_count' => $schedule->generated_sessions_count,
-            'can_manage' => $this->canManageSchedule($request, $schedule),
-            'class_type' => $schedule->group?->class_type,
-            'min_belt' => $schedule->group?->min_belt,
-            'min_belt_label' => BeltRank::label($schedule->group?->min_belt),
-            'athletes_count' => $schedule->group?->athletes_count,
-        ])->values();
+        return $weeklySchedules->map(function (WeeklyTrainingSchedule $schedule) use ($request): array {
+            $coachIds = $this->classCoachIdsForPayload($schedule->group, $schedule->coach_id);
+            $coachNames = $this->classCoachNamesForPayload($schedule->group, $schedule->coach?->user?->name);
+
+            return [
+                'id' => $schedule->weekly_training_schedule_id,
+                'title' => $schedule->title,
+                'branch_id' => $schedule->branch_id,
+                'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',
+                'group_id' => $schedule->group_id,
+                'dedicated_athlete_id' => $schedule->dedicated_athlete_id,
+                'dedicated_athlete' => $schedule->group && ($schedule->group->class_type ?? null) === 'private'
+                    ? $schedule->group->privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', ')
+                    : $schedule->dedicatedAthlete?->user?->name,
+                'session_type' => $schedule->session_type ?? 'reguler',
+                'group' => $schedule->group?->group_name ?? 'All groups',
+                'training_group_id' => $schedule->group?->training_group_id,
+                'training_group' => $schedule->group?->trainingGroup?->name,
+                'coach_id' => $coachIds->first(),
+                'coach_ids' => $coachIds,
+                'coach' => $coachNames->join(', ') ?: 'Belum ada coach',
+                'coaches' => $coachNames,
+                'day_of_week' => $schedule->day_of_week,
+                'day_label' => $this->dayName((int) $schedule->day_of_week),
+                'start_time' => $schedule->start_time ? substr((string) $schedule->start_time, 0, 5) : '',
+                'end_time' => $schedule->end_time ? substr((string) $schedule->end_time, 0, 5) : '',
+                'location' => $schedule->location,
+                'latitude' => $schedule->branch?->latitude,
+                'longitude' => $schedule->branch?->longitude,
+                'google_maps_url' => $schedule->branch?->google_maps_url,
+                'is_active' => (bool) $schedule->is_active,
+                'generated_sessions_count' => $schedule->generated_sessions_count,
+                'can_manage' => $this->canManageSchedule($request, $schedule),
+                'class_type' => $schedule->group?->class_type,
+                'min_belt' => $schedule->group?->min_belt,
+                'min_belt_label' => BeltRank::label($schedule->group?->min_belt),
+                'athletes_count' => $schedule->group?->athletes_count,
+            ];
+        })->values();
     }
 
     private function branchPayload(Branch $branch): array
@@ -107,6 +121,8 @@ trait BuildsTrainingPayloads
             $privateAthletes = $group->privateAthletes ?? collect();
             $isArchived = $this->oneDayClassArchived($group, $singleSessionDate);
             $sessions = $this->classSessionPayload($group);
+            $coachIds = $this->classCoachIdsForPayload($group, $group->coach_id);
+            $coachNames = $this->classCoachNamesForPayload($group, $group->coach?->user?->name);
 
             return [
                 'id' => $group->group_id,
@@ -118,8 +134,10 @@ trait BuildsTrainingPayloads
                 'single_session_date' => $singleSessionDate,
                 'branch_id' => $group->branch_id,
                 'branch' => $group->branch?->branch_name ?? 'Belum ada lokasi',
-                'coach_id' => $group->coach_id,
-                'coach' => $group->coach?->user?->name ?? 'Belum ada coach',
+                'coach_id' => $coachIds->first(),
+                'coach_ids' => $coachIds,
+                'coach' => $coachNames->join(', ') ?: 'Belum ada coach',
+                'coaches' => $coachNames,
                 'dedicated_athlete_ids' => $privateAthletes->pluck('athlete_id')->map(fn ($id) => (string) $id)->values(),
                 'dedicated_athlete' => $privateAthletes->map(fn (Athlete $athlete) => $athlete->user?->name)->filter()->join(', '),
                 'day_of_week' => $group->day_of_week,
@@ -157,7 +175,11 @@ trait BuildsTrainingPayloads
     {
         return TrainingSession::query()
             ->where('group_id', $group->group_id)
-            ->with(['branch:branch_id,branch_name', 'primaryCoach.user:id,name'])
+            ->with([
+                'branch:branch_id,branch_name',
+                'primaryCoach.user:id,name',
+                'assignedCoaches.user:id,name',
+            ])
             ->orderByDesc('session_date')
             ->orderByDesc('start_time')
             ->get()
@@ -167,6 +189,11 @@ trait BuildsTrainingPayloads
                 $end = $session->end_time ? substr((string) $session->end_time, 0, 5) : '';
                 $endsAt = ($date !== '-' && $end !== '') ? Carbon::parse($date.' '.$end) : null;
                 $isArchived = $endsAt ? now()->greaterThan($endsAt) : false;
+                $coachNames = collect([$session->primaryCoach?->user?->name])
+                    ->merge($session->assignedCoaches->map(fn (Coach $coach) => $coach->user?->name))
+                    ->filter()
+                    ->unique()
+                    ->values();
 
                 return [
                     'id' => $session->training_session_id,
@@ -174,7 +201,7 @@ trait BuildsTrainingPayloads
                     'date' => $date,
                     'time' => trim($start.' - '.$end, ' -'),
                     'branch' => $session->branch?->branch_name ?? '-',
-                    'coach' => $session->primaryCoach?->user?->name ?? '-',
+                    'coach' => $coachNames->join(', ') ?: '-',
                     'status' => $session->status,
                     'is_archived' => $isArchived,
                     'attendance_url' => route('sessions.attendance', $session->training_session_id),
@@ -225,11 +252,31 @@ trait BuildsTrainingPayloads
 
         if ($user->isCoach()) {
             $coachId = $user->coachProfile?->coach_id;
+            $classCoachIds = $this->classCoachIdsForPayload($schedule->group, $schedule->coach_id);
 
-            return $coachId !== null && ((string) $schedule->coach_id === (string) $coachId || $schedule->coach_id === null);
+            return $coachId !== null && ($classCoachIds->contains(fn ($id) => (string) $id === (string) $coachId) || $schedule->coach_id === null);
         }
 
         return false;
+    }
+
+    private function classCoachIdsForPayload(?Group $group, mixed $fallbackCoachId = null): Collection
+    {
+        return collect([$fallbackCoachId, $group?->coach_id])
+            ->merge($group?->coaches?->pluck('coach_id') ?? collect())
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function classCoachNamesForPayload(?Group $group, ?string $fallbackCoachName = null): Collection
+    {
+        return collect([$fallbackCoachName, $group?->coach?->user?->name])
+            ->merge($group?->coaches?->map(fn (Coach $coach) => $coach->user?->name) ?? collect())
+            ->filter()
+            ->unique()
+            ->values();
     }
 
     private function oneDayClassArchived(Group $group, ?string $singleSessionDate): bool
