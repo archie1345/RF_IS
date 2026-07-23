@@ -181,7 +181,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     private function canResolveActiveRoleFromRequest(): bool
     {
-        if (app()->runningInConsole() || ! app()->bound('request')) {
+        if (! app()->bound('request')) {
             return false;
         }
 
