@@ -14,39 +14,51 @@ class AttendanceVisibilityService
 {
     public function __construct(private readonly ParentChildContextService $childContext) {}
 
-    public function scopedAttendanceQuery(Request $request): Builder
+    public function scopedAttendanceQuery(Request $request, ?string $mode = null): Builder
     {
         $user = $request->user();
         $query = Attendance::query();
 
-        if (! $user || $user->isAdmin()) {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $mode = $this->resolveMode($user, $mode);
+
+        if ($mode === 'admin') {
             return $query;
         }
 
-        if ($user->isParent()) {
+        if ($mode === 'parent') {
             return $query->whereIn('athlete_id', $this->childContext->visibleChildAthleteIds($request));
         }
 
-        if ($user->isAthlete()) {
+        if ($mode === 'athlete') {
             return $query->where('athlete_id', $user->athleteProfile?->athlete_id);
         }
 
-        if ($user->isCoach()) {
+        if ($mode === 'coach') {
             return $query->whereIn('training_session_id', $this->coachSessionIds($user));
         }
 
         return $query->whereRaw('1 = 0');
     }
 
-    public function visibleSessionQuery(?User $user): Builder
+    public function visibleSessionQuery(?User $user, ?string $mode = null): Builder
     {
         $query = TrainingSession::query();
 
-        if (! $user || $user->isAdmin()) {
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        $mode = $this->resolveMode($user, $mode);
+
+        if ($mode === 'admin') {
             return $query;
         }
 
-        if ($user->isCoach()) {
+        if ($mode === 'coach') {
             $coachId = $user->coachProfile?->coach_id;
 
             return $query->where(function ($sessionQuery) use ($coachId): void {
@@ -57,7 +69,7 @@ class AttendanceVisibilityService
             });
         }
 
-        if ($user->isParent()) {
+        if ($mode === 'parent') {
             $children = $this->childContext->childrenFor($user);
             $childAthleteIds = $children->pluck('athlete_id')->map(fn ($id) => (string) $id)->all();
             $childBranchIds = $children->pluck('branch_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
@@ -82,7 +94,7 @@ class AttendanceVisibilityService
                 });
         }
 
-        if ($user->isAthlete()) {
+        if ($mode === 'athlete') {
             $athlete = $user->athleteProfile;
 
             return $query
@@ -92,7 +104,7 @@ class AttendanceVisibilityService
                 }));
         }
 
-        return $query;
+        return $query->whereRaw('1 = 0');
     }
 
     public function userCanUpdate(?User $user, Attendance $attendance): bool
@@ -139,6 +151,13 @@ class AttendanceVisibilityService
             return [];
         }
 
-        return $this->visibleSessionQuery($user)->pluck('training_session_id')->all();
+        return $this->visibleSessionQuery($user, 'coach')->pluck('training_session_id')->all();
+    }
+
+    private function resolveMode(User $user, ?string $mode): string
+    {
+        $resolved = strtolower(trim((string) ($mode ?: $user->primaryRole())));
+
+        return $user->hasRole($resolved) ? $resolved : '__none__';
     }
 }
