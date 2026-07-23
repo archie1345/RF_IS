@@ -136,6 +136,11 @@ function medalLabel(medal: string, hasResult: boolean): string {
     } as Record<string, string>)[medal] ?? medal;
 }
 
+function rowHasResult(row: TableRow): boolean {
+    const registration = row.registration as HistoricalRegistration | undefined;
+    return registration?.has_result === true;
+}
+
 function openResult(event: HistoricalEvent, registration: HistoricalRegistration): void {
     activeEvent.value = event;
     activeRegistration.value = registration;
@@ -246,7 +251,7 @@ function saveResult(): void {
                             <template #row-actions="{ row }">
                                 <Button type="button" size="sm" variant="outline" @click="openResultFromRow(row)">
                                     <PencilLine class="mr-2 size-4" />
-                                    {{ (row.registration as HistoricalRegistration).has_result ? 'Ubah hasil' : 'Catat hasil' }}
+                                    {{ rowHasResult(row) ? 'Ubah hasil' : 'Catat hasil' }}
                                 </Button>
                             </template>
                         </DataTable>
