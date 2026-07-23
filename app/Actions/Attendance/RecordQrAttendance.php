@@ -56,6 +56,12 @@ class RecordQrAttendance
             $alreadyRecorded = $attendance?->status === AttendanceStatus::PRESENT
                 && (int) $attendance?->training_session_id === (int) $session->training_session_id;
 
+            if ($attendance && in_array($attendance->status, [AttendanceStatus::EXCUSED, AttendanceStatus::LATE], true)) {
+                throw ValidationException::withMessages([
+                    'attendance' => 'Attendance has already been corrected by an authorized staff member.',
+                ]);
+            }
+
             if (! $attendance) {
                 $attendance = new Attendance;
                 $attendance->athlete_id = $athlete->athlete_id;
