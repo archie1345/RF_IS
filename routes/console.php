@@ -65,13 +65,14 @@ Artisan::command('app:database-audit', function () {
     $missingColumns = [];
 
     foreach ($requirements as $table => $columns) {
-        if (! Schema::hasTable($table)) {
+        if (!Schema::hasTable($table)) {
             $missingTables[] = $table;
+
             continue;
         }
 
         foreach ($columns as $column) {
-            if (! Schema::hasColumn($table, $column)) {
+            if (!Schema::hasColumn($table, $column)) {
                 $missingColumns[] = "{$table}.{$column}";
             }
         }
