@@ -41,7 +41,14 @@ Artisan::command('app:database-audit', function () {
         'training_sessions' => ['training_session_id', 'weekly_training_schedule_id', 'group_id', 'coach_id', 'session_type', 'metadata', 'deleted_at'],
         'training_session_coaches' => ['training_session_id', 'coach_id'],
         'athlete_attendance' => ['training_session_id', 'athlete_id', 'status'],
-        'payments' => ['payment_id', 'payment_type', 'status', 'total_amount', 'paid_amount', 'remaining_amount'],
+        'payments' => [
+            'payment_id', 'invoice_number', 'bill_kind', 'payment_type', 'status', 'proof_status',
+            'total_amount', 'paid_amount', 'remaining_amount', 'payment_date', 'due_date', 'collection_method',
+        ],
+        'payment_transactions' => [
+            'ptid', 'payment_id', 'verified_by', 'amount', 'transaction_date', 'payment_method',
+            'transaction_type', 'proof_path', 'proof_notes',
+        ],
         'announcements' => ['id', 'title', 'target_role', 'is_active'],
         'events' => ['event_id', 'e_name', 'status'],
         'event_registrations' => ['evrid', 'event_id', 'athlete_id', 'status'],
