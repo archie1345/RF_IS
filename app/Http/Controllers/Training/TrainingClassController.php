@@ -28,6 +28,7 @@ class TrainingClassController extends Controller
                 'branch',
                 'trainingGroup',
                 'coach.user',
+                'coaches.user:id,name',
                 'privateAthletes.user:id,name',
                 'privateAthletes.branch:branch_id,branch_name',
                 'privateAthletes.trainingGroup',
@@ -52,8 +53,8 @@ class TrainingClassController extends Controller
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',
             'subtitle' => $user?->isCoach()
-                ? 'Coach bisa menambahkan kelas latihan. Admin tetap mengelola edit dan hapus kelas.'
-                : 'Master data kelas. Tipe private memilih atlet khusus, bukan kategori grup atlet.',
+                ? 'Coach bisa menambahkan kelas latihan dan memilih satu atau beberapa pelatih. Admin tetap mengelola edit dan hapus kelas.'
+                : 'Master data kelas, peserta, jadwal, dan satu atau beberapa pelatih yang menangani kelas.',
             'classes' => $this->groupPayload($groups, $weeklySchedules),
             'branchOptions' => $branches->map(fn (Branch $branch) => ['value' => $branch->branch_id, 'label' => $branch->branch_name])->values(),
             'trainingGroupOptions' => $trainingGroups->map(fn (TrainingGroup $group) => ['value' => $group->id, 'label' => $group->name])->values(),
