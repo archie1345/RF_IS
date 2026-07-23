@@ -12,6 +12,8 @@ class RevokeSessionAttendanceQr
         return DB::transaction(function () use ($session): TrainingSession {
             $session->update([
                 'attendance_token_hash' => null,
+                'attendance_qr_token' => null,
+                'attendance_closes_at' => now(),
                 'attendance_qr_revoked_at' => now(),
             ]);
 
