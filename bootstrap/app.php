@@ -41,23 +41,33 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request): Response {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return $response;
             }
 
             $status = $response->getStatusCode();
-            $handledStatuses = [400, 401, 403, 404, 419, 429, 500, 503];
 
-            if (! in_array($status, $handledStatuses, true)) {
+            if ($status < 400 || $status > 599) {
                 return $response;
             }
 
+            // Keep Laravel's detailed exception page for local server-side debugging.
             if (config('app.debug') && $status >= 500) {
                 return $response;
             }
 
-            return Inertia::render('ErrorPage', [
+            $errorResponse = Inertia::render('ErrorPage', [
                 'status' => $status,
+                'statusText' => Response::$statusTexts[$status] ?? null,
             ])->toResponse($request)->setStatusCode($status);
+
+            // Preserve protocol headers that are meaningful for specific error responses.
+            foreach (['Allow', 'Retry-After', 'WWW-Authenticate'] as $header) {
+                if ($response->headers->has($header)) {
+                    $errorResponse->headers->set($header, $response->headers->get($header));
+                }
+            }
+
+            return $errorResponse;
         });
     })->create();
