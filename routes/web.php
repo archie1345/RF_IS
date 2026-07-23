@@ -33,6 +33,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Training\TrainingClassController;
 use App\Http\Controllers\Training\TrainingLocationController;
 use App\Http\Controllers\Training\WeeklyScheduleController;
+use App\Http\Controllers\Training\WeeklySchedulePageController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use Illuminate\Support\Facades\Route;
@@ -41,7 +42,7 @@ use Inertia\Inertia;
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
-    Route::get('training-schedule', [WeeklyScheduleController::class, 'index'])->name('training-schedule.index');
+    Route::get('training-schedule', WeeklySchedulePageController::class)->name('training-schedule.index');
     Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
     Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
     Route::delete('training-schedules/{schedule}', [WeeklyScheduleController::class, 'destroy'])->name('training-schedules.destroy');
@@ -132,7 +133,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::redirect('finance-output', '/payments')->name('finance-output');
         Route::redirect('monthly-dues', '/payments')->name('monthly-dues');
         Route::post('monthly-dues/settings', [AdminFinanceFeatureController::class, 'updateBillingSettings'])->name('monthly-dues.settings');
-        Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
+        Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('schedules.generate-week');
         Route::get('members', [AdminPeopleFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminPeopleFeatureController::class, 'instructors'])->name('instructors');
         Route::get('events', [AdminEventFeatureController::class, 'index'])->name('events');
