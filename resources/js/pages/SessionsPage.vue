@@ -8,6 +8,7 @@ import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 import type { SessionVisibility, SessionFilters } from './SessionsPage.types';
@@ -106,9 +107,7 @@ const visibilityOptions: Array<{
 ];
 
 function sessionIdFromRow(row: TableRow): number | null {
-    const id = Number(row.session_id ?? String(row.id).replace('SES-', ''));
-
-    return Number.isFinite(id) && id > 0 ? id : null;
+    return routeId(row.session_id ?? row.id);
 }
 
 function setVisibility(visibility: SessionVisibility) {

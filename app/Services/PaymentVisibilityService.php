@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 
 class PaymentVisibilityService
 {
-    public function __construct(private readonly ParentChildContextService $childContext)
-    {
-    }
+    public function __construct(private readonly ParentChildContextService $childContext) {}
 
     public function visiblePaymentsQuery(Request $request): Builder
     {

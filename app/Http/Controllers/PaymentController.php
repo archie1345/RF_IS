@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Payments\CreatePayment;
 use App\Actions\Payments\ReviewPaymentProof;
 use App\Actions\Payments\SubmitPaymentProof;
 use App\Actions\Payments\UpdatePayment;
 use App\Actions\Payments\UpdatePaymentStatus;
+use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Payments\ReviewPaymentProofRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Http\Requests\Payments\SubmitPaymentProofRequest;
@@ -17,9 +17,9 @@ use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
 use App\Models\User;
-use App\Support\ActivityLogger;
-use App\Services\PaymentVisibilityService;
 use App\Presenters\PaymentRowPresenter;
+use App\Services\PaymentVisibilityService;
+use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -40,8 +40,7 @@ class PaymentController extends Controller
         private readonly SubmitPaymentProof $submitPaymentProof,
         private readonly ReviewPaymentProof $reviewPaymentProof,
         private readonly UpdatePaymentStatus $updatePaymentStatus,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -181,7 +180,6 @@ class PaymentController extends Controller
         return redirect()->route('payments.index');
     }
 
-
     public function exportInvoice(Request $request, Payment $payment)
     {
         $this->authorize('exportInvoice', $payment);
@@ -264,13 +262,11 @@ class PaymentController extends Controller
         $monthEnd = $now->copy()->endOfMonth();
         $monthLabel = $now->format('F Y');
 
-        $tuitionPayments = $payments->filter(fn (Payment $payment): bool =>
-            strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'INVOICE'
+        $tuitionPayments = $payments->filter(fn (Payment $payment): bool => strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'INVOICE'
             && strtoupper((string) $payment->payment_type) === 'TUITION'
         );
 
-        $currentMonthTuition = $tuitionPayments->filter(fn (Payment $payment): bool =>
-            $payment->payment_date
+        $currentMonthTuition = $tuitionPayments->filter(fn (Payment $payment): bool => $payment->payment_date
             && $payment->payment_date->betweenIncluded($monthStart, $monthEnd)
         );
 
@@ -286,13 +282,11 @@ class PaymentController extends Controller
                 ->filter(fn (Payment $payment): bool => (float) ($payment->paid_amount ?? 0) > 0.0 && (float) ($payment->remaining_amount ?? 0) > 0.0)
                 ->count(),
             'previous_unpaid' => $tuitionPayments
-                ->filter(fn (Payment $payment): bool =>
-                    $payment->payment_date
+                ->filter(fn (Payment $payment): bool => $payment->payment_date
                     && $payment->payment_date->lt($monthStart)
                     && (float) ($payment->remaining_amount ?? 0) > 0.0
                 )
                 ->count(),
         ];
     }
-
 }

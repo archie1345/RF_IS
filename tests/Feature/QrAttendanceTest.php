@@ -133,7 +133,7 @@ it('regenerates and revokes QR tokens', function () {
         ->assertNotFound();
 });
 
-it('requires authentication and prevents parents from recording QR attendance', function () {
+it('requires authentication and allows parents to record linked child QR attendance', function () {
     [$session, $branch, $group] = makeQrSession();
     $admin = makeQrUser('admin');
     $token = generateQrForSession($this, $admin, $session);
@@ -143,11 +143,17 @@ it('requires authentication and prevents parents from recording QR attendance', 
 
     $parentUser = makeQrUser('parent');
     $parentProfile = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'guardian']);
-    makeQrAthlete($branch, $group, ['parent_id' => $parentProfile->parent_id]);
+    [, $linkedAthlete] = makeQrAthlete($branch, $group, ['parent_id' => $parentProfile->parent_id]);
 
     $this->actingAs($parentUser)
         ->post(route('attendance.scan.store', $token))
-        ->assertForbidden();
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('athlete_attendance', [
+        'athlete_id' => $linkedAthlete->athlete_id,
+        'training_session_id' => $session->training_session_id,
+        'status' => 'PRESENT',
+    ]);
 });
 
 it('shows a valid scan confirmation page for an eligible athlete', function () {

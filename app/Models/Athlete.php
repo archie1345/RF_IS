@@ -3,19 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Athlete extends Model{
-    use SoftDeletes, HasFactory, HasUlids;
+class Athlete extends Model
+{
+    use HasFactory, HasUlids, SoftDeletes;
+
     protected $table = 'athletes';
 
     protected $primaryKey = 'athlete_id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -52,7 +56,7 @@ class Athlete extends Model{
 
     public function displayValue(string $column): string
     {
-        return $this->sensitiveIdentifier($column, $column . '_hash');
+        return $this->sensitiveIdentifier($column, $column.'_hash');
     }
 
     private function sensitiveIdentifier(string $ciphertextColumn, string $hashColumn): string
@@ -80,17 +84,17 @@ class Athlete extends Model{
 
     public function branch(): BelongsTo
     {
-        return $this->belongsTo(Branch::class,'branch_id');
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(ParentProfile::class,'parent_id');
+        return $this->belongsTo(ParentProfile::class, 'parent_id');
     }
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class,'id');
+        return $this->belongsTo(User::class, 'id');
     }
 
     public function payments(): HasMany

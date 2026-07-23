@@ -25,10 +25,9 @@
         "module": "ESNext" /* Specify what module code is generated. */,
         "moduleResolution": "bundler" /* Specify how TypeScript looks up module specifiers. */,
         "paths": {
-            "@/routes": ["./resources/js/types/wayfinder-route-stub.d.ts"],
-            "@/routes/*": ["./resources/js/types/wayfinder-route-stub.d.ts"],
             "@/*": ["./resources/js/*"]
         },
+        "types": ["vite/client"],
         "resolveJsonModule": true /* Enable importing .json files. */,
 
         /* JavaScript Support */

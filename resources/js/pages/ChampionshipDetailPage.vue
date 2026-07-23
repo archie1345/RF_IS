@@ -9,6 +9,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
 import {
     exportMethod as championshipExport,
@@ -92,7 +93,7 @@ function addCoach() {
 }
 
 function openResultForm(row: TableRow) {
-    const registrationId = Number(String(row.id ?? '').replace('ATHREG-', ''));
+    const registrationId = routeId(row.id);
     if (!registrationId) return;
     activeRegistrationId.value = registrationId;
     resultForm.reset();
@@ -101,7 +102,7 @@ function openResultForm(row: TableRow) {
 }
 
 function openRegistrationEdit(row: TableRow) {
-    const registrationId = Number(String(row.id ?? '').replace('ATHREG-', ''));
+    const registrationId = routeId(row.id);
     if (!registrationId) return;
     activeRegistrationId.value = registrationId;
     editForm.category = String(row.category ?? 'KYORUGI');

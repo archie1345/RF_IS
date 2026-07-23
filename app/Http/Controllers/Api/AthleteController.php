@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Hash;
 
 class AthleteController extends Controller
 {
@@ -15,18 +13,17 @@ class AthleteController extends Controller
      */
     public function index()
     {
-        return Athlete::whereNull('deleted_at')->with(['group','branch','parent'])->get();
+        return Athlete::whereNull('deleted_at')->with(['group', 'branch', 'parent'])->get();
     }
-    
+
     /**
      * Display the specified resource.
      */
-    
     public function show(string $id)
     {
         $athlete = Athlete::where('athlete_id', $id)->whereNull('deleted_at')->first();
 
-        if (!$athlete) {
+        if (! $athlete) {
             return response()->json(['message' => 'Athlete not found'], 404);
         }
 
@@ -55,6 +52,7 @@ class AthleteController extends Controller
             'nik_hash' => $request->nik_hash ?? str_repeat('a', 64),
             'bpjs_hash' => $request->bpjs_hash ?? str_repeat('b', 64),
         ]);
+
         return response()->json($athlete, 201);
     }
 
@@ -62,7 +60,7 @@ class AthleteController extends Controller
     {
         $athlete = Athlete::where('athlete_id', $id)->whereNull('deleted_at')->first();
 
-        if (!$athlete) {
+        if (! $athlete) {
             return response()->json(['message' => 'Athlete not found'], 404);
         }
 
@@ -101,7 +99,7 @@ class AthleteController extends Controller
     {
         $athlete = Athlete::find($id);
 
-        if (!$athlete) {
+        if (! $athlete) {
             return response()->json(['message' => 'Not found'], 404);
         }
 
@@ -114,7 +112,7 @@ class AthleteController extends Controller
     {
         $athlete = Athlete::withTrashed()->find($id);
 
-        if (!$athlete) {
+        if (! $athlete) {
             return response()->json(['message' => 'Not found'], 404);
         }
 

@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Schema;
 
 class SaveUserCertification
 {
-    public function __construct(private readonly ProfileMedia $profileMedia)
-    {
-    }
+    public function __construct(private readonly ProfileMedia $profileMedia) {}
 
     public function store(User $user, array $data, Request $request): UserCertification
     {

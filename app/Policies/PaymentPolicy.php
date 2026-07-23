@@ -8,9 +8,7 @@ use App\Services\PaymentVisibilityService;
 
 class PaymentPolicy
 {
-    public function __construct(private readonly PaymentVisibilityService $paymentVisibility)
-    {
-    }
+    public function __construct(private readonly PaymentVisibilityService $paymentVisibility) {}
 
     public function create(User $user): bool
     {

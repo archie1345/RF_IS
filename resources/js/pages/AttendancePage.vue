@@ -13,6 +13,7 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useRole } from '@/composables/useRole';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
 import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
@@ -102,11 +103,6 @@ function currentTime() {
     return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function routeNumber(value: string): number | null {
-    const parsed = Number(value.replace('ATT-', ''));
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function rowStatusText(row: AttendanceRow | TableRow) {
     const status = row.status;
     return typeof status === 'object' && status !== null && 'text' in status ? status.text : String(status ?? '');
@@ -162,7 +158,7 @@ function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusVa
 async function setAttendanceStatus(id: string, status: AttendanceStatusValue) {
     if (isAttendancePending(id)) return;
 
-    const attendanceId = routeNumber(id);
+    const attendanceId = routeId(id);
     if (!attendanceId) {
         attendanceUpdateError.value = 'Invalid attendance row selected.';
         return;

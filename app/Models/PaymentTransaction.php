@@ -10,8 +10,11 @@ class PaymentTransaction extends Model
     use SoftDeletes;
 
     public const TYPE_PAYMENT = 'PAYMENT';
+
     public const TYPE_PROOF_SUBMITTED = 'PROOF_SUBMITTED';
+
     public const TYPE_PROOF_REJECTED = 'PROOF_REJECTED';
+
     public const TYPE_STATUS_CHANGE = 'STATUS_CHANGE';
 
     protected $table = 'payment_transactions';

@@ -9,9 +9,7 @@ use Illuminate\Http\Request;
 
 class UpdateAccountProfile
 {
-    public function __construct(private readonly ProfileMedia $profileMedia)
-    {
-    }
+    public function __construct(private readonly ProfileMedia $profileMedia) {}
 
     public function handle(User $user, array $data, Request $request): void
     {

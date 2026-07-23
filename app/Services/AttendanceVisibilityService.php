@@ -24,7 +24,7 @@ class AttendanceVisibilityService
         }
 
         if ($user->isParent()) {
-            return $query->whereIn('athlete_id', $this->childContext->visibleChildAthleteIds($request, false));
+            return $query->whereIn('athlete_id', $this->childContext->visibleChildAthleteIds($request));
         }
 
         if ($user->isAthlete()) {

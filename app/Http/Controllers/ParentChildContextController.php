@@ -18,8 +18,7 @@ class ParentChildContextController extends Controller
         private readonly ParentChildContextService $childContext,
         private readonly SwitchActiveChild $switchActiveChild,
         private readonly ClearActiveChild $clearActiveChild,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {

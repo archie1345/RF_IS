@@ -46,7 +46,7 @@ class CoachController extends Controller
         $request->validate([
             'c_name' => 'sometimes|required|string|max:255',
             'c_phone' => 'sometimes|required|string|max:20',
-            
+
         ]);
 
         $coach->update($request->all());

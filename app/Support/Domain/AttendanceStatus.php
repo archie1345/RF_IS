@@ -5,8 +5,11 @@ namespace App\Support\Domain;
 final class AttendanceStatus
 {
     public const PRESENT = 'PRESENT';
+
     public const ABSENT = 'ABSENT';
+
     public const LATE = 'LATE';
+
     public const EXCUSED = 'EXCUSED';
 
     public const ALL = [self::PRESENT, self::ABSENT, self::LATE, self::EXCUSED];

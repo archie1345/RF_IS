@@ -5,16 +5,23 @@ namespace App\Support\Domain;
 final class PaymentStatus
 {
     public const PENDING = 'PENDING';
+
     public const COMPLETED = 'COMPLETED';
+
     public const FAILED = 'FAILED';
+
     public const REFUNDED = 'REFUNDED';
 
     public const PROOF_NONE = 'NONE';
+
     public const PROOF_SUBMITTED = 'SUBMITTED';
+
     public const PROOF_APPROVED = 'APPROVED';
+
     public const PROOF_REJECTED = 'REJECTED';
 
     public const ALL = [self::PENDING, self::COMPLETED, self::FAILED, self::REFUNDED];
+
     public const PROOF_ALL = [self::PROOF_NONE, self::PROOF_SUBMITTED, self::PROOF_APPROVED, self::PROOF_REJECTED];
 
     public static function proofLabel(string $proofStatus): string

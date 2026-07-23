@@ -12,9 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewPaymentProof
 {
-    public function __construct(private readonly PaymentRowPresenter $paymentRows)
-    {
-    }
+    public function __construct(private readonly PaymentRowPresenter $paymentRows) {}
 
     public function handle(Payment $payment, User $reviewer, array $validated): Payment
     {

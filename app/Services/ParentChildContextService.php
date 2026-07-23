@@ -13,7 +13,7 @@ class ParentChildContextService
     public function childrenFor(?User $user): EloquentCollection
     {
         if (! $user || ! $user->isParent()) {
-            return new EloquentCollection();
+            return new EloquentCollection;
         }
 
         return $user->children()

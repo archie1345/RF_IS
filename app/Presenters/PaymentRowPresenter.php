@@ -115,7 +115,7 @@ class PaymentRowPresenter
         }
 
         $message = sprintf(
-            "Halo %s, tagihan %s Anda sebesar %s masih memiliki sisa %s. Silakan lakukan pembayaran lalu upload bukti di sistem RF IS. Terima kasih.",
+            'Halo %s, tagihan %s Anda sebesar %s masih memiliki sisa %s. Silakan lakukan pembayaran lalu upload bukti di sistem RF IS. Terima kasih.',
             $this->subject($payment),
             Str::headline(strtolower((string) $payment->payment_type)),
             $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
