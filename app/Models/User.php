@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ActiveRoleContextService;
 use App\Support\RoleResolver;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -78,24 +79,37 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->account_status === self::ACCOUNT_STATUS_SUSPENDED;
     }
 
-    public function isAdmin()
+    public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->isActingAs('admin');
     }
 
-    public function isCoach()
+    public function isCoach(): bool
     {
-        return $this->hasRole('coach');
+        return $this->isActingAs('coach');
     }
 
-    public function isParent()
+    public function isParent(): bool
     {
-        return $this->hasRole('parent');
+        return $this->isActingAs('parent');
     }
 
-    public function isAthlete()
+    public function isAthlete(): bool
     {
-        return $this->hasRole('athlete');
+        return $this->isActingAs('athlete');
+    }
+
+    public function isActingAs(string $role): bool
+    {
+        if (! $this->hasRole($role)) {
+            return false;
+        }
+
+        if (! $this->canResolveActiveRoleFromRequest()) {
+            return true;
+        }
+
+        return app(ActiveRoleContextService::class)->activeRole(request(), $this) === strtolower(trim($role));
     }
 
     public function roleAssignments(): HasMany
@@ -163,5 +177,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function achievements(): HasMany
     {
         return $this->hasMany(UserAchievement::class);
+    }
+
+    private function canResolveActiveRoleFromRequest(): bool
+    {
+        if (app()->runningInConsole() || ! app()->bound('request')) {
+            return false;
+        }
+
+        $request = request();
+
+        return $request->hasSession() && (int) $request->user()?->id === (int) $this->id;
     }
 }
