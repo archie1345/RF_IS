@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Announcement;
+use App\Services\ActiveRoleContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,16 +15,20 @@ class AnnouncementController extends Controller
 {
     use FormatsPresentationData;
 
+    public function __construct(
+        private readonly ActiveRoleContextService $activeRoleContext,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $activeRole = $user?->primaryRole() ?? 'athlete';
+        $activeRole = $this->activeRoleContext->activeRole($request, $user);
         $isAdmin = $activeRole === 'admin';
         $roleTargets = collect([strtoupper($activeRole), 'ALL']);
 
         $announcements = Announcement::query()
             ->with('creator:id,name')
-            ->when(! $isAdmin, fn ($q) => $q
+            ->when(! $isAdmin, fn ($query) => $query
                 ->where('is_active', true)
                 ->whereIn('target_role', $roleTargets)
                 ->where(fn ($inner) => $inner->whereNull('publish_at')->orWhere('publish_at', '<=', now()))
@@ -41,7 +46,7 @@ class AnnouncementController extends Controller
                 'message' => $announcement->message,
                 'target' => $this->targetLabel($announcement->target_role),
                 'target_role' => $announcement->target_role,
-                'author' => $announcement->creator?->name ?? 'System',
+                'author' => $announcement->creator?->name ?? 'Sistem',
                 'status' => $this->announcementStatus($announcement),
                 'is_active' => (bool) $announcement->is_active,
                 'publish_at_value' => $announcement->publish_at?->format('Y-m-d\TH:i') ?? '',
