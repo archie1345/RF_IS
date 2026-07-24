@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Athlete;
 use App\Models\Coach;
 use App\Models\ParentProfile;
 use App\Models\User;
@@ -9,7 +10,7 @@ use App\Models\UserRoleAssignment;
 use App\Support\RoleResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class UserRoleManagementService
 {
@@ -23,7 +24,7 @@ class UserRoleManagementService
                 'password' => Hash::make($data['password'] ?? str()->random(40)),
                 'gender' => $data['gender'] ?? 'MALE',
                 'role' => $roles[0],
-                ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $data['status']] : []),
+                'account_status' => $data['status'],
             ]);
 
             $this->syncRoles($user, $roles);
@@ -41,7 +42,7 @@ class UserRoleManagementService
                 'email' => $data['email'],
                 'role' => $roles[0],
                 ...(! empty($data['password']) ? ['password' => Hash::make($data['password'])] : []),
-                ...(Schema::hasColumn('users', 'account_status') ? ['account_status' => $data['status']] : []),
+                'account_status' => $data['status'],
             ]);
 
             $this->syncRoles($user, $roles);
@@ -64,12 +65,33 @@ class UserRoleManagementService
             ]);
         }
 
+        $this->syncAthleteProfile($user, in_array('athlete', $roles, true));
         $this->syncParentProfile($user, in_array('parent', $roles, true));
         $this->syncCoachProfile($user, in_array('coach', $roles, true));
 
         $user->unsetRelation('roleAssignments');
+        $user->unsetRelation('athleteProfile');
         $user->unsetRelation('parentProfile');
         $user->unsetRelation('coachProfile');
+    }
+
+    private function syncAthleteProfile(User $user, bool $enabled): void
+    {
+        $profile = Athlete::withTrashed()
+            ->where('id', $user->id)
+            ->first();
+
+        if ($enabled) {
+            if ($profile?->trashed()) {
+                $profile->restore();
+            }
+
+            return;
+        }
+
+        if ($profile && ! $profile->trashed()) {
+            $profile->delete();
+        }
     }
 
     private function syncParentProfile(User $user, bool $enabled): void
@@ -130,12 +152,20 @@ class UserRoleManagementService
 
     private function normalizeRoles(array $roles): array
     {
-        return collect($roles)
+        $normalized = collect($roles)
             ->map(fn ($role) => strtolower(trim((string) $role)))
             ->filter(fn (string $role) => in_array($role, RoleResolver::ROLES, true))
             ->unique()
             ->sortBy(fn (string $role): int => array_search($role, RoleResolver::ROLES, true))
             ->values()
             ->all();
+
+        if ($normalized === []) {
+            throw ValidationException::withMessages([
+                'roles' => 'Assign at least one supported role.',
+            ]);
+        }
+
+        return $normalized;
     }
 }
