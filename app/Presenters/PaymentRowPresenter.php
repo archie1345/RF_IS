@@ -6,7 +6,6 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Presenters\Concerns\FormatsPresenterData;
 use App\Support\Domain\PaymentStatus;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class PaymentRowPresenter
@@ -58,7 +57,7 @@ class PaymentRowPresenter
             'status_value' => $payment->status,
             'proof_status' => $payment->proof_status ?? PaymentStatus::PROOF_NONE,
             'proof_status_label' => $this->proofBadge((string) ($payment->proof_status ?? PaymentStatus::PROOF_NONE)),
-            'proof_url' => $payment->proof_path ? Storage::url($payment->proof_path) : null,
+            'proof_url' => $payment->proof_path ? route('payments.proof.download', $payment) : null,
             'proof_notes' => $payment->proof_notes ?? '',
             'transaction_history' => $this->transactionHistory($payment),
             'status' => $this->paymentBadge($payment),
@@ -115,7 +114,9 @@ class PaymentRowPresenter
                 'verified_by' => $transaction->verifier?->name ?? 'System',
                 'notes' => $transaction->notes ?? '',
                 'proof_notes' => $transaction->proof_notes ?? '',
-                'proof_url' => $transaction->proof_path ? Storage::url($transaction->proof_path) : null,
+                'proof_url' => $transaction->proof_path
+                    ? route('payments.transactions.proof.download', $transaction)
+                    : null,
             ])
             ->values()
             ->all();
