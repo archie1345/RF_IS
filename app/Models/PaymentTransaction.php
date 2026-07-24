@@ -33,7 +33,12 @@ class PaymentTransaction extends Model
         'transaction_type',
         'notes',
         'proof_path',
+        'proof_disk',
         'proof_notes',
+    ];
+
+    protected $hidden = [
+        'proof_path',
     ];
 
     protected function casts(): array
@@ -42,6 +47,11 @@ class PaymentTransaction extends Model
             'amount' => 'decimal:2',
             'transaction_date' => 'datetime',
         ];
+    }
+
+    public function proofStorageDisk(): string
+    {
+        return $this->proof_disk ?: Payment::PROOF_DISK_PUBLIC;
     }
 
     public function payment(): BelongsTo
