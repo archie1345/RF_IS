@@ -9,9 +9,6 @@ import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
-import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-import type { SessionVisibility, SessionFilters } from './SessionsPage.types';
 import { dashboard } from '@/routes';
 import {
     attendance as sessionAttendance,
@@ -19,8 +16,12 @@ import {
     index as sessionsIndex,
     join as sessionJoin,
 } from '@/routes/sessions';
+import type { BreadcrumbItem } from '@/types';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { SessionFilters, SessionVisibility } from './SessionsPage.types';
 
 const props = defineProps<{
+    isAdmin: boolean;
     metrics: Metric[];
     filters?: SessionFilters;
     rows: TableRow[];
@@ -109,7 +110,7 @@ function sessionIdFromRow(row: TableRow): number | null {
     return routeId(row.session_id ?? row.id);
 }
 
-function setVisibility(visibility: SessionVisibility) {
+function setVisibility(visibility: SessionVisibility): void {
     router.get(
         sessionsIndex.url(),
         { visibility },
@@ -123,7 +124,7 @@ function setVisibility(visibility: SessionVisibility) {
 
 async function removeSession(row: TableRow): Promise<void> {
     const id = sessionIdFromRow(row);
-    if (!id) return;
+    if (!id || row.can_manage !== true) return;
 
     const confirmed = await popup.confirm({
         title: 'Hapus sesi latihan?',
@@ -136,10 +137,10 @@ async function removeSession(row: TableRow): Promise<void> {
     router.delete(sessionDestroy.url(id), { preserveScroll: true });
 }
 
-function joinSession(row: TableRow) {
+function joinSession(row: TableRow): void {
     const id = sessionIdFromRow(row);
-    if (!id) return;
-    router.post(sessionJoin.url(id));
+    if (!id || row.can_join !== true) return;
+    router.post(sessionJoin.url(id), {}, { preserveScroll: true });
 }
 </script>
 
@@ -150,7 +151,7 @@ function joinSession(row: TableRow) {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection
                 title="Session"
-                description="Sessions are generated from Admin → Kelas Latihan. Archived sessions are hidden by default. Finished one-day classes move into Archived automatically."
+                description="Sessions are generated from Admin → Kelas Latihan. Coaches see sessions they manage and open sessions that need assistance."
             >
                 <div class="grid gap-4 md:grid-cols-3">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
@@ -163,8 +164,7 @@ function joinSession(row: TableRow) {
                         <div>
                             <h2 class="text-base font-black">Session visibility</h2>
                             <p class="text-sm text-muted-foreground">
-                                Default view shows today and future sessions. Archived stores finished sessions and
-                                completed one-day classes.
+                                Default view shows today and future sessions. Archived stores finished sessions and completed one-day classes.
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
@@ -184,7 +184,7 @@ function joinSession(row: TableRow) {
 
                 <DataTable
                     title="Session lineup"
-                    description="Use Edit to manage QR attendance, athlete attendance, and coach attendance. Create new sessions by creating weekly or one-day classes."
+                    description="Manage assigned sessions or join sessions that need assistant-coach coverage."
                     :columns="columns"
                     :rows="props.rows"
                     :filters="sessionTableFilters"
@@ -195,15 +195,26 @@ function joinSession(row: TableRow) {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button as-child size="sm" variant="outline">
-                                <Link v-if="sessionIdFromRow(row)" :href="sessionAttendance.url(sessionIdFromRow(row)!)"
-                                    >Edit</Link
-                                >
+                            <Button v-if="row.can_manage === true && sessionIdFromRow(row)" as-child size="sm" variant="outline">
+                                <Link :href="sessionAttendance.url(sessionIdFromRow(row)!)">Edit</Link>
                             </Button>
-                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)"
-                                >Join</Button
+                            <Button v-if="row.can_join === true" size="sm" variant="outline" @click="joinSession(row)">
+                                Join
+                            </Button>
+                            <Button
+                                v-if="row.can_manage === true"
+                                size="sm"
+                                variant="destructive"
+                                @click="removeSession(row)"
                             >
-                            <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
+                                Delete
+                            </Button>
+                            <span
+                                v-if="row.can_manage !== true && row.can_join !== true"
+                                class="px-2 py-1 text-xs text-muted-foreground"
+                            >
+                                View only
+                            </span>
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
