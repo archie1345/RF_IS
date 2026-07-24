@@ -8,7 +8,6 @@ use App\Models\TrainingSession;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 class AttendanceVisibilityService
 {
@@ -20,7 +19,7 @@ class AttendanceVisibilityService
         $query = Attendance::query();
 
         if (! $user) {
-            return $query->whereRaw('1 = 0');
+            return $this->emptyQuery($query);
         }
 
         $mode = $this->resolveMode($user, $mode);
@@ -34,14 +33,22 @@ class AttendanceVisibilityService
         }
 
         if ($mode === 'athlete') {
-            return $query->where('athlete_id', $user->athleteProfile?->athlete_id);
+            $athleteId = $user->athleteProfile?->athlete_id;
+
+            return $athleteId
+                ? $query->where('athlete_id', $athleteId)
+                : $this->emptyQuery($query);
         }
 
         if ($mode === 'coach') {
-            return $query->whereIn('training_session_id', $this->coachSessionIds($user));
+            $sessionIds = $this->coachSessionIds($user);
+
+            return $sessionIds !== []
+                ? $query->whereIn('training_session_id', $sessionIds)
+                : $this->emptyQuery($query);
         }
 
-        return $query->whereRaw('1 = 0');
+        return $this->emptyQuery($query);
     }
 
     public function visibleSessionQuery(?User $user, ?string $mode = null): Builder
@@ -49,7 +56,7 @@ class AttendanceVisibilityService
         $query = TrainingSession::query();
 
         if (! $user) {
-            return $query->whereRaw('1 = 0');
+            return $this->emptyQuery($query);
         }
 
         $mode = $this->resolveMode($user, $mode);
@@ -61,11 +68,17 @@ class AttendanceVisibilityService
         if ($mode === 'coach') {
             $coachId = $user->coachProfile?->coach_id;
 
-            return $query->where(function ($sessionQuery) use ($coachId): void {
-                $sessionQuery->where('coach_id', $coachId);
-                if ($coachId && Schema::hasTable('training_session_coaches')) {
-                    $sessionQuery->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId));
-                }
+            if (! $coachId) {
+                return $this->emptyQuery($query);
+            }
+
+            return $query->where(function (Builder $sessionQuery) use ($coachId): void {
+                $sessionQuery
+                    ->where('coach_id', $coachId)
+                    ->orWhereHas(
+                        'assignedCoaches',
+                        fn (Builder $coachQuery): Builder => $coachQuery->where('coaches.coach_id', $coachId),
+                    );
             });
         }
 
@@ -75,13 +88,13 @@ class AttendanceVisibilityService
             $childBranchIds = $children->pluck('branch_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
             $childGroupIds = $children->pluck('group_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
 
-            if ($children->isEmpty()) {
-                return $query->whereRaw('1 = 0');
+            if ($children->isEmpty() || $childBranchIds === []) {
+                return $this->emptyQuery($query);
             }
 
             return $query
                 ->whereIn('branch_id', $childBranchIds)
-                ->where(function ($sessionQuery) use ($childAthleteIds, $childGroupIds): void {
+                ->where(function (Builder $sessionQuery) use ($childAthleteIds, $childGroupIds): void {
                     $sessionQuery->whereNull('group_id');
 
                     if ($childGroupIds !== []) {
@@ -89,7 +102,10 @@ class AttendanceVisibilityService
                     }
 
                     if ($childAthleteIds !== []) {
-                        $sessionQuery->orWhereHas('group.privateAthletes', fn ($athleteQuery) => $athleteQuery->whereIn('athletes.athlete_id', $childAthleteIds));
+                        $sessionQuery->orWhereHas(
+                            'group.privateAthletes',
+                            fn (Builder $athleteQuery): Builder => $athleteQuery->whereIn('athletes.athlete_id', $childAthleteIds),
+                        );
                     }
                 });
         }
@@ -97,14 +113,18 @@ class AttendanceVisibilityService
         if ($mode === 'athlete') {
             $athlete = $user->athleteProfile;
 
+            if (! $athlete || ! $athlete->branch_id) {
+                return $this->emptyQuery($query);
+            }
+
             return $query
-                ->when($athlete?->branch_id, fn ($sessionQuery) => $sessionQuery->where('branch_id', $athlete->branch_id))
-                ->when($athlete?->group_id, fn ($sessionQuery) => $sessionQuery->where(function ($groupQuery) use ($athlete): void {
+                ->where('branch_id', $athlete->branch_id)
+                ->when($athlete->group_id, fn (Builder $sessionQuery) => $sessionQuery->where(function (Builder $groupQuery) use ($athlete): void {
                     $groupQuery->whereNull('group_id')->orWhere('group_id', $athlete->group_id);
                 }));
         }
 
-        return $query->whereRaw('1 = 0');
+        return $this->emptyQuery($query);
     }
 
     public function userCanUpdate(?User $user, Attendance $attendance): bool
@@ -134,7 +154,7 @@ class AttendanceVisibilityService
         }
 
         return (string) $session->coach_id === (string) $coachId
-            || (Schema::hasTable('training_session_coaches') && $session->assignedCoaches()->where('coaches.coach_id', $coachId)->exists());
+            || $session->assignedCoaches()->where('coaches.coach_id', $coachId)->exists();
     }
 
     public function coachSessionIds(User $user): array
@@ -151,5 +171,10 @@ class AttendanceVisibilityService
         $resolved = strtolower(trim((string) ($mode ?: $user->primaryRole())));
 
         return $user->hasRole($resolved) ? $resolved : '__none__';
+    }
+
+    private function emptyQuery(Builder $query): Builder
+    {
+        return $query->whereRaw('1 = 0');
     }
 }
