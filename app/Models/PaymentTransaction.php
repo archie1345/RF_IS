@@ -12,6 +12,8 @@ class PaymentTransaction extends Model
 
     public const TYPE_PAYMENT = 'PAYMENT';
 
+    public const TYPE_REFUND = 'REFUND';
+
     public const TYPE_PROOF_SUBMITTED = 'PROOF_SUBMITTED';
 
     public const TYPE_PROOF_REJECTED = 'PROOF_REJECTED';
@@ -20,13 +22,7 @@ class PaymentTransaction extends Model
 
     protected $table = 'payment_transactions';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'ptid';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'payment_id',
