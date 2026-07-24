@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { computed, type PropType } from 'vue';
+import DashboardAnnouncementWidget from '@/components/dashboard/DashboardAnnouncementWidget.vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
@@ -32,10 +33,10 @@ const props = defineProps({
 });
 
 const role = computed<AppRole>(() => {
-    const userRole = page.props.auth?.user?.role;
+    const activeRole = page.props.auth?.user?.activeRole ?? page.props.auth?.user?.role;
 
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
-        ? userRole
+    return activeRole === 'admin' || activeRole === 'coach' || activeRole === 'parent' || activeRole === 'athlete'
+        ? activeRole
         : 'athlete';
 });
 
@@ -54,7 +55,7 @@ const switchChild = (athleteId: string) => {
 
 useLiveReload(
     () => role.value === 'admin',
-    () => router.reload({ only: ['activityPreviewRows', 'metrics'], preserveUrl: true }),
+    () => router.reload({ only: ['activityPreviewRows', 'metrics', 'announcements'], preserveUrl: true }),
     10000,
 );
 </script>
@@ -71,6 +72,8 @@ useLiveReload(
                 :active-child="activeChild"
                 @switch-child="switchChild"
             />
+
+            <DashboardAnnouncementWidget :announcements="props.announcements" />
 
             <DashboardOverviewSections
                 :role="role"
