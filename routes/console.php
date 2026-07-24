@@ -1,10 +1,14 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\UserFile;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -19,6 +23,87 @@ Artisan::command('activity-logs:prune {--days=90}', function () {
     $this->info("Pruned {$deleted} activity log entries older than {$days} days.");
 })->purpose('Delete old activity logs to reduce storage usage');
 
+Artisan::command('user-files:privatize {--dry-run}', function () {
+    if (! Schema::hasTable('user_files') || ! Schema::hasColumn('user_files', 'disk')) {
+        $this->error('The user_files.disk column is missing. Run migrations first.');
+
+        return 1;
+    }
+
+    $dryRun = (bool) $this->option('dry-run');
+    $migrated = 0;
+    $missing = 0;
+    $failed = 0;
+
+    UserFile::query()
+        ->where(fn ($query) => $query->whereNull('disk')->orWhere('disk', UserFile::DISK_PUBLIC))
+        ->orderBy('id')
+        ->eachById(function (UserFile $file) use ($dryRun, &$migrated, &$missing, &$failed): void {
+            $oldPath = (string) $file->file_path;
+            if ($oldPath === '' || ! Storage::disk(UserFile::DISK_PUBLIC)->exists($oldPath)) {
+                $missing++;
+                $this->warn("Missing public file for user_files.id={$file->id}: {$oldPath}");
+
+                return;
+            }
+
+            $extension = pathinfo($oldPath, PATHINFO_EXTENSION);
+            $newPath = 'user-files/'.$file->user_id.'/'.Str::uuid().($extension !== '' ? '.'.$extension : '');
+
+            if ($dryRun) {
+                $migrated++;
+                $this->line("Would move {$oldPath} to private:{$newPath}");
+
+                return;
+            }
+
+            $stream = Storage::disk(UserFile::DISK_PUBLIC)->readStream($oldPath);
+            if (! is_resource($stream)) {
+                $failed++;
+                $this->error("Unable to read public file for user_files.id={$file->id}");
+
+                return;
+            }
+
+            try {
+                $stored = Storage::disk(UserFile::DISK_PRIVATE)->put($newPath, $stream);
+                if (! $stored) {
+                    $failed++;
+                    $this->error("Unable to write private file for user_files.id={$file->id}");
+
+                    return;
+                }
+
+                DB::transaction(function () use ($file, $newPath): void {
+                    UserFile::query()
+                        ->whereKey($file->id)
+                        ->lockForUpdate()
+                        ->update([
+                            'file_path' => $newPath,
+                            'disk' => UserFile::DISK_PRIVATE,
+                        ]);
+                });
+
+                Storage::disk(UserFile::DISK_PUBLIC)->delete($oldPath);
+                $migrated++;
+            } catch (Throwable $exception) {
+                Storage::disk(UserFile::DISK_PRIVATE)->delete($newPath);
+                $failed++;
+                report($exception);
+                $this->error("Failed to migrate user_files.id={$file->id}: {$exception->getMessage()}");
+            } finally {
+                fclose($stream);
+            }
+        });
+
+    $this->newLine();
+    $this->info(($dryRun ? 'Eligible' : 'Migrated').": {$migrated}");
+    $this->line("Missing source files: {$missing}");
+    $this->line("Failed: {$failed}");
+
+    return $failed === 0 ? 0 : 1;
+})->purpose('Move historical public certification and achievement files into private storage');
+
 Artisan::command('app:database-audit', function () {
     $migrator = app('migrator');
     $repository = $migrator->getRepository();
@@ -29,6 +114,7 @@ Artisan::command('app:database-audit', function () {
     $requirements = [
         'users' => ['id', 'email', 'role', 'deleted_at'],
         'user_role_assignments' => ['user_id', 'role'],
+        'user_files' => ['id', 'user_id', 'file_path', 'disk', 'mime_type', 'size_bytes'],
         'athletes' => ['athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'training_group_id'],
         'member_number_sequences' => ['joined_on', 'last_sequence'],
         'coaches' => ['coach_id', 'id', 'status'],
