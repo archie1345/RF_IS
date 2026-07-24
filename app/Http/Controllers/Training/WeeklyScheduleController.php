@@ -8,10 +8,12 @@ use App\Models\Athlete;
 use App\Models\Group;
 use App\Models\WeeklyTrainingSchedule;
 use App\Support\ActivityLogger;
+use App\Support\Domain\SessionType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -173,10 +175,10 @@ class WeeklyScheduleController extends Controller
         ]);
 
         $from = filled($validated['from'] ?? null)
-            ? now()->parse($validated['from'])->startOfDay()
+            ? Carbon::parse($validated['from'])->startOfDay()
             : now()->startOfWeek();
         $to = filled($validated['to'] ?? null)
-            ? now()->parse($validated['to'])->endOfDay()
+            ? Carbon::parse($validated['to'])->endOfDay()
             : $from->copy()->endOfWeek();
 
         if ($from->diffInDays($to) > 90) {
@@ -221,7 +223,7 @@ class WeeklyScheduleController extends Controller
                 'nullable',
                 Rule::exists('coaches', 'coach_id')->where(fn ($query) => $query->where('status', 'active')->whereNull('deleted_at')),
             ],
-            'session_type' => ['required', Rule::in(['reguler', 'private'])],
+            'session_type' => ['required', Rule::in(SessionType::ALL)],
             'day_of_week' => ['required', 'integer', 'between:1,7'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
@@ -236,7 +238,9 @@ class WeeklyScheduleController extends Controller
             $validated['coach_id'] = $request->user()?->coachProfile?->coach_id;
         }
 
-        if (($validated['session_type'] ?? 'reguler') === 'private') {
+        $validated['session_type'] = SessionType::normalize($validated['session_type']);
+
+        if (SessionType::isPrivate($validated['session_type'])) {
             $validated['group_id'] = null;
         } else {
             $validated['dedicated_athlete_id'] = null;
@@ -269,7 +273,7 @@ class WeeklyScheduleController extends Controller
             }
         }
 
-        if (($validated['session_type'] ?? null) === 'private') {
+        if (SessionType::isPrivate($validated['session_type'] ?? null)) {
             if (blank($validated['dedicated_athlete_id'] ?? null)) {
                 return ['dedicated_athlete_id' => 'Pilih atlet untuk sesi private/dedicated.'];
             }
@@ -290,7 +294,7 @@ class WeeklyScheduleController extends Controller
         $hasCoach = filled($validated['coach_id'] ?? null)
             || ($group && collect([$group->coach_id])->merge($group->coaches()->pluck('coaches.coach_id'))->filter()->isNotEmpty());
 
-        if (! $hasCoach) {
+        if (($validated['is_active'] ?? true) && ! $hasCoach) {
             return ['coach_id' => 'Jadwal aktif memerlukan setidaknya satu pelatih.'];
         }
 
