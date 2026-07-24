@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Users\CreateUserInvitation;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AdminAccountSafetyService;
 use App\Services\UserRoleManagementService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
@@ -14,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class AdminAccountController extends Controller
 {
-    public function __construct(private readonly UserRoleManagementService $roleManagement) {}
+    public function __construct(
+        private readonly UserRoleManagementService $roleManagement,
+        private readonly AdminAccountSafetyService $accountSafety,
+    ) {}
 
     public function store(Request $request, CreateUserInvitation $createUserInvitation): RedirectResponse
     {
@@ -43,10 +47,12 @@ class AdminAccountController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        $actor = $request->user();
+        abort_unless($actor?->isAdmin(), 403);
 
         $validated = $this->validateAccount($request, $user);
         $this->validateAccountStatusTransition($user, $validated['status']);
+        $this->accountSafety->ensureUpdateIsSafe($actor, $user, $validated['roles'], $validated['status']);
         $user = $this->roleManagement->updateAccount($user, $validated);
 
         ActivityLogger::log(
@@ -68,7 +74,12 @@ class AdminAccountController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user?->id)],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user?->id),
+            ],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', 'distinct', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
             'status' => ['required', Rule::in([
@@ -79,7 +90,7 @@ class AdminAccountController extends Controller
             'password' => [
                 $user || $request->input('status') === User::ACCOUNT_STATUS_INVITED ? 'nullable' : 'required',
                 'string',
-                'min:8',
+                'min:12',
                 'confirmed',
             ],
         ]);
