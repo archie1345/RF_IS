@@ -30,7 +30,7 @@ it('rejects suspended accounts on API routes without requiring a web session', f
         ->assertJsonPath('message', 'This account has been suspended. Please contact an administrator.');
 });
 
-it('registers one throttled QR attendance submission route', function () {
+it('registers one role-scoped throttled QR attendance submission route', function () {
     $matchingRoutes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn (IlluminateRoute $route): bool =>
             in_array('POST', $route->methods(), true)
@@ -39,7 +39,9 @@ it('registers one throttled QR attendance submission route', function () {
         ->values();
 
     expect($matchingRoutes)->toHaveCount(1);
-    expect($matchingRoutes->first()->gatherMiddleware())->toContain('throttle:qr-scan');
+    expect($matchingRoutes->first()->gatherMiddleware())
+        ->toContain('role:parent,athlete')
+        ->toContain('throttle:qr-scan');
 });
 
 it('protects sensitive web mutations with role middleware', function () {
@@ -62,8 +64,40 @@ it('protects sensitive web mutations with role middleware', function () {
         expect($route->gatherMiddleware())->toContain('role:admin');
     }
 
+    $adminCoachRoutes = [
+        'training-schedules.store',
+        'training-schedules.update',
+        'training-schedules.destroy',
+        'sessions.index',
+        'sessions.store',
+        'sessions.update',
+        'sessions.destroy',
+        'sessions.attendance',
+        'sessions.attendance-qr.store',
+        'sessions.attendance-qr.destroy',
+        'sessions.coach-attendance.store',
+        'sessions.coach-attendance.update',
+        'sessions.coach-attendance.destroy',
+        'attendance.store',
+        'attendance.bulk-update',
+        'attendance.update',
+    ];
+
+    foreach ($adminCoachRoutes as $routeName) {
+        $route = Route::getRoutes()->getByName($routeName);
+
+        expect($route)->not->toBeNull();
+        expect($route->gatherMiddleware())->toContain('role:admin,coach');
+    }
+
     expect(Route::getRoutes()->getByName('parent.children.index')?->gatherMiddleware())
         ->toContain('role:parent');
+    expect(Route::getRoutes()->getByName('sessions.join')?->gatherMiddleware())
+        ->toContain('role:coach');
+    expect(Route::getRoutes()->getByName('attendance.coach-attend')?->gatherMiddleware())
+        ->toContain('role:coach');
+    expect(Route::getRoutes()->getByName('payments.proof.submit')?->gatherMiddleware())
+        ->toContain('role:parent,athlete');
     expect(Route::getRoutes()->getByName('championships.registrations.store')?->gatherMiddleware())
         ->toContain('role:admin,parent,athlete');
     expect(Route::getRoutes()->getByName('championships.registrations.result')?->gatherMiddleware())
