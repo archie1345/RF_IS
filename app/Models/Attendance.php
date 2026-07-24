@@ -12,13 +12,7 @@ class Attendance extends Model
 
     protected $table = 'athlete_attendance';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'athlete_attendance_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'athlete_id',
@@ -30,11 +24,17 @@ class Attendance extends Model
         'follow_up_owner',
     ];
 
-    protected $dates = ['deleted_at', 'date', 'checked_in_at'];
+    protected function casts(): array
+    {
+        return [
+            'date' => 'date',
+            'checked_in_at' => 'datetime',
+        ];
+    }
 
     public function athlete(): BelongsTo
     {
-        return $this->belongsTo(Athlete::class, 'athlete_id');
+        return $this->belongsTo(Athlete::class, 'athlete_id', 'athlete_id');
     }
 
     public function trainingSession(): BelongsTo
