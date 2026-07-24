@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Announcement;
 use App\Services\ActiveRoleContextService;
+use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -59,29 +60,51 @@ class AnnouncementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate($this->rules($request));
-
-        Announcement::query()->create([
+        $announcement = Announcement::query()->create([
             'created_by' => $request->user()->id,
             ...$this->payload($validated),
         ]);
+
+        ActivityLogger::log(
+            $request,
+            'announcement.created',
+            'announcement',
+            'Created announcement',
+            $announcement,
+            ['target_role' => $announcement->target_role, 'publish_at' => $announcement->publish_at],
+        );
 
         return redirect()->route('announcements.index')->with('status', 'Pengumuman berhasil diterbitkan.');
     }
 
     public function update(Request $request, Announcement $announcement): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate($this->rules($request));
         $announcement->update($this->payload($validated));
+
+        ActivityLogger::log(
+            $request,
+            'announcement.updated',
+            'announcement',
+            'Updated announcement',
+            $announcement,
+            ['target_role' => $announcement->target_role, 'is_active' => $announcement->is_active],
+        );
 
         return back()->with('status', 'Pengumuman berhasil diperbarui.');
     }
 
     public function destroy(Request $request, Announcement $announcement): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        ActivityLogger::log(
+            $request,
+            'announcement.deleted',
+            'announcement',
+            'Deleted announcement',
+            $announcement,
+            ['title' => $announcement->title, 'target_role' => $announcement->target_role],
+        );
         $announcement->delete();
 
         return back()->with('status', 'Pengumuman berhasil dihapus.');
@@ -96,19 +119,19 @@ class AnnouncementController extends Controller
 
         return [
             'title' => ['required', 'string', 'max:120'],
-            'message' => ['required', 'string'],
+            'message' => ['required', 'string', 'max:5000'],
             'target_role' => ['required', Rule::in(['ALL', 'ADMIN', 'COACH', 'PARENT', 'ATHLETE'])],
             'publish_at' => ['nullable', 'date'],
             'expire_at' => $expireRules,
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 
     private function payload(array $validated): array
     {
         return [
-            'title' => $validated['title'],
-            'message' => $validated['message'],
+            'title' => trim($validated['title']),
+            'message' => trim($validated['message']),
             'target_role' => $validated['target_role'],
             'is_active' => $validated['is_active'] ?? true,
             'publish_at' => $validated['publish_at'] ?? null,
