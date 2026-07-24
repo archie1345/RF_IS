@@ -91,4 +91,14 @@ class Group extends Model
         return $this->belongsToMany(Athlete::class, 'class_group_private_athletes', 'group_id', 'athlete_id', 'group_id', 'athlete_id')
             ->withTimestamps();
     }
+
+    public function weeklySchedules(): HasMany
+    {
+        return $this->hasMany(WeeklyTrainingSchedule::class, 'group_id', 'group_id');
+    }
+
+    public function trainingSessions(): HasMany
+    {
+        return $this->hasMany(TrainingSession::class, 'group_id', 'group_id');
+    }
 }
