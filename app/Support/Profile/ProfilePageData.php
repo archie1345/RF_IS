@@ -5,6 +5,7 @@ namespace App\Support\Profile;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\User;
+use App\Models\UserFile;
 use Illuminate\Support\Facades\Storage;
 
 class ProfilePageData
@@ -118,7 +119,7 @@ class ProfilePageData
                 'notes' => $achievement->notes,
                 'is_auto_recorded' => (bool) $achievement->is_auto_recorded,
                 'fileName' => $achievement->file?->original_name,
-                'fileUrl' => $achievement->file?->file_path ? Storage::url($achievement->file->file_path) : null,
+                'fileUrl' => $this->fileUrl($achievement->file),
             ])->values(),
             'certifications' => $user->certifications->map(fn ($certification) => [
                 'id' => $certification->id,
@@ -129,8 +130,13 @@ class ProfilePageData
                 'expires_at' => $certification->expires_at?->format('Y-m-d'),
                 'notes' => $certification->notes,
                 'fileName' => $certification->file?->original_name,
-                'fileUrl' => $certification->file?->file_path ? Storage::url($certification->file->file_path) : null,
+                'fileUrl' => $this->fileUrl($certification->file),
             ])->values(),
         ];
+    }
+
+    private function fileUrl(?UserFile $file): ?string
+    {
+        return $file ? route('user-files.download', $file) : null;
     }
 }
