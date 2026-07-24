@@ -9,6 +9,7 @@ import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import { documentFileAccept, medalOptions } from '@/pages/profiles/profileOptions';
 import { achievementColumns, achievementRows } from '@/pages/profiles/profileTables';
 import type { ProfileAchievement } from '@/pages/profiles/types';
@@ -20,6 +21,7 @@ const props = defineProps<{
     storeUrl: string;
     updateUrl: (id: number | string) => string;
 }>();
+const popup = useAppPopup();
 
 const rows = computed(() =>
     achievementRows(props.achievements).map((row) => {
@@ -108,15 +110,17 @@ function saveAchievementEdit(): void {
         });
 }
 
-function removeAchievement(row: TableRow): void {
+async function removeAchievement(row: TableRow): Promise<void> {
     const achievement = findAchievement(row);
-    if (
-        !achievement ||
-        achievement.is_auto_recorded ||
-        !window.confirm(`Hapus prestasi “${achievement.championship_name}”?`)
-    ) {
-        return;
-    }
+    if (!achievement || achievement.is_auto_recorded) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus prestasi?',
+        message: `Prestasi “${achievement.championship_name}” dan berkas pendukungnya akan dihapus dari profil.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus prestasi',
+    });
+    if (!confirmed) return;
 
     router.delete(props.updateUrl(achievement.id), { preserveScroll: true });
 }
