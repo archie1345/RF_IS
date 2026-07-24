@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\ActiveRoleContextService;
 use App\Support\RoleResolver;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -23,10 +24,6 @@ class User extends Authenticatable implements MustVerifyEmail
     public const ACCOUNT_STATUS_SUSPENDED = 'suspended';
 
     use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
-
-    protected $table = 'users';
-
-    protected $primaryKey = 'id';
 
     protected $fillable = [
         'name',
@@ -53,15 +50,6 @@ class User extends Authenticatable implements MustVerifyEmail
             'bday' => 'date',
             'password' => 'hashed',
         ];
-    }
-
-    public $timestamps = true;
-
-    protected $dates = ['deleted_at', 'bday'];
-
-    public function getAuthPassword()
-    {
-        return $this->password;
     }
 
     public function isActiveAccount(): bool
@@ -112,11 +100,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return app(ActiveRoleContextService::class)->activeRole(request(), $this) === strtolower(trim($role));
     }
 
-    public function roleAssignments(): HasMany
-    {
-        return $this->hasMany(UserRoleAssignment::class);
-    }
-
     public function assignedRoles(): array
     {
         return app(RoleResolver::class)->rolesFor($this);
@@ -130,6 +113,33 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole(string $role): bool
     {
         return app(RoleResolver::class)->hasRole($this, $role);
+    }
+
+    public function scopeWithRole(Builder $query, string $role): Builder
+    {
+        $normalizedRole = strtolower(trim($role));
+
+        if (! in_array($normalizedRole, RoleResolver::ROLES, true)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $roleQuery) use ($normalizedRole): void {
+            $roleQuery
+                ->whereHas(
+                    'roleAssignments',
+                    fn (Builder $assignmentQuery): Builder => $assignmentQuery->where('role', $normalizedRole),
+                )
+                ->orWhere(function (Builder $legacyQuery) use ($normalizedRole): void {
+                    $legacyQuery
+                        ->whereDoesntHave('roleAssignments')
+                        ->whereRaw('LOWER(role) = ?', [$normalizedRole]);
+                });
+        });
+    }
+
+    public function roleAssignments(): HasMany
+    {
+        return $this->hasMany(UserRoleAssignment::class);
     }
 
     public function parentProfile(): HasOne
