@@ -12,15 +12,13 @@ class Payment extends Model
 {
     use SoftDeletes;
 
+    public const PROOF_DISK_PRIVATE = 'local';
+
+    public const PROOF_DISK_PUBLIC = 'public';
+
     protected $table = 'payments';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'payment_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'invoice_number',
@@ -41,8 +39,13 @@ class Payment extends Model
         'status',
         'notes',
         'proof_path',
+        'proof_disk',
         'proof_status',
         'proof_notes',
+    ];
+
+    protected $hidden = [
+        'proof_path',
     ];
 
     protected static function booted(): void
@@ -76,6 +79,11 @@ class Payment extends Model
             'payment_date' => 'date',
             'due_date' => 'date',
         ];
+    }
+
+    public function proofStorageDisk(): string
+    {
+        return $this->proof_disk ?: self::PROOF_DISK_PUBLIC;
     }
 
     public function isOverdue(): bool
