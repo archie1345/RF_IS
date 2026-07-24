@@ -8,34 +8,25 @@ use App\Actions\Payments\ReviewPaymentProof;
 use App\Actions\Payments\SubmitPaymentProof;
 use App\Actions\Payments\UpdatePayment;
 use App\Actions\Payments\UpdatePaymentStatus;
-use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Http\Requests\Payments\RecordManualPaymentRequest;
 use App\Http\Requests\Payments\ReviewPaymentProofRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Http\Requests\Payments\SubmitPaymentProofRequest;
 use App\Http\Requests\Payments\UpdatePaymentRequest;
 use App\Http\Requests\Payments\UpdatePaymentStatusRequest;
-use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
-use App\Models\User;
 use App\Presenters\PaymentRowPresenter;
-use App\Services\PaymentVisibilityService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class PaymentController extends Controller
 {
-    use FormatsPresentationData;
-
     public function __construct(
-        private readonly PaymentVisibilityService $paymentVisibility,
         private readonly PaymentRowPresenter $paymentRows,
         private readonly CreatePayment $createPayment,
         private readonly UpdatePayment $updatePayment,
@@ -45,75 +36,15 @@ class PaymentController extends Controller
         private readonly UpdatePaymentStatus $updatePaymentStatus,
     ) {}
 
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-        $invoiceTemplate = Schema::hasTable('invoice_templates')
-            ? InvoiceTemplate::query()->firstOrCreate(
-                ['name' => 'default'],
-                [
-                    'company_name' => 'RF IS',
-                    'payment_notes' => 'Please pay using the method agreed with the admin, then upload a clear receipt or transfer screenshot here.',
-                ],
-            )
-            : null;
-
-        $payments = $this->paymentVisibility->visiblePaymentsQuery($request)
-            ->with([
-                'athlete.user:id,name,phone',
-                'billableUser:id,name,phone',
-                'payeeUser:id,name,phone',
-                'transactions.verifier:id,name',
-            ])
-            ->latest('payment_date')
-            ->get();
-
-        $tuitionMetrics = $this->monthlyTuitionMetrics($payments);
-
-        return Inertia::render('PaymentsPage', [
-            'isAdmin' => (bool) $user?->isAdmin(),
-            'canSubmitPaymentProof' => (bool) ($user?->isAthlete() || $user?->isParent()),
-            'metrics' => [
-                ['label' => 'Paid tuition', 'value' => (string) $tuitionMetrics['paid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills fully paid', 'tone' => 'success'],
-                ['label' => 'Unpaid tuition', 'value' => (string) $tuitionMetrics['unpaid'], 'detail' => $tuitionMetrics['month_label'].' tuition bills with no approved payment', 'tone' => 'warning'],
-                ['label' => 'Partial tuition', 'value' => (string) $tuitionMetrics['partial'], 'detail' => $tuitionMetrics['month_label'].' tuition bills paid partly', 'tone' => 'info'],
-                ['label' => 'Previous unpaid', 'value' => (string) $tuitionMetrics['previous_unpaid'], 'detail' => 'Unpaid tuition bills before '.$tuitionMetrics['month_label'], 'tone' => 'danger'],
-            ],
-            'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
-            'athletes' => Athlete::query()
-                ->with('user:id,name')
-                ->get()
-                ->map(fn (Athlete $athlete) => ['value' => $athlete->athlete_id, 'label' => $athlete->user?->name ?? 'Unknown athlete'])
-                ->sortBy('label')
-                ->values(),
-            'users' => User::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user) => ['value' => $user->id, 'label' => trim($user->name.' - '.$user->email)])
-                ->values(),
-            'coaches' => User::query()
-                ->whereHas('roleAssignments', fn ($query) => $query->where('role', 'coach'))
-                ->orWhere('role', 'coach')
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user) => ['value' => $user->id, 'label' => trim($user->name.' - '.$user->email)])
-                ->values(),
-            'invoiceTemplate' => $invoiceTemplate,
-            'paymentInstructions' => $invoiceTemplate?->payment_notes
-                ?: 'Please pay using the method agreed with the admin, then upload a clear receipt or transfer screenshot here.',
-        ]);
-    }
-
     public function submitProof(SubmitPaymentProofRequest $request, Payment $payment): RedirectResponse
     {
         $validated = $request->validated();
-        $user = $request->user();
         $payment->loadMissing(['athlete.user', 'billableUser', 'payeeUser']);
         $this->authorize('submitProof', $payment);
 
         $payment = $this->submitPaymentProof->handle(
             $payment,
-            $user,
+            $request->user(),
             $request->file('proof_file'),
             $validated['notes'] ?? null,
         );
@@ -248,20 +179,12 @@ class PaymentController extends Controller
         $payment->loadMissing(['athlete.user:id,name,email', 'billableUser:id,name,email', 'payeeUser:id,name,email']);
 
         $template = Schema::hasTable('invoice_templates')
-            ? InvoiceTemplate::query()->firstOrCreate(
-                ['name' => 'default'],
-                ['company_name' => 'RF IS'],
-            )
-            : (object) [
-                'company_name' => 'RF IS',
-                'company_address' => null,
-                'company_phone' => null,
-                'company_email' => null,
-                'logo_url' => null,
-                'header_text' => null,
-                'footer_text' => null,
-                'payment_notes' => null,
-            ];
+            ? InvoiceTemplate::query()->first()
+            : null;
+        $template ??= new InvoiceTemplate([
+            'name' => 'default',
+            'company_name' => 'RF IS',
+        ]);
 
         $invoiceData = [
             'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
@@ -302,6 +225,7 @@ class PaymentController extends Controller
             [
                 'Content-Type' => 'text/html; charset=UTF-8',
                 'Content-Disposition' => 'attachment; filename="'.strtolower($invoiceData['invoice_number']).'.html"',
+                'X-Content-Type-Options' => 'nosniff',
             ],
         );
     }
@@ -318,40 +242,5 @@ class PaymentController extends Controller
         ]);
 
         return redirect()->route('payments.index');
-    }
-
-    private function monthlyTuitionMetrics($payments): array
-    {
-        $now = now(config('app.timezone', 'Asia/Jakarta'));
-        $monthStart = $now->copy()->startOfMonth();
-        $monthEnd = $now->copy()->endOfMonth();
-        $monthLabel = $now->format('F Y');
-
-        $tuitionPayments = $payments->filter(fn (Payment $payment): bool => strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'INVOICE'
-            && strtoupper((string) $payment->payment_type) === 'TUITION'
-        );
-
-        $currentMonthTuition = $tuitionPayments->filter(fn (Payment $payment): bool => $payment->payment_date
-            && $payment->payment_date->betweenIncluded($monthStart, $monthEnd)
-        );
-
-        return [
-            'month_label' => $monthLabel,
-            'paid' => $currentMonthTuition
-                ->filter(fn (Payment $payment): bool => (float) ($payment->remaining_amount ?? 0) <= 0.0)
-                ->count(),
-            'unpaid' => $currentMonthTuition
-                ->filter(fn (Payment $payment): bool => (float) ($payment->paid_amount ?? 0) <= 0.0 && (float) ($payment->remaining_amount ?? 0) > 0.0)
-                ->count(),
-            'partial' => $currentMonthTuition
-                ->filter(fn (Payment $payment): bool => (float) ($payment->paid_amount ?? 0) > 0.0 && (float) ($payment->remaining_amount ?? 0) > 0.0)
-                ->count(),
-            'previous_unpaid' => $tuitionPayments
-                ->filter(fn (Payment $payment): bool => $payment->payment_date
-                    && $payment->payment_date->lt($monthStart)
-                    && (float) ($payment->remaining_amount ?? 0) > 0.0
-                )
-                ->count(),
-        ];
     }
 }
