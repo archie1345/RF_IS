@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Megaphone, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import AnnouncementCard from '@/components/announcements/AnnouncementCard.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
-import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
@@ -18,22 +19,13 @@ import {
     update as announcementUpdate,
 } from '@/routes/announcements';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableRow } from '@/types/resource-table';
+import type { TableBadgeCell, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{ isAdmin: boolean; rows: TableRow[] }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Pengumuman', href: announcementsIndex.url() },
-];
-
-const columns: TableColumn[] = [
-    { key: 'title', label: 'Judul' },
-    { key: 'message', label: 'Isi' },
-    { key: 'target', label: 'Penerima' },
-    { key: 'status', label: 'Status' },
-    { key: 'author', label: 'Pembuat' },
-    { key: 'published', label: 'Terbit' },
 ];
 
 const targetRoleOptions = [
@@ -49,6 +41,7 @@ const activeOptions = [
     { value: '0', label: 'Disembunyikan' },
 ];
 
+const searchQuery = ref('');
 const showForm = ref(false);
 const editingId = ref<number | null>(null);
 const form = useForm({
@@ -59,6 +52,51 @@ const form = useForm({
     expire_at: '',
     is_active: '1',
 });
+
+function statusText(row: TableRow): string {
+    const status = row.status;
+
+    if (status && typeof status === 'object' && 'text' in status) {
+        return String((status as TableBadgeCell).text);
+    }
+
+    return String(status ?? '');
+}
+
+const filteredRows = computed(() => {
+    const query = searchQuery.value.trim().toLowerCase();
+    if (!query) return props.rows;
+
+    return props.rows.filter((row) => [
+        row.title,
+        row.message,
+        row.target,
+        row.author,
+        row.published,
+        statusText(row),
+    ].some((value) => String(value ?? '').toLowerCase().includes(query)));
+});
+
+const metrics = computed(() => [
+    {
+        label: 'Total pengumuman',
+        value: String(props.rows.length),
+        detail: props.isAdmin ? 'Semua pengumuman yang tersimpan' : 'Pengumuman yang tersedia untuk peran ini',
+        tone: 'info' as const,
+    },
+    {
+        label: 'Sedang diterbitkan',
+        value: String(props.rows.filter((row) => statusText(row) === 'Diterbitkan').length),
+        detail: 'Aktif dan berada dalam periode publikasi',
+        tone: 'success' as const,
+    },
+    {
+        label: 'Terjadwal',
+        value: String(props.rows.filter((row) => statusText(row) === 'Terjadwal').length),
+        detail: props.isAdmin ? 'Akan terbit otomatis sesuai jadwal' : 'Belum tersedia untuk akun ini',
+        tone: 'neutral' as const,
+    },
+]);
 
 function resetForm(): void {
     form.reset();
@@ -125,32 +163,58 @@ function removeAnnouncement(row: TableRow): void {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
             <PageSection
+                eyebrow="Pusat informasi"
                 title="Pengumuman"
-                description="Informasi penting klub, perubahan jadwal, dan pengingat untuk setiap kelompok pengguna."
+                description="Informasi penting klub, perubahan jadwal, pengingat pembayaran, event, dan pemberitahuan untuk setiap peran."
             >
                 <template v-if="props.isAdmin" #actions>
-                    <Button type="button" @click="openCreate">Buat pengumuman</Button>
+                    <Button type="button" @click="openCreate">
+                        <Megaphone class="mr-2 size-4" />Buat pengumuman
+                    </Button>
                 </template>
+
+                <div class="grid gap-4 md:grid-cols-3">
+                    <StatCard v-for="metric in metrics" :key="metric.label" v-bind="metric" />
+                </div>
             </PageSection>
 
-            <DataTable
+            <PageSection
                 title="Daftar pengumuman"
-                :description="props.isAdmin ? 'Admin dapat membuat, mengubah, menyembunyikan, dan menghapus pengumuman.' : 'Pengumuman yang berlaku untuk akun ini.'"
-                :columns="columns"
-                :rows="props.rows"
-                action-label="Tindakan"
-                empty-text="Belum ada pengumuman."
-                searchable
+                :description="props.isAdmin
+                    ? 'Kelola pengumuman aktif, terjadwal, disembunyikan, dan kedaluwarsa dalam tampilan kartu.'
+                    : 'Pengumuman yang berlaku untuk peran aktif Anda.'"
             >
-                <template v-if="props.isAdmin" #row-actions="{ row }">
-                    <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="openEdit(row)">Ubah</Button>
-                        <Button type="button" size="sm" variant="destructive" @click="removeAnnouncement(row)">
-                            Hapus
-                        </Button>
-                    </ActionButtonsRow>
+                <template #actions>
+                    <label class="relative block w-full sm:w-72">
+                        <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            v-model="searchQuery"
+                            type="search"
+                            placeholder="Cari pengumuman..."
+                            class="h-10 w-full rounded-xl border bg-background pr-3 pl-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                        />
+                    </label>
                 </template>
-            </DataTable>
+
+                <div v-if="filteredRows.length" class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                    <AnnouncementCard
+                        v-for="row in filteredRows"
+                        :key="String(row.id)"
+                        :announcement="row"
+                        :editable="props.isAdmin"
+                        @edit="openEdit"
+                        @remove="removeAnnouncement"
+                    />
+                </div>
+
+                <div v-else class="rounded-2xl border border-dashed p-10 text-center">
+                    <Megaphone class="mx-auto size-9 text-muted-foreground" />
+                    <p class="mt-3 font-semibold">Tidak ada pengumuman yang cocok</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        {{ searchQuery ? 'Ubah kata pencarian atau hapus filter.' : 'Belum ada pengumuman yang tersedia.' }}
+                    </p>
+                </div>
+            </PageSection>
         </div>
 
         <FormModal :open="showForm && props.isAdmin" max-width-class="max-w-2xl" @close="closeForm">
