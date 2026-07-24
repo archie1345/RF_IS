@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,13 +15,7 @@ class Group extends Model
 
     protected $table = 'class_groups';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'group_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'branch_id',
@@ -39,13 +34,26 @@ class Group extends Model
         'is_active',
     ];
 
-    protected $dates = ['deleted_at', 'single_session_date'];
+    protected function casts(): array
+    {
+        return [
+            'day_of_week' => 'integer',
+            'single_session_date' => 'date',
+            'is_active' => 'boolean',
+        ];
+    }
 
-    protected $casts = [
-        'day_of_week' => 'integer',
-        'single_session_date' => 'date',
-        'is_active' => 'boolean',
-    ];
+    public function scopeAssignedToCoach(Builder $query, mixed $coachId): Builder
+    {
+        if (! $coachId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $assigned) use ($coachId): void {
+            $assigned->where('coach_id', $coachId)
+                ->orWhereHas('coaches', fn (Builder $coaches) => $coaches->where('coaches.coach_id', $coachId));
+        });
+    }
 
     public function athletes(): HasMany
     {
