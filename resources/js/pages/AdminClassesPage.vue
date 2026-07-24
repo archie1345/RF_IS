@@ -8,6 +8,7 @@ import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { classes as adminClasses } from '@/routes/admin';
@@ -55,6 +56,7 @@ const props = withDefaults(
         canDeleteClasses: true,
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -183,7 +185,11 @@ const classTableRows = computed<TableRow[]>(() =>
                 : `${typeLabel} · min ${minBelt}`;
         const activeSessions = Number(item.active_sessions_count ?? 0);
         const archivedSessions = Number(item.archived_sessions_count ?? 0);
-        const coachNames = item.coaches?.length ? item.coaches : item.coach && item.coach !== 'Belum ada coach' ? [item.coach] : [];
+        const coachNames = item.coaches?.length
+            ? item.coaches
+            : item.coach && item.coach !== 'Belum ada coach'
+              ? [item.coach]
+              : [];
 
         return {
             id: String(item.id),
@@ -191,7 +197,10 @@ const classTableRows = computed<TableRow[]>(() =>
             class: item.name,
             class_meta: classMeta,
             class_type_label: typeLabel,
-            category: normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
+            category:
+                normalizeClassType(item.class_type) === 'private'
+                    ? '-'
+                    : item.training_group || 'Belum ada kategori',
             private_athlete: privateAthlete,
             branch: item.branch || '-',
             coach: coachNames.join(', ') || 'Belum ada pelatih',
@@ -389,15 +398,21 @@ function saveClass() {
     else form.post(groupStore.url(), options);
 }
 
-function deleteClass(item: ClassRecord) {
-    if (window.confirm(`Delete/deactivate kelas ${item.name}?`)) {
-        router.delete(groupDestroy.url(item.id), { preserveScroll: true });
-    }
+async function deleteClass(item: ClassRecord): Promise<void> {
+    const confirmed = await popup.confirm({
+        title: 'Hapus atau nonaktifkan kelas?',
+        message: `Kelas “${item.name}” akan dihapus bila belum memiliki riwayat. Kelas yang sudah memiliki sesi atau attendance akan dinonaktifkan agar seluruh riwayat tetap aman.`,
+        tone: 'danger',
+        confirmLabel: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+
+    router.delete(groupDestroy.url(item.id), { preserveScroll: true });
 }
 
 function deleteClassFromRow(row: TableRow) {
     const item = classFromRow(row);
-    if (item) deleteClass(item);
+    if (item) void deleteClass(item);
 }
 
 watch(
@@ -467,6 +482,13 @@ watch(
                     </div>
                     <span v-else-if="column.key === 'participants'" class="inline-flex items-center gap-1 font-bold text-foreground">
                         <Users class="size-3.5" /> {{ value }}
+                    </span>
+                    <span
+                        v-else-if="column.key === 'weekly_schedule_status'"
+                        class="inline-flex rounded-full px-3 py-1 text-xs font-black"
+                        :class="String(value).toLowerCase().includes('active') ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'"
+                    >
+                        {{ value }}
                     </span>
                     <span
                         v-else-if="column.key === 'status'"
