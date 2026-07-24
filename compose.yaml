@@ -31,7 +31,7 @@ services:
 
       usermod -a -G \"$$group_name\" www-data;
 
-      composer install --ignore-platform-req=php;
+      composer install --no-interaction --prefer-dist;
 
       mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
 
@@ -86,7 +86,7 @@ services:
 
     command: >
       sh -c "
-      npm install &&
+      npm install --no-audit --no-fund &&
       npm run dev -- --host $$VITE_HOST --port $$VITE_PORT
       "
 
