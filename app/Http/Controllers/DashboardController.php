@@ -12,6 +12,7 @@ use App\Models\Event;
 use App\Models\Payment;
 use App\Models\TrainingSession;
 use App\Models\UserCertification;
+use App\Services\ActiveRoleContextService;
 use App\Services\AttendanceVisibilityService;
 use App\Services\ParentChildContextService;
 use App\Services\PaymentVisibilityService;
@@ -24,6 +25,7 @@ class DashboardController extends Controller
     use FormatsPresentationData;
 
     public function __construct(
+        private readonly ActiveRoleContextService $activeRoleContext,
         private readonly ParentChildContextService $childContext,
         private readonly AttendanceVisibilityService $attendanceVisibility,
         private readonly PaymentVisibilityService $paymentVisibility,
@@ -32,7 +34,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        $role = $user?->primaryRole() ?? 'athlete';
+        $role = $this->activeRoleContext->activeRole($request, $user);
         $children = $role === 'parent' ? $this->childContext->sharedChildrenFor($user)->all() : [];
         $activeChild = $role === 'parent' ? $this->childContext->activeChildFor($request, true) : null;
 
@@ -114,19 +116,25 @@ class DashboardController extends Controller
         return Announcement::query()
             ->with('creator:id,name')
             ->where('is_active', true)
-            ->when(! $isAdmin, fn ($q) => $q->whereIn('target_role', $roleTargets))
-            ->where(fn ($q) => $q->whereNull('publish_at')->orWhere('publish_at', '<=', now()))
-            ->where(fn ($q) => $q->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
+            ->when(! $isAdmin, fn ($query) => $query->whereIn('target_role', $roleTargets))
+            ->where(fn ($query) => $query->whereNull('publish_at')->orWhere('publish_at', '<=', now()))
+            ->where(fn ($query) => $query->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
+            ->latest('publish_at')
             ->latest('id')
             ->limit(8)
             ->get()
             ->map(fn (Announcement $announcement) => [
                 'id' => 'DANN-'.$announcement->id,
+                'announcement_id' => $announcement->id,
                 'title' => $announcement->title,
-                'message' => str($announcement->message)->limit(120)->toString(),
+                'message' => str($announcement->message)->limit(180)->toString(),
+                'target' => $this->targetLabel($announcement->target_role),
                 'audience' => $this->targetLabel($announcement->target_role),
-                'published' => $announcement->publish_at?->format('d M Y') ?? ($announcement->created_at?->format('d M Y') ?? '-'),
-                'status' => $this->badge('Published', 'success'),
+                'target_role' => $announcement->target_role,
+                'author' => $announcement->creator?->name ?? 'Sistem',
+                'published' => $announcement->publish_at?->format('d M Y H:i')
+                    ?? ($announcement->created_at?->format('d M Y H:i') ?? '-'),
+                'status' => $this->badge('Diterbitkan', 'success'),
             ])
             ->values()
             ->all();
@@ -289,12 +297,11 @@ class DashboardController extends Controller
     private function targetLabel(?string $target): string
     {
         return match (strtoupper((string) $target)) {
-            'ALL' => 'All roles',
-            'ADMIN' => 'Admins',
-            'ATHLETE' => 'Athletes',
-            'COACH' => 'Coaches',
-            'PARENT' => 'Parents',
-            default => $target ? str((string) $target)->headline()->toString() : 'All roles',
+            'ADMIN' => 'Admin',
+            'ATHLETE' => 'Atlet',
+            'COACH' => 'Pelatih',
+            'PARENT' => 'Orang tua',
+            default => 'Semua pengguna',
         };
     }
 }
