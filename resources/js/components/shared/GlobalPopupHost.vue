@@ -19,7 +19,7 @@ const page = usePage<{
         info?: string | null;
     };
 }>();
-const primaryButton = ref<InstanceType<typeof Button> | null>(null);
+const primaryButton = ref<{ $el?: HTMLElement } | null>(null);
 
 const icon = computed(() => ({
     success: CheckCircle2,
@@ -55,10 +55,7 @@ watch(
     () => popup.state.open,
     (open) => {
         if (!open) return;
-        void nextTick(() => {
-            const element = primaryButton.value?.$el as HTMLElement | undefined;
-            element?.focus();
-        });
+        void nextTick(() => primaryButton.value?.$el?.focus());
     },
 );
 
