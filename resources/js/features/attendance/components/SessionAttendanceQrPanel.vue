@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { Check, Copy, QrCode, ShieldCheck, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import type { PagePropsWithQrFlash } from './SessionAttendanceQrPanel.types';
 import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/sessions/attendance-qr';
 
@@ -19,6 +20,7 @@ const props = defineProps<{
     };
 }>();
 
+const popup = useAppPopup();
 const page = usePage<PagePropsWithQrFlash>();
 const qrDataUrl = ref<string | null>(null);
 const renderError = ref<string | null>(null);
@@ -66,10 +68,18 @@ function openQr(): void {
     );
 }
 
-function closeQr(): void {
-    if (processing.value || !window.confirm('Tutup QR attendance? Kode ini langsung tidak dapat digunakan lagi.')) return;
-    processing.value = true;
+async function closeQr(): Promise<void> {
+    if (processing.value) return;
 
+    const confirmed = await popup.confirm({
+        title: 'Tutup QR attendance?',
+        message: 'Kode ini langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
+        tone: 'danger',
+        confirmLabel: 'Tutup QR',
+    });
+    if (!confirmed) return;
+
+    processing.value = true;
     router.delete(destroySessionQr.url(props.sessionId), {
         preserveScroll: true,
         onFinish: () => {
