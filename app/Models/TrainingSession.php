@@ -14,13 +14,7 @@ class TrainingSession extends Model
 
     protected $table = 'training_sessions';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'training_session_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'weekly_training_schedule_id',
@@ -49,16 +43,18 @@ class TrainingSession extends Model
         'attendance_qr_token',
     ];
 
-    protected $dates = ['deleted_at', 'session_date', 'start_time', 'end_time'];
-
-    protected $casts = [
-        'metadata' => 'array',
-        'attendance_qr_token' => 'encrypted',
-        'attendance_opens_at' => 'datetime',
-        'attendance_closes_at' => 'datetime',
-        'attendance_qr_generated_at' => 'datetime',
-        'attendance_qr_revoked_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'session_date' => 'date',
+            'metadata' => 'array',
+            'attendance_qr_token' => 'encrypted',
+            'attendance_opens_at' => 'datetime',
+            'attendance_closes_at' => 'datetime',
+            'attendance_qr_generated_at' => 'datetime',
+            'attendance_qr_revoked_at' => 'datetime',
+        ];
+    }
 
     public function weeklyTrainingSchedule(): BelongsTo
     {
