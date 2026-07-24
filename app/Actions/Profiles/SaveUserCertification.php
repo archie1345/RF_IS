@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserCertification;
 use App\Support\Profile\ProfileMedia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class SaveUserCertification
@@ -27,11 +28,20 @@ class SaveUserCertification
     public function update(User $user, UserCertification $certification, array $data, Request $request): void
     {
         $payload = collect($data)->except('file')->all();
+        $oldFile = $certification->file;
+        $newFile = null;
 
         if ($request->hasFile('file') && Schema::hasColumn('user_certifications', 'user_file_id')) {
-            $payload['user_file_id'] = $this->profileMedia->storeUserFileFromRequest($request, $user, 'CERTIFICATE')?->id;
+            $newFile = $this->profileMedia->storeUserFileFromRequest($request, $user, 'CERTIFICATE');
+            $payload['user_file_id'] = $newFile?->id;
         }
 
-        $certification->update($payload);
+        DB::transaction(function () use ($certification, $payload): void {
+            $certification->update($payload);
+        });
+
+        if ($newFile && $oldFile) {
+            $this->profileMedia->deleteUserFile($oldFile);
+        }
     }
 }
