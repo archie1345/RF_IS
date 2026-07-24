@@ -24,41 +24,37 @@ class UserDirectoryController extends Controller
     {
         $user = request()->user();
         abort_unless($user?->isAdmin(), 403);
-        $canViewSensitiveIdentifiers = (bool) $user?->isAdmin();
-        $parentScopedAthleteIds = null;
-
-        if ($user && $user->isParent()) {
-            $children = $user->children()->pluck('athletes.athlete_id');
-            $activeChildId = request()->session()->get('active_child_id');
-            $parentScopedAthleteIds = $activeChildId
-                ? $children->where(fn ($id) => $id === $activeChildId)
-                : $children;
-        }
 
         $athletes = Athlete::query()
             ->with(['user:id,name,email', 'branch:branch_id,branch_name', 'group:group_id,group_name', 'parent.user:id,name'])
-            ->when($parentScopedAthleteIds !== null, fn ($query) => $query->whereIn('athlete_id', $parentScopedAthleteIds))
             ->latest('athlete_id')
             ->get();
 
         $athleteUsers = User::query()
+            ->withRole('athlete')
             ->with([
-                'roleAssignments',
                 'athleteProfile.branch:branch_id,branch_name',
                 'athleteProfile.group:group_id,group_name',
                 'athleteProfile.parent.user:id,name',
             ])
-            ->whereNull('deleted_at')
-            ->get()
-            ->filter(fn (User $directoryUser) => $directoryUser->hasRole('athlete'))
-            ->values();
+            ->get();
+
+        $coachUsers = User::query()
+            ->withRole('coach')
+            ->with('coachProfile')
+            ->get();
+
+        $parentUsers = User::query()
+            ->withRole('parent')
+            ->with('parentProfile.athletes.user:id,name')
+            ->get();
 
         return Inertia::render('AthletesPage', [
             'metrics' => [
                 [
                     'label' => 'Active athlete records',
                     'value' => (string) $athletes->count(),
-                    'detail' => $athletes->whereNull('deleted_at')->count().' active profiles in the roster',
+                    'detail' => $athletes->count().' active profiles in the roster',
                     'tone' => 'success',
                 ],
                 [
@@ -74,7 +70,7 @@ class UserDirectoryController extends Controller
                     'tone' => 'info',
                 ],
             ],
-            'rows' => $athleteUsers->map(function (User $directoryUser) use ($canViewSensitiveIdentifiers) {
+            'rows' => $athleteUsers->map(function (User $directoryUser) {
                 $athlete = $directoryUser->athleteProfile;
 
                 return [
@@ -94,23 +90,15 @@ class UserDirectoryController extends Controller
                     'weight_kg' => $athlete?->weight_kg !== null
                         ? number_format((float) $athlete->weight_kg, 1).' kg'
                         : '-',
-                    'nik' => $canViewSensitiveIdentifiers
-                        ? ($athlete?->displayValue('nik') ?? 'Not stored')
-                        : null,
-                    'bpjs' => $canViewSensitiveIdentifiers
-                        ? ($athlete?->displayValue('bpjs') ?? 'Not stored')
-                        : null,
+                    'nik' => $athlete?->displayValue('nik') ?? 'Not stored',
+                    'bpjs' => $athlete?->displayValue('bpjs') ?? 'Not stored',
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
                     'status' => $athlete
                         ? $this->badge('Active', 'success')
                         : $this->badge('Profile incomplete', 'warning'),
                 ];
             })->values(),
-            'coachRows' => User::query()
-                ->with('coachProfile')
-                ->whereNull('deleted_at')
-                ->get()
-                ->filter(fn (User $directoryUser) => $directoryUser->hasRole('coach'))
+            'coachRows' => $coachUsers
                 ->map(function (User $directoryUser) {
                     $coach = $directoryUser->coachProfile;
 
@@ -126,11 +114,7 @@ class UserDirectoryController extends Controller
                     ];
                 })
                 ->values(),
-            'parentRows' => User::query()
-                ->with('parentProfile.athletes.user:id,name')
-                ->whereNull('deleted_at')
-                ->get()
-                ->filter(fn (User $directoryUser) => $directoryUser->hasRole('parent'))
+            'parentRows' => $parentUsers
                 ->map(function (User $directoryUser) {
                     $parent = $directoryUser->parentProfile;
 
@@ -175,7 +159,7 @@ class UserDirectoryController extends Controller
                     'label' => $parent->user?->name ?? 'Unknown parent',
                 ])
                 ->values(),
-            'canViewSensitiveIdentifiers' => $canViewSensitiveIdentifiers,
+            'canViewSensitiveIdentifiers' => true,
         ]);
     }
 
@@ -213,11 +197,22 @@ class UserDirectoryController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate([
             'athlete_ids' => ['nullable', 'array'],
-            'athlete_ids.*' => ['string', 'exists:athletes,athlete_id'],
+            'athlete_ids.*' => ['string', 'distinct', 'exists:athletes,athlete_id'],
         ]);
         $athleteIds = collect($validated['athlete_ids'] ?? [])->filter()->unique()->values();
 
         DB::transaction(function () use ($parent, $athleteIds): void {
+            Athlete::query()
+                ->where(function ($query) use ($parent, $athleteIds): void {
+                    $query->where('parent_id', $parent->parent_id);
+
+                    if ($athleteIds->isNotEmpty()) {
+                        $query->orWhereIn('athlete_id', $athleteIds->all());
+                    }
+                })
+                ->lockForUpdate()
+                ->get(['athlete_id']);
+
             $currentChildren = Athlete::query()->where('parent_id', $parent->parent_id);
 
             if ($athleteIds->isNotEmpty()) {
@@ -322,17 +317,17 @@ class UserDirectoryController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId, 'id')],
             'gender' => ['required', Rule::in(['MALE', 'FEMALE'])],
-            'bday' => ['required', 'date'],
+            'bday' => ['required', 'date', 'before_or_equal:today'],
             'phone' => ['nullable', 'string', 'max:20'],
-            'height_cm' => ['required', 'numeric', 'min:0'],
-            'weight_kg' => ['required', 'numeric', 'min:0'],
-            'alamat' => ['nullable', 'string'],
+            'height_cm' => ['required', 'numeric', 'min:30', 'max:300'],
+            'weight_kg' => ['required', 'numeric', 'min:1', 'max:500'],
+            'alamat' => ['nullable', 'string', 'max:1000'],
             'geup' => ['required', Rule::in(['GEUP_1', 'GEUP_2', 'GEUP_3', 'GEUP_4', 'GEUP_5', 'GEUP_6', 'GEUP_7', 'GEUP_8', 'GEUP_9', 'GEUP_10', 'DAN'])],
             'branch_id' => ['required', 'exists:branches,branch_id'],
             'group_id' => ['required', 'exists:class_groups,group_id'],
             'parent_id' => ['nullable', 'exists:parents,parent_id'],
-            'nik' => ['nullable', 'string', 'max:50'],
-            'bpjs' => ['nullable', 'string', 'max:50'],
+            'nik' => ['nullable', 'regex:/^\d{16}$/'],
+            'bpjs' => ['nullable', 'regex:/^\d{13}$/'],
         ]);
     }
 
@@ -349,13 +344,15 @@ class UserDirectoryController extends Controller
         ];
 
         if (! empty($validated['nik'])) {
-            $payload['nik_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['nik']));
-            $payload['nik_ciphertext'] = $validated['nik'];
+            $nik = preg_replace('/\s+/', '', $validated['nik']);
+            $payload['nik_hash'] = hash('sha256', $nik);
+            $payload['nik_ciphertext'] = $nik;
         }
 
         if (! empty($validated['bpjs'])) {
-            $payload['bpjs_hash'] = hash('sha256', preg_replace('/\s+/', '', $validated['bpjs']));
-            $payload['bpjs_ciphertext'] = $validated['bpjs'];
+            $bpjs = preg_replace('/\s+/', '', $validated['bpjs']);
+            $payload['bpjs_hash'] = hash('sha256', $bpjs);
+            $payload['bpjs_ciphertext'] = $bpjs;
         }
 
         return $payload;
