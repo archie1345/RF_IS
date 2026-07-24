@@ -3,6 +3,7 @@
 namespace App\Actions\Payments;
 
 use App\Actions\Payments\Concerns\NormalizesPaymentInput;
+use App\Actions\Payments\Concerns\ValidatesPaymentRecipient;
 use App\Models\Payment;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Support\Facades\DB;
@@ -11,17 +12,12 @@ use Illuminate\Validation\ValidationException;
 class UpdatePayment
 {
     use NormalizesPaymentInput;
+    use ValidatesPaymentRecipient;
 
     public function handle(Payment $payment, array $validated): Payment
     {
         $validated = $this->normalizePaymentData($validated);
-
-        if ($validated['bill_kind'] !== 'PAYROLL' && empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
-            throw ValidationException::withMessages([
-                'athlete_id' => 'Choose an athlete or another account for this bill.',
-                'billable_user_id' => 'Choose an athlete or another account for this bill.',
-            ]);
-        }
+        $this->validatePaymentRecipient($validated);
 
         return DB::transaction(function () use ($payment, $validated): Payment {
             $lockedPayment = Payment::query()
