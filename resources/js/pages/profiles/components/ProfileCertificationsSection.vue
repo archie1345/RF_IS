@@ -9,6 +9,7 @@ import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import { certificationTypeOptions, documentFileAccept } from '@/pages/profiles/profileOptions';
 import { certificationColumns, certificationRows } from '@/pages/profiles/profileTables';
 import type { ProfileCertification } from '@/pages/profiles/types';
@@ -20,6 +21,7 @@ const props = defineProps<{
     storeUrl: string;
     updateUrl: (id: number | string) => string;
 }>();
+const popup = useAppPopup();
 
 const rows = computed(() => certificationRows(props.certifications));
 const editingCertification = ref<ProfileCertification | null>(null);
@@ -93,9 +95,17 @@ function saveCertificationEdit(): void {
         });
 }
 
-function removeCertification(row: TableRow): void {
+async function removeCertification(row: TableRow): Promise<void> {
     const certification = findCertification(row);
-    if (!certification || !window.confirm(`Hapus sertifikasi “${certification.title}”?`)) return;
+    if (!certification) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus sertifikasi?',
+        message: `Sertifikasi “${certification.title}” dan berkas pendukungnya akan dihapus dari profil.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus sertifikasi',
+    });
+    if (!confirmed) return;
 
     router.delete(props.updateUrl(certification.id), { preserveScroll: true });
 }
