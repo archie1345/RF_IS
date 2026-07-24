@@ -26,15 +26,29 @@ class ReviewPaymentProof
             }
 
             if ($validated['decision'] === PaymentStatus::PROOF_REJECTED) {
-                return $this->reject($lockedPayment, $validated);
+                return $this->reject($lockedPayment, $reviewer, $validated);
             }
 
             return $this->approve($lockedPayment, $reviewer, $validated);
         });
     }
 
-    private function reject(Payment $payment, array $validated): Payment
+    private function reject(Payment $payment, User $reviewer, array $validated): Payment
     {
+        PaymentTransaction::query()->create([
+            'payment_id' => $payment->payment_id,
+            'verified_by' => $reviewer->id,
+            'amount' => 0,
+            'transaction_date' => now(),
+            'transaction_type' => PaymentTransaction::TYPE_PROOF_REJECTED,
+            'payment_method' => $this->paymentRows->extractCollectionMethod($payment),
+            'notes' => filled($validated['notes'] ?? null)
+                ? 'Payment proof rejected: '.trim((string) $validated['notes'])
+                : 'Payment proof rejected.',
+            'proof_path' => $payment->proof_path,
+            'proof_notes' => $payment->proof_notes,
+        ]);
+
         $payment->update([
             'proof_status' => PaymentStatus::PROOF_REJECTED,
             'proof_notes' => $validated['notes'] ?? null,
