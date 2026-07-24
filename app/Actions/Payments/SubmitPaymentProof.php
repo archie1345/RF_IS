@@ -10,15 +10,17 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class SubmitPaymentProof
 {
     public function handle(Payment $payment, User $payer, UploadedFile $file, ?string $notes = null): Payment
     {
-        $path = $file->store('payment-proofs', 'public');
+        $disk = Payment::PROOF_DISK_PRIVATE;
+        $path = $file->store('payment-proofs/'.$payment->payment_id, $disk);
 
         try {
-            return DB::transaction(function () use ($payment, $payer, $path, $notes): Payment {
+            return DB::transaction(function () use ($payment, $payer, $path, $disk, $notes): Payment {
                 $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->payment_id);
 
                 if ((float) ($lockedPayment->remaining_amount ?? 0) <= 0) {
@@ -36,6 +38,7 @@ class SubmitPaymentProof
                 $lockedPayment->update([
                     'payer_user_id' => $payer->id,
                     'proof_path' => $path,
+                    'proof_disk' => $disk,
                     'proof_status' => PaymentStatus::PROOF_SUBMITTED,
                     'proof_notes' => $notes,
                 ]);
@@ -49,13 +52,15 @@ class SubmitPaymentProof
                     'transaction_type' => PaymentTransaction::TYPE_PROOF_SUBMITTED,
                     'notes' => 'Payment proof submitted for review.',
                     'proof_path' => $path,
+                    'proof_disk' => $disk,
                     'proof_notes' => $notes,
                 ]);
 
                 return $lockedPayment->refresh();
             });
-        } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($path);
+        } catch (Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+
             throw $exception;
         }
     }
