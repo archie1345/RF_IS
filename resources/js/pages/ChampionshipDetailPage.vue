@@ -8,6 +8,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
@@ -47,6 +48,7 @@ const props = defineProps<{
     coachRows: TableRow[];
     coachOptions: SelectOption[];
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -159,16 +161,32 @@ function saveResult(): void {
     });
 }
 
-function removeRegistration(row: TableRow): void {
+async function removeRegistration(row: TableRow): Promise<void> {
     const registrationId = routeId(row.registration_id ?? row.id);
-    if (registrationId === null || !window.confirm(`Hapus pendaftaran ${String(row.athlete ?? '')}?`)) return;
+    if (registrationId === null) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus pendaftaran peserta?',
+        message: `Pendaftaran ${String(row.athlete ?? '')} akan dihapus dari event ini. Tagihan atau riwayat terkait dapat memblokir tindakan ini.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus pendaftaran',
+    });
+    if (!confirmed) return;
 
     router.delete(championshipRegistrationDestroy.url(registrationId), { preserveScroll: true });
 }
 
-function removeCoach(row: TableRow): void {
+async function removeCoach(row: TableRow): Promise<void> {
     const registrationId = routeId(row.registration_id ?? row.id);
-    if (registrationId === null || !window.confirm(`Hapus penugasan ${String(row.coach ?? '')}?`)) return;
+    if (registrationId === null) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus penugasan pelatih?',
+        message: `Penugasan ${String(row.coach ?? '')} pada event ini akan dihapus.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus penugasan',
+    });
+    if (!confirmed) return;
 
     router.delete(championshipCoachDestroy.url(registrationId), { preserveScroll: true });
 }
