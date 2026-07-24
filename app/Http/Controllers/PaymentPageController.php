@@ -51,7 +51,7 @@ class PaymentPageController extends Controller
             ]);
         }
 
-        $invoiceTemplate = $this->invoiceTemplate($isAdmin);
+        $invoiceTemplate = $this->invoiceTemplate();
         $tuitionMetrics = $this->monthlyTuitionMetrics($payments);
         $financeAttention = $isAdmin ? $this->financeAttention($payments) : null;
 
@@ -77,23 +77,13 @@ class PaymentPageController extends Controller
         ]);
     }
 
-    private function invoiceTemplate(bool $createWhenMissing): ?InvoiceTemplate
+    private function invoiceTemplate(): ?InvoiceTemplate
     {
         if (! Schema::hasTable('invoice_templates')) {
             return null;
         }
 
-        $template = InvoiceTemplate::query()->first();
-
-        if ($template || ! $createWhenMissing) {
-            return $template;
-        }
-
-        return InvoiceTemplate::query()->create([
-            'name' => 'default',
-            'company_name' => 'RF IS',
-            'payment_notes' => 'Please pay using the method agreed with the admin, then upload a clear receipt or transfer screenshot here.',
-        ]);
+        return InvoiceTemplate::query()->first();
     }
 
     private function athleteOptions(): Collection
@@ -124,8 +114,7 @@ class PaymentPageController extends Controller
     private function coachOptions(): Collection
     {
         return User::query()
-            ->whereHas('roleAssignments', fn ($query) => $query->where('role', 'coach'))
-            ->orWhere('role', 'coach')
+            ->withRole('coach')
             ->orderBy('name')
             ->get(['id', 'name', 'email'])
             ->map(fn (User $user) => [
@@ -192,7 +181,7 @@ class PaymentPageController extends Controller
                     ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
                     ->sum('amount');
                 $refundsTotal = (float) $payment->transactions
-                    ->where('transaction_type', 'REFUND')
+                    ->where('transaction_type', PaymentTransaction::TYPE_REFUND)
                     ->sum('amount');
 
                 return abs(max($paymentsTotal - $refundsTotal, 0) - (float) ($payment->paid_amount ?? 0)) >= 0.01;
@@ -215,9 +204,12 @@ class PaymentPageController extends Controller
 
     private function coachPayrollMetrics(Collection $payments): array
     {
-        $paidAmount = (float) $payments->sum(fn (Payment $payment) => (float) ($payment->paid_amount ?? 0));
-        $remainingAmount = (float) $payments->sum(fn (Payment $payment) => (float) ($payment->remaining_amount ?? 0));
-        $latestDate = $payments->first()?->payment_date?->format('d M Y') ?? '-';
+        $paidAmount = (float) $payments->sum(fn (Payment $payment): float => (float) ($payment->paid_amount ?? 0));
+        $remainingAmount = (float) $payments->sum(fn (Payment $payment): float => (float) ($payment->remaining_amount ?? 0));
+        $latestDate = $payments
+            ->pluck('payment_date')
+            ->filter()
+            ->max()?->format('d M Y') ?? '-';
 
         return [
             ['label' => 'Payroll records', 'value' => (string) $payments->count(), 'detail' => 'Payout records assigned to this coach account', 'tone' => 'info'],
