@@ -67,6 +67,13 @@ class PaymentVisibilityService
             });
     }
 
+    public function userCanViewPayment(Request $request, Payment $payment): bool
+    {
+        return $this->visiblePaymentsQuery($request)
+            ->whereKey($payment->payment_id)
+            ->exists();
+    }
+
     public function userCanSubmitProof(?User $user, Payment $payment, ?string $mode = null): bool
     {
         if (! $user || ! $this->isMemberInvoice($payment) || $user->isAdmin()) {
