@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\AdminAccountController;
+use App\Http\Controllers\Admin\AdminAccountLifecycleController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
 use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
@@ -43,12 +44,14 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
-Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
+
+Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('training-schedule', WeeklySchedulePageController::class)->name('training-schedule.index');
     Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
     Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
     Route::delete('training-schedules/{schedule}', [WeeklyScheduleController::class, 'destroy'])->name('training-schedules.destroy');
+
     Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
     Route::post('sessions', [SessionController::class, 'store'])->name('sessions.store');
     Route::put('sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
@@ -71,12 +74,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
     Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
-    Route::middleware('throttle:qr-scan')->group(function () {
+    Route::middleware('throttle:qr-scan')->group(function (): void {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
 
-    Route::prefix('users')->controller(UserDirectoryController::class)->group(function () {
+    Route::prefix('users')->controller(UserDirectoryController::class)->group(function (): void {
         Route::get('/', 'index')->name('users.index');
         Route::post('/', 'store')->name('users.store');
         Route::get('{user}', [ProfileAccessController::class, 'show'])->name('users.show');
@@ -98,18 +101,18 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::delete('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'destroy'])->name('users.achievements.destroy');
     });
 
-    Route::prefix('parents')->group(function () {
+    Route::prefix('parents')->group(function (): void {
         Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync');
     });
 
-    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function () {
+    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::post('switch', 'switch')->name('switch');
         Route::delete('switch', 'clear')->name('clear');
         Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
     });
 
-    Route::prefix('championships')->name('championships.')->group(function () {
+    Route::prefix('championships')->name('championships.')->group(function (): void {
         Route::get('/', ChampionshipPageController::class)->name('index');
         Route::post('events', [ChampionshipController::class, 'storeEvent'])->name('events.store');
         Route::put('events/{event}', [ChampionshipController::class, 'updateEvent'])->name('events.update');
@@ -125,7 +128,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
     });
 
-    Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function () {
+    Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function (): void {
         Route::post('/', 'store')->name('athletes.store');
         Route::get('{athlete}', 'show')->name('athletes.record.show');
         Route::put('{athlete}', 'update')->name('athletes.update');
@@ -135,7 +138,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
     });
 
-    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function (): void {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('attendance', [AdminAttendanceReportController::class, 'athletes'])->name('attendance');
@@ -170,25 +173,24 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
 
         Route::post('accounts', [AdminAccountController::class, 'store'])->name('accounts.store');
         Route::put('accounts/{user}', [AdminAccountController::class, 'update'])->name('accounts.update');
+        Route::get('accounts/{user}', [AdminController::class, 'show'])->name('accounts.show');
+        Route::post('accounts/{user}/profile', [AdminController::class, 'updateAccountProfile'])->name('accounts.profile.update');
+        Route::post('accounts/{user}/invitation', [AdminAccountLifecycleController::class, 'resendInvitation'])->name('accounts.invitation.resend');
+        Route::delete('accounts/{user}', [AdminAccountLifecycleController::class, 'destroy'])->name('accounts.destroy');
+        Route::put('accounts/{id}/restore', [AdminAccountLifecycleController::class, 'restore'])->name('accounts.restore');
+        Route::delete('accounts/{id}/hard-delete', [AdminAccountLifecycleController::class, 'forceDelete'])->name('accounts.force-delete');
 
-        Route::controller(AdminController::class)->group(function () {
-            Route::get('accounts/{user}', 'show')->name('accounts.show');
-            Route::post('accounts/{user}/invitation', 'resendInvitation')->name('accounts.invitation.resend');
-            Route::delete('accounts/{user}', 'destroyAccount')->name('accounts.destroy');
-            Route::post('accounts/{user}/profile', 'updateAccountProfile')->name('accounts.profile.update');
-            Route::put('accounts/{id}/restore', 'restoreAccount')->name('accounts.restore');
-            Route::delete('accounts/{id}/hard-delete', 'hardDelete')->name('accounts.force-delete');
-            Route::post('data-transfer/import', 'importCsv')->name('data-transfer.import');
-            Route::get('data-transfer/export', 'exportCsv')->name('data-transfer.export');
-            Route::get('data-transfer/template', 'downloadTemplate')->name('data-transfer.template');
-        });
+        Route::post('data-transfer/import', [AdminController::class, 'importCsv'])->name('data-transfer.import');
+        Route::get('data-transfer/export', [AdminController::class, 'exportCsv'])->name('data-transfer.export');
+        Route::get('data-transfer/template', [AdminController::class, 'downloadTemplate'])->name('data-transfer.template');
 
-        Route::controller(BranchController::class)->group(function () {
+        Route::controller(BranchController::class)->group(function (): void {
             Route::post('branches', 'store')->name('branches.store');
             Route::put('branches/{branch}', 'update')->name('branches.update');
             Route::delete('branches/{branch}', 'destroy')->name('branches.destroy');
         });
-        Route::controller(GroupController::class)->group(function () {
+
+        Route::controller(GroupController::class)->group(function (): void {
             Route::get('groups/{group}/athletes', 'athletes')->name('groups.athletes');
             Route::post('groups', 'store')->name('groups.store');
             Route::put('groups/{group}', 'update')->name('groups.update');
@@ -196,7 +198,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         });
     });
 
-    Route::prefix('payments')->name('payments.')->group(function () {
+    Route::prefix('payments')->name('payments.')->group(function (): void {
         Route::get('/', PaymentPageController::class)->name('index');
         Route::get('qris', QrisPaymentPageController::class)->name('qris');
         Route::get('export', PaymentExportController::class)->name('export.csv');
@@ -210,7 +212,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::get('{payment}/export', [PaymentController::class, 'exportInvoice'])->name('export');
     });
 
-    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
+    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::post('coach-sessions/{session}/attend', 'attendAsCoach')->name('coach-attend');
         Route::post('manual', 'store')->name('store');
