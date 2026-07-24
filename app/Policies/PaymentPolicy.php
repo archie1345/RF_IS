@@ -47,18 +47,10 @@ class PaymentPolicy
 
     public function exportInvoice(User $user, Payment $payment): bool
     {
-        if ($user->isAdmin()) {
-            return true;
+        if (! app()->bound('request') || (int) request()->user()?->id !== (int) $user->id) {
+            return false;
         }
 
-        if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
-            return $payment->payee_user_id !== null && (int) $payment->payee_user_id === (int) $user->id;
-        }
-
-        return $this->paymentVisibility->userCanSubmitProof($user, $payment)
-            || ($payment->billable_user_id !== null && (int) $payment->billable_user_id === (int) $user->id)
-            || ($payment->payer_user_id !== null && (int) $payment->payer_user_id === (int) $user->id)
-            || ($user->isAthlete() && (string) $payment->athlete_id === (string) $user->athleteProfile?->athlete_id)
-            || ($user->isParent() && $user->children()->where('athletes.athlete_id', $payment->athlete_id)->exists());
+        return $this->paymentVisibility->userCanViewPayment(request(), $payment);
     }
 }
