@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Finder\SplFileInfo;
 
-it('does not use browser-native alert or confirm dialogs', function () {
+it('uses the global popup instead of native dialogs or retired inline alerts', function () {
     $violations = collect(File::allFiles(resource_path('js')))
         ->filter(fn (SplFileInfo $file): bool => in_array($file->getExtension(), ['js', 'ts', 'vue'], true))
         ->mapWithKeys(function (SplFileInfo $file): array {
@@ -11,7 +11,13 @@ it('does not use browser-native alert or confirm dialogs', function () {
             $lines = preg_split('/\R/', File::get($file->getPathname())) ?: [];
 
             foreach ($lines as $index => $line) {
-                if (preg_match('/\bwindow\.(?:alert|confirm)\s*\(|(?<![\w.])(?:alert|confirm)\s*\(/', $line) === 1) {
+                $usesNativeDialog = preg_match(
+                    '/\bwindow\.(?:alert|confirm)\s*\(|(?<![\w.])(?:alert|confirm)\s*\(/',
+                    $line,
+                ) === 1;
+                $usesRetiredAlert = str_contains($line, 'AppAlert');
+
+                if ($usesNativeDialog || $usesRetiredAlert) {
                     $matches[] = ($index + 1).': '.trim($line);
                 }
             }
