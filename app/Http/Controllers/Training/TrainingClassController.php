@@ -35,6 +35,14 @@ class TrainingClassController extends Controller
                 'athletes.user',
                 'athletes.branch',
                 'athletes.trainingGroup',
+                'trainingSessions' => fn ($query) => $query
+                    ->with([
+                        'branch:branch_id,branch_name',
+                        'primaryCoach.user:id,name',
+                        'assignedCoaches.user:id,name',
+                    ])
+                    ->orderByDesc('session_date')
+                    ->orderByDesc('start_time'),
             ])
             ->withCount('athletes')
             ->orderBy('group_name')
