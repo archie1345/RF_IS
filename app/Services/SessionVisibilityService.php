@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Coach;
 use App\Models\TrainingSession;
 use App\Models\User;
+use App\Support\Domain\SessionStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,15 +29,31 @@ class SessionVisibilityService
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->where(function (Builder $sessionQuery) use ($coachId): void {
-            $sessionQuery->where('coach_id', $coachId);
+        return $query->where(function (Builder $visibilityQuery) use ($coachId): void {
+            $visibilityQuery
+                ->where(function (Builder $assignedQuery) use ($coachId): void {
+                    $assignedQuery->where('coach_id', $coachId);
 
-            if ($this->hasCoachPivotTable()) {
-                $sessionQuery->orWhereHas(
-                    'assignedCoaches',
-                    fn (Builder $coachQuery): Builder => $coachQuery->where('coaches.coach_id', $coachId),
-                );
-            }
+                    if ($this->hasCoachPivotTable()) {
+                        $assignedQuery->orWhereHas(
+                            'assignedCoaches',
+                            fn (Builder $coachQuery): Builder => $coachQuery->where('coaches.coach_id', $coachId),
+                        );
+                    }
+                })
+                ->orWhere(function (Builder $joinableQuery): void {
+                    $joinableQuery
+                        ->where('status', SessionStatus::NEEDS_ASSISTANT)
+                        ->where(function (Builder $dateQuery): void {
+                            $dateQuery
+                                ->whereDate('session_date', '>', today())
+                                ->orWhere(function (Builder $todayQuery): void {
+                                    $todayQuery
+                                        ->whereDate('session_date', today())
+                                        ->whereTime('end_time', '>=', now()->format('H:i:s'));
+                                });
+                        });
+                });
         });
     }
 
@@ -65,6 +82,18 @@ class SessionVisibilityService
     public function coachCanJoinSession(?string $coachId, TrainingSession $session): bool
     {
         if (! $coachId || ! $this->hasCoachPivotTable()) {
+            return false;
+        }
+
+        if ($session->status !== SessionStatus::NEEDS_ASSISTANT) {
+            return false;
+        }
+
+        if ($session->session_date?->isPast() && ! $session->session_date?->isToday()) {
+            return false;
+        }
+
+        if ($session->session_date?->isToday() && $session->end_time && now()->format('H:i:s') > (string) $session->end_time) {
             return false;
         }
 
