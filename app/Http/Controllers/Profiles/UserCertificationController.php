@@ -8,13 +8,15 @@ use App\Http\Controllers\Profiles\Concerns\AuthorizesProfileAccess;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Models\User;
 use App\Models\UserCertification;
+use App\Support\Profile\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class UserCertificationController extends Controller
 {
     use AuthorizesProfileAccess;
+
+    public function __construct(private readonly ProfileMedia $profileMedia) {}
 
     public function store(
         SaveUserCertificationRequest $request,
@@ -44,15 +46,10 @@ class UserCertificationController extends Controller
     {
         $this->authorizeProfileAccess($request, $user);
         abort_unless((int) $certification->user_id === (int) $user->id, 404);
+
         $file = $certification->file;
         $certification->delete();
-
-        if ($file) {
-            if ($file->file_path) {
-                Storage::disk('public')->delete($file->file_path);
-            }
-            $file->delete();
-        }
+        $this->profileMedia->deleteUserFile($file);
 
         return back()->with('status', 'Sertifikasi berhasil dihapus.');
     }
