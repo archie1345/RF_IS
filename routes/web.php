@@ -41,6 +41,7 @@ use App\Http\Controllers\Training\WeeklyScheduleController;
 use App\Http\Controllers\Training\WeeklySchedulePageController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
+use App\Http\Controllers\UserFileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -82,6 +83,8 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
+
+    Route::get('user-files/{userFile}/download', UserFileController::class)->name('user-files.download');
 
     Route::prefix('users')->group(function (): void {
         Route::get('{user}', [ProfileAccessController::class, 'show'])->name('users.show');
