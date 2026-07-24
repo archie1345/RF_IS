@@ -8,6 +8,7 @@ use App\Support\Profile\ProfileMedia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class SaveUserCertification
 {
@@ -22,7 +23,13 @@ class SaveUserCertification
             $payload['user_file_id'] = $userFile?->id;
         }
 
-        return $user->certifications()->create($payload);
+        try {
+            return DB::transaction(fn () => $user->certifications()->create($payload));
+        } catch (Throwable $exception) {
+            $this->profileMedia->deleteUserFile($userFile);
+
+            throw $exception;
+        }
     }
 
     public function update(User $user, UserCertification $certification, array $data, Request $request): void
@@ -36,9 +43,15 @@ class SaveUserCertification
             $payload['user_file_id'] = $newFile?->id;
         }
 
-        DB::transaction(function () use ($certification, $payload): void {
-            $certification->update($payload);
-        });
+        try {
+            DB::transaction(function () use ($certification, $payload): void {
+                $certification->update($payload);
+            });
+        } catch (Throwable $exception) {
+            $this->profileMedia->deleteUserFile($newFile);
+
+            throw $exception;
+        }
 
         if ($newFile && $oldFile) {
             $this->profileMedia->deleteUserFile($oldFile);
