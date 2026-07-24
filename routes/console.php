@@ -134,10 +134,11 @@ Artisan::command('app:database-audit', function () {
         'payments' => [
             'payment_id', 'invoice_number', 'bill_kind', 'payment_type', 'status', 'proof_status',
             'total_amount', 'paid_amount', 'remaining_amount', 'payment_date', 'due_date', 'collection_method',
+            'proof_path', 'proof_disk',
         ],
         'payment_transactions' => [
             'ptid', 'payment_id', 'verified_by', 'amount', 'transaction_date', 'payment_method',
-            'transaction_type', 'proof_path', 'proof_notes',
+            'transaction_type', 'proof_path', 'proof_disk', 'proof_notes',
         ],
         'invoice_templates' => [
             'name', 'company_name', 'payment_notes', 'qris_enabled', 'qris_label',
