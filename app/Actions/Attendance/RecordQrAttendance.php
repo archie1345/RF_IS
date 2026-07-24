@@ -35,26 +35,31 @@ class RecordQrAttendance
             ]);
         }
 
-        $this->validateSession($session);
-        $this->validateEligibility($athlete, $session);
-
         return DB::transaction(function () use ($athlete, $session): array {
+            $lockedSession = TrainingSession::query()
+                ->lockForUpdate()
+                ->findOrFail($session->training_session_id);
+
+            $this->validateSession($lockedSession);
+            $this->validateEligibility($athlete, $lockedSession);
+
             $attendance = Attendance::withTrashed()
                 ->where('athlete_id', $athlete->athlete_id)
-                ->where('training_session_id', $session->training_session_id)
+                ->where('training_session_id', $lockedSession->training_session_id)
                 ->lockForUpdate()
                 ->first();
 
             if (! $attendance) {
                 $attendance = Attendance::withTrashed()
                     ->where('athlete_id', $athlete->athlete_id)
-                    ->whereDate('date', $session->session_date)
+                    ->whereNull('training_session_id')
+                    ->whereDate('date', $lockedSession->session_date)
                     ->lockForUpdate()
                     ->first();
             }
 
             $alreadyRecorded = $attendance?->status === AttendanceStatus::PRESENT
-                && (int) $attendance?->training_session_id === (int) $session->training_session_id;
+                && (int) $attendance?->training_session_id === (int) $lockedSession->training_session_id;
 
             if ($attendance && in_array($attendance->status, [AttendanceStatus::EXCUSED, AttendanceStatus::LATE], true)) {
                 throw ValidationException::withMessages([
@@ -73,8 +78,8 @@ class RecordQrAttendance
             }
 
             if (! $alreadyRecorded) {
-                $attendance->training_session_id = $session->training_session_id;
-                $attendance->date = $session->session_date;
+                $attendance->training_session_id = $lockedSession->training_session_id;
+                $attendance->date = $lockedSession->session_date;
                 $attendance->status = AttendanceStatus::PRESENT;
                 $attendance->checked_in_at = now();
                 $attendance->notes = trim((string) $attendance->notes) !== ''
