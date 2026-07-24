@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Payment;
+use App\Services\ActiveRoleContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -14,12 +15,14 @@ use Inertia\Response;
 
 class ChampionshipPageController extends Controller
 {
+    public function __construct(private readonly ActiveRoleContextService $activeRoleContext) {}
+
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        $role = $user?->primaryRole() ?? 'athlete';
+        $role = $this->activeRoleContext->activeRole($request, $user);
         $events = Event::query()
-            ->withCount(['registrations' => fn ($query) => $query->whereNull('deleted_at')])
+            ->withCount('registrations')
             ->orderBy('e_date')
             ->get();
         $athleteOptions = $this->athleteOptions($request, $role);
@@ -38,8 +41,8 @@ class ChampionshipPageController extends Controller
                 'id' => 'EVT-'.$event->event_id,
                 'event_id' => $event->event_id,
                 'event' => $event->e_name,
-                'date' => Carbon::parse($event->e_date)->format('d M Y'),
-                'date_value' => Carbon::parse($event->e_date)->format('Y-m-d'),
+                'date' => optional($event->e_date)->format('d M Y') ?? '-',
+                'date_value' => optional($event->e_date)->format('Y-m-d') ?? '',
                 'location' => $event->location ?? 'TBD',
                 'gmaps_url' => $event->gmaps_url,
                 'entry_fee' => (float) $event->entry_fee,
@@ -52,10 +55,13 @@ class ChampionshipPageController extends Controller
             ])->values(),
             'athletes' => $athleteOptions,
             'events' => in_array($role, ['admin', 'parent', 'athlete'], true)
-                ? $events->where('status', 'SCHEDULED')->map(fn (Event $event) => [
-                    'value' => $event->event_id,
-                    'label' => $event->e_name,
-                ])->values()
+                ? $events
+                    ->where('status', 'SCHEDULED')
+                    ->filter(fn (Event $event): bool => ! $event->e_date || ! $event->e_date->isPast())
+                    ->map(fn (Event $event) => [
+                        'value' => $event->event_id,
+                        'label' => $event->e_name,
+                    ])->values()
                 : [],
             'pendingPayments' => in_array($role, ['parent', 'athlete'], true)
                 ? $this->pendingChampionshipPayments($athleteOptions)
@@ -69,9 +75,20 @@ class ChampionshipPageController extends Controller
         $user = $request->user();
 
         if ($role === 'athlete') {
-            $query->where('athlete_id', $user?->athleteProfile?->athlete_id);
+            $athleteId = $user?->athleteProfile?->athlete_id;
+
+            if (! $athleteId) {
+                return collect();
+            }
+
+            $query->where('athlete_id', $athleteId);
         } elseif ($role === 'parent') {
-            $query->whereIn('athlete_id', $user->children()->pluck('athletes.athlete_id'));
+            $childIds = $user?->children()->pluck('athletes.athlete_id') ?? collect();
+            if ($childIds->isEmpty()) {
+                return collect();
+            }
+
+            $query->whereIn('athlete_id', $childIds);
         } elseif ($role !== 'admin') {
             return collect();
         }
@@ -91,20 +108,38 @@ class ChampionshipPageController extends Controller
         $query = EventRegistration::query();
 
         if (in_array($role, ['athlete', 'parent'], true)) {
-            $query->whereIn('athlete_id', $athleteOptions->pluck('value'));
-        } elseif (! in_array($role, ['admin', 'coach'], true)) {
-            return collect();
+            $athleteIds = $athleteOptions->pluck('value');
+
+            return $athleteIds->isEmpty()
+                ? collect()
+                : $query->whereIn('athlete_id', $athleteIds)->get();
         }
 
-        return $query->get();
+        if ($role === 'coach') {
+            $coachId = $request->user()?->coachProfile?->coach_id;
+            if (! $coachId) {
+                return collect();
+            }
+
+            return $query
+                ->whereHas('event.coachRegistrations', fn ($coaches) => $coaches->where('coach_id', $coachId))
+                ->get();
+        }
+
+        return $role === 'admin' ? $query->get() : collect();
     }
 
     private function pendingChampionshipPayments(Collection $athleteOptions): Collection
     {
+        $athleteIds = $athleteOptions->pluck('value');
+        if ($athleteIds->isEmpty()) {
+            return collect();
+        }
+
         return Payment::query()
             ->where('bill_kind', 'INVOICE')
             ->where('payment_type', 'CHAMPIONSHIP')
-            ->whereIn('athlete_id', $athleteOptions->pluck('value'))
+            ->whereIn('athlete_id', $athleteIds)
             ->where('remaining_amount', '>', 0)
             ->with('athlete.user:id,name')
             ->latest('payment_date')
