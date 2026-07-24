@@ -8,6 +8,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { locations as adminLocations } from '@/routes/admin';
@@ -28,6 +29,7 @@ const props = withDefaults(
         locations: () => [],
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -191,15 +193,21 @@ function saveLocation() {
     else form.post(branchStore.url(), options);
 }
 
-function deleteLocation(location: LocationRecord) {
-    if (window.confirm(`Delete/deactivate lokasi ${location.name}?`)) {
-        router.delete(branchDestroy.url(location.id), { preserveScroll: true });
-    }
+async function deleteLocation(location: LocationRecord): Promise<void> {
+    const confirmed = await popup.confirm({
+        title: 'Hapus atau nonaktifkan lokasi?',
+        message: `Lokasi “${location.name}” akan dihapus bila belum memiliki riwayat. Lokasi yang sudah digunakan akan dinonaktifkan agar kelas, atlet, dan attendance tetap dapat ditelusuri.`,
+        tone: 'danger',
+        confirmLabel: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+
+    router.delete(branchDestroy.url(location.id), { preserveScroll: true });
 }
 
 function deleteLocationFromRow(row: TableRow) {
     const location = locationFromRow(row);
-    if (location) deleteLocation(location);
+    if (location) void deleteLocation(location);
 }
 
 watch(
