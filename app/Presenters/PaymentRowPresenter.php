@@ -139,7 +139,7 @@ class PaymentRowPresenter
             ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
             ->sum('amount');
         $refunds = (float) $payment->transactions
-            ->where('transaction_type', 'REFUND')
+            ->where('transaction_type', PaymentTransaction::TYPE_REFUND)
             ->sum('amount');
 
         return max($payments - $refunds, 0);
@@ -193,7 +193,7 @@ class PaymentRowPresenter
             PaymentTransaction::TYPE_PROOF_SUBMITTED => 'Bukti dikirim',
             PaymentTransaction::TYPE_PROOF_REJECTED => 'Bukti ditolak',
             PaymentTransaction::TYPE_STATUS_CHANGE => 'Perubahan status',
-            'REFUND' => 'Refund',
+            PaymentTransaction::TYPE_REFUND => 'Refund',
             default => Str::headline(strtolower($type)),
         };
     }
