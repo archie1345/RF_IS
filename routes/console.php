@@ -53,6 +53,10 @@ Artisan::command('app:database-audit', function () {
             'ptid', 'payment_id', 'verified_by', 'amount', 'transaction_date', 'payment_method',
             'transaction_type', 'proof_path', 'proof_notes',
         ],
+        'invoice_templates' => [
+            'name', 'company_name', 'payment_notes', 'qris_enabled', 'qris_label',
+            'qris_instructions', 'qris_image_path',
+        ],
         'announcements' => ['id', 'title', 'target_role', 'is_active'],
         'events' => ['event_id', 'e_name', 'status'],
         'event_registrations' => [
