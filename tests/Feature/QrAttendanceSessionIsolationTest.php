@@ -11,6 +11,10 @@ use App\Support\Domain\AttendanceStatus;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Support\Carbon;
 
+afterEach(function () {
+    Carbon::setTestNow();
+});
+
 it('never reassigns another session attendance row from the same date', function () {
     Carbon::setTestNow('2026-07-24 10:00:00');
 
@@ -85,6 +89,4 @@ it('never reassigns another session attendance row from the same date', function
         'training_session_id' => $secondSession->training_session_id,
         'status' => AttendanceStatus::PRESENT,
     ]);
-
-    Carbon::setTestNow();
 });
