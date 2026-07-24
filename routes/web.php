@@ -30,6 +30,7 @@ use App\Http\Controllers\Profiles\CoachProfileController;
 use App\Http\Controllers\Profiles\ParentProfileController;
 use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\UserCertificationController;
+use App\Http\Controllers\QrisPaymentPageController;
 use App\Http\Controllers\SessionAttendanceQrController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Training\TrainingClassController;
@@ -197,6 +198,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
 
     Route::prefix('payments')->name('payments.')->group(function () {
         Route::get('/', PaymentPageController::class)->name('index');
+        Route::get('qris', QrisPaymentPageController::class)->name('qris');
         Route::get('export', PaymentExportController::class)->name('export.csv');
         Route::post('/', [PaymentController::class, 'store'])->name('store');
         Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
