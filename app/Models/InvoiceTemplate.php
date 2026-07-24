@@ -40,7 +40,7 @@ class InvoiceTemplate extends Model
 
     public function getQrisImageUrlAttribute(): ?string
     {
-        if (blank($this->qris_image_path)) {
+        if (! $this->hasQrisImage()) {
             return null;
         }
 
@@ -49,10 +49,28 @@ class InvoiceTemplate extends Model
 
     public function qrisImageAbsolutePath(): ?string
     {
-        if (blank($this->qris_image_path) || ! Storage::disk('public')->exists($this->qris_image_path)) {
+        if (! $this->hasQrisImage()) {
             return null;
         }
 
         return Storage::disk('public')->path($this->qris_image_path);
+    }
+
+    public function qrisImageDataUri(): ?string
+    {
+        if (! $this->hasQrisImage()) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        $mimeType = $disk->mimeType($this->qris_image_path) ?: 'image/png';
+
+        return 'data:'.$mimeType.';base64,'.base64_encode($disk->get($this->qris_image_path));
+    }
+
+    private function hasQrisImage(): bool
+    {
+        return filled($this->qris_image_path)
+            && Storage::disk('public')->exists($this->qris_image_path);
     }
 }
