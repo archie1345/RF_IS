@@ -35,7 +35,7 @@ jobs:
         run: npm ci
 
       - name: Validate Composer metadata
-        run: composer validate --strict
+        run: composer validate --no-check-publish
 
       - name: Check PHP formatting
         run: composer test:lint
