@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\AdminAccountLifecycleController;
+use App\Http\Controllers\Admin\AdminPageController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
 use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
@@ -139,7 +140,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     });
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function (): void {
-        Route::get('/', [AdminController::class, 'index'])->name('index');
+        Route::get('/', AdminPageController::class)->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('attendance', [AdminAttendanceReportController::class, 'athletes'])->name('attendance');
         Route::get('attendance/export', [AdminAttendanceReportController::class, 'exportAthletes'])->name('attendance.export');
@@ -179,10 +180,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::delete('accounts/{user}', [AdminAccountLifecycleController::class, 'destroy'])->name('accounts.destroy');
         Route::put('accounts/{id}/restore', [AdminAccountLifecycleController::class, 'restore'])->name('accounts.restore');
         Route::delete('accounts/{id}/hard-delete', [AdminAccountLifecycleController::class, 'forceDelete'])->name('accounts.force-delete');
-
-        Route::post('data-transfer/import', [AdminController::class, 'importCsv'])->name('data-transfer.import');
-        Route::get('data-transfer/export', [AdminController::class, 'exportCsv'])->name('data-transfer.export');
-        Route::get('data-transfer/template', [AdminController::class, 'downloadTemplate'])->name('data-transfer.template');
 
         Route::controller(BranchController::class)->group(function (): void {
             Route::post('branches', 'store')->name('branches.store');
