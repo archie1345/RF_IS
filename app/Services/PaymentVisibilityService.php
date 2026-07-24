@@ -76,6 +76,10 @@ class PaymentVisibilityService
         $request = $this->currentRequestFor($user);
         $mode = $this->resolveMode($user, $request, $mode);
 
+        if (! in_array($mode, ['athlete', 'parent'], true)) {
+            return false;
+        }
+
         $directUserIds = collect([
             $payment->billable_user_id,
             $payment->payer_user_id,
@@ -88,10 +92,6 @@ class PaymentVisibilityService
 
         if ($mode === 'athlete') {
             return (string) $payment->athlete_id === (string) $user->athleteProfile?->athlete_id;
-        }
-
-        if ($mode !== 'parent') {
-            return false;
         }
 
         $childAthletes = $user->children()
