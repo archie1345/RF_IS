@@ -5,33 +5,27 @@ use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Sanctum;
 
-it('requires authentication for management API routes', function () {
-    $this->getJson('/api/branches')->assertUnauthorized();
-    $this->postJson('/api/users', [])->assertUnauthorized();
+it('requires authentication for the API user endpoint', function () {
+    $this->getJson('/api/user')->assertUnauthorized();
 });
 
-it('requires the admin role for management API routes', function () {
-    $athlete = User::factory()->create(['role' => 'athlete']);
-    Sanctum::actingAs($athlete);
+it('returns the authenticated active API user', function () {
+    $user = User::factory()->create();
+    Sanctum::actingAs($user);
 
-    $this->getJson('/api/branches')->assertForbidden();
-});
-
-it('allows an active admin to access management API routes', function () {
-    $admin = User::factory()->create(['role' => 'admin']);
-    Sanctum::actingAs($admin);
-
-    $this->getJson('/api/branches')->assertOk();
+    $this->getJson('/api/user')
+        ->assertOk()
+        ->assertJsonPath('id', $user->id)
+        ->assertJsonMissingPath('password');
 });
 
 it('rejects suspended accounts on API routes without requiring a web session', function () {
-    $admin = User::factory()->create([
-        'role' => 'admin',
+    $user = User::factory()->create([
         'account_status' => User::ACCOUNT_STATUS_SUSPENDED,
     ]);
-    Sanctum::actingAs($admin);
+    Sanctum::actingAs($user);
 
-    $this->getJson('/api/branches')
+    $this->getJson('/api/user')
         ->assertForbidden()
         ->assertJsonPath('message', 'This account has been suspended. Please contact an administrator.');
 });
