@@ -24,22 +24,23 @@ class InvoiceTemplateController extends Controller
         }
 
         $validated = $request->validate([
-            'company_name' => ['required', 'string', 'max:150'],
-            'company_address' => ['nullable', 'string', 'max:255'],
-            'company_phone' => ['nullable', 'string', 'max:60'],
-            'company_email' => ['nullable', 'email', 'max:120'],
-            'logo_url' => ['nullable', 'url', 'max:255'],
-            'header_text' => ['nullable', 'string', 'max:255'],
-            'footer_text' => ['nullable', 'string', 'max:2000'],
-            'payment_notes' => ['nullable', 'string', 'max:2000'],
-            'qris_enabled' => ['required', 'boolean'],
-            'qris_label' => ['required', 'string', 'max:150'],
-            'qris_instructions' => ['nullable', 'string', 'max:1000'],
+            'company_name' => ['sometimes', 'required', 'string', 'max:150'],
+            'company_address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'company_phone' => ['sometimes', 'nullable', 'string', 'max:60'],
+            'company_email' => ['sometimes', 'nullable', 'email', 'max:120'],
+            'logo_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'header_text' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'footer_text' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'payment_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'qris_enabled' => ['sometimes', 'required', 'boolean'],
+            'qris_label' => ['sometimes', 'required', 'string', 'max:150'],
+            'qris_instructions' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'qris_image' => [
+                'sometimes',
                 'nullable',
                 File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5 * 1024),
             ],
-            'remove_qris_image' => ['nullable', 'boolean'],
+            'remove_qris_image' => ['sometimes', 'nullable', 'boolean'],
         ]);
 
         $template = InvoiceTemplate::query()->firstOrNew(['name' => 'default']);
@@ -77,7 +78,7 @@ class InvoiceTemplateController extends Controller
             $request,
             'admin.invoice-template.updated',
             'admin',
-            'Updated invoice and QRIS payment settings',
+            'Updated invoice or QRIS payment settings',
             $template,
             [
                 'qris_enabled' => $template->qris_enabled,
