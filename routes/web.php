@@ -27,6 +27,7 @@ use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentExportController;
 use App\Http\Controllers\PaymentPageController;
+use App\Http\Controllers\PaymentProofFileController;
 use App\Http\Controllers\ProfileAccessController;
 use App\Http\Controllers\Profiles\CoachProfileController;
 use App\Http\Controllers\Profiles\ParentProfileController;
@@ -222,6 +223,9 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::get('/', PaymentPageController::class)->name('index');
         Route::get('qris', QrisPaymentPageController::class)->name('qris');
         Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])->name('proof.submit');
+        Route::get('{payment}/proof-file', [PaymentProofFileController::class, 'payment'])->name('proof.download');
+        Route::get('transactions/{paymentTransaction}/proof-file', [PaymentProofFileController::class, 'transaction'])
+            ->name('transactions.proof.download');
         Route::get('{payment}/export', [PaymentController::class, 'exportInvoice'])->name('export');
 
         Route::middleware('role:admin')->group(function (): void {
