@@ -48,6 +48,7 @@ Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
     Route::get('training-schedule', WeeklySchedulePageController::class)->name('training-schedule.index');
     Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
     Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
@@ -71,29 +72,25 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     Route::delete('achievements/{achievement}', [UserAchievementController::class, 'destroyAchievement'])->name('achievements.destroy');
 
     Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
-    Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
-    Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
-    Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+    Route::middleware('role:admin')->group(function (): void {
+        Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
+    });
 
     Route::middleware('throttle:qr-scan')->group(function (): void {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
 
-    Route::prefix('users')->controller(UserDirectoryController::class)->group(function (): void {
-        Route::get('/', 'index')->name('users.index');
-        Route::post('/', 'store')->name('users.store');
+    Route::prefix('users')->group(function (): void {
         Route::get('{user}', [ProfileAccessController::class, 'show'])->name('users.show');
-        Route::put('{user}', 'update')->name('users.update');
         Route::patch('{user}/account', [ProfileAccessController::class, 'updateAccount'])->name('users.account.update');
         Route::post('{user}/profile', [ProfileAccessController::class, 'updateAccountProfile'])->name('users.profile.update');
         Route::put('{user}/athlete-profile', [ProfileAccessController::class, 'updateAthleteProfile'])->name('users.athlete-profile.update');
         Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update');
         Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update');
         Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update');
-        Route::delete('{user}', 'destroy')->name('users.destroy');
-        Route::post('{user}/restore', 'restore')->name('users.restore');
-        Route::delete('{user}/force', 'forceDelete')->name('users.force-delete');
         Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store');
         Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update');
         Route::delete('{user}/certifications/{certification}', [UserCertificationController::class, 'destroy'])->name('users.certifications.destroy');
@@ -102,41 +99,64 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::delete('{user}/achievements/{achievement}', [ProfileUserAchievementController::class, 'destroy'])->name('users.achievements.destroy');
     });
 
-    Route::prefix('parents')->group(function (): void {
-        Route::put('{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])->name('parents.children.sync');
+    Route::middleware('role:admin')->group(function (): void {
+        Route::prefix('users')->controller(UserDirectoryController::class)->group(function (): void {
+            Route::get('/', 'index')->name('users.index');
+            Route::post('/', 'store')->name('users.store');
+            Route::put('{user}', 'update')->name('users.update');
+            Route::delete('{user}', 'destroy')->name('users.destroy');
+            Route::post('{user}/restore', 'restore')->name('users.restore');
+            Route::delete('{user}/force', 'forceDelete')->name('users.force-delete');
+        });
+
+        Route::put('parents/{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])
+            ->name('parents.children.sync');
+
+        Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function (): void {
+            Route::post('/', 'store')->name('athletes.store');
+            Route::get('{athlete}', 'show')->name('athletes.record.show');
+            Route::put('{athlete}', 'update')->name('athletes.update');
+            Route::delete('{athlete}', 'destroy')->name('athletes.destroy');
+            Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
+            Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
+            Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
+        });
     });
 
-    Route::prefix('parent/children')->name('parent.children.')->controller(ParentChildContextController::class)->group(function (): void {
-        Route::get('/', 'index')->name('index');
-        Route::post('switch', 'switch')->name('switch');
-        Route::delete('switch', 'clear')->name('clear');
-        Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
-    });
+    Route::prefix('parent/children')
+        ->name('parent.children.')
+        ->middleware('role:parent')
+        ->controller(ParentChildContextController::class)
+        ->group(function (): void {
+            Route::get('/', 'index')->name('index');
+            Route::post('switch', 'switch')->name('switch');
+            Route::delete('switch', 'clear')->name('clear');
+            Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
+        });
 
     Route::prefix('championships')->name('championships.')->group(function (): void {
         Route::get('/', ChampionshipPageController::class)->name('index');
-        Route::post('events', [ChampionshipController::class, 'storeEvent'])->name('events.store');
-        Route::put('events/{event}', [ChampionshipController::class, 'updateEvent'])->name('events.update');
-        Route::delete('events/{event}', [ChampionshipController::class, 'destroyEvent'])->name('events.destroy');
         Route::get('{event}', [ChampionshipController::class, 'show'])->name('show');
-        Route::get('{event}/export', ChampionshipExportController::class)->name('export');
-        Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
-        Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
-        Route::delete('registrations/{registration}', [ChampionshipController::class, 'destroyRegistration'])->name('registrations.destroy');
-        Route::post('payments/{payment}/settle', ChampionshipPaymentController::class)->name('payments.settle');
-        Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
-        Route::delete('coaches/{coachRegistration}', [ChampionshipController::class, 'destroyCoachRegistration'])->name('coaches.destroy');
-        Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
-    });
 
-    Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function (): void {
-        Route::post('/', 'store')->name('athletes.store');
-        Route::get('{athlete}', 'show')->name('athletes.record.show');
-        Route::put('{athlete}', 'update')->name('athletes.update');
-        Route::delete('{athlete}', 'destroy')->name('athletes.destroy');
-        Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
-        Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
-        Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
+        Route::middleware('role:admin')->group(function (): void {
+            Route::post('events', [ChampionshipController::class, 'storeEvent'])->name('events.store');
+            Route::put('events/{event}', [ChampionshipController::class, 'updateEvent'])->name('events.update');
+            Route::delete('events/{event}', [ChampionshipController::class, 'destroyEvent'])->name('events.destroy');
+            Route::post('payments/{payment}/settle', ChampionshipPaymentController::class)->name('payments.settle');
+        });
+
+        Route::middleware('role:admin,parent,athlete')->group(function (): void {
+            Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
+        });
+
+        Route::middleware('role:admin,coach')->group(function (): void {
+            Route::get('{event}/export', ChampionshipExportController::class)->name('export');
+            Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
+            Route::delete('registrations/{registration}', [ChampionshipController::class, 'destroyRegistration'])->name('registrations.destroy');
+            Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
+            Route::delete('coaches/{coachRegistration}', [ChampionshipController::class, 'destroyCoachRegistration'])->name('coaches.destroy');
+            Route::post('registrations/{registration}/result', [ChampionshipController::class, 'recordResult'])->name('registrations.result');
+        });
     });
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function (): void {
@@ -198,15 +218,18 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     Route::prefix('payments')->name('payments.')->group(function (): void {
         Route::get('/', PaymentPageController::class)->name('index');
         Route::get('qris', QrisPaymentPageController::class)->name('qris');
-        Route::get('export', PaymentExportController::class)->name('export.csv');
-        Route::post('/', [PaymentController::class, 'store'])->name('store');
-        Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
-        Route::delete('{payment}', [PaymentController::class, 'destroy'])->name('destroy');
-        Route::post('{payment}/transactions', [PaymentController::class, 'recordPayment'])->name('transactions.store');
-        Route::put('{payment}/status', [PaymentController::class, 'updateStatus'])->name('status.update');
         Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])->name('proof.submit');
-        Route::put('{payment}/proof-review', [PaymentController::class, 'reviewProof'])->name('proof.review');
         Route::get('{payment}/export', [PaymentController::class, 'exportInvoice'])->name('export');
+
+        Route::middleware('role:admin')->group(function (): void {
+            Route::get('export', PaymentExportController::class)->name('export.csv');
+            Route::post('/', [PaymentController::class, 'store'])->name('store');
+            Route::put('{payment}', [PaymentController::class, 'update'])->name('update');
+            Route::delete('{payment}', [PaymentController::class, 'destroy'])->name('destroy');
+            Route::post('{payment}/transactions', [PaymentController::class, 'recordPayment'])->name('transactions.store');
+            Route::put('{payment}/status', [PaymentController::class, 'updateStatus'])->name('status.update');
+            Route::put('{payment}/proof-review', [PaymentController::class, 'reviewProof'])->name('proof.review');
+        });
     });
 
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function (): void {
