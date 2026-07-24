@@ -88,25 +88,29 @@ class AttendanceVisibilityService
             $childBranchIds = $children->pluck('branch_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
             $childGroupIds = $children->pluck('group_id')->filter()->map(fn ($id) => (string) $id)->unique()->values()->all();
 
-            if ($children->isEmpty() || $childBranchIds === []) {
+            if ($children->isEmpty() || $childBranchIds === [] || $childAthleteIds === []) {
                 return $this->emptyQuery($query);
             }
 
             return $query
                 ->whereIn('branch_id', $childBranchIds)
-                ->where(function (Builder $sessionQuery) use ($childAthleteIds, $childGroupIds): void {
-                    $sessionQuery->whereNull('group_id');
+                ->where(function (Builder $visibility) use ($childAthleteIds, $childGroupIds): void {
+                    $visibility->whereIn('dedicated_athlete_id', $childAthleteIds)
+                        ->orWhere(function (Builder $sharedSessions) use ($childAthleteIds, $childGroupIds): void {
+                            $sharedSessions->whereNull('dedicated_athlete_id')
+                                ->where(function (Builder $groups) use ($childAthleteIds, $childGroupIds): void {
+                                    $groups->whereNull('group_id');
 
-                    if ($childGroupIds !== []) {
-                        $sessionQuery->orWhereIn('group_id', $childGroupIds);
-                    }
+                                    if ($childGroupIds !== []) {
+                                        $groups->orWhereIn('group_id', $childGroupIds);
+                                    }
 
-                    if ($childAthleteIds !== []) {
-                        $sessionQuery->orWhereHas(
-                            'group.privateAthletes',
-                            fn (Builder $athleteQuery): Builder => $athleteQuery->whereIn('athletes.athlete_id', $childAthleteIds),
-                        );
-                    }
+                                    $groups->orWhereHas(
+                                        'group.privateAthletes',
+                                        fn (Builder $athletes): Builder => $athletes->whereIn('athletes.athlete_id', $childAthleteIds),
+                                    );
+                                });
+                        });
                 });
         }
 
@@ -119,9 +123,24 @@ class AttendanceVisibilityService
 
             return $query
                 ->where('branch_id', $athlete->branch_id)
-                ->when($athlete->group_id, fn (Builder $sessionQuery) => $sessionQuery->where(function (Builder $groupQuery) use ($athlete): void {
-                    $groupQuery->whereNull('group_id')->orWhere('group_id', $athlete->group_id);
-                }));
+                ->where(function (Builder $visibility) use ($athlete): void {
+                    $visibility->where('dedicated_athlete_id', $athlete->athlete_id)
+                        ->orWhere(function (Builder $sharedSessions) use ($athlete): void {
+                            $sharedSessions->whereNull('dedicated_athlete_id')
+                                ->where(function (Builder $groups) use ($athlete): void {
+                                    $groups->whereNull('group_id');
+
+                                    if ($athlete->group_id) {
+                                        $groups->orWhere('group_id', $athlete->group_id);
+                                    }
+
+                                    $groups->orWhereHas(
+                                        'group.privateAthletes',
+                                        fn (Builder $athletes): Builder => $athletes->where('athletes.athlete_id', $athlete->athlete_id),
+                                    );
+                                });
+                        });
+                });
         }
 
         return $this->emptyQuery($query);
