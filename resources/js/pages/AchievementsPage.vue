@@ -8,6 +8,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
@@ -26,6 +27,7 @@ const props = defineProps<{
     pageTitle: string;
     pageDescription: string;
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -129,10 +131,18 @@ function saveAchievement(): void {
     });
 }
 
-function removeAchievement(row: TableRow): void {
+async function removeAchievement(row: TableRow): Promise<void> {
     if (row.can_manage !== true) return;
     const id = routeId(row.achievement_id ?? row.id);
-    if (id === null || !window.confirm(`Hapus prestasi “${String(row.championship_name ?? '')}”?`)) return;
+    if (id === null) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus prestasi?',
+        message: `Prestasi “${String(row.championship_name ?? '')}” akan dihapus beserta lampiran manualnya.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus prestasi',
+    });
+    if (!confirmed) return;
 
     router.delete(achievementsDestroy.url(id), { preserveScroll: true });
 }
