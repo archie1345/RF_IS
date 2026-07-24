@@ -46,6 +46,7 @@ class ReviewPaymentProof
                 ? 'Payment proof rejected: '.trim((string) $validated['notes'])
                 : 'Payment proof rejected.',
             'proof_path' => $payment->proof_path,
+            'proof_disk' => $payment->proofStorageDisk(),
             'proof_notes' => $payment->proof_notes,
         ]);
 
@@ -77,6 +78,7 @@ class ReviewPaymentProof
         $newPaid = min($currentPaid + $amountToApprove, $total);
         $newRemaining = max($total - $newPaid, 0);
         $reviewedProofPath = $payment->proof_path;
+        $reviewedProofDisk = $payment->proofStorageDisk();
         $submittedProofNotes = $payment->proof_notes;
         $previousPaymentStatus = $payment->status ?? PaymentStatus::PENDING;
         $previousProofStatus = $payment->proof_status ?? PaymentStatus::PROOF_NONE;
@@ -96,6 +98,7 @@ class ReviewPaymentProof
                 $newRemaining,
             ),
             'proof_path' => $reviewedProofPath,
+            'proof_disk' => $reviewedProofDisk,
             'proof_notes' => $submittedProofNotes,
         ]);
 
@@ -105,6 +108,7 @@ class ReviewPaymentProof
             'status' => $newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING,
             'proof_status' => $newRemaining <= 0 ? PaymentStatus::PROOF_APPROVED : PaymentStatus::PROOF_NONE,
             'proof_path' => $newRemaining <= 0 ? $reviewedProofPath : null,
+            'proof_disk' => $reviewedProofDisk,
             'proof_notes' => $newRemaining <= 0 ? ($validated['notes'] ?? null) : null,
         ]);
 
