@@ -134,7 +134,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
         Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
     });
 
-    Route::prefix('admin')->name('admin.')->group(function () {
+    Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
         Route::get('attendance', [AdminAttendanceReportController::class, 'athletes'])->name('attendance');
@@ -211,7 +211,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
     Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('coach-sessions/{session}/attend', 'attendAsCoach')->name('coach-attend');
-        Route::post('scan/{token}', [AttendanceScanController::class, 'store'])->name('scan.store');
         Route::post('manual', 'store')->name('store');
         Route::post('bulk-update', 'bulkUpdate')->name('bulk-update');
         Route::put('{attendance}', 'update')->name('update');
