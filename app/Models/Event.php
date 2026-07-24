@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Event extends Model
@@ -12,12 +13,6 @@ class Event extends Model
     protected $table = 'events';
 
     protected $primaryKey = 'event_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
-
-    public $timestamps = true;
 
     protected $fillable = [
         'e_name',
@@ -35,14 +30,21 @@ class Event extends Model
         'poster_url',
     ];
 
-    protected $dates = ['deleted_at', 'e_date'];
+    protected function casts(): array
+    {
+        return [
+            'e_date' => 'date',
+            'entry_fee' => 'decimal:2',
+            'max_slots' => 'integer',
+        ];
+    }
 
-    public function registrations()
+    public function registrations(): HasMany
     {
         return $this->hasMany(EventRegistration::class, 'event_id', 'event_id');
     }
 
-    public function coachRegistrations()
+    public function coachRegistrations(): HasMany
     {
         return $this->hasMany(EventCoachRegistration::class, 'event_id', 'event_id');
     }
