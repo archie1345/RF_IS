@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Presenters\PaymentRowPresenter;
+use App\Support\ActivityLogger;
+use App\Support\CsvCell;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -27,8 +29,18 @@ class PaymentExportController extends Controller
             ->orderBy('payment_id')
             ->get();
 
+        ActivityLogger::log(
+            $request,
+            'payment.ledger.exported',
+            'payment',
+            'Exported finance ledger CSV',
+            null,
+            ['payment_count' => $payments->count()],
+        );
+
         return response()->streamDownload(function () use ($payments): void {
             $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, [
                 'invoice_number',
                 'bill_kind',
@@ -53,12 +65,12 @@ class PaymentExportController extends Controller
                     ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
                     ->sum('amount');
                 $ledgerRefunds = (float) $payment->transactions
-                    ->where('transaction_type', 'REFUND')
+                    ->where('transaction_type', PaymentTransaction::TYPE_REFUND)
                     ->sum('amount');
                 $ledgerPaid = max($ledgerPayments - $ledgerRefunds, 0);
                 $storedPaid = (float) ($payment->paid_amount ?? 0);
 
-                fputcsv($handle, [
+                fputcsv($handle, CsvCell::row([
                     $payment->invoice_number,
                     $payment->bill_kind,
                     $this->paymentRows->subject($payment),
@@ -75,12 +87,13 @@ class PaymentExportController extends Controller
                     $payment->proof_status,
                     $payment->transactions->count(),
                     $payment->notes,
-                ]);
+                ]));
             }
 
             fclose($handle);
         }, 'finance_ledger_'.now()->format('Ymd_His').'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 }
