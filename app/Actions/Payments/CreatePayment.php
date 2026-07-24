@@ -4,6 +4,7 @@ namespace App\Actions\Payments;
 
 use App\Actions\Payments\Concerns\NormalizesPaymentInput;
 use App\Models\Payment;
+use App\Models\User;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -15,13 +16,7 @@ class CreatePayment
     public function handle(array $validated): Payment
     {
         $validated = $this->normalizePaymentData($validated);
-
-        if ($validated['bill_kind'] !== 'PAYROLL' && empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
-            throw ValidationException::withMessages([
-                'athlete_id' => 'Choose an athlete or another account for this bill.',
-                'billable_user_id' => 'Choose an athlete or another account for this bill.',
-            ]);
-        }
+        $this->validateRecipient($validated);
 
         return DB::transaction(function () use ($validated): Payment {
             $totalAmount = (float) $validated['total_amount'];
@@ -45,5 +40,31 @@ class CreatePayment
                 'notes' => $this->notesFrom($validated),
             ]);
         });
+    }
+
+    private function validateRecipient(array $validated): void
+    {
+        if ($validated['bill_kind'] === 'PAYROLL') {
+            $isActiveCoach = User::query()
+                ->withRole('coach')
+                ->whereKey($validated['payee_user_id'] ?? null)
+                ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+                ->exists();
+
+            if (! $isActiveCoach) {
+                throw ValidationException::withMessages([
+                    'payee_user_id' => 'Choose an active coach account for payroll.',
+                ]);
+            }
+
+            return;
+        }
+
+        if (empty($validated['athlete_id']) && empty($validated['billable_user_id'])) {
+            throw ValidationException::withMessages([
+                'athlete_id' => 'Choose an athlete or another account for this bill.',
+                'billable_user_id' => 'Choose an athlete or another account for this bill.',
+            ]);
+        }
     }
 }
