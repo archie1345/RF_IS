@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
 import type { BreadcrumbItem } from '@/types';
@@ -27,6 +27,7 @@ const props = defineProps<{
     branches: SelectOption[];
     groups: SelectOption[];
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -77,8 +78,6 @@ const sessionTableFilters: TableFilter[] = [
     },
 ];
 
-const pendingDeleteSessionId = ref<number | null>(null);
-
 const effectiveFilters = computed<{
     visibility: SessionVisibility;
     archived_count: number;
@@ -122,20 +121,18 @@ function setVisibility(visibility: SessionVisibility) {
     );
 }
 
-function removeSession(row: TableRow) {
+async function removeSession(row: TableRow): Promise<void> {
     const id = sessionIdFromRow(row);
     if (!id) return;
-    pendingDeleteSessionId.value = id;
-}
 
-function cancelDeleteSession() {
-    pendingDeleteSessionId.value = null;
-}
+    const confirmed = await popup.confirm({
+        title: 'Hapus sesi latihan?',
+        message: 'Sesi yang dihasilkan ini akan dihapus. Riwayat terkait dapat memblokir penghapusan dan harus ditangani melalui halaman attendance sesi.',
+        tone: 'danger',
+        confirmLabel: 'Hapus sesi',
+    });
+    if (!confirmed) return;
 
-function confirmDeleteSession() {
-    if (!pendingDeleteSessionId.value) return;
-    const id = pendingDeleteSessionId.value;
-    pendingDeleteSessionId.value = null;
     router.delete(sessionDestroy.url(id), { preserveScroll: true });
 }
 
@@ -151,17 +148,6 @@ function joinSession(row: TableRow) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <AppAlert
-                v-if="pendingDeleteSessionId"
-                tone="danger"
-                title="Delete this session?"
-                description="This generated session will be removed. Create or edit classes from Admin → Kelas Latihan to generate sessions."
-                :primary-action="{ label: 'Delete session', variant: 'destructive' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmDeleteSession"
-                @secondary="cancelDeleteSession"
-            />
-
             <PageSection
                 title="Session"
                 description="Sessions are generated from Admin → Kelas Latihan. Archived sessions are hidden by default. Finished one-day classes move into Archived automatically."
