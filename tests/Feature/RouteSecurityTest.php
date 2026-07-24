@@ -42,9 +42,30 @@ it('registers one throttled QR attendance submission route', function () {
     expect($matchingRoutes->first()->gatherMiddleware())->toContain('throttle:qr-scan');
 });
 
-it('protects the admin web namespace with role middleware', function () {
-    $route = Route::getRoutes()->getByName('admin.index');
+it('protects sensitive web mutations with role middleware', function () {
+    $adminRoutes = [
+        'admin.index',
+        'users.index',
+        'athletes.update',
+        'announcements.store',
+        'payments.store',
+        'payments.transactions.store',
+        'payments.proof.review',
+        'championships.events.store',
+        'championships.payments.settle',
+    ];
 
-    expect($route)->not->toBeNull();
-    expect($route->gatherMiddleware())->toContain('role:admin');
+    foreach ($adminRoutes as $routeName) {
+        $route = Route::getRoutes()->getByName($routeName);
+
+        expect($route)->not->toBeNull();
+        expect($route->gatherMiddleware())->toContain('role:admin');
+    }
+
+    expect(Route::getRoutes()->getByName('parent.children.index')?->gatherMiddleware())
+        ->toContain('role:parent');
+    expect(Route::getRoutes()->getByName('championships.registrations.store')?->gatherMiddleware())
+        ->toContain('role:admin,parent,athlete');
+    expect(Route::getRoutes()->getByName('championships.registrations.result')?->gatherMiddleware())
+        ->toContain('role:admin,coach');
 });
