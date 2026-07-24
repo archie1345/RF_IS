@@ -9,6 +9,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
@@ -38,6 +39,7 @@ const props = withDefaults(
         isAthlete: false,
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -172,18 +174,28 @@ function submitEvent(): void {
     eventForm.post(championshipEventStore.url(), options);
 }
 
-function removeEvent(row: TableRow): void {
+async function removeEvent(row: TableRow): Promise<void> {
     const eventId = routeId(row.event_id ?? row.id);
     if (eventId === null) return;
 
     const registrationCount = Number(row.registrations_count ?? 0);
     if (registrationCount > 0) {
-        window.alert('Kejuaraan yang sudah memiliki riwayat peserta tidak dapat dihapus. Ubah status menjadi Dibatalkan.');
+        await popup.warning(
+            'Kejuaraan tidak dapat dihapus',
+            'Event ini sudah memiliki riwayat peserta. Ubah status menjadi Dibatalkan agar data pendaftaran, pembayaran, dan hasil tetap dapat ditelusuri.',
+        );
         openEditEvent(row);
         return;
     }
 
-    if (!window.confirm(`Hapus kejuaraan “${String(row.event ?? '')}”?`)) return;
+    const confirmed = await popup.confirm({
+        title: 'Hapus kejuaraan?',
+        message: `Kejuaraan “${String(row.event ?? '')}” akan dihapus. Tindakan ini hanya tersedia untuk event tanpa peserta.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus kejuaraan',
+    });
+    if (!confirmed) return;
+
     router.delete(championshipEventDestroy.url(eventId), { preserveScroll: true });
 }
 
