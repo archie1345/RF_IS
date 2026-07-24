@@ -6,12 +6,12 @@ import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import { useRole } from '@/composables/useRole';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
@@ -35,6 +35,7 @@ const props = defineProps<{
     availableModes: AppRole[];
     activeAthleteId: string | null;
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -73,7 +74,6 @@ const sessionForm = useForm({
 const attendanceRows = ref<TableRow[]>(props.rows.map((row) => ({ ...row })));
 const pendingAttendanceRowIds = ref<string[]>([]);
 const pendingCoachSessionIds = ref<number[]>([]);
-const attendanceUpdateError = ref('');
 const showSessionForm = ref(false);
 
 const { isAdmin, isCoach, isParent, isAthlete } = useRole(toRef(props, 'role'));
@@ -136,6 +136,7 @@ function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell
         PRESENT: { kind: 'badge', text: 'Hadir', tone: 'success' },
         ABSENT: { kind: 'badge', text: 'Tidak hadir', tone: 'danger' },
         EXCUSED: { kind: 'badge', text: 'Izin', tone: 'warning' },
+        LATE: { kind: 'badge', text: 'Terlambat', tone: 'warning' },
     } as Record<AttendanceStatusValue, TableBadgeCell>)[status];
 }
 
@@ -166,11 +167,10 @@ async function setAttendanceStatus(id: string, status: AttendanceStatusValue): P
 
     const attendanceId = routeId(id);
     if (!attendanceId) {
-        attendanceUpdateError.value = 'Baris attendance tidak valid.';
+        await popup.error('Attendance gagal diperbarui', 'Baris attendance tidak valid.');
         return;
     }
 
-    attendanceUpdateError.value = '';
     pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, id];
 
     try {
@@ -187,7 +187,10 @@ async function setAttendanceStatus(id: string, status: AttendanceStatusValue): P
         if (payload.row) replaceAttendanceRow(id, payload.row);
         else applyFallbackAttendanceStatus(id, status);
     } catch (error) {
-        attendanceUpdateError.value = error instanceof Error ? error.message : 'Attendance gagal diperbarui.';
+        await popup.error(
+            'Attendance gagal diperbarui',
+            error instanceof Error ? error.message : 'Attendance gagal diperbarui.',
+        );
     } finally {
         pendingAttendanceRowIds.value = pendingAttendanceRowIds.value.filter((rowId) => rowId !== id);
     }
@@ -196,17 +199,19 @@ async function setAttendanceStatus(id: string, status: AttendanceStatusValue): P
 function attendCoachSession(row: TableRow): void {
     const sessionId = routeId(row.session_id ?? row.id);
     if (!sessionId || isCoachSessionPending(sessionId)) {
-        if (!sessionId) attendanceUpdateError.value = 'Sesi latihan tidak valid.';
+        if (!sessionId) void popup.error('Attendance pelatih gagal', 'Sesi latihan tidak valid.');
         return;
     }
 
     pendingCoachSessionIds.value = [...pendingCoachSessionIds.value, sessionId];
-    attendanceUpdateError.value = '';
 
     router.post(coachAttend.url(sessionId), {}, {
         preserveScroll: true,
         onError: (errors) => {
-            attendanceUpdateError.value = String(errors.session ?? 'Attendance pelatih gagal disimpan.');
+            void popup.error(
+                'Attendance pelatih gagal',
+                String(errors.session ?? 'Attendance pelatih gagal disimpan.'),
+            );
         },
         onFinish: () => {
             pendingCoachSessionIds.value = pendingCoachSessionIds.value.filter((id) => id !== sessionId);
@@ -229,15 +234,6 @@ function submitSession(): void {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
-            <AppAlert
-                v-if="attendanceUpdateError"
-                tone="danger"
-                title="Attendance gagal diperbarui"
-                :description="attendanceUpdateError"
-                :secondary-action="{ label: 'Tutup', variant: 'outline' }"
-                @secondary="attendanceUpdateError = ''"
-            />
-
             <PageSection
                 eyebrow="Attendance workspace"
                 :title="roleTitle"
