@@ -7,7 +7,10 @@ use App\Models\InvoiceTemplate;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\File;
 
 class InvoiceTemplateController extends Controller
 {
@@ -27,16 +30,61 @@ class InvoiceTemplateController extends Controller
             'company_email' => ['nullable', 'email', 'max:120'],
             'logo_url' => ['nullable', 'url', 'max:255'],
             'header_text' => ['nullable', 'string', 'max:255'],
-            'footer_text' => ['nullable', 'string'],
-            'payment_notes' => ['nullable', 'string'],
+            'footer_text' => ['nullable', 'string', 'max:2000'],
+            'payment_notes' => ['nullable', 'string', 'max:2000'],
+            'qris_enabled' => ['required', 'boolean'],
+            'qris_label' => ['required', 'string', 'max:150'],
+            'qris_instructions' => ['nullable', 'string', 'max:1000'],
+            'qris_image' => [
+                'nullable',
+                File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5 * 1024),
+            ],
+            'remove_qris_image' => ['nullable', 'boolean'],
         ]);
 
-        InvoiceTemplate::query()->updateOrCreate(
-            ['name' => 'default'],
-            $validated,
-        );
+        $template = InvoiceTemplate::query()->firstOrNew(['name' => 'default']);
+        $oldImagePath = $template->qris_image_path;
+        $newImagePath = $request->file('qris_image')?->store('payment-qris', 'public');
+        $removeImage = (bool) ($validated['remove_qris_image'] ?? false);
 
-        ActivityLogger::log($request, 'admin.invoice-template.updated', 'admin', 'Updated invoice template settings');
+        unset($validated['qris_image'], $validated['remove_qris_image']);
+
+        try {
+            DB::transaction(function () use ($template, $validated, $newImagePath, $removeImage): void {
+                $template->fill($validated);
+
+                if ($newImagePath !== null) {
+                    $template->qris_image_path = $newImagePath;
+                } elseif ($removeImage) {
+                    $template->qris_image_path = null;
+                }
+
+                $template->save();
+            });
+        } catch (\Throwable $exception) {
+            if ($newImagePath !== null) {
+                Storage::disk('public')->delete($newImagePath);
+            }
+
+            throw $exception;
+        }
+
+        if ($oldImagePath !== null && ($newImagePath !== null || $removeImage)) {
+            Storage::disk('public')->delete($oldImagePath);
+        }
+
+        ActivityLogger::log(
+            $request,
+            'admin.invoice-template.updated',
+            'admin',
+            'Updated invoice and QRIS payment settings',
+            $template,
+            [
+                'qris_enabled' => $template->qris_enabled,
+                'qris_image_replaced' => $newImagePath !== null,
+                'qris_image_removed' => $removeImage && $newImagePath === null,
+            ],
+        );
 
         return back();
     }
