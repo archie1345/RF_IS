@@ -173,16 +173,20 @@ trait BuildsTrainingPayloads
 
     private function classSessionPayload(Group $group): Collection
     {
-        return TrainingSession::query()
-            ->where('group_id', $group->group_id)
-            ->with([
-                'branch:branch_id,branch_name',
-                'primaryCoach.user:id,name',
-                'assignedCoaches.user:id,name',
-            ])
-            ->orderByDesc('session_date')
-            ->orderByDesc('start_time')
-            ->get()
+        $sessions = $group->relationLoaded('trainingSessions')
+            ? $group->trainingSessions
+            : TrainingSession::query()
+                ->where('group_id', $group->group_id)
+                ->with([
+                    'branch:branch_id,branch_name',
+                    'primaryCoach.user:id,name',
+                    'assignedCoaches.user:id,name',
+                ])
+                ->orderByDesc('session_date')
+                ->orderByDesc('start_time')
+                ->get();
+
+        return $sessions
             ->map(function (TrainingSession $session): array {
                 $date = $session->session_date ? Carbon::parse((string) $session->session_date)->format('Y-m-d') : '-';
                 $start = $session->start_time ? substr((string) $session->start_time, 0, 5) : '';
@@ -227,6 +231,7 @@ trait BuildsTrainingPayloads
     private function coachOptions()
     {
         return Coach::query()
+            ->where('status', 'active')
             ->with('user:id,name')
             ->get()
             ->map(fn (Coach $coach) => ['value' => $coach->coach_id, 'label' => $coach->user?->name ?? 'Unknown coach'])
@@ -254,7 +259,8 @@ trait BuildsTrainingPayloads
             $coachId = $user->coachProfile?->coach_id;
             $classCoachIds = $this->classCoachIdsForPayload($schedule->group, $schedule->coach_id);
 
-            return $coachId !== null && ($classCoachIds->contains(fn ($id) => (string) $id === (string) $coachId) || $schedule->coach_id === null);
+            return $coachId !== null
+                && $classCoachIds->contains(fn ($id) => (string) $id === (string) $coachId);
         }
 
         return false;
