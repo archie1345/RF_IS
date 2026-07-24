@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -63,6 +64,8 @@ class Athlete extends Model
     {
         return [
             'joined_at' => 'date',
+            'height_cm' => 'decimal:2',
+            'weight_kg' => 'decimal:2',
             'nik_ciphertext' => 'encrypted',
             'bpjs_ciphertext' => 'encrypted',
         ];
@@ -76,6 +79,12 @@ class Athlete extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
+    }
+
+    public function privateGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class, 'class_group_private_athletes', 'athlete_id', 'group_id', 'athlete_id', 'group_id')
+            ->withTimestamps();
     }
 
     public function trainingGroup(): BelongsTo
