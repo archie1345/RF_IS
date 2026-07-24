@@ -8,10 +8,11 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${APP_PORT:-9200}:80"
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-9200}:80"
 
     volumes:
       - .:/var/www/html
+      - ./docker/php/dev.ini:/usr/local/etc/php/conf.d/zz-development.ini:ro
 
     depends_on:
       db:
@@ -21,26 +22,24 @@ services:
       sh -ec "
       umask 0002;
 
-      dev_gid=\"$${APP_DEV_GID:-1000}\";
-      group_name=\"$$(getent group \"$$dev_gid\" | cut -d: -f1 || true)\";
+      dev_gid="$${APP_DEV_GID:-1000}";
+      group_name="$$(getent group "$$dev_gid" | cut -d: -f1 || true)";
 
-      if [ -z \"$$group_name\" ]; then
-        groupadd --gid \"$$dev_gid\" appdev;
+      if [ -z "$$group_name" ]; then
+        groupadd --gid "$$dev_gid" appdev;
         group_name=appdev;
       fi;
 
-      usermod -a -G \"$$group_name\" www-data;
+      usermod -a -G "$$group_name" www-data;
 
-      composer install --no-interaction --prefer-dist;
+      composer install --no-interaction --no-progress --prefer-dist;
 
       mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
-
-      chown -R www-data:\"$$group_name\" /tmp/laravel storage bootstrap/cache;
-
+      chown -R www-data:"$$group_name" /tmp/laravel storage bootstrap/cache;
       find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +;
       find /tmp/laravel storage bootstrap/cache -type f -exec chmod 0664 {} +;
 
-      php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir().\" is not writable\\n\"); exit(1); }';
+      php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir()." is not writable\n"); exit(1); }';
 
       php artisan storage:link || true;
       CACHE_STORE=file php artisan optimize:clear;
@@ -71,7 +70,7 @@ services:
     working_dir: /var/www/html
 
     ports:
-      - "${VITE_PORT:-9201}:${VITE_PORT:-9201}"
+      - "${VITE_BIND_ADDRESS:-0.0.0.0}:${VITE_PORT:-9201}:${VITE_PORT:-9201}"
 
     volumes:
       - .:/var/www/html
@@ -85,9 +84,9 @@ services:
       VITE_HMR_ENABLED: ${VITE_HMR_ENABLED:-true}
 
     command: >
-      sh -c "
+      sh -ec "
       npm install --no-audit --no-fund &&
-      npm run dev -- --host $$VITE_HOST --port $$VITE_PORT
+      exec npm run dev -- --host $$VITE_HOST --port $$VITE_PORT
       "
 
     healthcheck:
@@ -108,7 +107,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "${DB_FORWARD_PORT:-9203}:3306"
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${DB_FORWARD_PORT:-9203}:3306"
 
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-laravel}
@@ -131,13 +130,13 @@ services:
       start_period: 60s
 
   phpmyadmin:
-    image: phpmyadmin:${PHPMYADMIN_VERSION:-latest}
+    image: phpmyadmin:${PHPMYADMIN_VERSION:-5.2}
 
     container_name: ${PHPMYADMIN_CONTAINER_NAME:-rf-phpmyadmin}
     restart: unless-stopped
 
     ports:
-      - "${PHPMYADMIN_PORT:-9202}:80"
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${PHPMYADMIN_PORT:-9202}:80"
 
     environment:
       PMA_HOST: ${DB_HOST:-db}
@@ -151,13 +150,13 @@ services:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1}
     container_name: ${MAILPIT_CONTAINER_NAME:-rf-mailpit}
     restart: unless-stopped
 
     ports:
-      - "${MAILPIT_WEB_PORT:-9204}:8025"
-      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_WEB_PORT:-9204}:8025"
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_SMTP_PORT:-1025}:1025"
 
 volumes:
   db_data:
