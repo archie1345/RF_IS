@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentTransaction extends Model
@@ -39,14 +40,20 @@ class PaymentTransaction extends Model
         'proof_notes',
     ];
 
-    protected $dates = ['deleted_at', 'transaction_date'];
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'decimal:2',
+            'transaction_date' => 'datetime',
+        ];
+    }
 
-    public function payment()
+    public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id', 'payment_id');
     }
 
-    public function verifier()
+    public function verifier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'verified_by', 'id');
     }
