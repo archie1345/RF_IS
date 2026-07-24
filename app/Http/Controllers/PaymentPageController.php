@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Presenters\PaymentRowPresenter;
+use App\Services\ActiveRoleContextService;
 use App\Services\PaymentVisibilityService;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Http\Request;
@@ -24,12 +25,13 @@ class PaymentPageController extends Controller
     public function __construct(
         private readonly PaymentVisibilityService $paymentVisibility,
         private readonly PaymentRowPresenter $paymentRows,
+        private readonly ActiveRoleContextService $activeRoleContext,
     ) {}
 
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        $role = $user?->primaryRole() ?? 'athlete';
+        $role = $this->activeRoleContext->activeRole($request, $user);
         $isAdmin = $role === 'admin';
         $payments = $this->paymentVisibility
             ->visiblePaymentsQuery($request, $role)
