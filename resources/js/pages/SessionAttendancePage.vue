@@ -10,6 +10,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
@@ -58,6 +59,7 @@ const props = defineProps<{
     coachRows: TableRow[];
     coachOptions: SelectOption[];
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -197,11 +199,18 @@ function confirmBulkUpdate(): void {
     router.post(attendanceBulkUpdate.url(), { attendance_ids: attendanceIds, status }, { preserveScroll: true });
 }
 
-function quickToggleQr(): void {
+async function quickToggleQr(): Promise<void> {
     if (qrProcessing.value) return;
 
     if (props.session.attendance_qr.is_active) {
-        if (!window.confirm('Tutup QR attendance sekarang? Kode langsung tidak dapat digunakan lagi.')) return;
+        const confirmed = await popup.confirm({
+            title: 'Tutup QR attendance?',
+            message: 'Kode aktif langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
+            tone: 'danger',
+            confirmLabel: 'Tutup QR',
+        });
+        if (!confirmed) return;
+
         qrProcessing.value = true;
         router.delete(destroySessionQr.url(props.session.id), {
             preserveScroll: true,
