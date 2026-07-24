@@ -52,21 +52,27 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('training-schedule', WeeklySchedulePageController::class)->name('training-schedule.index');
-    Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
-    Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
-    Route::delete('training-schedules/{schedule}', [WeeklyScheduleController::class, 'destroy'])->name('training-schedules.destroy');
+    Route::middleware('role:admin,coach')->group(function (): void {
+        Route::post('training-schedules', [WeeklyScheduleController::class, 'store'])->name('training-schedules.store');
+        Route::put('training-schedules/{schedule}', [WeeklyScheduleController::class, 'update'])->name('training-schedules.update');
+        Route::delete('training-schedules/{schedule}', [WeeklyScheduleController::class, 'destroy'])->name('training-schedules.destroy');
+    });
 
-    Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
-    Route::post('sessions', [SessionController::class, 'store'])->name('sessions.store');
-    Route::put('sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
-    Route::delete('sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
-    Route::post('sessions/{session}/join', [SessionController::class, 'join'])->name('sessions.join');
-    Route::get('sessions/{session}/attendance', [SessionController::class, 'attendanceSheet'])->name('sessions.attendance');
-    Route::post('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('sessions.attendance-qr.store');
-    Route::delete('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('sessions.attendance-qr.destroy');
-    Route::post('sessions/{session}/coach-attendance', [SessionController::class, 'addCoachAttendance'])->name('sessions.coach-attendance.store');
-    Route::put('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'updateCoachAttendance'])->name('sessions.coach-attendance.update');
-    Route::delete('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'destroyCoachAttendance'])->name('sessions.coach-attendance.destroy');
+    Route::middleware('role:admin,coach')->group(function (): void {
+        Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+        Route::post('sessions', [SessionController::class, 'store'])->name('sessions.store');
+        Route::put('sessions/{session}', [SessionController::class, 'update'])->name('sessions.update');
+        Route::delete('sessions/{session}', [SessionController::class, 'destroy'])->name('sessions.destroy');
+        Route::get('sessions/{session}/attendance', [SessionController::class, 'attendanceSheet'])->name('sessions.attendance');
+        Route::post('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'store'])->name('sessions.attendance-qr.store');
+        Route::delete('sessions/{session}/attendance-qr', [SessionAttendanceQrController::class, 'destroy'])->name('sessions.attendance-qr.destroy');
+        Route::post('sessions/{session}/coach-attendance', [SessionController::class, 'addCoachAttendance'])->name('sessions.coach-attendance.store');
+        Route::put('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'updateCoachAttendance'])->name('sessions.coach-attendance.update');
+        Route::delete('sessions/coach-attendance/{coachAttendance}', [SessionController::class, 'destroyCoachAttendance'])->name('sessions.coach-attendance.destroy');
+    });
+    Route::post('sessions/{session}/join', [SessionController::class, 'join'])
+        ->middleware('role:coach')
+        ->name('sessions.join');
 
     Route::get('achievements', [UserAchievementController::class, 'index'])->name('achievements.index');
     Route::post('achievements', [UserAchievementController::class, 'storeAchievement'])->name('achievements.store');
@@ -80,7 +86,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     });
 
-    Route::middleware('throttle:qr-scan')->group(function (): void {
+    Route::middleware(['role:parent,athlete', 'throttle:qr-scan'])->group(function (): void {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
@@ -223,7 +229,9 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     Route::prefix('payments')->name('payments.')->group(function (): void {
         Route::get('/', PaymentPageController::class)->name('index');
         Route::get('qris', QrisPaymentPageController::class)->name('qris');
-        Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])->name('proof.submit');
+        Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])
+            ->middleware('role:parent,athlete')
+            ->name('proof.submit');
         Route::get('{payment}/proof-file', [PaymentProofFileController::class, 'payment'])->name('proof.download');
         Route::get('transactions/{paymentTransaction}/proof-file', [PaymentProofFileController::class, 'transaction'])
             ->name('transactions.proof.download');
@@ -240,12 +248,14 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         });
     });
 
-    Route::prefix('attendance')->name('attendance.')->controller(AttendanceController::class)->group(function (): void {
-        Route::get('/', 'index')->name('index');
-        Route::post('coach-sessions/{session}/attend', 'attendAsCoach')->name('coach-attend');
-        Route::post('manual', 'store')->name('store');
-        Route::post('bulk-update', 'bulkUpdate')->name('bulk-update');
-        Route::put('{attendance}', 'update')->name('update');
+    Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('attendance/coach-sessions/{session}/attend', [AttendanceController::class, 'attendAsCoach'])
+        ->middleware('role:coach')
+        ->name('attendance.coach-attend');
+    Route::middleware('role:admin,coach')->group(function (): void {
+        Route::post('attendance/manual', [AttendanceController::class, 'store'])->name('attendance.store');
+        Route::post('attendance/bulk-update', [AttendanceController::class, 'bulkUpdate'])->name('attendance.bulk-update');
+        Route::put('attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update');
     });
 });
 
