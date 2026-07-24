@@ -60,7 +60,7 @@ class UpdatePaymentStatus
                     'verified_by' => $actor->id,
                     'amount' => $paid,
                     'transaction_date' => now(),
-                    'transaction_type' => 'REFUND',
+                    'transaction_type' => PaymentTransaction::TYPE_REFUND,
                     'payment_method' => $lockedPayment->collection_method ?? 'OTHER',
                     'notes' => 'Full refund recorded by admin. Previous paid amount: '.$paid.'.',
                     'proof_path' => $lockedPayment->proof_path,
