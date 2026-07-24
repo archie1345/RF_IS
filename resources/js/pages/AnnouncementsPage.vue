@@ -9,6 +9,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
@@ -22,6 +23,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { TableBadgeCell, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{ isAdmin: boolean; rows: TableRow[] }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -150,9 +152,17 @@ function submit(): void {
     form.post(announcementsStore.url(), options);
 }
 
-function removeAnnouncement(row: TableRow): void {
+async function removeAnnouncement(row: TableRow): Promise<void> {
     const id = routeId(row.announcement_id ?? row.id);
-    if (id === null || !window.confirm(`Hapus pengumuman “${String(row.title ?? '')}”?`)) return;
+    if (id === null) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus pengumuman?',
+        message: `Pengumuman “${String(row.title ?? '')}” akan dihapus dan tidak lagi terlihat di dashboard pengguna.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus pengumuman',
+    });
+    if (!confirmed) return;
 
     router.delete(announcementDestroy.url(id), { preserveScroll: true });
 }
