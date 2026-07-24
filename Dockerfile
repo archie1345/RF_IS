@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 COPY --from=php-deps /app/vendor ./vendor
 COPY package.json package-lock.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 RUN test -f .env || cp .env.example .env
