@@ -163,6 +163,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         });
     });
 
+    Route::prefix('admin')->name('admin.')->middleware('role:admin,coach')->group(function (): void {
+        Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
+        Route::get('groups/{group}/athletes', [GroupController::class, 'athletes'])->name('groups.athletes');
+        Route::post('groups', [GroupController::class, 'store'])->name('groups.store');
+    });
+
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function (): void {
         Route::get('/', AdminPageController::class)->name('index');
         Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -183,7 +189,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::get('events/history', [AdminEventFeatureController::class, 'history'])->name('events.history');
         Route::redirect('events/schedule', '/championships')->name('events.schedule');
         Route::get('locations', [TrainingLocationController::class, 'index'])->name('locations');
-        Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
         Route::get('groups', [TrainingGroupController::class, 'index'])->name('groups');
         Route::post('training-groups', [TrainingGroupController::class, 'store'])->name('training-groups.store');
         Route::put('training-groups/{trainingGroup}', [TrainingGroupController::class, 'update'])->name('training-groups.update');
@@ -211,12 +216,8 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
             Route::delete('branches/{branch}', 'destroy')->name('branches.destroy');
         });
 
-        Route::controller(GroupController::class)->group(function (): void {
-            Route::get('groups/{group}/athletes', 'athletes')->name('groups.athletes');
-            Route::post('groups', 'store')->name('groups.store');
-            Route::put('groups/{group}', 'update')->name('groups.update');
-            Route::delete('groups/{group}', 'destroy')->name('groups.destroy');
-        });
+        Route::put('groups/{group}', [GroupController::class, 'update'])->name('groups.update');
+        Route::delete('groups/{group}', [GroupController::class, 'destroy'])->name('groups.destroy');
     });
 
     Route::prefix('payments')->name('payments.')->group(function (): void {
