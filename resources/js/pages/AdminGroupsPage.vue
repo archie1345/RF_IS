@@ -7,6 +7,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
@@ -25,6 +26,7 @@ const props = withDefaults(
         groups: () => [],
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -127,15 +129,21 @@ function saveGroup() {
     form.post('/admin/training-groups', options);
 }
 
-function deleteGroup(group: TrainingGroupRecord) {
-    if (window.confirm(`Hapus/nonaktifkan grup ${group.name}?`)) {
-        router.delete(`/admin/training-groups/${group.id}`, { preserveScroll: true });
-    }
+async function deleteGroup(group: TrainingGroupRecord): Promise<void> {
+    const confirmed = await popup.confirm({
+        title: 'Hapus atau nonaktifkan grup?',
+        message: `Grup “${group.name}” akan dihapus bila belum digunakan. Grup yang sudah dipakai akan dinonaktifkan agar riwayat kelas dan atlet tetap aman.`,
+        tone: 'danger',
+        confirmLabel: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+
+    router.delete(`/admin/training-groups/${group.id}`, { preserveScroll: true });
 }
 
 function deleteGroupFromRow(row: TableRow) {
     const group = groupFromRow(row);
-    if (group) deleteGroup(group);
+    if (group) void deleteGroup(group);
 }
 </script>
 
