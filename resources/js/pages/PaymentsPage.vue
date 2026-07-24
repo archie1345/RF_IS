@@ -11,6 +11,7 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type { BreadcrumbItem } from '@/types';
@@ -66,6 +67,7 @@ const props = withDefaults(
         financeAttention: null,
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard.url() },
@@ -353,17 +355,26 @@ function editPayment(row: TableRow) {
     showPaymentForm.value = true;
 }
 
-function deleteFromEdit() {
-    if (editingPaymentRow.value) {
-        deletePayment(editingPaymentRow.value);
-        showPaymentForm.value = false;
-    }
+async function deletePayment(row: TableRow): Promise<boolean> {
+    const id = paymentRouteId(row.payment_id);
+    if (!id || row.can_delete !== true) return false;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus tagihan kosong?',
+        message: `Tagihan ${String(row.invoice_number ?? '')} akan dihapus. Hanya tagihan tanpa transaksi, bukti, atau aktivitas keuangan yang dapat dihapus.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus tagihan',
+    });
+    if (!confirmed) return false;
+
+    router.delete(paymentDestroy.url(id), { preserveScroll: true });
+    return true;
 }
 
-function deletePayment(row: TableRow) {
-    const id = paymentRouteId(row.payment_id);
-    if (!id || row.can_delete !== true || !confirm('Hapus tagihan kosong ini?')) return;
-    router.delete(paymentDestroy.url(id), { preserveScroll: true });
+async function deleteFromEdit(): Promise<void> {
+    if (!editingPaymentRow.value) return;
+    const deleted = await deletePayment(editingPaymentRow.value);
+    if (deleted) showPaymentForm.value = false;
 }
 
 function saveInvoiceTemplate() {
@@ -405,13 +416,21 @@ function openReviewModal(row: TableRow) {
     showReviewForm.value = true;
 }
 
-function submitReview(decision: 'APPROVED' | 'REJECTED') {
+async function submitReview(decision: 'APPROVED' | 'REJECTED'): Promise<void> {
     if (!reviewPaymentRow.value) return;
     const id = paymentRouteId(reviewPaymentRow.value.payment_id);
     if (!id) return;
 
     reviewForm.decision = decision;
-    if (decision === 'REJECTED' && !confirm('Tolak bukti pembayaran ini?')) return;
+    if (decision === 'REJECTED') {
+        const confirmed = await popup.confirm({
+            title: 'Tolak bukti pembayaran?',
+            message: 'Bukti aktif akan ditandai ditolak tanpa mengubah saldo. Pengguna dapat mengunggah bukti baru setelah membaca catatan admin.',
+            tone: 'danger',
+            confirmLabel: 'Tolak bukti',
+        });
+        if (!confirmed) return;
+    }
 
     reviewForm.put(paymentProofReview.url(id), {
         preserveScroll: true,
