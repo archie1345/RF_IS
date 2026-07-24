@@ -8,7 +8,6 @@ use App\Models\EventRegistration;
 use App\Models\Payment;
 use App\Services\ActiveRoleContextService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -57,7 +56,7 @@ class ChampionshipPageController extends Controller
             'events' => in_array($role, ['admin', 'parent', 'athlete'], true)
                 ? $events
                     ->where('status', 'SCHEDULED')
-                    ->filter(fn (Event $event): bool => ! $event->e_date || ! $event->e_date->isPast())
+                    ->filter(fn (Event $event): bool => ! $event->e_date || ! $event->e_date->lt(today()))
                     ->map(fn (Event $event) => [
                         'value' => $event->event_id,
                         'label' => $event->e_name,
