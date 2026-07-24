@@ -55,21 +55,23 @@ class DashboardController extends Controller
 
     private function dashboardMetrics(Request $request, string $role): array
     {
-        $athleteCount = Athlete::count();
-        $coachCount = Coach::count();
         $visiblePayments = $this->paymentVisibility->visiblePaymentsQuery($request, $role);
         $visibleAttendance = $this->attendanceVisibility->scopedAttendanceQuery($request, $role);
-        $outstandingBalance = (float) (clone $visiblePayments)->sum('remaining_amount');
-        $upcomingEvents = Event::query()->whereDate('e_date', '>=', now()->toDateString())->count();
-        $attendanceToday = (clone $visibleAttendance)->whereDate('date', now()->toDateString())->count();
+        $outstandingBalance = (float) (clone $visiblePayments)
+            ->where('remaining_amount', '>', 0)
+            ->sum('remaining_amount');
+        $upcomingEvents = Event::query()
+            ->whereIn('status', ['SCHEDULED', 'ONGOING'])
+            ->whereDate('e_date', '>=', now()->toDateString())
+            ->count();
         $presentAttendance = (clone $visibleAttendance)->where('status', 'PRESENT')->count();
 
         return match ($role) {
             'admin' => [
-                ['label' => 'No. of athletes', 'value' => (string) $athleteCount, 'detail' => 'Active athlete roster', 'tone' => 'success'],
-                ['label' => 'No. of coaches', 'value' => (string) $coachCount, 'detail' => 'Registered coach accounts', 'tone' => 'info'],
+                ['label' => 'No. of athletes', 'value' => (string) Athlete::query()->count(), 'detail' => 'Active athlete roster', 'tone' => 'success'],
+                ['label' => 'No. of coaches', 'value' => (string) Coach::query()->where('status', 'active')->count(), 'detail' => 'Active coach profiles', 'tone' => 'info'],
                 ['label' => 'Payment due', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Outstanding bills', 'tone' => 'warning'],
-                ['label' => 'Attendance today', 'value' => (string) $attendanceToday, 'detail' => 'Attendance records created today', 'tone' => 'neutral'],
+                ['label' => 'Attendance today', 'value' => (string) (clone $visibleAttendance)->whereDate('date', now()->toDateString())->count(), 'detail' => 'Attendance records created today', 'tone' => 'neutral'],
             ],
             'parent' => [
                 ['label' => 'Selected child', 'value' => $request->session()->has('active_child_id') ? 'Chosen' : 'All linked', 'detail' => 'Use the selector when checking one child', 'tone' => 'info'],
@@ -121,7 +123,7 @@ class DashboardController extends Controller
             ->where(fn ($query) => $query->whereNull('expire_at')->orWhere('expire_at', '>=', now()))
             ->latest('publish_at')
             ->latest('id')
-            ->limit(8)
+            ->limit(3)
             ->get()
             ->map(fn (Announcement $announcement) => [
                 'id' => 'DANN-'.$announcement->id,
@@ -143,6 +145,7 @@ class DashboardController extends Controller
     private function upcomingEvents(): array
     {
         return Event::query()
+            ->whereIn('status', ['SCHEDULED', 'ONGOING'])
             ->whereDate('e_date', '>=', now()->toDateString())
             ->orderBy('e_date')
             ->limit(5)
@@ -171,7 +174,10 @@ class DashboardController extends Controller
                 'athlete' => $record->athlete?->user?->name ?? 'Unknown',
                 'date' => optional($record->date)->format('Y-m-d') ?? '-',
                 'status_value' => $record->status,
-                'status' => $this->badge((string) $record->status, $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger')),
+                'status' => $this->badge(
+                    (string) $record->status,
+                    $record->status === 'PRESENT' ? 'success' : ($record->status === 'EXCUSED' ? 'info' : 'danger'),
+                ),
             ])
             ->values()
             ->all();
@@ -181,56 +187,25 @@ class DashboardController extends Controller
     {
         $start = now()->startOfMonth()->subMonth()->toDateString();
         $end = now()->endOfMonth()->addMonth()->toDateString();
-        $user = $request->user();
 
-        $query = TrainingSession::query()
+        return $this->attendanceVisibility
+            ->visibleSessionQuery($request->user(), $role)
             ->with(['branch:branch_id,branch_name', 'group:group_id,group_name'])
             ->whereBetween('session_date', [$start, $end])
-            ->where('status', '!=', 'CANCELED');
-
-        if ($role === 'athlete') {
-            $athlete = $user?->athleteProfile;
-            if (! $athlete) {
-                return [];
-            }
-
-            $query->where('branch_id', $athlete->branch_id)
-                ->where(fn ($inner) => $inner->whereNull('group_id')->orWhere('group_id', $athlete->group_id));
-        } elseif ($role === 'parent') {
-            $childIds = $this->childContext->visibleChildAthleteIds($request, true, true);
-            $children = Athlete::query()->whereIn('athlete_id', $childIds)->get(['branch_id', 'group_id']);
-
-            if ($children->isEmpty()) {
-                return [];
-            }
-
-            $query->where(function ($outer) use ($children) {
-                foreach ($children as $child) {
-                    $outer->orWhere(function ($inner) use ($child) {
-                        $inner->where('branch_id', $child->branch_id)
-                            ->where(fn ($groupQuery) => $groupQuery->whereNull('group_id')->orWhere('group_id', $child->group_id));
-                    });
-                }
-            });
-        } elseif ($role === 'coach') {
-            $coachId = $user?->coachProfile?->coach_id;
-            if (! $coachId) {
-                return [];
-            }
-
-            $query->where(fn ($inner) => $inner
-                ->where('coach_id', $coachId)
-                ->orWhereHas('assignedCoaches', fn ($coachQuery) => $coachQuery->where('coaches.coach_id', $coachId)));
-        }
-
-        return $query->orderBy('session_date')->get()->map(fn (TrainingSession $session) => [
-            'id' => 'TR-'.$session->training_session_id,
-            'date' => optional($session->session_date)->format('Y-m-d'),
-            'title' => $session->title,
-            'time' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5),
-            'branch' => $session->branch?->branch_name ?? 'Unassigned',
-            'group' => $session->group?->group_name ?? 'All groups',
-        ])->values()->all();
+            ->where('status', '!=', 'CANCELED')
+            ->orderBy('session_date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn (TrainingSession $session) => [
+                'id' => 'TR-'.$session->training_session_id,
+                'date' => optional($session->session_date)->format('Y-m-d'),
+                'title' => $session->title,
+                'time' => substr((string) $session->start_time, 0, 5).' - '.substr((string) $session->end_time, 0, 5),
+                'branch' => $session->branch?->branch_name ?? 'Unassigned',
+                'group' => $session->group?->group_name ?? 'All groups',
+            ])
+            ->values()
+            ->all();
     }
 
     private function paymentRows(Request $request, string $role): array
@@ -248,7 +223,14 @@ class DashboardController extends Controller
                 'total' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
                 'paid' => $this->rupiah((float) ($payment->paid_amount ?? 0)),
                 'remaining' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
-                'status' => $this->badge((float) ($payment->remaining_amount ?? 0) <= 0 ? 'Full' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'), (float) ($payment->remaining_amount ?? 0) <= 0 ? 'success' : ((float) ($payment->paid_amount ?? 0) > 0 ? 'warning' : 'danger')),
+                'status' => $this->badge(
+                    (float) ($payment->remaining_amount ?? 0) <= 0
+                        ? 'Full'
+                        : ((float) ($payment->paid_amount ?? 0) > 0 ? 'Partial' : 'Unpaid'),
+                    (float) ($payment->remaining_amount ?? 0) <= 0
+                        ? 'success'
+                        : ((float) ($payment->paid_amount ?? 0) > 0 ? 'warning' : 'danger'),
+                ),
             ])
             ->values()
             ->all();
