@@ -34,6 +34,7 @@ class ProfilePageData
     public function branchOptions()
     {
         return Branch::query()
+            ->where('is_active', true)
             ->orderBy('branch_name')
             ->get(['branch_id as value', 'branch_name as label']);
     }
@@ -41,8 +42,9 @@ class ProfilePageData
     public function groupOptions()
     {
         return Group::query()
+            ->where('is_active', true)
             ->orderBy('group_name')
-            ->get(['group_id as value', 'group_name as label']);
+            ->get(['group_id as value', 'group_name as label', 'branch_id']);
     }
 
     public function user(User $user): array
@@ -67,8 +69,8 @@ class ProfilePageData
                 'height_cm' => $athlete->height_cm,
                 'weight_kg' => $athlete->weight_kg,
                 'geup' => $athlete->geup,
-                'nik' => $athlete->displayValue('nik'),
-                'bpjs' => $athlete->displayValue('bpjs'),
+                'nik' => $this->editableSensitiveValue($athlete->displayValue('nik')),
+                'bpjs' => $this->editableSensitiveValue($athlete->displayValue('bpjs')),
                 'phone' => $user->phone,
                 'bday' => $user->bday?->format('Y-m-d'),
                 'gender' => $user->gender,
@@ -133,6 +135,13 @@ class ProfilePageData
                 'fileUrl' => $this->fileUrl($certification->file),
             ])->values(),
         ];
+    }
+
+    private function editableSensitiveValue(string $value): string
+    {
+        return in_array($value, ['Not stored', 'Stored as hash only', 'Stored, cannot decrypt'], true)
+            ? ''
+            : $value;
     }
 
     private function fileUrl(?UserFile $file): ?string
