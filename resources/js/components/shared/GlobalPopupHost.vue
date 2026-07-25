@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,11 @@ const page = usePage<{
     };
 }>();
 const primaryButton = ref<{ $el?: HTMLElement } | null>(null);
+let removeValidationListener: (() => void) | undefined;
+let removeInvalidResponseListener: (() => void) | undefined;
+let removeExceptionListener: (() => void) | undefined;
+let lastFeedbackKey = '';
+let lastFeedbackAt = 0;
 
 const icon = computed(() => ({
     success: CheckCircle2,
@@ -37,9 +42,61 @@ const iconClass = computed(() => ({
 
 const primaryVariant = computed(() => popup.state.tone === 'danger' ? 'destructive' : 'default');
 
+function showFeedback(tone: AppPopupTone, title: string, message?: string | null): void {
+    if (!message) return;
+
+    const key = `${tone}:${title}:${message}`;
+    const now = Date.now();
+    if (key === lastFeedbackKey && now - lastFeedbackAt < 1200) return;
+
+    lastFeedbackKey = key;
+    lastFeedbackAt = now;
+    void popup.show({ title, message, tone });
+}
+
+function validationMessage(errors: unknown): string {
+    if (!errors || typeof errors !== 'object') {
+        return 'Periksa kembali data yang diisi, lalu coba simpan lagi.';
+    }
+
+    const messages = Object.values(errors as Record<string, unknown>)
+        .flatMap((value) => Array.isArray(value) ? value : [value])
+        .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+        .map((value) => value.trim());
+
+    if (messages.length === 0) {
+        return 'Periksa kembali data yang diisi, lalu coba simpan lagi.';
+    }
+
+    const visible = [...new Set(messages)].slice(0, 6);
+    const suffix = messages.length > visible.length ? `\n…dan ${messages.length - visible.length} kesalahan lainnya.` : '';
+
+    return visible.map((message, index) => `${index + 1}. ${message}`).join('\n') + suffix;
+}
+
+function responseErrorMessage(status: number): string {
+    if (status === 401) return 'Sesi login tidak lagi valid. Silakan masuk kembali.';
+    if (status === 403) return 'Akun atau peran aktif tidak memiliki izin untuk melakukan tindakan ini.';
+    if (status === 404) return 'Halaman atau data yang diminta tidak ditemukan.';
+    if (status === 419) return 'Sesi keamanan telah kedaluwarsa. Muat ulang halaman, lalu coba lagi.';
+    if (status === 422) return 'Data yang dikirim belum valid. Periksa semua kolom yang ditandai.';
+    if (status === 429) return 'Terlalu banyak permintaan. Tunggu sebentar sebelum mencoba lagi.';
+    if (status >= 500) return 'Server mengalami kesalahan saat memproses permintaan. Data belum tentu tersimpan.';
+
+    return status > 0
+        ? `Server mengembalikan respons HTTP ${status} yang tidak dapat diproses oleh aplikasi.`
+        : 'Respons server tidak dapat diproses oleh aplikasi.';
+}
+
+function errorDetail(error: unknown): string {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (typeof error === 'string' && error.trim()) return error;
+
+    return 'Terjadi gangguan yang tidak terduga. Muat ulang halaman bila masalah berlanjut.';
+}
+
 function flashPopup(tone: AppPopupTone, title: string, value?: string | null): void {
-    if (!value) return;
-    void popup.show({ title, message: value, tone });
+    showFeedback(tone, title, value);
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -49,6 +106,22 @@ function handleKeydown(event: KeyboardEvent): void {
         event.preventDefault();
         dismissAppPopup();
     }
+}
+
+function handleWindowError(event: ErrorEvent): void {
+    showFeedback('danger', 'Kesalahan aplikasi', event.message || 'Antarmuka mengalami kesalahan yang tidak terduga.');
+}
+
+function handleUnhandledRejection(event: PromiseRejectionEvent): void {
+    showFeedback('danger', 'Proses tidak dapat diselesaikan', errorDetail(event.reason));
+}
+
+function handleOffline(): void {
+    showFeedback('warning', 'Koneksi terputus', 'Perangkat sedang offline. Perubahan belum dapat dikirim ke server.');
+}
+
+function handleOnline(): void {
+    showFeedback('info', 'Koneksi kembali aktif', 'Koneksi internet tersedia kembali. Silakan ulangi tindakan yang sebelumnya gagal.');
 }
 
 watch(
@@ -64,8 +137,45 @@ watch(() => page.props.flash?.error, (value) => flashPopup('danger', 'Terjadi ke
 watch(() => page.props.flash?.warning, (value) => flashPopup('warning', 'Perlu perhatian', value), { immediate: true });
 watch(() => page.props.flash?.info, (value) => flashPopup('info', 'Informasi', value), { immediate: true });
 
-onMounted(() => window.addEventListener('keydown', handleKeydown));
-onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('error', handleWindowError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    removeValidationListener = router.on('error', (event) => {
+        showFeedback('danger', 'Data belum valid', validationMessage(event.detail.errors));
+    });
+    removeInvalidResponseListener = router.on('invalid', (event) => {
+        showFeedback(
+            'danger',
+            'Respons server tidak dapat diproses',
+            responseErrorMessage(event.detail.response.status),
+        );
+    });
+    removeExceptionListener = router.on('exception', (event) => {
+        event.preventDefault();
+        showFeedback(
+            'danger',
+            navigator.onLine ? 'Koneksi atau aplikasi bermasalah' : 'Koneksi terputus',
+            navigator.onLine
+                ? errorDetail(event.detail.error)
+                : 'Perangkat sedang offline. Perubahan belum dapat dikirim ke server.',
+        );
+    });
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('error', handleWindowError);
+    window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    window.removeEventListener('offline', handleOffline);
+    window.removeEventListener('online', handleOnline);
+    removeValidationListener?.();
+    removeInvalidResponseListener?.();
+    removeExceptionListener?.();
+});
 </script>
 
 <template>
