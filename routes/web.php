@@ -4,10 +4,10 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\AdminAccountController;
 use App\Http\Controllers\Admin\AdminAccountLifecycleController;
 use App\Http\Controllers\Admin\AdminPageController;
+use App\Http\Controllers\Admin\BillingSettingsController;
 use App\Http\Controllers\Admin\BranchController;
 use App\Http\Controllers\Admin\Features\AdminAttendanceReportController;
 use App\Http\Controllers\Admin\Features\AdminEventFeatureController;
-use App\Http\Controllers\Admin\Features\AdminFinanceFeatureController;
 use App\Http\Controllers\Admin\Features\AdminPeopleFeatureController;
 use App\Http\Controllers\Admin\Features\AdminScheduleFeatureController;
 use App\Http\Controllers\Admin\GroupController;
@@ -22,6 +22,7 @@ use App\Http\Controllers\ChampionshipExportController;
 use App\Http\Controllers\ChampionshipPageController;
 use App\Http\Controllers\ChampionshipPaymentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EventAthletePhotoExportController;
 use App\Http\Controllers\ParentChildContextController;
 use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentController;
@@ -153,6 +154,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
             Route::put('events/{event}', [ChampionshipController::class, 'updateEvent'])->name('events.update');
             Route::delete('events/{event}', [ChampionshipController::class, 'destroyEvent'])->name('events.destroy');
             Route::post('payments/{payment}/settle', ChampionshipPaymentController::class)->name('payments.settle');
+            Route::get('{event}/photos', EventAthletePhotoExportController::class)->name('photos');
         });
 
         Route::middleware('role:admin,parent,athlete')->group(function (): void {
@@ -186,9 +188,16 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::redirect('payments', '/payments')->name('payments');
         Route::redirect('finance-income', '/payments')->name('finance-income');
         Route::redirect('finance-output', '/payments')->name('finance-output');
-        Route::redirect('monthly-dues', '/payments')->name('monthly-dues');
-        Route::post('monthly-dues/settings', [AdminFinanceFeatureController::class, 'updateBillingSettings'])->name('monthly-dues.settings');
-        Route::post('monthly-dues/generate', [AdminFinanceFeatureController::class, 'generateMonthlyDues'])->name('monthly-dues.generate');
+        Route::redirect('monthly-dues', '/admin/billing-settings')->name('monthly-dues');
+
+        Route::get('billing-settings', [BillingSettingsController::class, 'index'])->name('billing-settings.index');
+        Route::patch('billing-settings/schedule', [BillingSettingsController::class, 'updateSchedule'])->name('billing-settings.schedule.update');
+        Route::post('billing-settings/generate-monthly', [BillingSettingsController::class, 'generateMonthly'])->name('billing-settings.monthly.generate');
+        Route::post('billing-rules', [BillingSettingsController::class, 'storeRule'])->name('billing-rules.store');
+        Route::put('billing-rules/{billingRule}', [BillingSettingsController::class, 'updateRule'])->name('billing-rules.update');
+        Route::delete('billing-rules/{billingRule}', [BillingSettingsController::class, 'destroyRule'])->name('billing-rules.destroy');
+        Route::post('billing-rules/{billingRule}/generate', [BillingSettingsController::class, 'generateOneTime'])->name('billing-rules.generate');
+
         Route::get('members', [AdminPeopleFeatureController::class, 'members'])->name('members');
         Route::get('instructors', [AdminPeopleFeatureController::class, 'instructors'])->name('instructors');
         Route::redirect('events', '/championships')->name('events');
