@@ -27,6 +27,17 @@ class BillingSettingsController extends Controller
         $rules = BillingRule::query()
             ->with(['branch:branch_id,branch_name', 'group:group_id,group_name,branch_id'])
             ->withCount('payments')
+            ->where(function ($query): void {
+                $query
+                    ->where('charge_kind', BillingRule::KIND_ONE_TIME)
+                    ->orWhere(function ($monthly): void {
+                        $monthly
+                            ->where('charge_kind', BillingRule::KIND_MONTHLY)
+                            ->where(function ($scope): void {
+                                $scope->whereNotNull('branch_id')->orWhereNotNull('group_id');
+                            });
+                    });
+            })
             ->orderBy('charge_kind')
             ->orderByDesc('is_active')
             ->orderBy('name')
@@ -199,6 +210,16 @@ class BillingSettingsController extends Controller
 
     private function assertRuleConsistency(array $validated, ?BillingRule $ignore = null): void
     {
+        if (
+            $validated['charge_kind'] === BillingRule::KIND_MONTHLY
+            && empty($validated['branch_id'])
+            && empty($validated['group_id'])
+        ) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'Tarif SPP umum sudah diatur melalui Tarif default. Pilih cabang atau kelas untuk membuat tarif khusus.',
+            ]);
+        }
+
         if (! empty($validated['branch_id']) && ! empty($validated['group_id'])) {
             $groupBelongsToBranch = Group::query()
                 ->whereKey($validated['group_id'])
