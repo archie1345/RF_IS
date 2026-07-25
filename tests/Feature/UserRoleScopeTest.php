@@ -4,7 +4,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 
 it('uses the legacy role when no role assignments exist', function () {
-    $coach = User::factory()->create(['role' => 'COACH']);
+    $coach = User::factory()->create(['role' => 'coach']);
     User::factory()->create(['role' => 'athlete']);
 
     expect(User::query()->withRole('coach')->pluck('id')->all())
