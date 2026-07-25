@@ -18,35 +18,36 @@ services:
       db:
         condition: service_healthy
 
-    command: >
-      sh -ec "
-      umask 0002;
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          umask 0002
 
-      dev_gid="$${APP_DEV_GID:-1000}";
-      group_name="$$(getent group "$$dev_gid" | cut -d: -f1 || true)";
+          dev_gid="$${APP_DEV_GID:-1000}"
+          group_name="$$(getent group "$$dev_gid" | cut -d: -f1 || true)"
 
-      if [ -z "$$group_name" ]; then
-        groupadd --gid "$$dev_gid" appdev;
-        group_name=appdev;
-      fi;
+          if [ -z "$$group_name" ]; then
+            groupadd --gid "$$dev_gid" appdev
+            group_name=appdev
+          fi
 
-      usermod -a -G "$$group_name" www-data;
+          usermod -a -G "$$group_name" www-data
 
-      composer install --no-interaction --no-progress --prefer-dist;
+          composer install --no-interaction --no-progress --prefer-dist
 
-      mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache;
-      chown -R www-data:"$$group_name" /tmp/laravel storage bootstrap/cache;
-      find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +;
-      find /tmp/laravel storage bootstrap/cache -type f -exec chmod 0664 {} +;
+          mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+          chown -R www-data:"$$group_name" /tmp/laravel storage bootstrap/cache
+          find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +
+          find /tmp/laravel storage bootstrap/cache -type f -exec chmod 0664 {} +
 
-      php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir()." is not writable\n"); exit(1); }';
+          php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir()." is not writable\n"); exit(1); }'
 
-      php artisan storage:link || true;
-      CACHE_STORE=file php artisan optimize:clear;
-      php artisan migrate --force;
+          php artisan storage:link || true
+          CACHE_STORE=file php artisan optimize:clear
+          php artisan migrate --force
 
-      exec apache2-foreground
-      "
+          exec apache2-foreground
 
     healthcheck:
       test:
@@ -83,11 +84,12 @@ services:
       VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL:-http://localhost:9201}
       VITE_HMR_ENABLED: ${VITE_HMR_ENABLED:-true}
 
-    command: >
-      sh -ec "
-      npm install --no-audit --no-fund &&
-      exec npm run dev -- --host $$VITE_HOST --port $$VITE_PORT
-      "
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          npm install --no-audit --no-fund
+          exec npm run dev -- --host "$$VITE_HOST" --port "$$VITE_PORT"
 
     healthcheck:
       test:
