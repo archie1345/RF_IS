@@ -115,7 +115,7 @@ Artisan::command('app:database-audit', function () {
         'users' => ['id', 'email', 'role', 'deleted_at'],
         'user_role_assignments' => ['user_id', 'role'],
         'user_files' => ['id', 'user_id', 'file_path', 'disk', 'mime_type', 'size_bytes'],
-        'athletes' => ['athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'training_group_id'],
+        'athletes' => ['athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'group_id', 'training_group_id'],
         'member_number_sequences' => ['joined_on', 'last_sequence'],
         'coaches' => ['coach_id', 'id', 'status'],
         'branches' => ['branch_id', 'branch_name', 'is_active'],
@@ -131,10 +131,15 @@ Artisan::command('app:database-audit', function () {
         ],
         'training_session_coaches' => ['training_session_id', 'coach_id'],
         'athlete_attendance' => ['training_session_id', 'athlete_id', 'status'],
+        'billing_settings' => ['name', 'invoice_day', 'invoice_time', 'default_amount', 'is_active'],
+        'billing_rules' => [
+            'id', 'name', 'charge_kind', 'payment_type', 'amount', 'branch_id', 'group_id',
+            'due_days', 'effective_from', 'effective_until', 'is_active', 'deleted_at',
+        ],
         'payments' => [
             'payment_id', 'invoice_number', 'bill_kind', 'payment_type', 'status', 'proof_status',
-            'total_amount', 'paid_amount', 'remaining_amount', 'payment_date', 'due_date', 'collection_method',
-            'proof_path', 'proof_disk',
+            'billing_rule_id', 'billing_run_key', 'total_amount', 'paid_amount', 'remaining_amount',
+            'payment_date', 'due_date', 'collection_method', 'proof_path', 'proof_disk',
         ],
         'payment_transactions' => [
             'ptid', 'payment_id', 'verified_by', 'amount', 'transaction_date', 'payment_method',
