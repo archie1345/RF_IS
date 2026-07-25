@@ -71,7 +71,7 @@ test('athlete cannot bypass QR by manually updating attendance', function () {
 });
 
 test('parent can see and upload proof for a tuition bill issued to their child user account', function () {
-    Storage::fake('public');
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     [$childUser, $childAthlete] = makeAthleteWithProfile('Child User');
     $parentUser = User::factory()->create(['role' => 'parent']);
@@ -105,12 +105,13 @@ test('parent can see and upload proof for a tuition bill issued to their child u
         ->assertRedirect(route('payments.index'));
 
     $payment->refresh();
-    expect($payment->proof_status)->toBe('SUBMITTED');
-    Storage::disk('public')->assertExists($payment->proof_path);
+    expect($payment->proof_status)->toBe('SUBMITTED')
+        ->and($payment->proof_disk)->toBe(Payment::PROOF_DISK_PRIVATE);
+    Storage::disk(Payment::PROOF_DISK_PRIVATE)->assertExists($payment->proof_path);
 });
 
 test('achievement upload is linked and visible on the achievements page', function () {
-    Storage::fake('public');
+    Storage::fake('local');
 
     $user = User::factory()->create(['role' => 'athlete']);
 
@@ -126,8 +127,9 @@ test('achievement upload is linked and visible on the achievements page', functi
 
     $achievement = UserAchievement::query()->with('file')->firstOrFail();
 
-    expect($achievement->file?->original_name)->toBe('result.pdf');
-    Storage::disk('public')->assertExists($achievement->file->file_path);
+    expect($achievement->file?->original_name)->toBe('result.pdf')
+        ->and($achievement->file?->disk)->toBe('local');
+    Storage::disk('local')->assertExists($achievement->file->file_path);
 
     $this->actingAs($user)
         ->get(route('achievements.index'))
@@ -135,5 +137,5 @@ test('achievement upload is linked and visible on the achievements page', functi
         ->assertInertia(fn (Assert $page) => $page
             ->component('AchievementsPage')
             ->where('achievements.0.file_name', 'result.pdf')
-            ->where('achievements.0.file_url', Storage::url($achievement->file->file_path)));
+            ->where('achievements.0.file_url', route('user-files.download', $achievement->file)));
 });

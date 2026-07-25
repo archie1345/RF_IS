@@ -34,7 +34,7 @@ test('admin can post a targeted announcement and still see it in the announcemen
 });
 
 test('admin issues a bill, user uploads proof, and admin approves it', function () {
-    Storage::fake('public');
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     $admin = User::factory()->create(['role' => 'admin']);
     $member = User::factory()->create(['role' => 'athlete']);
@@ -64,8 +64,9 @@ test('admin issues a bill, user uploads proof, and admin approves it', function 
         ->assertRedirect(route('payments.index'));
 
     $payment->refresh();
-    expect($payment->proof_status)->toBe('SUBMITTED');
-    Storage::disk('public')->assertExists($payment->proof_path);
+    expect($payment->proof_status)->toBe('SUBMITTED')
+        ->and($payment->proof_disk)->toBe(Payment::PROOF_DISK_PRIVATE);
+    Storage::disk(Payment::PROOF_DISK_PRIVATE)->assertExists($payment->proof_path);
 
     $this->actingAs($admin)
         ->put(route('payments.proof.review', $payment), [
@@ -85,11 +86,12 @@ test('admin issues a bill, user uploads proof, and admin approves it', function 
         'verified_by' => $admin->id,
         'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
         'payment_method' => 'TRANSFER',
+        'proof_disk' => Payment::PROOF_DISK_PRIVATE,
     ]);
 });
 
 test('admin can partially approve proof and keep receipt history for the next upload', function () {
-    Storage::fake('public');
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     $admin = User::factory()->create(['role' => 'admin']);
     $member = User::factory()->create(['role' => 'athlete']);
@@ -132,13 +134,17 @@ test('admin can partially approve proof and keep receipt history for the next up
         ->and((float) $payment->paid_amount)->toBe(100000.0)
         ->and((float) $payment->remaining_amount)->toBe(150000.0);
 
-    $transaction = PaymentTransaction::query()->firstOrFail();
+    $transaction = PaymentTransaction::query()
+        ->where('payment_id', $payment->payment_id)
+        ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
+        ->firstOrFail();
     expect((float) $transaction->amount)->toBe(100000.0)
         ->and($transaction->proof_path)->toBe($firstProofPath)
+        ->and($transaction->proof_disk)->toBe(Payment::PROOF_DISK_PRIVATE)
         ->and($transaction->proof_notes)->toBe('First installment transfer');
     $this->assertStringContainsString('Proof approved: First installment verified', $transaction->notes);
     $this->assertStringContainsString('Submitted note: First installment transfer', $transaction->notes);
-    Storage::disk('public')->assertExists($firstProofPath);
+    Storage::disk(Payment::PROOF_DISK_PRIVATE)->assertExists($firstProofPath);
 
     $this->actingAs($member)
         ->get(route('payments.index'))
@@ -148,8 +154,11 @@ test('admin can partially approve proof and keep receipt history for the next up
             ->where('rows.0.payment_id', $payment->payment_id)
             ->where('rows.0.proof_status', 'NONE')
             ->where('rows.0.proof_url', null)
-            ->has('rows.0.transaction_history', 1)
-            ->where('rows.0.transaction_history.0.proof_url', Storage::url($firstProofPath)));
+            ->has('rows.0.transaction_history', 2)
+            ->where(
+                'rows.0.transaction_history.0.proof_url',
+                route('payments.transactions.proof.download', $transaction),
+            ));
 
     $this->actingAs($member)
         ->post(route('payments.proof.submit', $payment), [
@@ -200,7 +209,7 @@ test('admin can change the person receiving an invoice', function () {
 });
 
 test('payment proof review rejects zero negative and over approval amounts without changing balance', function () {
-    Storage::fake('public');
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     $admin = User::factory()->create(['role' => 'admin']);
     $member = User::factory()->create(['role' => 'athlete']);
@@ -242,7 +251,10 @@ test('payment proof review rejects zero negative and over approval amounts witho
         $payment->refresh();
         expect((float) $payment->paid_amount)->toBe(0.0)
             ->and((float) $payment->remaining_amount)->toBe(100000.0)
-            ->and(PaymentTransaction::query()->count())->toBe(0);
+            ->and(PaymentTransaction::query()
+                ->where('payment_id', $payment->payment_id)
+                ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
+                ->count())->toBe(0);
 
         $payment->update([
             'proof_status' => 'NONE',
@@ -253,7 +265,7 @@ test('payment proof review rejects zero negative and over approval amounts witho
 });
 
 test('second partial payment approval can complete the bill', function () {
-    Storage::fake('public');
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     $admin = User::factory()->create(['role' => 'admin']);
     $member = User::factory()->create(['role' => 'athlete']);
@@ -292,11 +304,15 @@ test('second partial payment approval can complete the bill', function () {
         ->and($payment->proof_status)->toBe('APPROVED')
         ->and((float) $payment->paid_amount)->toBe(100000.0)
         ->and((float) $payment->remaining_amount)->toBe(0.0)
-        ->and(PaymentTransaction::query()->where('payment_id', $payment->payment_id)->count())->toBe(2);
+        ->and(PaymentTransaction::query()
+            ->where('payment_id', $payment->payment_id)
+            ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
+            ->count())->toBe(2)
+        ->and(PaymentTransaction::query()->where('payment_id', $payment->payment_id)->count())->toBe(4);
 });
 
-test('rejected payment proof does not increase paid amount or create transaction', function () {
-    Storage::fake('public');
+test('rejected payment proof does not increase paid amount or create a payment movement', function () {
+    Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
     $admin = User::factory()->create(['role' => 'admin']);
     $member = User::factory()->create(['role' => 'athlete']);
@@ -331,5 +347,15 @@ test('rejected payment proof does not increase paid amount or create transaction
     expect($payment->proof_status)->toBe('REJECTED')
         ->and((float) $payment->paid_amount)->toBe(0.0)
         ->and((float) $payment->remaining_amount)->toBe(100000.0)
-        ->and(PaymentTransaction::query()->where('payment_id', $payment->payment_id)->count())->toBe(0);
+        ->and(PaymentTransaction::query()
+            ->where('payment_id', $payment->payment_id)
+            ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
+            ->count())->toBe(0)
+        ->and(PaymentTransaction::query()
+            ->where('payment_id', $payment->payment_id)
+            ->whereIn('transaction_type', [
+                PaymentTransaction::TYPE_PROOF_SUBMITTED,
+                PaymentTransaction::TYPE_PROOF_REJECTED,
+            ])
+            ->count())->toBe(2);
 });

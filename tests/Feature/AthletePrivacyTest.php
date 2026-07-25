@@ -55,15 +55,13 @@ it('does not allow callers to mass assign a member number', function () {
 it('never serializes sensitive hashes or encrypted identifiers', function () {
     $athlete = athletePrivacyFixture([
         'nik_hash' => hash('sha256', '1234567890123456'),
-        'nik_ciphertext' => '1234567890123456',
         'bpjs_hash' => hash('sha256', '1234567890123'),
-        'bpjs_ciphertext' => '1234567890123',
     ]);
 
     $serialized = $athlete->fresh()->toArray();
 
     expect($serialized)
         ->not->toHaveKeys(['nik_hash', 'nik_ciphertext', 'bpjs_hash', 'bpjs_ciphertext']);
-    expect($athlete->fresh()->displayValue('nik'))->toBe('1234567890123456');
-    expect($athlete->fresh()->displayValue('bpjs'))->toBe('1234567890123');
+    expect($athlete->fresh()->displayValue('nik'))->toBe('Stored as hash only');
+    expect($athlete->fresh()->displayValue('bpjs'))->toBe('Stored as hash only');
 });

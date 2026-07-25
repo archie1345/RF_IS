@@ -2,15 +2,15 @@
 
 use App\Models\User;
 
-test('legacy finance routes redirect to the payment center', function (string $routeName) {
-    $user = User::factory()->create();
+test('legacy finance routes redirect to their current admin workspace', function (string $routeName, string $destination) {
+    $admin = User::factory()->create(['role' => 'admin']);
 
-    $this->actingAs($user)
+    $this->actingAs($admin)
         ->get(route($routeName))
-        ->assertRedirect(route('payments.index'));
+        ->assertRedirect(route($destination));
 })->with([
-    'admin payments' => 'admin.payments',
-    'finance income' => 'admin.finance-income',
-    'finance output' => 'admin.finance-output',
-    'monthly dues' => 'admin.monthly-dues',
+    'admin payments' => ['admin.payments', 'payments.index'],
+    'finance income' => ['admin.finance-income', 'payments.index'],
+    'finance output' => ['admin.finance-output', 'payments.index'],
+    'monthly dues' => ['admin.monthly-dues', 'admin.billing-settings.index'],
 ]);

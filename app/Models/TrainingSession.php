@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class TrainingSession extends Model
 {
@@ -46,7 +48,6 @@ class TrainingSession extends Model
     protected function casts(): array
     {
         return [
-            'session_date' => 'date',
             'metadata' => 'array',
             'attendance_qr_token' => 'encrypted',
             'attendance_opens_at' => 'datetime',
@@ -54,6 +55,14 @@ class TrainingSession extends Model
             'attendance_qr_generated_at' => 'datetime',
             'attendance_qr_revoked_at' => 'datetime',
         ];
+    }
+
+    protected function sessionDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value): ?Carbon => filled($value) ? Carbon::parse($value)->startOfDay() : null,
+            set: fn (mixed $value): ?string => filled($value) ? Carbon::parse($value)->toDateString() : null,
+        );
     }
 
     public function weeklyTrainingSchedule(): BelongsTo
