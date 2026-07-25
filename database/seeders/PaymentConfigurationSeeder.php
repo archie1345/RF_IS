@@ -33,21 +33,11 @@ class PaymentConfigurationSeeder extends Seeder
             ],
         );
 
-        BillingRule::query()->updateOrCreate(
-            ['name' => 'SPP umum'],
-            [
-                'charge_kind' => BillingRule::KIND_MONTHLY,
-                'payment_type' => 'TUITION',
-                'amount' => 150000,
-                'branch_id' => null,
-                'group_id' => null,
-                'due_days' => 14,
-                'effective_from' => null,
-                'effective_until' => null,
-                'is_active' => true,
-                'notes' => 'Tarif bulanan umum. Buat aturan cabang atau kelas untuk menggantikan tarif ini pada cakupan tertentu.',
-            ],
-        );
+        BillingRule::query()
+            ->where('charge_kind', BillingRule::KIND_MONTHLY)
+            ->whereNull('branch_id')
+            ->whereNull('group_id')
+            ->update(['is_active' => false]);
 
         BillingRule::query()->updateOrCreate(
             ['name' => 'Seragam latihan'],
