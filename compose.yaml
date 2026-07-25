@@ -60,6 +60,29 @@ services:
       retries: 10
       start_period: 60s
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ${SCHEDULER_CONTAINER_NAME:-rf-scheduler}
+    restart: unless-stopped
+    working_dir: /var/www/html
+
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/dev.ini:/usr/local/etc/php/conf.d/zz-development.ini:ro
+
+    depends_on:
+      server:
+        condition: service_healthy
+
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          exec php artisan schedule:work --verbose --no-interaction
+
   vite:
     build:
       context: .
