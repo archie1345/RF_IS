@@ -1,6 +1,6 @@
 export type AthleteProfile = {
-    height_cm?: number;
-    weight_kg?: number;
+    height_cm?: string;
+    weight_kg?: string;
     geup?: string;
     nik?: string;
     bpjs?: string;
@@ -10,8 +10,8 @@ export type AthleteProfile = {
     bday?: string;
     gender?: string;
     alamat?: string;
-    branch_id?: string | number | null;
-    group_id?: string | number | null;
+    branch_id?: string | null;
+    group_id?: string | null;
     branch?: { branch_name: string };
     group?: { group_name: string };
 };
