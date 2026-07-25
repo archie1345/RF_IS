@@ -31,8 +31,11 @@ class GenerateMonthlyTuitionBills extends Command
                 return self::SUCCESS;
             }
 
-            if ((int) $now->day !== (int) ($setting?->invoice_day ?? 1)) {
-                $this->info('Monthly tuition generation is not scheduled for today.');
+            $scheduledDay = (int) ($setting?->invoice_day ?? 1);
+            $scheduledTime = substr((string) ($setting?->invoice_time ?? '01:10:00'), 0, 5);
+
+            if ((int) $now->day !== $scheduledDay || $now->format('H:i') !== $scheduledTime) {
+                $this->info("Monthly tuition generation is scheduled for day {$scheduledDay} at {$scheduledTime}.");
 
                 return self::SUCCESS;
             }
