@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Download } from 'lucide-vue-next';
 import { ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -211,6 +212,12 @@ async function removeCoach(row: TableRow): Promise<void> {
                     </Button>
                     <Button v-if="props.canManageCoaches" as-child type="button" variant="outline">
                         <a :href="championshipExport.url(props.event.id)">Ekspor CSV</a>
+                    </Button>
+                    <Button v-if="props.isAdmin" as-child type="button" variant="outline" class="gap-2">
+                        <a :href="`/championships/${props.event.id}/photos`">
+                            <Download class="size-4" />
+                            Unduh foto 3×4
+                        </a>
                     </Button>
                 </template>
 
