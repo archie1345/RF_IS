@@ -3,11 +3,11 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
-    <span
-        class="flex h-10 min-w-0 w-full max-w-full items-center justify-center overflow-hidden group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
-    >
-        <AppLogoIcon
-            class-name="block max-h-full max-w-full shrink object-contain object-center"
-        />
+    <span class="flex min-w-0 w-full items-center justify-center overflow-hidden">
+        <span
+            class="flex h-8 w-full max-w-32 items-center justify-center overflow-hidden group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-8"
+        >
+            <AppLogoIcon class-name="block h-full w-full min-w-0 object-contain object-center" />
+        </span>
     </span>
 </template>
