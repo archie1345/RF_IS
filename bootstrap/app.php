@@ -24,7 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(['web', 'auth', 'account.active', 'verified', 'role:admin'])
                 ->prefix('admin')
                 ->name('admin.')
-                ->group(base_path('routes/legacy-billing.php'));
+                ->group(function (): void {
+                    require base_path('routes/legacy-billing.php');
+                    require base_path('routes/admin-message-templates.php');
+                });
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
