@@ -14,6 +14,7 @@ import {
     Megaphone,
     Network,
     QrCode,
+    ReceiptText,
     ScanLine,
     ScrollText,
     Trophy,
@@ -124,6 +125,12 @@ const navigation: NavSection[] = [
                 href: paymentsIndex.url(),
                 icon: WalletCards,
                 roles: allRoles,
+            },
+            {
+                title: 'Aturan Tagihan',
+                href: '/admin/billing-settings',
+                icon: ReceiptText,
+                roles: ['admin'],
             },
             {
                 title: 'Bayar via QRIS',
