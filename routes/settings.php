@@ -14,6 +14,9 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
+    Route::put('settings/profile/athlete', [ProfileController::class, 'updateAthleteProfile'])->name('profile.athlete.update');
+    Route::put('settings/profile/coach', [ProfileController::class, 'updateCoachProfile'])->name('profile.coach.update');
+    Route::put('settings/profile/parent', [ProfileController::class, 'updateParentProfile'])->name('profile.parent.update');
     Route::post('settings/profile/certifications', [ProfileController::class, 'storeCertification'])->name('profile.certifications.store');
     Route::put('settings/profile/certifications/{certification}', [ProfileController::class, 'updateCertification'])->name('profile.certifications.update');
     Route::delete('settings/profile/certifications/{certification}', [ProfileController::class, 'destroyCertification'])->name('profile.certifications.destroy');
