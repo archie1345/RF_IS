@@ -13,6 +13,7 @@ use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
+use App\Models\UserFile;
 use App\Support\Profile\ProfilePageData;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -33,12 +34,9 @@ class ProfileController extends Controller
         $user = $request->user();
         $this->profilePageData->loadUser($user);
 
-        return Inertia::render('profiles/ProfileDetailsPage', [
+        return Inertia::render('settings/ProfileWorkspace', [
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
-            'context' => 'settings',
-            'canEditAccount' => true,
-            'canEditRoleProfiles' => false,
             'accountUpdateUrl' => '/settings/profile',
             'profileUpdateUrl' => '/settings/profile/details',
             'certificationStoreUrl' => '/settings/profile/certifications',
@@ -144,14 +142,14 @@ class ProfileController extends Controller
         return to_route('profile.edit')->with('status', 'Prestasi berhasil dihapus.');
     }
 
-    private function deleteAttachedFile($file): void
+    private function deleteAttachedFile(?UserFile $file): void
     {
         if (! $file) {
             return;
         }
 
         if ($file->file_path) {
-            Storage::disk('public')->delete($file->file_path);
+            Storage::disk($file->storageDisk())->delete($file->file_path);
         }
 
         $file->delete();
