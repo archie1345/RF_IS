@@ -2,6 +2,7 @@
 
 use App\Models\Athlete;
 use App\Models\BillingRule;
+use App\Models\BillingSetting;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\Payment;
@@ -63,14 +64,15 @@ test('monthly billing uses the most specific rule and is idempotent', function (
     $specificAthlete = createBillingAthlete('Specific Athlete', $firstBranch, $firstGroup);
     $fallbackAthlete = createBillingAthlete('Fallback Athlete', $secondBranch, $secondGroup);
 
-    BillingRule::query()->create([
-        'name' => 'Global tuition',
-        'charge_kind' => BillingRule::KIND_MONTHLY,
-        'payment_type' => 'TUITION',
-        'amount' => 150000,
-        'due_days' => 10,
-        'is_active' => true,
-    ]);
+    BillingSetting::query()->updateOrCreate(
+        ['name' => 'monthly_tuition'],
+        [
+            'invoice_day' => 1,
+            'invoice_time' => '01:10:00',
+            'default_amount' => 150000,
+            'is_active' => true,
+        ],
+    );
     BillingRule::query()->create([
         'name' => 'Central tuition',
         'charge_kind' => BillingRule::KIND_MONTHLY,
@@ -104,7 +106,8 @@ test('monthly billing uses the most specific rule and is idempotent', function (
     expect((float) $specificPayment->total_amount)->toBe(275000.0)
         ->and($specificPayment->billing_rule_id)->toBe($specificRule->id)
         ->and($specificPayment->due_date?->toDateString())->toBe('2026-08-08')
-        ->and((float) $fallbackPayment->total_amount)->toBe(150000.0);
+        ->and((float) $fallbackPayment->total_amount)->toBe(150000.0)
+        ->and($fallbackPayment->billing_rule_id)->toBeNull();
 
     $this->actingAs($admin)
         ->post(route('admin.billing-settings.monthly.generate'), $payload)
@@ -150,13 +153,14 @@ test('one time billing rule can be issued once per athlete and issue date', func
 
 test('monthly rules with the same scope cannot overlap', function () {
     $admin = User::factory()->create(['role' => 'admin']);
+    $branch = Branch::query()->create(['branch_name' => 'Overlap Branch', 'is_active' => true]);
 
     $base = [
-        'name' => 'First global rate',
+        'name' => 'First branch rate',
         'charge_kind' => 'MONTHLY',
         'payment_type' => 'TUITION',
         'amount' => 150000,
-        'branch_id' => null,
+        'branch_id' => $branch->branch_id,
         'group_id' => null,
         'due_days' => 14,
         'effective_from' => '2026-01-01',
@@ -172,7 +176,7 @@ test('monthly rules with the same scope cannot overlap', function () {
     $this->actingAs($admin)
         ->post(route('admin.billing-rules.store'), [
             ...$base,
-            'name' => 'Overlapping global rate',
+            'name' => 'Overlapping branch rate',
             'effective_from' => '2026-06-01',
             'effective_until' => '2027-01-31',
         ])
