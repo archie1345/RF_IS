@@ -12,7 +12,6 @@ import UserInfo from '@/components/UserInfo.vue';
 
 import type { Props } from './UserMenuContent.types';
 import { logout } from '@/routes';
-import { edit } from '@/routes/profile';
 import { update as roleContextUpdate } from '@/routes/role-context';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
@@ -27,9 +26,9 @@ const isMultiRole = computed(() => roles.value.length > 1);
 
 const roleLabels: Record<AppRole, string> = {
     admin: 'Admin',
-    coach: 'Coach',
-    parent: 'Parent',
-    athlete: 'Athlete',
+    coach: 'Pelatih',
+    parent: 'Orang tua',
+    athlete: 'Atlet',
 };
 
 const handleLogout = () => {
@@ -69,7 +68,7 @@ defineProps<Props>();
         <DropdownMenuSeparator />
         <DropdownMenuLabel class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <UsersRound class="size-4" />
-            Work as
+            Gunakan peran
         </DropdownMenuLabel>
         <DropdownMenuGroup>
             <DropdownMenuItem
@@ -88,9 +87,9 @@ defineProps<Props>();
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
-            <Link class="block w-full cursor-pointer" :href="edit()" prefetch>
+            <Link class="block w-full cursor-pointer" href="/settings" prefetch>
                 <Settings class="mr-2 h-4 w-4" />
-                Settings
+                Pengaturan
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>
@@ -104,7 +103,7 @@ defineProps<Props>();
             data-test="logout-button"
         >
             <LogOut class="mr-2 h-4 w-4" />
-            Log out
+            Keluar
         </Link>
     </DropdownMenuItem>
 </template>
