@@ -14,6 +14,9 @@ class BillingRuleResolver
         return BillingRule::query()
             ->with(['branch', 'group'])
             ->where('charge_kind', BillingRule::KIND_MONTHLY)
+            ->where(function (Builder $scope): void {
+                $scope->whereNotNull('branch_id')->orWhereNotNull('group_id');
+            })
             ->effectiveOn($month)
             ->where(function (Builder $query) use ($athlete): void {
                 $query->whereNull('branch_id')->orWhere('branch_id', $athlete->branch_id);
@@ -23,9 +26,8 @@ class BillingRuleResolver
             })
             ->orderByRaw(
                 'CASE
-                    WHEN branch_id IS NOT NULL AND group_id IS NOT NULL THEN 4
-                    WHEN group_id IS NOT NULL THEN 3
-                    WHEN branch_id IS NOT NULL THEN 2
+                    WHEN branch_id IS NOT NULL AND group_id IS NOT NULL THEN 3
+                    WHEN group_id IS NOT NULL THEN 2
                     ELSE 1
                 END DESC'
             )
