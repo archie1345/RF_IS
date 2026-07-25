@@ -30,6 +30,8 @@ class Payment extends Model
         'payment_type',
         'amount',
         'reference_id',
+        'billing_rule_id',
+        'billing_run_key',
         'total_amount',
         'paid_amount',
         'remaining_amount',
@@ -46,6 +48,7 @@ class Payment extends Model
 
     protected $hidden = [
         'proof_path',
+        'billing_run_key',
     ];
 
     protected static function booted(): void
@@ -112,6 +115,11 @@ class Payment extends Model
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_user_id', 'id');
+    }
+
+    public function billingRule(): BelongsTo
+    {
+        return $this->belongsTo(BillingRule::class, 'billing_rule_id');
     }
 
     public function transactions(): HasMany
