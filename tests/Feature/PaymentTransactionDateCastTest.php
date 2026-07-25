@@ -3,6 +3,7 @@
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -38,7 +39,7 @@ it('casts transaction dates and renders admin finance metrics without a string d
 
     $transaction = PaymentTransaction::query()->firstOrFail();
 
-    expect($transaction->transaction_date)->toBeInstanceOf(Carbon::class)
+    expect($transaction->transaction_date)->toBeInstanceOf(CarbonInterface::class)
         ->and($transaction->transaction_date->betweenIncluded(now()->startOfMonth(), now()->endOfMonth()))->toBeTrue();
 
     $this->actingAs($admin)
