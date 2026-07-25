@@ -46,6 +46,7 @@ it('registers one role-scoped throttled QR attendance submission route', functio
 it('protects sensitive web mutations with role middleware', function () {
     $adminRoutes = [
         'admin.index',
+        'admin.whatsapp-template.update',
         'users.index',
         'athletes.update',
         'announcements.store',
