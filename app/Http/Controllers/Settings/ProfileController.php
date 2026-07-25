@@ -5,10 +5,16 @@ namespace App\Http\Controllers\Settings;
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Actions\Profiles\SaveUserCertification;
 use App\Actions\Profiles\UpdateAccountProfile;
+use App\Actions\Profiles\UpdateAthleteProfile;
+use App\Actions\Profiles\UpdateCoachProfile;
+use App\Actions\Profiles\UpdateParentProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Profiles\SaveUserAchievementRequest;
 use App\Http\Requests\Profiles\SaveUserCertificationRequest;
 use App\Http\Requests\Profiles\UpdateAccountProfileRequest;
+use App\Http\Requests\Profiles\UpdateAthleteProfileRequest;
+use App\Http\Requests\Profiles\UpdateCoachProfileRequest;
+use App\Http\Requests\Profiles\UpdateParentProfileRequest;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
 use App\Models\UserAchievement;
@@ -67,6 +73,36 @@ class ProfileController extends Controller
         $updateAccountProfile->handle($request->user(), $request->validated(), $request);
 
         return to_route('profile.edit')->with('status', 'Detail profil berhasil diperbarui.');
+    }
+
+    public function updateAthleteProfile(
+        UpdateAthleteProfileRequest $request,
+        UpdateAthleteProfile $updateAthleteProfile,
+    ): RedirectResponse {
+        abort_unless($request->user()->hasRole('athlete'), 404);
+        $updateAthleteProfile->handle($request->user(), $request->validated());
+
+        return to_route('profile.edit')->with('status', 'Data atlet berhasil diperbarui.');
+    }
+
+    public function updateCoachProfile(
+        UpdateCoachProfileRequest $request,
+        UpdateCoachProfile $updateCoachProfile,
+    ): RedirectResponse {
+        abort_unless($request->user()->hasRole('coach'), 404);
+        $updateCoachProfile->handle($request->user(), $request->validated());
+
+        return to_route('profile.edit')->with('status', 'Data pelatih berhasil diperbarui.');
+    }
+
+    public function updateParentProfile(
+        UpdateParentProfileRequest $request,
+        UpdateParentProfile $updateParentProfile,
+    ): RedirectResponse {
+        abort_unless($request->user()->hasRole('parent'), 404);
+        $updateParentProfile->handle($request->user(), $request->validated());
+
+        return to_route('profile.edit')->with('status', 'Data orang tua berhasil diperbarui.');
     }
 
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
