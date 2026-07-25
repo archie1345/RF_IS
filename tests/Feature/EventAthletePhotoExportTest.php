@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use ZipArchive;
 
 test('admin can download registered athlete 3x4 photos as a zip with manifest', function () {
     Storage::fake('public');
@@ -66,7 +65,7 @@ test('admin can download registered athlete 3x4 photos as a zip with manifest', 
         ->assertDownload('jakarta-open-foto-atlet-3x4.zip');
 
     $archivePath = $response->baseResponse->getFile()->getPathname();
-    $archive = new ZipArchive;
+    $archive = new \ZipArchive;
     expect($archive->open($archivePath))->toBeTrue()
         ->and($archive->locateName('manifest.csv'))->not->toBeFalse()
         ->and($archive->locateName('README.txt'))->not->toBeFalse();
