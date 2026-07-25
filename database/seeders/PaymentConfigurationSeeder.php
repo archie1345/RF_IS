@@ -35,7 +35,7 @@ class PaymentConfigurationSeeder extends Seeder
             ],
         );
 
-        MessageTemplate::query()->updateOrCreate(
+        MessageTemplate::query()->firstOrCreate(
             ['key' => PaymentReminderTemplate::KEY],
             ['body' => PaymentReminderTemplate::DEFAULT_BODY],
         );
