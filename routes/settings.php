@@ -3,12 +3,13 @@
 use App\Http\Controllers\ActiveRoleContextController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\SettingsOverviewController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware(['auth', 'account.active'])->group(function () {
-    Route::redirect('settings', '/settings/profile');
+Route::middleware(['auth', 'account.active'])->group(function (): void {
+    Route::get('settings', SettingsOverviewController::class)->name('settings.index');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -21,7 +22,7 @@ Route::middleware(['auth', 'account.active'])->group(function () {
     Route::delete('settings/profile/achievements/{achievement}', [ProfileController::class, 'destroyAchievement'])->name('profile.achievements.destroy');
 });
 
-Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
+Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
 
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
