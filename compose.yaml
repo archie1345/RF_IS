@@ -152,7 +152,7 @@ services:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit:${MAILPIT_VERSION:-v1}
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.30.5}
     container_name: ${MAILPIT_CONTAINER_NAME:-rf-mailpit}
     restart: unless-stopped
 
