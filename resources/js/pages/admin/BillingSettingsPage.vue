@@ -48,6 +48,7 @@ const props = defineProps<{
 const popup = useAppPopup();
 const ruleModalOpen = ref(false);
 const editingRuleId = ref<number | null>(null);
+const ruleHasNoEndDate = ref(true);
 const issueModalOpen = ref(false);
 const issuingRule = ref<BillingRuleRecord | null>(null);
 
@@ -122,6 +123,13 @@ watch(
     },
 );
 
+watch(ruleHasNoEndDate, (hasNoEndDate) => {
+    if (hasNoEndDate) {
+        ruleForm.effective_until = '';
+        ruleForm.clearErrors('effective_until');
+    }
+});
+
 function rupiah(value: number | string): string {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
         Number(value || 0),
@@ -133,8 +141,8 @@ function kindLabel(kind: BillingRuleRecord['charge_kind']): string {
 }
 
 function periodLabel(rule: BillingRuleRecord): string {
-    if (!rule.effective_from && !rule.effective_until) return 'Berlaku tanpa batas periode';
-    return `${rule.effective_from ?? 'Awal'} — ${rule.effective_until ?? 'Seterusnya'}`;
+    if (!rule.effective_from && !rule.effective_until) return 'Berlaku selamanya';
+    return `${rule.effective_from ?? 'Sekarang'} — ${rule.effective_until ?? 'Selamanya'}`;
 }
 
 function saveSchedule(): void {
@@ -152,6 +160,7 @@ function openCreateRule(): void {
     ruleForm.payment_type = 'TUITION';
     ruleForm.due_days = '14';
     ruleForm.is_active = true;
+    ruleHasNoEndDate.value = true;
     ruleForm.clearErrors();
     ruleModalOpen.value = true;
 }
@@ -169,6 +178,7 @@ function openEditRule(rule: BillingRuleRecord): void {
     ruleForm.effective_until = rule.effective_until ?? '';
     ruleForm.is_active = rule.is_active;
     ruleForm.notes = rule.notes ?? '';
+    ruleHasNoEndDate.value = rule.effective_until === null;
     ruleForm.clearErrors();
     ruleModalOpen.value = true;
 }
@@ -176,10 +186,15 @@ function openEditRule(rule: BillingRuleRecord): void {
 function closeRuleModal(): void {
     ruleModalOpen.value = false;
     editingRuleId.value = null;
+    ruleHasNoEndDate.value = true;
     ruleForm.clearErrors();
 }
 
 function submitRule(): void {
+    if (ruleHasNoEndDate.value) {
+        ruleForm.effective_until = '';
+    }
+
     const options = {
         preserveScroll: true,
         onSuccess: closeRuleModal,
@@ -273,6 +288,7 @@ function issueOneTimeCharge(): void {
                                 type="number"
                                 min="1"
                                 max="28"
+                                step="1"
                                 required
                                 :error="scheduleForm.errors.invoice_day"
                             />
@@ -289,9 +305,11 @@ function issueOneTimeCharge(): void {
                                 v-model="scheduleForm.default_amount"
                                 label="Tarif default"
                                 type="number"
+                                inputmode="numeric"
                                 min="1"
-                                step="1000"
+                                step="1"
                                 required
+                                help="Masukkan nominal Rupiah tanpa titik atau koma."
                                 :error="scheduleForm.errors.default_amount"
                             />
                         </div>
@@ -417,14 +435,50 @@ function issueOneTimeCharge(): void {
                         required
                         :error="ruleForm.errors.payment_type"
                     />
-                    <FormInputField id="billing-rule-amount" v-model="ruleForm.amount" label="Nominal" type="number" min="1" step="1000" required :error="ruleForm.errors.amount" />
+                    <FormInputField
+                        id="billing-rule-amount"
+                        v-model="ruleForm.amount"
+                        label="Nominal"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        step="1"
+                        required
+                        help="Masukkan nominal Rupiah tanpa titik atau koma, misalnya 35000."
+                        :error="ruleForm.errors.amount"
+                    />
                     <FormSelectField id="billing-rule-branch" v-model="ruleForm.branch_id" label="Cabang (opsional)" :options="props.branches" placeholder="Semua cabang" :error="ruleForm.errors.branch_id" />
                     <FormSelectField id="billing-rule-group" v-model="ruleForm.group_id" label="Kelas latihan (opsional)" :options="filteredGroupOptions" placeholder="Semua kelas" :error="ruleForm.errors.group_id" />
-                    <FormInputField id="billing-rule-due-days" v-model="ruleForm.due_days" label="Batas pembayaran (hari)" type="number" min="0" max="365" required :error="ruleForm.errors.due_days" />
+                    <FormInputField id="billing-rule-due-days" v-model="ruleForm.due_days" label="Batas pembayaran (hari)" type="number" min="0" max="365" step="1" required :error="ruleForm.errors.due_days" />
                     <div class="hidden sm:block" />
-                    <FormInputField id="billing-rule-effective-from" v-model="ruleForm.effective_from" label="Berlaku mulai" type="date" :error="ruleForm.errors.effective_from" />
-                    <FormInputField id="billing-rule-effective-until" v-model="ruleForm.effective_until" label="Berlaku sampai" type="date" :min="ruleForm.effective_from || undefined" :error="ruleForm.errors.effective_until" />
+                    <FormInputField
+                        id="billing-rule-effective-from"
+                        v-model="ruleForm.effective_from"
+                        label="Berlaku mulai"
+                        type="date"
+                        help="Kosongkan agar aturan berlaku segera."
+                        :error="ruleForm.errors.effective_from"
+                    />
+                    <FormInputField
+                        id="billing-rule-effective-until"
+                        v-model="ruleForm.effective_until"
+                        label="Berlaku sampai"
+                        type="date"
+                        :disabled="ruleHasNoEndDate"
+                        :min="ruleForm.effective_from || undefined"
+                        :help="ruleHasNoEndDate ? 'Aturan tidak memiliki tanggal berakhir.' : 'Pilih tanggal terakhir aturan berlaku.'"
+                        :error="ruleForm.errors.effective_until"
+                    />
                 </div>
+
+                <label class="flex items-start gap-3 rounded-xl border bg-muted/20 p-3 text-sm">
+                    <input v-model="ruleHasNoEndDate" type="checkbox" class="mt-1 size-4 rounded border-input" />
+                    <span>
+                        <strong class="block">Berlaku selamanya</strong>
+                        <span class="text-muted-foreground">Tidak membatasi aturan dengan tanggal berakhir. Anda tetap dapat mengubah atau mengarsipkannya nanti.</span>
+                    </span>
+                </label>
+
                 <div class="grid gap-2">
                     <label for="billing-rule-notes" class="text-sm font-medium">Catatan</label>
                     <textarea id="billing-rule-notes" v-model="ruleForm.notes" rows="3" class="rounded-xl border border-input bg-background px-3 py-2 text-sm" />
