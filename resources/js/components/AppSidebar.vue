@@ -186,10 +186,10 @@ const footerNavItems: NavItem[] = [];
         <SidebarHeader class="min-w-0 overflow-hidden p-2">
             <Link
                 :href="homeHref"
-                class="flex h-14 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition-[width,height,padding] hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
+                class="flex h-24 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition-[width,height,padding] hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
             >
                 <AppLogoIcon
-                    class-name="block h-auto max-h-10 w-auto max-w-full shrink-0 object-contain object-center group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
+                    class-name="block h-auto w-44 max-h-[5.5rem] max-w-full shrink-0 object-contain object-center group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
                 />
                 <span class="sr-only">RF IS dashboard</span>
             </Link>
