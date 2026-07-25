@@ -23,6 +23,7 @@ import {
     WalletCards,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -31,9 +32,6 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as achievementsIndex } from '@/routes/achievements';
@@ -58,7 +56,6 @@ import { index as usersIndex } from '@/routes/users';
 import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
-import AppLogo from './AppLogo.vue';
 
 const page = usePage<{ auth: Auth }>();
 
@@ -186,16 +183,16 @@ const footerNavItems: NavItem[] = [];
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="homeHref">
-                            <AppLogo />
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
+        <SidebarHeader class="min-w-0 overflow-hidden p-2">
+            <Link
+                :href="homeHref"
+                class="flex h-14 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition-[width,height,padding] hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
+            >
+                <AppLogoIcon
+                    class-name="block h-auto max-h-10 w-auto max-w-full shrink-0 object-contain object-center group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
+                />
+                <span class="sr-only">RF IS dashboard</span>
+            </Link>
         </SidebarHeader>
 
         <SidebarContent>
