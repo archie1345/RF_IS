@@ -19,6 +19,7 @@ export type AthleteProfile = {
 export type ProfileSelectOption = {
     value: string | number;
     label: string;
+    branch_id?: string | number | null;
 };
 
 export type CoachProfile = {
@@ -33,7 +34,7 @@ export type ParentProfile = {
     occupation?: string;
     notes?: string;
     athletes?: Array<{
-        id: number;
+        id: number | string;
         name: string;
         branch?: { branch_name: string };
         group?: { group_name: string };
