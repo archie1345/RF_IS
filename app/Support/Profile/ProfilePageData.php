@@ -66,8 +66,8 @@ class ProfilePageData
                 ? Storage::url($user->profile->profile_picture_path)
                 : null,
             'athleteProfile' => $athlete ? [
-                'height_cm' => $athlete->height_cm,
-                'weight_kg' => $athlete->weight_kg,
+                'height_cm' => $athlete->height_cm !== null ? (string) $athlete->height_cm : null,
+                'weight_kg' => $athlete->weight_kg !== null ? (string) $athlete->weight_kg : null,
                 'geup' => $athlete->geup,
                 'nik' => $this->editableSensitiveValue($athlete->displayValue('nik')),
                 'bpjs' => $this->editableSensitiveValue($athlete->displayValue('bpjs')),
@@ -75,8 +75,8 @@ class ProfilePageData
                 'bday' => $user->bday?->format('Y-m-d'),
                 'gender' => $user->gender,
                 'alamat' => $athlete->alamat,
-                'branch_id' => $athlete->branch_id,
-                'group_id' => $athlete->group_id,
+                'branch_id' => $athlete->branch_id !== null ? (string) $athlete->branch_id : null,
+                'group_id' => $athlete->group_id !== null ? (string) $athlete->group_id : null,
                 'branch' => $athlete->branch ? [
                     'branch_id' => $athlete->branch->branch_id,
                     'branch_name' => $athlete->branch->branch_name,
