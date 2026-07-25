@@ -85,7 +85,7 @@ class EventAthletePhotoExportController extends Controller
         $archive->addFromString(
             'README.txt',
             "EVENT: {$event->e_name}\n"
-            ."DATE: ".($event->e_date?->toDateString() ?? '-')."\n"
+            .'DATE: '.($event->e_date?->toDateString() ?? '-')."\n"
             ."INCLUDED PHOTOS: {$added}\n"
             ."MISSING OR UNREADABLE: {$missing}\n\n"
             .'Profile pictures uploaded through the system are normalized to a 3:4 ratio (600x800 JPEG).',

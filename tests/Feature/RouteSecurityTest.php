@@ -32,8 +32,7 @@ it('rejects suspended accounts on API routes without requiring a web session', f
 
 it('registers one role-scoped throttled QR attendance submission route', function () {
     $matchingRoutes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn (IlluminateRoute $route): bool =>
-            in_array('POST', $route->methods(), true)
+        ->filter(fn (IlluminateRoute $route): bool => in_array('POST', $route->methods(), true)
             && $route->uri() === 'attendance/scan/{token}'
         )
         ->values();

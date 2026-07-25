@@ -227,8 +227,7 @@ class AttendanceController extends Controller
 
         abort_unless($attendanceRows->count() === count(array_unique($validated['attendance_ids'])), 404);
         abort_unless(
-            $attendanceRows->every(fn (Attendance $attendance) =>
-                $this->attendanceVisibility->userCanUpdate($user, $attendance)
+            $attendanceRows->every(fn (Attendance $attendance) => $this->attendanceVisibility->userCanUpdate($user, $attendance)
                 && ($canCorrectPastAttendance || ! $this->attendanceRows->isLocked($attendance))),
             403,
         );
