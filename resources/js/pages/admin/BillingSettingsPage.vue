@@ -88,12 +88,11 @@ const issueForm = useForm({
 });
 
 const chargeKindOptions = [
-    { value: 'MONTHLY', label: 'Bulanan / SPP' },
-    { value: 'ONE_TIME', label: 'Satu kali' },
+    { value: 'MONTHLY', label: 'Tarif SPP khusus' },
+    { value: 'ONE_TIME', label: 'Tagihan satu kali' },
 ];
 
 const paymentTypeOptions = [
-    { value: 'TUITION', label: 'Iuran / SPP' },
     { value: 'UNIFORM', label: 'Seragam' },
     { value: 'LICENSE', label: 'Lisensi / UKT' },
     { value: 'CHAMPIONSHIP', label: 'Kejuaraan' },
@@ -106,10 +105,28 @@ const filteredGroupOptions = computed(() => {
     return props.groups.filter((group) => String(group.branch_id ?? '') === String(ruleForm.branch_id));
 });
 
+const monthlyScopeMissing = computed(
+    () => ruleForm.charge_kind === 'MONTHLY' && !ruleForm.branch_id && !ruleForm.group_id,
+);
+
+const ruleModalDescription = computed(() =>
+    ruleForm.charge_kind === 'MONTHLY'
+        ? 'Tarif SPP umum diatur melalui Tarif default. Pilih cabang atau kelas untuk membuat tarif khusus.'
+        : 'Tagihan satu kali boleh diterapkan ke semua atlet atau dibatasi ke cabang dan kelas tertentu.',
+);
+
 watch(
     () => ruleForm.charge_kind,
     (kind) => {
-        if (kind === 'MONTHLY') ruleForm.payment_type = 'TUITION';
+        ruleForm.clearErrors('branch_id', 'group_id');
+        if (kind === 'MONTHLY') {
+            ruleForm.payment_type = 'TUITION';
+            return;
+        }
+
+        if (ruleForm.payment_type === 'TUITION') {
+            ruleForm.payment_type = 'OTHER';
+        }
     },
 );
 
@@ -119,6 +136,19 @@ watch(
         const group = props.groups.find((option) => String(option.value) === String(ruleForm.group_id));
         if (group && ruleForm.branch_id && String(group.branch_id) !== String(ruleForm.branch_id)) {
             ruleForm.group_id = '';
+        }
+
+        if (ruleForm.branch_id) {
+            ruleForm.clearErrors('branch_id');
+        }
+    },
+);
+
+watch(
+    () => ruleForm.group_id,
+    (groupId) => {
+        if (groupId) {
+            ruleForm.clearErrors('branch_id', 'group_id');
         }
     },
 );
@@ -137,7 +167,7 @@ function rupiah(value: number | string): string {
 }
 
 function kindLabel(kind: BillingRuleRecord['charge_kind']): string {
-    return kind === 'MONTHLY' ? 'Bulanan' : 'Satu kali';
+    return kind === 'MONTHLY' ? 'Tarif SPP khusus' : 'Satu kali';
 }
 
 function periodLabel(rule: BillingRuleRecord): string {
@@ -191,6 +221,16 @@ function closeRuleModal(): void {
 }
 
 function submitRule(): void {
+    ruleForm.clearErrors('branch_id', 'group_id');
+
+    if (monthlyScopeMissing.value) {
+        ruleForm.setError(
+            'branch_id',
+            'Pilih cabang atau kelas. Tarif SPP umum sudah menggunakan Tarif default di bagian Jadwal SPP otomatis.',
+        );
+        return;
+    }
+
     if (ruleHasNoEndDate.value) {
         ruleForm.effective_until = '';
     }
@@ -250,7 +290,7 @@ function issueOneTimeCharge(): void {
             <PageSection
                 eyebrow="Konfigurasi keuangan"
                 title="Aturan Tagihan"
-                description="Atur tarif SPP per cabang atau kelas, tarif default, serta template tagihan satu kali."
+                description="Atur SPP default, tarif khusus per cabang atau kelas, serta template tagihan satu kali."
             >
                 <template #actions>
                     <Button as-child variant="outline">
@@ -274,7 +314,7 @@ function issueOneTimeCharge(): void {
                         <div>
                             <h2 class="font-semibold">Jadwal SPP otomatis</h2>
                             <p class="text-sm text-muted-foreground">
-                                Tarif default dipakai ketika atlet tidak cocok dengan aturan cabang atau kelas mana pun.
+                                Ini adalah satu-satunya pengaturan SPP umum. Tarif khusus cabang atau kelas dibuat di daftar aturan.
                             </p>
                         </div>
                     </div>
@@ -355,10 +395,12 @@ function issueOneTimeCharge(): void {
                     <div>
                         <h2 class="text-lg font-semibold">Daftar aturan harga</h2>
                         <p class="text-sm text-muted-foreground">
-                            Prioritas SPP: cabang + kelas, kelas, cabang, aturan global, lalu tarif default.
+                            Prioritas SPP: cabang + kelas, kelas, cabang, lalu Tarif default dari Jadwal SPP otomatis.
                         </p>
                     </div>
-                    <Button variant="outline" class="gap-2" @click="openCreateRule"><Plus class="size-4" /> Tambah aturan</Button>
+                    <Button variant="outline" class="gap-2" @click="openCreateRule">
+                        <Plus class="size-4" /> Tambah aturan
+                    </Button>
                 </div>
 
                 <div v-if="props.rules.length" class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -370,10 +412,16 @@ function issueOneTimeCharge(): void {
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{{ kindLabel(rule.charge_kind) }}</span>
+                                    <span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                                        {{ kindLabel(rule.charge_kind) }}
+                                    </span>
                                     <span
                                         class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :class="rule.is_active ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'"
+                                        :class="
+                                            rule.is_active
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-muted text-muted-foreground'
+                                        "
                                     >
                                         {{ rule.is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
@@ -386,12 +434,26 @@ function issueOneTimeCharge(): void {
 
                         <p class="mt-5 text-2xl font-bold tracking-tight">{{ rupiah(rule.amount) }}</p>
                         <dl class="mt-4 grid gap-2 text-sm">
-                            <div class="flex justify-between gap-4"><dt class="text-muted-foreground">Kategori</dt><dd class="font-medium">{{ rule.payment_type }}</dd></div>
-                            <div class="flex justify-between gap-4"><dt class="text-muted-foreground">Jatuh tempo</dt><dd class="font-medium">{{ rule.due_days }} hari</dd></div>
-                            <div class="flex justify-between gap-4"><dt class="text-muted-foreground">Periode</dt><dd class="text-right font-medium">{{ periodLabel(rule) }}</dd></div>
-                            <div class="flex justify-between gap-4"><dt class="text-muted-foreground">Tagihan terbit</dt><dd class="font-medium">{{ rule.payments_count }}</dd></div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-muted-foreground">Kategori</dt>
+                                <dd class="font-medium">{{ rule.payment_type }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-muted-foreground">Jatuh tempo</dt>
+                                <dd class="font-medium">{{ rule.due_days }} hari</dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-muted-foreground">Periode</dt>
+                                <dd class="text-right font-medium">{{ periodLabel(rule) }}</dd>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <dt class="text-muted-foreground">Tagihan terbit</dt>
+                                <dd class="font-medium">{{ rule.payments_count }}</dd>
+                            </div>
                         </dl>
-                        <p v-if="rule.notes" class="mt-4 rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">{{ rule.notes }}</p>
+                        <p v-if="rule.notes" class="mt-4 rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">
+                            {{ rule.notes }}
+                        </p>
 
                         <div class="mt-auto grid gap-2 pt-5 sm:grid-cols-2">
                             <Button
@@ -402,8 +464,12 @@ function issueOneTimeCharge(): void {
                             >
                                 <CircleDollarSign class="size-4" /> Terbitkan tagihan
                             </Button>
-                            <Button type="button" variant="outline" class="gap-2" @click="openEditRule(rule)"><PencilLine class="size-4" /> Ubah</Button>
-                            <Button type="button" variant="destructive" class="gap-2" @click="archiveRule(rule)"><Trash2 class="size-4" /> Arsipkan</Button>
+                            <Button type="button" variant="outline" class="gap-2" @click="openEditRule(rule)">
+                                <PencilLine class="size-4" /> Ubah
+                            </Button>
+                            <Button type="button" variant="destructive" class="gap-2" @click="archiveRule(rule)">
+                                <Trash2 class="size-4" /> Arsipkan
+                            </Button>
                         </div>
                     </article>
                 </div>
@@ -411,7 +477,9 @@ function issueOneTimeCharge(): void {
                 <div v-else class="rounded-2xl border border-dashed p-8 text-center">
                     <ReceiptText class="mx-auto size-8 text-muted-foreground" />
                     <h3 class="mt-3 font-semibold">Belum ada aturan khusus</h3>
-                    <p class="mt-1 text-sm text-muted-foreground">Semua atlet masih memakai tarif default.</p>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Semua atlet memakai Tarif default sampai tarif cabang, kelas, atau tagihan satu kali dibuat.
+                    </p>
                     <Button class="mt-4" @click="openCreateRule">Buat aturan pertama</Button>
                 </div>
             </section>
@@ -421,20 +489,40 @@ function issueOneTimeCharge(): void {
             <form class="grid min-w-0 gap-5" @submit.prevent="submitRule">
                 <PageSection
                     :title="editingRuleId ? 'Ubah aturan tagihan' : 'Buat aturan tagihan'"
-                    description="Kosongkan cabang dan kelas untuk membuat aturan global."
+                    :description="ruleModalDescription"
                 />
+
                 <div class="grid gap-4 sm:grid-cols-2">
-                    <FormInputField id="billing-rule-name" v-model="ruleForm.name" label="Nama aturan" required :error="ruleForm.errors.name" />
-                    <FormSelectField id="billing-rule-kind" v-model="ruleForm.charge_kind" label="Jenis tagihan" :options="chargeKindOptions" required :error="ruleForm.errors.charge_kind" />
+                    <FormInputField
+                        id="billing-rule-name"
+                        v-model="ruleForm.name"
+                        label="Nama aturan"
+                        required
+                        :error="ruleForm.errors.name"
+                    />
                     <FormSelectField
+                        id="billing-rule-kind"
+                        v-model="ruleForm.charge_kind"
+                        label="Jenis aturan"
+                        :options="chargeKindOptions"
+                        required
+                        :error="ruleForm.errors.charge_kind"
+                    />
+
+                    <FormSelectField
+                        v-if="ruleForm.charge_kind === 'ONE_TIME'"
                         id="billing-rule-payment-type"
                         v-model="ruleForm.payment_type"
                         label="Kategori pembayaran"
                         :options="paymentTypeOptions"
-                        :disabled="ruleForm.charge_kind === 'MONTHLY'"
                         required
                         :error="ruleForm.errors.payment_type"
                     />
+                    <div v-else class="rounded-xl border bg-muted/30 p-3 text-sm sm:self-end">
+                        <p class="font-medium">Kategori: Iuran / SPP</p>
+                        <p class="mt-1 text-xs text-muted-foreground">Tarif SPP khusus selalu menggunakan kategori TUITION.</p>
+                    </div>
+
                     <FormInputField
                         id="billing-rule-amount"
                         v-model="ruleForm.amount"
@@ -447,10 +535,46 @@ function issueOneTimeCharge(): void {
                         help="Masukkan nominal Rupiah tanpa titik atau koma, misalnya 35000."
                         :error="ruleForm.errors.amount"
                     />
-                    <FormSelectField id="billing-rule-branch" v-model="ruleForm.branch_id" label="Cabang (opsional)" :options="props.branches" placeholder="Semua cabang" :error="ruleForm.errors.branch_id" />
-                    <FormSelectField id="billing-rule-group" v-model="ruleForm.group_id" label="Kelas latihan (opsional)" :options="filteredGroupOptions" placeholder="Semua kelas" :error="ruleForm.errors.group_id" />
-                    <FormInputField id="billing-rule-due-days" v-model="ruleForm.due_days" label="Batas pembayaran (hari)" type="number" min="0" max="365" step="1" required :error="ruleForm.errors.due_days" />
-                    <div class="hidden sm:block" />
+                    <FormInputField
+                        id="billing-rule-due-days"
+                        v-model="ruleForm.due_days"
+                        label="Batas pembayaran (hari)"
+                        type="number"
+                        min="0"
+                        max="365"
+                        step="1"
+                        required
+                        :error="ruleForm.errors.due_days"
+                    />
+
+                    <FormSelectField
+                        id="billing-rule-branch"
+                        v-model="ruleForm.branch_id"
+                        :label="ruleForm.charge_kind === 'MONTHLY' ? 'Cabang' : 'Cabang (opsional)'"
+                        :options="props.branches"
+                        :placeholder="ruleForm.charge_kind === 'MONTHLY' ? 'Pilih cabang atau gunakan kelas' : 'Semua cabang'"
+                        :error="ruleForm.errors.branch_id"
+                    />
+                    <FormSelectField
+                        id="billing-rule-group"
+                        v-model="ruleForm.group_id"
+                        :label="ruleForm.charge_kind === 'MONTHLY' ? 'Kelas latihan' : 'Kelas latihan (opsional)'"
+                        :options="filteredGroupOptions"
+                        :placeholder="ruleForm.charge_kind === 'MONTHLY' ? 'Pilih kelas atau gunakan cabang' : 'Semua kelas'"
+                        :error="ruleForm.errors.group_id"
+                    />
+
+                    <div
+                        v-if="ruleForm.charge_kind === 'MONTHLY'"
+                        class="rounded-xl border p-3 text-sm sm:col-span-2"
+                        :class="monthlyScopeMissing ? 'border-amber-500/50 bg-amber-500/10' : 'bg-muted/30'"
+                    >
+                        <p class="font-medium">Pilih minimal satu cakupan</p>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                            Gunakan cabang untuk seluruh atlet di cabang tersebut, kelas untuk kelas tertentu, atau keduanya untuk cakupan paling spesifik.
+                        </p>
+                    </div>
+
                     <FormInputField
                         id="billing-rule-effective-from"
                         v-model="ruleForm.effective_from"
@@ -466,7 +590,11 @@ function issueOneTimeCharge(): void {
                         type="date"
                         :disabled="ruleHasNoEndDate"
                         :min="ruleForm.effective_from || undefined"
-                        :help="ruleHasNoEndDate ? 'Aturan tidak memiliki tanggal berakhir.' : 'Pilih tanggal terakhir aturan berlaku.'"
+                        :help="
+                            ruleHasNoEndDate
+                                ? 'Aturan tidak memiliki tanggal berakhir.'
+                                : 'Pilih tanggal terakhir aturan berlaku.'
+                        "
                         :error="ruleForm.errors.effective_until"
                     />
                 </div>
@@ -475,19 +603,31 @@ function issueOneTimeCharge(): void {
                     <input v-model="ruleHasNoEndDate" type="checkbox" class="mt-1 size-4 rounded border-input" />
                     <span>
                         <strong class="block">Berlaku selamanya</strong>
-                        <span class="text-muted-foreground">Tidak membatasi aturan dengan tanggal berakhir. Anda tetap dapat mengubah atau mengarsipkannya nanti.</span>
+                        <span class="text-muted-foreground">
+                            Tidak membatasi aturan dengan tanggal berakhir. Anda tetap dapat mengubah atau mengarsipkannya nanti.
+                        </span>
                     </span>
                 </label>
 
                 <div class="grid gap-2">
                     <label for="billing-rule-notes" class="text-sm font-medium">Catatan</label>
-                    <textarea id="billing-rule-notes" v-model="ruleForm.notes" rows="3" class="rounded-xl border border-input bg-background px-3 py-2 text-sm" />
+                    <textarea
+                        id="billing-rule-notes"
+                        v-model="ruleForm.notes"
+                        rows="3"
+                        class="rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                    />
                     <p v-if="ruleForm.errors.notes" class="text-sm text-destructive">{{ ruleForm.errors.notes }}</p>
                 </div>
+
                 <label class="flex items-start gap-3 rounded-xl border bg-muted/20 p-3 text-sm">
                     <input v-model="ruleForm.is_active" type="checkbox" class="mt-1 size-4 rounded border-input" />
-                    <span><strong class="block">Aturan aktif</strong><span class="text-muted-foreground">Hanya aturan aktif yang dipakai saat penerbitan.</span></span>
+                    <span>
+                        <strong class="block">Aturan aktif</strong>
+                        <span class="text-muted-foreground">Hanya aturan aktif yang dipakai saat penerbitan.</span>
+                    </span>
                 </label>
+
                 <div class="grid gap-2 sm:flex sm:justify-end">
                     <Button type="button" variant="outline" @click="closeRuleModal">Batal</Button>
                     <Button type="submit" :disabled="ruleForm.processing">Simpan aturan</Button>
@@ -497,13 +637,25 @@ function issueOneTimeCharge(): void {
 
         <FormModal :open="issueModalOpen" max-width-class="max-w-xl" @close="closeIssueModal">
             <form class="grid gap-5" @submit.prevent="issueOneTimeCharge">
-                <PageSection title="Terbitkan tagihan satu kali" :description="issuingRule ? `${issuingRule.name} — ${issuingRule.scope}` : ''" />
+                <PageSection
+                    title="Terbitkan tagihan satu kali"
+                    :description="issuingRule ? `${issuingRule.name} — ${issuingRule.scope}` : ''"
+                />
                 <div v-if="issuingRule" class="rounded-xl border bg-muted/30 p-4">
                     <p class="text-sm text-muted-foreground">Nominal per atlet</p>
                     <p class="mt-1 text-2xl font-bold">{{ rupiah(issuingRule.amount) }}</p>
-                    <p class="mt-2 text-sm text-muted-foreground">Menjalankan ulang aturan pada tanggal terbit yang sama tidak membuat duplikat.</p>
+                    <p class="mt-2 text-sm text-muted-foreground">
+                        Menjalankan ulang aturan pada tanggal terbit yang sama tidak membuat duplikat.
+                    </p>
                 </div>
-                <FormInputField id="one-time-issue-date" v-model="issueForm.issue_date" label="Tanggal terbit" type="date" required :error="issueForm.errors.issue_date" />
+                <FormInputField
+                    id="one-time-issue-date"
+                    v-model="issueForm.issue_date"
+                    label="Tanggal terbit"
+                    type="date"
+                    required
+                    :error="issueForm.errors.issue_date"
+                />
                 <div class="grid gap-2 sm:flex sm:justify-end">
                     <Button type="button" variant="outline" @click="closeIssueModal">Batal</Button>
                     <Button type="submit" :disabled="issueForm.processing">Terbitkan tagihan</Button>
