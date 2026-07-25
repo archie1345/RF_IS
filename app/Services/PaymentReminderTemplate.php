@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\MessageTemplate;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentReminderTemplate
 {
@@ -26,6 +27,10 @@ class PaymentReminderTemplate
     {
         if ($this->cachedBody !== null) {
             return $this->cachedBody;
+        }
+
+        if (! Schema::hasTable('message_templates')) {
+            return $this->cachedBody = self::DEFAULT_BODY;
         }
 
         $body = MessageTemplate::query()
