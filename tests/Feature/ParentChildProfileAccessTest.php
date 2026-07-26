@@ -75,9 +75,6 @@ test('linked parent can update child account athlete profile records and passwor
             'height_cm' => 152,
             'weight_kg' => 48,
             'geup' => 'GEUP_2',
-            'gender' => 'FEMALE',
-            'bday' => '2012-05-01',
-            'phone' => '08129876543',
             'nik' => '3174000011110001',
             'bpjs' => '0001234567890',
             'alamat' => 'Updated child address',
@@ -95,6 +92,7 @@ test('linked parent can update child account athlete profile records and passwor
         ->alamat->toBe('Updated child address')
         ->nik_ciphertext->toBe('3174000011110001')
         ->bpjs_ciphertext->toBe('0001234567890');
+    expect($childUser->refresh()->phone)->toBe('08123456789');
 
     $this->actingAs($parentUser)
         ->post(route('users.certifications.store', $childUser), [
