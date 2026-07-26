@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { FileText, PencilLine, Trash2 } from 'lucide-vue-next';
+import { FileText, PencilLine, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
@@ -24,6 +24,7 @@ const props = defineProps<{
 const popup = useAppPopup();
 
 const rows = computed(() => certificationRows(props.certifications));
+const creatingCertification = ref(false);
 const editingCertification = ref<ProfileCertification | null>(null);
 
 const certForm = useForm({
@@ -46,14 +47,25 @@ const certificationEditForm = useForm({
     file: null as File | null,
 });
 
+function openCertificationCreate(): void {
+    certForm.reset();
+    certForm.cert_type = 'BELT';
+    certForm.clearErrors();
+    creatingCertification.value = true;
+}
+
+function closeCertificationCreate(): void {
+    creatingCertification.value = false;
+    certForm.reset();
+    certForm.cert_type = 'BELT';
+    certForm.clearErrors();
+}
+
 function addCertification(): void {
     certForm.post(props.storeUrl, {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => {
-            certForm.reset();
-            certForm.cert_type = 'BELT';
-        },
+        onSuccess: closeCertificationCreate,
     });
 }
 
@@ -113,13 +125,31 @@ async function removeCertification(row: TableRow): Promise<void> {
 
 <template>
     <div class="min-w-0 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-        <h4 class="mb-3 flex items-center gap-2 font-semibold">
-            <FileText class="h-4 w-4 text-muted-foreground" />
-            Sertifikasi
-        </h4>
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h4 class="flex items-center gap-2 font-semibold">
+                    <FileText class="h-4 w-4 text-muted-foreground" />
+                    Sertifikasi
+                </h4>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Sertifikat sabuk, pelatih, wasit, dan dokumen kompetensi lainnya.
+                </p>
+            </div>
+            <Button
+                v-if="props.canManage"
+                type="button"
+                size="sm"
+                class="w-full gap-2 sm:w-auto"
+                @click="openCertificationCreate"
+            >
+                <Plus class="h-4 w-4" />
+                Tambah sertifikasi
+            </Button>
+        </div>
+
         <DataTable
-            title="Sertifikasi"
-            description="Daftar sertifikasi sabuk, pelatih, atau wasit untuk pengguna ini."
+            title="Daftar Sertifikasi"
+            description="Berkas tersimpan secara privat dan hanya dapat diakses oleh pengguna yang berwenang."
             :columns="certificationColumns"
             :rows="rows"
             action-label="Tindakan"
@@ -150,15 +180,21 @@ async function removeCertification(row: TableRow): Promise<void> {
             </template>
         </DataTable>
 
-        <div v-if="props.canManage" class="mt-6 border-t border-border pt-4">
-            <h5 class="mb-2 font-medium">Tambah sertifikasi</h5>
-            <form class="grid min-w-0 gap-3" @submit.prevent="addCertification">
+        <FormModal :open="creatingCertification" max-width-class="max-w-2xl" @close="closeCertificationCreate">
+            <form class="grid min-w-0 gap-4" @submit.prevent="addCertification">
+                <div>
+                    <h3 class="text-lg font-semibold">Tambah sertifikasi</h3>
+                    <p class="text-sm text-muted-foreground">
+                        Simpan detail sertifikasi dan unggah berkas pendukung bila tersedia.
+                    </p>
+                </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <FormSelectField
                         id="cert-type"
                         v-model="certForm.cert_type"
                         label="Jenis"
                         :options="certificationTypeOptions"
+                        :error="certForm.errors.cert_type"
                     />
                     <FormInputField
                         id="cert-title"
@@ -175,10 +211,22 @@ async function removeCertification(row: TableRow): Promise<void> {
                         label="Penerbit"
                         :error="certForm.errors.issuer"
                     />
-                    <FormInputField id="cert-date" v-model="certForm.certified_at" label="Tanggal sertifikasi" type="date" />
+                    <FormInputField
+                        id="cert-date"
+                        v-model="certForm.certified_at"
+                        label="Tanggal sertifikasi"
+                        type="date"
+                        :error="certForm.errors.certified_at"
+                    />
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <FormInputField id="cert-expires" v-model="certForm.expires_at" label="Berlaku sampai" type="date" />
+                    <FormInputField
+                        id="cert-expires"
+                        v-model="certForm.expires_at"
+                        label="Berlaku sampai"
+                        type="date"
+                        :error="certForm.errors.expires_at"
+                    />
                     <FormInputField
                         id="cert-notes"
                         v-model="certForm.notes"
@@ -193,9 +241,14 @@ async function removeCertification(row: TableRow): Promise<void> {
                     :accept="documentFileAccept"
                     :error="certForm.errors.file"
                 />
-                <Button type="submit" class="w-full sm:w-fit" :disabled="certForm.processing">Tambah sertifikasi</Button>
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="closeCertificationCreate">Batal</Button>
+                    <Button type="submit" :disabled="certForm.processing">
+                        {{ certForm.processing ? 'Menyimpan...' : 'Tambah sertifikasi' }}
+                    </Button>
+                </div>
             </form>
-        </div>
+        </FormModal>
 
         <FormModal :open="Boolean(editingCertification)" max-width-class="max-w-2xl" @close="closeCertificationEdit">
             <form class="grid min-w-0 gap-4" @submit.prevent="saveCertificationEdit">
