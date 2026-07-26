@@ -136,6 +136,7 @@ Artisan::command('app:database-audit', function () {
             'id', 'name', 'charge_kind', 'payment_type', 'amount', 'branch_id', 'group_id',
             'due_days', 'effective_from', 'effective_until', 'is_active', 'deleted_at',
         ],
+        'message_templates' => ['id', 'key', 'body'],
         'payments' => [
             'payment_id', 'invoice_number', 'bill_kind', 'payment_type', 'status', 'proof_status',
             'billing_rule_id', 'billing_run_key', 'total_amount', 'paid_amount', 'remaining_amount',

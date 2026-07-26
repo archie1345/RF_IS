@@ -12,6 +12,7 @@ import {
     LayoutDashboard,
     MapPinned,
     Megaphone,
+    MessageCircleMore,
     Network,
     QrCode,
     ReceiptText,
@@ -127,6 +128,12 @@ const navigation: NavSection[] = [
                 title: 'Aturan Tagihan',
                 href: '/admin/billing-settings',
                 icon: ReceiptText,
+                roles: ['admin'],
+            },
+            {
+                title: 'Template WhatsApp',
+                href: '/admin/whatsapp-template',
+                icon: MessageCircleMore,
                 roles: ['admin'],
             },
             {

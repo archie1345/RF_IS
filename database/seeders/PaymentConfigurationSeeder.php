@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\BillingRule;
 use App\Models\BillingSetting;
 use App\Models\InvoiceTemplate;
+use App\Models\MessageTemplate;
+use App\Services\PaymentReminderTemplate;
 use Illuminate\Database\Seeder;
 
 class PaymentConfigurationSeeder extends Seeder
@@ -31,6 +33,11 @@ class PaymentConfigurationSeeder extends Seeder
                 'default_amount' => 150000,
                 'is_active' => true,
             ],
+        );
+
+        MessageTemplate::query()->firstOrCreate(
+            ['key' => PaymentReminderTemplate::KEY],
+            ['body' => PaymentReminderTemplate::DEFAULT_BODY],
         );
 
         BillingRule::query()

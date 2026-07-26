@@ -5,12 +5,15 @@ namespace App\Presenters;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Presenters\Concerns\FormatsPresenterData;
+use App\Services\PaymentReminderTemplate;
 use App\Support\Domain\PaymentStatus;
 use Illuminate\Support\Str;
 
 class PaymentRowPresenter
 {
     use FormatsPresenterData;
+
+    public function __construct(private readonly PaymentReminderTemplate $reminderTemplate) {}
 
     public function row(Payment $payment): array
     {
@@ -210,15 +213,15 @@ class PaymentRowPresenter
             $digits = '62'.substr($digits, 1);
         }
 
-        $message = sprintf(
-            'Halo %s, tagihan %s (%s) sebesar %s masih memiliki sisa %s dan jatuh tempo %s. Silakan lakukan pembayaran lalu upload bukti di sistem RF IS. Terima kasih.',
-            $this->subject($payment),
-            $payment->invoice_number ?: 'INV-'.$payment->payment_id,
-            Str::headline(strtolower((string) $payment->payment_type)),
-            $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
-            $this->rupiah((float) ($payment->remaining_amount ?? 0)),
-            optional($payment->due_date)->format('d M Y') ?? '-',
-        );
+        $message = $this->reminderTemplate->render([
+            'name' => $this->subject($payment),
+            'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
+            'payment_type' => Str::headline(strtolower((string) $payment->payment_type)),
+            'total_amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
+            'remaining_amount' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
+            'due_date' => optional($payment->due_date)->translatedFormat('d F Y') ?? '-',
+            'payment_url' => route('payments.index'),
+        ]);
 
         return 'https://wa.me/'.$digits.'?text='.rawurlencode($message);
     }
