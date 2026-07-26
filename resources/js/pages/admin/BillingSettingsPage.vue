@@ -349,7 +349,6 @@ function issueOneTimeCharge(): void {
                                 min="1"
                                 step="1"
                                 required
-                                help="Masukkan nominal Rupiah tanpa titik atau koma."
                                 :error="scheduleForm.errors.default_amount"
                             />
                         </div>
@@ -518,10 +517,6 @@ function issueOneTimeCharge(): void {
                         required
                         :error="ruleForm.errors.payment_type"
                     />
-                    <div v-else class="rounded-xl border bg-muted/30 p-3 text-sm sm:self-end">
-                        <p class="font-medium">Kategori: Iuran / SPP</p>
-                        <p class="mt-1 text-xs text-muted-foreground">Tarif SPP khusus selalu menggunakan kategori TUITION.</p>
-                    </div>
 
                     <FormInputField
                         id="billing-rule-amount"
@@ -532,7 +527,6 @@ function issueOneTimeCharge(): void {
                         min="1"
                         step="1"
                         required
-                        help="Masukkan nominal Rupiah tanpa titik atau koma, misalnya 35000."
                         :error="ruleForm.errors.amount"
                     />
                     <FormInputField
