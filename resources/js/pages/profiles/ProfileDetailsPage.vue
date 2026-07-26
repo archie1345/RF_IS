@@ -12,6 +12,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import ProfileAchievementsSection from '@/pages/profiles/components/ProfileAchievementsSection.vue';
 import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCertificationsSection.vue';
+import ProfileRoleDetailsSection from '@/pages/profiles/components/ProfileRoleDetailsSection.vue';
 import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
 import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
@@ -80,7 +81,10 @@ const pageShellClass = computed(() => (isSettingsContext.value ? '' : 'flex flex
 const pageContentClass = computed(() => (isSettingsContext.value ? 'flex flex-1 flex-col gap-6' : 'contents'));
 const canEditRoleProfiles = computed(() => props.canEditRoleProfiles);
 const isAthlete = computed(() => props.user.roles.includes('athlete'));
-const shouldShowMilestones = computed(() => isAthlete.value || props.user.roles.includes('coach'));
+const isCoach = computed(() => props.user.roles.includes('coach'));
+const isParent = computed(() => props.user.roles.includes('parent'));
+const hasRoleDetails = computed(() => isAthlete.value || isCoach.value || isParent.value);
+const shouldShowMilestones = computed(() => isAthlete.value || isCoach.value);
 const canManageMilestones = computed(() => shouldShowMilestones.value);
 
 const isEditingProfile = ref(false);
@@ -576,249 +580,199 @@ function shortHash(value?: string | null) {
                     </div>
 
                     <div
-                        v-if="isAthlete"
+                        v-if="hasRoleDetails"
                         class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
                     >
                         <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
                             <ShieldCheck class="h-4 w-4 text-muted-foreground" />
-                            Athlete Details
+                            Role Details
                         </h3>
 
-                        <section v-if="props.canEditAccount" class="border-b border-border/70 pb-5">
-                            <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <h4 class="font-semibold">Account information</h4>
-                                    <p class="text-sm text-muted-foreground">Basic account and contact information for this athlete.</p>
-                                </div>
-                                <Button
-                                    v-if="!isEditingAccount"
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full sm:w-auto"
-                                    @click="isEditingAccount = true"
-                                >
-                                    Edit
-                                </Button>
-                            </div>
-
-                            <form class="space-y-3" @submit.prevent="saveAccountChanges">
-                                <div class="grid gap-3 md:grid-cols-2">
-                                    <FormInputField
-                                        id="athlete-account-name"
-                                        v-model="accountForm.name"
-                                        label="Name"
-                                        :disabled="!isEditingAccount"
-                                        :error="accountForm.errors.name"
-                                    />
-                                    <FormInputField
-                                        id="athlete-account-email"
-                                        v-model="accountForm.email"
-                                        label="Email"
-                                        type="email"
-                                        :disabled="!isEditingAccount"
-                                        :error="accountForm.errors.email"
-                                    />
-                                </div>
-                                <div class="grid gap-3 md:grid-cols-3">
-                                    <FormSelectField
-                                        id="athlete-account-gender"
-                                        v-model="accountForm.gender"
-                                        label="Gender"
-                                        :disabled="!isEditingAccount"
-                                        :options="genderOptions"
-                                        :error="accountForm.errors.gender"
-                                    />
-                                    <FormInputField
-                                        id="athlete-account-bday"
-                                        v-model="accountForm.bday"
-                                        label="Birth date"
-                                        type="date"
-                                        :disabled="!isEditingAccount"
-                                        :error="accountForm.errors.bday"
-                                    />
-                                    <FormInputField
-                                        id="athlete-account-phone"
-                                        v-model="accountForm.phone"
-                                        label="Phone"
-                                        :disabled="!isEditingAccount"
-                                        :error="accountForm.errors.phone"
-                                    />
-                                </div>
-
-                                <div v-if="isEditingAccount" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <Button type="submit" :disabled="accountForm.processing" size="sm" class="w-full sm:w-auto">
-                                        Save Account
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        class="w-full sm:w-auto"
-                                        @click="cancelAccountEdit"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </form>
-                        </section>
-
-                        <section :class="props.canEditAccount ? 'pt-5' : ''">
-                            <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <h4 class="font-semibold">Athlete profile</h4>
-                                    <p class="text-sm text-muted-foreground">Training, membership, and identity information.</p>
-                                </div>
-                                <Button
-                                    v-if="canEditRoleProfiles && !isEditingAthlete"
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full sm:w-auto"
-                                    @click="isEditingAthlete = true"
-                                >
-                                    Edit
-                                </Button>
-                            </div>
-
-                            <form class="space-y-3" @submit.prevent="saveAthleteChanges">
-                                <div class="grid gap-2 md:grid-cols-2">
-                                    <FormInputField
-                                        id="height"
-                                        v-model="athleteForm.height_cm"
-                                        label="Height (cm)"
-                                        type="number"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.height_cm"
-                                    />
-                                    <FormInputField
-                                        id="weight"
-                                        v-model="athleteForm.weight_kg"
-                                        label="Weight (kg)"
-                                        type="number"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.weight_kg"
-                                    />
-                                </div>
-                                <div class="grid gap-2 md:grid-cols-2">
-                                    <FormSelectField
-                                        id="geup"
-                                        v-model="athleteForm.geup"
-                                        label="Geup"
-                                        :disabled="!isEditingAthlete"
-                                        :options="geupOptions"
-                                    />
-                                    <FormSelectField
-                                        id="gender"
-                                        v-model="athleteForm.gender"
-                                        label="Gender"
-                                        :disabled="!isEditingAthlete"
-                                        :options="genderOptions"
-                                    />
-                                </div>
-                                <div class="grid gap-2 md:grid-cols-2">
-                                    <FormSelectField
-                                        id="athlete-branch"
-                                        v-model="athleteForm.branch_id"
-                                        label="Branch"
-                                        :disabled="!isEditingAthlete"
-                                        :options="props.branches"
-                                        :error="athleteForm.errors.branch_id"
-                                    />
-                                    <FormSelectField
-                                        id="athlete-group"
-                                        v-model="athleteForm.group_id"
-                                        label="Group"
-                                        :disabled="!isEditingAthlete"
-                                        :options="props.groups"
-                                        :error="athleteForm.errors.group_id"
-                                    />
-                                </div>
-                                <div class="grid gap-2 md:grid-cols-2">
-                                    <FormInputField
-                                        id="bday"
-                                        v-model="athleteForm.bday"
-                                        label="Birthday"
-                                        type="date"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.bday"
-                                    />
-                                    <FormInputField
-                                        id="phone"
-                                        v-model="athleteForm.phone"
-                                        label="Phone"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.phone"
-                                    />
-                                </div>
-                                <div class="grid gap-2 md:grid-cols-2">
-                                    <FormInputField
-                                        id="nik"
-                                        v-model="athleteForm.nik"
-                                        label="NIK"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.nik"
-                                        :help="
-                                            !athleteForm.nik && user.athleteProfile?.nikHash
-                                                ? `Stored as hash only (${shortHash(user.athleteProfile?.nikHash)}). Re-enter once to display the real NIK here.`
-                                                : undefined
-                                        "
-                                    />
-                                    <FormInputField
-                                        id="bpjs"
-                                        v-model="athleteForm.bpjs"
-                                        label="BPJS"
-                                        :disabled="!isEditingAthlete"
-                                        :error="athleteForm.errors.bpjs"
-                                        :help="
-                                            !athleteForm.bpjs && user.athleteProfile?.bpjsHash
-                                                ? `Stored as hash only (${shortHash(user.athleteProfile?.bpjsHash)}). Re-enter once to display the real BPJS here.`
-                                                : undefined
-                                        "
-                                    />
-                                </div>
+                        <ProfileRoleDetailsSection
+                            v-if="isAthlete && props.canEditAccount"
+                            title="Account information"
+                            description="Basic account and contact information for this athlete."
+                            :can-edit="props.canEditAccount"
+                            :editing="isEditingAccount"
+                            :processing="accountForm.processing"
+                            save-label="Save Account"
+                            @edit="isEditingAccount = true"
+                            @save="saveAccountChanges"
+                            @cancel="cancelAccountEdit"
+                        >
+                            <div class="grid gap-3 md:grid-cols-2">
                                 <FormInputField
-                                    id="alamat"
-                                    v-model="athleteForm.alamat"
-                                    label="Address"
-                                    :disabled="!isEditingAthlete"
-                                    :error="athleteForm.errors.alamat"
+                                    id="athlete-account-name"
+                                    v-model="accountForm.name"
+                                    label="Name"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.name"
                                 />
+                                <FormInputField
+                                    id="athlete-account-email"
+                                    v-model="accountForm.email"
+                                    label="Email"
+                                    type="email"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.email"
+                                />
+                            </div>
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <FormSelectField
+                                    id="athlete-account-gender"
+                                    v-model="accountForm.gender"
+                                    label="Gender"
+                                    :disabled="!isEditingAccount"
+                                    :options="genderOptions"
+                                    :error="accountForm.errors.gender"
+                                />
+                                <FormInputField
+                                    id="athlete-account-bday"
+                                    v-model="accountForm.bday"
+                                    label="Birth date"
+                                    type="date"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.bday"
+                                />
+                                <FormInputField
+                                    id="athlete-account-phone"
+                                    v-model="accountForm.phone"
+                                    label="Phone"
+                                    :disabled="!isEditingAccount"
+                                    :error="accountForm.errors.phone"
+                                />
+                            </div>
+                        </ProfileRoleDetailsSection>
 
-                                <div v-if="isEditingAthlete" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                    <Button type="submit" :disabled="athleteForm.processing" size="sm" class="w-full sm:w-auto">
-                                        Save Athlete Profile
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        class="w-full sm:w-auto"
-                                        @click="cancelAthleteEdit"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </form>
-                        </section>
-                    </div>
+                        <ProfileRoleDetailsSection
+                            v-if="isAthlete"
+                            title="Athlete profile"
+                            description="Training, membership, and identity information."
+                            :can-edit="canEditRoleProfiles"
+                            :editing="isEditingAthlete"
+                            :processing="athleteForm.processing"
+                            :divided="props.canEditAccount"
+                            save-label="Save Athlete Profile"
+                            @edit="isEditingAthlete = true"
+                            @save="saveAthleteChanges"
+                            @cancel="cancelAthleteEdit"
+                        >
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField
+                                    id="height"
+                                    v-model="athleteForm.height_cm"
+                                    label="Height (cm)"
+                                    type="number"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.height_cm"
+                                />
+                                <FormInputField
+                                    id="weight"
+                                    v-model="athleteForm.weight_kg"
+                                    label="Weight (kg)"
+                                    type="number"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.weight_kg"
+                                />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormSelectField
+                                    id="geup"
+                                    v-model="athleteForm.geup"
+                                    label="Geup"
+                                    :disabled="!isEditingAthlete"
+                                    :options="geupOptions"
+                                />
+                                <FormSelectField
+                                    id="gender"
+                                    v-model="athleteForm.gender"
+                                    label="Gender"
+                                    :disabled="!isEditingAthlete"
+                                    :options="genderOptions"
+                                />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormSelectField
+                                    id="athlete-branch"
+                                    v-model="athleteForm.branch_id"
+                                    label="Branch"
+                                    :disabled="!isEditingAthlete"
+                                    :options="props.branches"
+                                    :error="athleteForm.errors.branch_id"
+                                />
+                                <FormSelectField
+                                    id="athlete-group"
+                                    v-model="athleteForm.group_id"
+                                    label="Group"
+                                    :disabled="!isEditingAthlete"
+                                    :options="props.groups"
+                                    :error="athleteForm.errors.group_id"
+                                />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField
+                                    id="bday"
+                                    v-model="athleteForm.bday"
+                                    label="Birthday"
+                                    type="date"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.bday"
+                                />
+                                <FormInputField
+                                    id="phone"
+                                    v-model="athleteForm.phone"
+                                    label="Phone"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.phone"
+                                />
+                            </div>
+                            <div class="grid gap-2 md:grid-cols-2">
+                                <FormInputField
+                                    id="nik"
+                                    v-model="athleteForm.nik"
+                                    label="NIK"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.nik"
+                                    :help="
+                                        !athleteForm.nik && user.athleteProfile?.nikHash
+                                            ? `Stored as hash only (${shortHash(user.athleteProfile?.nikHash)}). Re-enter once to display the real NIK here.`
+                                            : undefined
+                                    "
+                                />
+                                <FormInputField
+                                    id="bpjs"
+                                    v-model="athleteForm.bpjs"
+                                    label="BPJS"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.bpjs"
+                                    :help="
+                                        !athleteForm.bpjs && user.athleteProfile?.bpjsHash
+                                            ? `Stored as hash only (${shortHash(user.athleteProfile?.bpjsHash)}). Re-enter once to display the real BPJS here.`
+                                            : undefined
+                                    "
+                                />
+                            </div>
+                            <FormInputField
+                                id="alamat"
+                                v-model="athleteForm.alamat"
+                                label="Address"
+                                :disabled="!isEditingAthlete"
+                                :error="athleteForm.errors.alamat"
+                            />
+                        </ProfileRoleDetailsSection>
 
-                    <div
-                        v-if="user.roles.includes('coach')"
-                        class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
-                    >
-                        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h4 class="font-semibold">Coach Details</h4>
-                            <Button
-                                v-if="canEditRoleProfiles && !isEditingCoach"
-                                variant="outline"
-                                size="sm"
-                                class="w-full sm:w-auto"
-                                @click="isEditingCoach = true"
-                            >
-                                Edit
-                            </Button>
-                        </div>
-
-                        <form class="space-y-3" @submit.prevent="saveCoachChanges">
+                        <ProfileRoleDetailsSection
+                            v-if="isCoach"
+                            title="Coach profile"
+                            description="Coaching status, specialization, and biography."
+                            :can-edit="canEditRoleProfiles"
+                            :editing="isEditingCoach"
+                            :processing="coachForm.processing"
+                            :divided="isAthlete"
+                            @edit="isEditingCoach = true"
+                            @save="saveCoachChanges"
+                            @cancel="cancelCoachEdit"
+                        >
                             <FormSelectField
                                 id="coach-status"
                                 v-model="coachForm.status"
@@ -844,42 +798,20 @@ function shortHash(value?: string | null) {
                                 />
                                 <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">{{ coachForm.errors.bio }}</p>
                             </div>
+                        </ProfileRoleDetailsSection>
 
-                            <div v-if="isEditingCoach" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" :disabled="coachForm.processing" size="sm" class="w-full sm:w-auto">
-                                    Save Changes
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full sm:w-auto"
-                                    @click="cancelCoachEdit"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div
-                        v-if="user.roles.includes('parent')"
-                        class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5 lg:col-span-2"
-                    >
-                        <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <h4 class="font-semibold">Parent Details</h4>
-                            <Button
-                                v-if="canEditRoleProfiles && !isEditingParent"
-                                variant="outline"
-                                size="sm"
-                                class="w-full sm:w-auto"
-                                @click="isEditingParent = true"
-                            >
-                                Edit
-                            </Button>
-                        </div>
-
-                        <form class="space-y-3" @submit.prevent="saveParentChanges">
+                        <ProfileRoleDetailsSection
+                            v-if="isParent"
+                            title="Parent profile"
+                            description="Guardian contact details and linked athlete information."
+                            :can-edit="canEditRoleProfiles"
+                            :editing="isEditingParent"
+                            :processing="parentForm.processing"
+                            :divided="isAthlete || isCoach"
+                            @edit="isEditingParent = true"
+                            @save="saveParentChanges"
+                            @cancel="cancelParentEdit"
+                        >
                             <div class="grid gap-3 md:grid-cols-2">
                                 <FormInputField
                                     id="parent-phone"
@@ -926,22 +858,7 @@ function shortHash(value?: string | null) {
                                 </ul>
                                 <p v-else class="mt-1 text-muted-foreground italic">No children linked to this account yet.</p>
                             </div>
-
-                            <div v-if="isEditingParent" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" :disabled="parentForm.processing" size="sm" class="w-full sm:w-auto">
-                                    Save Changes
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full sm:w-auto"
-                                    @click="cancelParentEdit"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
+                        </ProfileRoleDetailsSection>
                     </div>
                 </div>
 
