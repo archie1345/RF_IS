@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { FileText, PencilLine, Trash2 } from 'lucide-vue-next';
+import { FileText, PencilLine, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
@@ -33,6 +33,7 @@ const rows = computed(() =>
         };
     }),
 );
+const creatingAchievement = ref(false);
 const editingAchievement = ref<ProfileAchievement | null>(null);
 
 const achievementForm = useForm({
@@ -59,14 +60,25 @@ const achievementEditForm = useForm({
     file: null as File | null,
 });
 
+function openAchievementCreate(): void {
+    achievementForm.reset();
+    achievementForm.medal = 'NONE';
+    achievementForm.clearErrors();
+    creatingAchievement.value = true;
+}
+
+function closeAchievementCreate(): void {
+    creatingAchievement.value = false;
+    achievementForm.reset();
+    achievementForm.medal = 'NONE';
+    achievementForm.clearErrors();
+}
+
 function addAchievement(): void {
     achievementForm.post(props.storeUrl, {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => {
-            achievementForm.reset();
-            achievementForm.medal = 'NONE';
-        },
+        onSuccess: closeAchievementCreate,
     });
 }
 
@@ -128,13 +140,31 @@ async function removeAchievement(row: TableRow): Promise<void> {
 
 <template>
     <div class="min-w-0 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-        <h4 class="mb-3 flex items-center gap-2 font-semibold">
-            <FileText class="h-4 w-4 text-muted-foreground" />
-            Prestasi
-        </h4>
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h4 class="flex items-center gap-2 font-semibold">
+                    <FileText class="h-4 w-4 text-muted-foreground" />
+                    Prestasi
+                </h4>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Prestasi manual dapat ditambahkan di sini; hasil kejuaraan resmi dicatat otomatis.
+                </p>
+            </div>
+            <Button
+                v-if="props.canManage"
+                type="button"
+                size="sm"
+                class="w-full gap-2 sm:w-auto"
+                @click="openAchievementCreate"
+            >
+                <Plus class="h-4 w-4" />
+                Tambah prestasi
+            </Button>
+        </div>
+
         <DataTable
-            title="Prestasi"
-            description="Prestasi manual dapat dikelola di sini. Prestasi otomatis mengikuti hasil kejuaraan."
+            title="Daftar Prestasi"
+            description="Prestasi otomatis mengikuti hasil kejuaraan dan tidak dapat diubah dari profil."
             :columns="achievementColumns"
             :rows="rows"
             action-label="Tindakan"
@@ -172,9 +202,14 @@ async function removeAchievement(row: TableRow): Promise<void> {
             </template>
         </DataTable>
 
-        <div v-if="props.canManage" class="mt-6 border-t border-border pt-4">
-            <h5 class="mb-2 font-medium">Tambah prestasi manual</h5>
-            <form class="grid min-w-0 gap-3" @submit.prevent="addAchievement">
+        <FormModal :open="creatingAchievement" max-width-class="max-w-2xl" @close="closeAchievementCreate">
+            <form class="grid min-w-0 gap-4" @submit.prevent="addAchievement">
+                <div>
+                    <h3 class="text-lg font-semibold">Tambah prestasi manual</h3>
+                    <p class="text-sm text-muted-foreground">
+                        Gunakan form ini untuk prestasi yang tidak berasal dari hasil kejuaraan di sistem.
+                    </p>
+                </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="ach-name"
@@ -188,6 +223,7 @@ async function removeAchievement(row: TableRow): Promise<void> {
                         v-model="achievementForm.medal"
                         label="Medali"
                         :options="medalOptions"
+                        :error="achievementForm.errors.medal"
                     />
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
@@ -206,11 +242,31 @@ async function removeAchievement(row: TableRow): Promise<void> {
                     />
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <FormInputField id="ach-class" v-model="achievementForm.class_name" label="Kelas" />
-                    <FormInputField id="ach-division" v-model="achievementForm.division" label="Divisi" />
-                    <FormInputField id="ach-category" v-model="achievementForm.category" label="Kategori" />
+                    <FormInputField
+                        id="ach-class"
+                        v-model="achievementForm.class_name"
+                        label="Kelas"
+                        :error="achievementForm.errors.class_name"
+                    />
+                    <FormInputField
+                        id="ach-division"
+                        v-model="achievementForm.division"
+                        label="Divisi"
+                        :error="achievementForm.errors.division"
+                    />
+                    <FormInputField
+                        id="ach-category"
+                        v-model="achievementForm.category"
+                        label="Kategori"
+                        :error="achievementForm.errors.category"
+                    />
                 </div>
-                <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Catatan" />
+                <FormInputField
+                    id="ach-notes"
+                    v-model="achievementForm.notes"
+                    label="Catatan"
+                    :error="achievementForm.errors.notes"
+                />
                 <FormFileField
                     id="achievement-file"
                     v-model="achievementForm.file"
@@ -218,11 +274,14 @@ async function removeAchievement(row: TableRow): Promise<void> {
                     :accept="documentFileAccept"
                     :error="achievementForm.errors.file"
                 />
-                <Button type="submit" class="w-full sm:w-fit" :disabled="achievementForm.processing">
-                    Tambah prestasi
-                </Button>
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="closeAchievementCreate">Batal</Button>
+                    <Button type="submit" :disabled="achievementForm.processing">
+                        {{ achievementForm.processing ? 'Menyimpan...' : 'Tambah prestasi' }}
+                    </Button>
+                </div>
             </form>
-        </div>
+        </FormModal>
 
         <FormModal :open="Boolean(editingAchievement)" max-width-class="max-w-2xl" @close="closeAchievementEdit">
             <form class="grid min-w-0 gap-4" @submit.prevent="saveAchievementEdit">
