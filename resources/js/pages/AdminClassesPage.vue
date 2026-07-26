@@ -176,13 +176,26 @@ const activationHint = computed(() => {
 
 const classTableRows = computed<TableRow[]>(() =>
     props.classes.map((item) => {
+        const minBeltLabel : Record<string,string> = {
+            GEUP_1: 'Geup 1',
+            GEUP_2: 'Geup 2',
+            GEUP_3: 'Geup 3',
+            GEUP_4: 'Geup 4',
+            GEUP_5: 'Geup 5',
+            GEUP_6: 'Geup 6',
+            GEUP_7: 'Geup 7',
+            GEUP_8: 'Geup 8',
+            GEUP_9: 'Geup 9',
+            GEUP_10: 'Geup 10',
+            DAN: 'Dan',
+        }
         const typeLabel = classTypeLabel(item.class_type);
-        const minBelt = item.min_belt || '-';
+        const minBelt = minBeltLabel[item.min_belt ?? '']??'-';
         const privateAthlete = privateAthleteLabel(item);
         const classMeta =
             normalizeClassType(item.class_type) === 'private'
                 ? `${typeLabel} · ${privateAthlete}`
-                : `${typeLabel} · min ${minBelt}`;
+                : `${typeLabel} · Minimum Geup: ${minBelt}`;
         const activeSessions = Number(item.active_sessions_count ?? 0);
         const archivedSessions = Number(item.archived_sessions_count ?? 0);
         const coachNames = item.coaches?.length
@@ -605,7 +618,6 @@ watch(
                                 :options="props.coachOptions"
                                 placeholder="Pilih pelatih"
                                 search-placeholder="Cari nama pelatih..."
-                                :help="isPrivateClass ? 'Kelas private wajib memiliki minimal satu pelatih.' : 'Pelatih bersifat opsional untuk kelas non-private.'"
                                 :error="form.errors.coach_ids"
                                 :required="isPrivateClass"
                                 multiple
