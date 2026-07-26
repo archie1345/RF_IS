@@ -93,7 +93,7 @@ test('multi-role user can switch the global role used by every inertia page', fu
             ->has('rows', 0));
 });
 
-test('admin capabilities are available only while the admin role is active', function () {
+test('admin routes automatically activate the assigned admin role for a multi-role user', function () {
     $user = User::factory()->create(['role' => 'admin']);
     activeRoleProfileData($user);
     UserRoleAssignment::create(['user_id' => $user->id, 'role' => 'admin']);
@@ -103,16 +103,24 @@ test('admin capabilities are available only while the admin role is active', fun
         ->put(route('role-context.update'), ['role' => 'athlete'])
         ->assertRedirect(route('dashboard'));
 
-    $this->get(route('admin.index'))->assertForbidden();
-
-    $this->put(route('role-context.update'), ['role' => 'admin'])
-        ->assertRedirect(route('dashboard'));
-
     $this->get(route('admin.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('AdminPage')
             ->where('auth.user.activeRole', 'admin'));
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.activeRole', 'admin'));
+
+    $this->put(route('role-context.update'), ['role' => 'athlete'])
+        ->assertRedirect(route('dashboard'));
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.activeRole', 'athlete'));
 });
 
 test('parent child context is shared only while parent mode is active', function () {
