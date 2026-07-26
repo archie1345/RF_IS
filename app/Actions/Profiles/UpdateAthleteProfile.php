@@ -25,12 +25,6 @@ class UpdateAthleteProfile
                 ]);
             }
 
-            $user->update([
-                'gender' => $data['gender'],
-                'bday' => $data['bday'] ?? null,
-                'phone' => $data['phone'] ?? null,
-            ]);
-
             $payload = [
                 'height_cm' => $data['height_cm'] ?? 0,
                 'weight_kg' => $data['weight_kg'] ?? 0,
