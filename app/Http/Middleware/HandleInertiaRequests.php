@@ -38,37 +38,12 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $user = $request->user();
-        $roleContext = app(ActiveRoleContextService::class);
-        $childContext = app(ParentChildContextService::class);
-        $roles = $roleContext->availableRoles($user);
-        $activeRole = $roleContext->activeRole($request, $user);
-        $primaryRole = $roles[0] ?? $activeRole;
-        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
-        $activeChild = $activeRole === 'parent' ? $childContext->activeChildFor($request) : null;
-
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'auth' => [
-                'user' => $user ? [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    // `role` remains a compatibility alias for the selected role so existing
-                    // pages become multi-role aware without reading the legacy users.role column.
-                    'role' => $activeRole,
-                    'activeRole' => $activeRole,
-                    'primaryRole' => $primaryRole,
-                    'roles' => $roles,
-                    'isMultiRole' => count($roles) > 1,
-                    'avatar' => $user->profile?->profile_picture_path
-                        ? Storage::url($user->profile->profile_picture_path)
-                        : null,
-                ] : null,
-                'children' => $children,
-                'activeChild' => $activeChild,
-            ],
+            // Resolve role-sensitive data lazily so route middleware can first
+            // authorize and automatically switch a multi-role user's context.
+            'auth' => fn (): array => $this->sharedAuth($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
@@ -79,6 +54,41 @@ class HandleInertiaRequests extends Middleware
                 'attendanceQrStatus' => fn () => $request->session()->get('attendanceQrStatus'),
                 'attendanceScan' => fn () => $request->session()->get('attendanceScan'),
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sharedAuth(Request $request): array
+    {
+        $user = $request->user();
+        $roleContext = app(ActiveRoleContextService::class);
+        $childContext = app(ParentChildContextService::class);
+        $roles = $roleContext->availableRoles($user);
+        $activeRole = $roleContext->activeRole($request, $user);
+        $primaryRole = $roles[0] ?? $activeRole;
+        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
+        $activeChild = $activeRole === 'parent' ? $childContext->activeChildFor($request) : null;
+
+        return [
+            'user' => $user ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                // `role` remains a compatibility alias for the selected role so existing
+                // pages become multi-role aware without reading the legacy users.role column.
+                'role' => $activeRole,
+                'activeRole' => $activeRole,
+                'primaryRole' => $primaryRole,
+                'roles' => $roles,
+                'isMultiRole' => count($roles) > 1,
+                'avatar' => $user->profile?->profile_picture_path
+                    ? Storage::url($user->profile->profile_picture_path)
+                    : null,
+            ] : null,
+            'children' => $children,
+            'activeChild' => $activeChild,
         ];
     }
 }
