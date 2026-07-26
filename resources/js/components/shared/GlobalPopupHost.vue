@@ -26,21 +26,27 @@ let removeExceptionListener: (() => void) | undefined;
 let lastFeedbackKey = '';
 let lastFeedbackAt = 0;
 
-const icon = computed(() => ({
-    success: CheckCircle2,
-    warning: AlertTriangle,
-    danger: CircleAlert,
-    info: Info,
-}[popup.state.tone]));
+const icon = computed(
+    () =>
+        ({
+            success: CheckCircle2,
+            warning: AlertTriangle,
+            danger: CircleAlert,
+            info: Info,
+        })[popup.state.tone],
+);
 
-const iconClass = computed(() => ({
-    success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    danger: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    info: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-}[popup.state.tone]));
+const iconClass = computed(
+    () =>
+        ({
+            success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+            warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+            danger: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+            info: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+        })[popup.state.tone],
+);
 
-const primaryVariant = computed(() => popup.state.tone === 'danger' ? 'destructive' : 'default');
+const primaryVariant = computed(() => (popup.state.tone === 'danger' ? 'destructive' : 'default'));
 
 function showFeedback(tone: AppPopupTone, title: string, message?: string | null): void {
     if (!message) return;
@@ -60,7 +66,7 @@ function validationMessage(errors: unknown): string {
     }
 
     const messages = Object.values(errors as Record<string, unknown>)
-        .flatMap((value) => Array.isArray(value) ? value : [value])
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
         .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
         .map((value) => value.trim());
 
@@ -160,7 +166,7 @@ onMounted(() => {
             'danger',
             navigator.onLine ? 'Koneksi atau aplikasi bermasalah' : 'Koneksi terputus',
             navigator.onLine
-                ? errorDetail(event.detail.error)
+                ? errorDetail(event.detail.exception)
                 : 'Perangkat sedang offline. Perubahan belum dapat dikirim ke server.',
         );
     });
