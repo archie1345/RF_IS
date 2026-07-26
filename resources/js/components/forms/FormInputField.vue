@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,7 @@ const emit = defineEmits<{
 
 const rangeStart = ref('');
 const rangeEnd = ref('');
+const resolvedStep = computed(() => props.step ?? (props.type === 'number' ? 'any' : undefined));
 
 function isRangeType(type: string): boolean {
     return type === 'date-range' || type === 'daterange';
@@ -117,7 +118,7 @@ watch(
             :inputmode="props.inputmode"
             :min="props.min"
             :max="props.max"
-            :step="props.step"
+            :step="resolvedStep"
             :aria-invalid="Boolean(props.error)"
             class="h-11 min-w-0 w-full rounded-lg border-input bg-background text-foreground"
             @update:model-value="emit('update:modelValue', String($event ?? ''))"
