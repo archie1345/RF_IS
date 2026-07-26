@@ -138,9 +138,6 @@ const athleteForm = useForm({
     height_cm: String(props.user.athleteProfile?.height_cm ?? ''),
     weight_kg: String(props.user.athleteProfile?.weight_kg ?? ''),
     geup: props.user.athleteProfile?.geup ?? 'GEUP_10',
-    gender: props.user.athleteProfile?.gender ?? 'MALE',
-    bday: props.user.athleteProfile?.bday ?? '',
-    phone: props.user.athleteProfile?.phone ?? '',
     nik: props.user.athleteProfile?.nik ?? '',
     bpjs: props.user.athleteProfile?.bpjs ?? '',
     alamat: props.user.athleteProfile?.alamat ?? '',
@@ -155,7 +152,6 @@ const coachForm = useForm({
 });
 
 const parentForm = useForm({
-    phone: props.user.parentProfile?.phone ?? '',
     relation: props.user.parentProfile?.relation ?? 'guardian',
     occupation: props.user.parentProfile?.occupation ?? '',
     notes: props.user.parentProfile?.notes ?? '',
@@ -327,26 +323,19 @@ function shortHash(value?: string | null) {
 
                 <div class="grid gap-6">
                     <div
-                        v-if="props.canEditAccount && !isAthlete"
+                        v-if="props.canEditAccount && !hasRoleDetails"
                         class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
                     >
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h3 class="text-lg font-semibold">Account Details</h3>
-                                <p class="text-sm text-muted-foreground">Update your basic account information.</p>
-                            </div>
-                            <Button
-                                v-if="!isEditingAccount"
-                                variant="outline"
-                                size="sm"
-                                class="w-full sm:w-auto"
-                                @click="isEditingAccount = true"
-                            >
-                                Edit
-                            </Button>
-                        </div>
-
-                        <form class="space-y-3" @submit.prevent="saveAccountChanges">
+                        <ProfileRoleDetailsSection
+                            title="Account Details"
+                            description="Update basic account and contact information."
+                            :can-edit="props.canEditAccount"
+                            :editing="isEditingAccount"
+                            :processing="accountForm.processing"
+                            @edit="isEditingAccount = true"
+                            @save="saveAccountChanges"
+                            @cancel="cancelAccountEdit"
+                        >
                             <div class="grid gap-3 md:grid-cols-2">
                                 <FormInputField
                                     id="account-name"
@@ -389,22 +378,7 @@ function shortHash(value?: string | null) {
                                     :error="accountForm.errors.phone"
                                 />
                             </div>
-
-                            <div v-if="isEditingAccount" class="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" :disabled="accountForm.processing" size="sm" class="w-full sm:w-auto">
-                                    Save Changes
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    class="w-full sm:w-auto"
-                                    @click="cancelAccountEdit"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
+                        </ProfileRoleDetailsSection>
                     </div>
 
                     <div
@@ -589,9 +563,9 @@ function shortHash(value?: string | null) {
                         </h3>
 
                         <ProfileRoleDetailsSection
-                            v-if="isAthlete && props.canEditAccount"
+                            v-if="props.canEditAccount"
                             title="Account information"
-                            description="Basic account and contact information for this athlete."
+                            description="Basic account and contact information shared by every role."
                             :can-edit="props.canEditAccount"
                             :editing="isEditingAccount"
                             :processing="accountForm.processing"
@@ -602,14 +576,14 @@ function shortHash(value?: string | null) {
                         >
                             <div class="grid gap-3 md:grid-cols-2">
                                 <FormInputField
-                                    id="athlete-account-name"
+                                    id="role-account-name"
                                     v-model="accountForm.name"
                                     label="Name"
                                     :disabled="!isEditingAccount"
                                     :error="accountForm.errors.name"
                                 />
                                 <FormInputField
-                                    id="athlete-account-email"
+                                    id="role-account-email"
                                     v-model="accountForm.email"
                                     label="Email"
                                     type="email"
@@ -619,7 +593,7 @@ function shortHash(value?: string | null) {
                             </div>
                             <div class="grid gap-3 md:grid-cols-3">
                                 <FormSelectField
-                                    id="athlete-account-gender"
+                                    id="role-account-gender"
                                     v-model="accountForm.gender"
                                     label="Gender"
                                     :disabled="!isEditingAccount"
@@ -627,7 +601,7 @@ function shortHash(value?: string | null) {
                                     :error="accountForm.errors.gender"
                                 />
                                 <FormInputField
-                                    id="athlete-account-bday"
+                                    id="role-account-bday"
                                     v-model="accountForm.bday"
                                     label="Birth date"
                                     type="date"
@@ -635,7 +609,7 @@ function shortHash(value?: string | null) {
                                     :error="accountForm.errors.bday"
                                 />
                                 <FormInputField
-                                    id="athlete-account-phone"
+                                    id="role-account-phone"
                                     v-model="accountForm.phone"
                                     label="Phone"
                                     :disabled="!isEditingAccount"
@@ -657,7 +631,7 @@ function shortHash(value?: string | null) {
                             @save="saveAthleteChanges"
                             @cancel="cancelAthleteEdit"
                         >
-                            <div class="grid gap-2 md:grid-cols-2">
+                            <div class="grid gap-2 md:grid-cols-3">
                                 <FormInputField
                                     id="height"
                                     v-model="athleteForm.height_cm"
@@ -674,21 +648,12 @@ function shortHash(value?: string | null) {
                                     :disabled="!isEditingAthlete"
                                     :error="athleteForm.errors.weight_kg"
                                 />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-2">
                                 <FormSelectField
                                     id="geup"
                                     v-model="athleteForm.geup"
                                     label="Geup"
                                     :disabled="!isEditingAthlete"
                                     :options="geupOptions"
-                                />
-                                <FormSelectField
-                                    id="gender"
-                                    v-model="athleteForm.gender"
-                                    label="Gender"
-                                    :disabled="!isEditingAthlete"
-                                    :options="genderOptions"
                                 />
                             </div>
                             <div class="grid gap-2 md:grid-cols-2">
@@ -707,23 +672,6 @@ function shortHash(value?: string | null) {
                                     :disabled="!isEditingAthlete"
                                     :options="props.groups"
                                     :error="athleteForm.errors.group_id"
-                                />
-                            </div>
-                            <div class="grid gap-2 md:grid-cols-2">
-                                <FormInputField
-                                    id="bday"
-                                    v-model="athleteForm.bday"
-                                    label="Birthday"
-                                    type="date"
-                                    :disabled="!isEditingAthlete"
-                                    :error="athleteForm.errors.bday"
-                                />
-                                <FormInputField
-                                    id="phone"
-                                    v-model="athleteForm.phone"
-                                    label="Phone"
-                                    :disabled="!isEditingAthlete"
-                                    :error="athleteForm.errors.phone"
                                 />
                             </div>
                             <div class="grid gap-2 md:grid-cols-2">
@@ -768,7 +716,7 @@ function shortHash(value?: string | null) {
                             :can-edit="canEditRoleProfiles"
                             :editing="isEditingCoach"
                             :processing="coachForm.processing"
-                            :divided="isAthlete"
+                            :divided="props.canEditAccount || isAthlete"
                             @edit="isEditingCoach = true"
                             @save="saveCoachChanges"
                             @cancel="cancelCoachEdit"
@@ -803,23 +751,16 @@ function shortHash(value?: string | null) {
                         <ProfileRoleDetailsSection
                             v-if="isParent"
                             title="Parent profile"
-                            description="Guardian contact details and linked athlete information."
+                            description="Guardian relationship and linked athlete information."
                             :can-edit="canEditRoleProfiles"
                             :editing="isEditingParent"
                             :processing="parentForm.processing"
-                            :divided="isAthlete || isCoach"
+                            :divided="props.canEditAccount || isAthlete || isCoach"
                             @edit="isEditingParent = true"
                             @save="saveParentChanges"
                             @cancel="cancelParentEdit"
                         >
                             <div class="grid gap-3 md:grid-cols-2">
-                                <FormInputField
-                                    id="parent-phone"
-                                    v-model="parentForm.phone"
-                                    label="Phone"
-                                    :disabled="!isEditingParent"
-                                    :error="parentForm.errors.phone"
-                                />
                                 <FormSelectField
                                     id="parent-relation"
                                     v-model="parentForm.relation"
@@ -827,14 +768,14 @@ function shortHash(value?: string | null) {
                                     :disabled="!isEditingParent"
                                     :options="parentRelationOptions"
                                 />
+                                <FormInputField
+                                    id="parent-occupation"
+                                    v-model="parentForm.occupation"
+                                    label="Occupation"
+                                    :disabled="!isEditingParent"
+                                    :error="parentForm.errors.occupation"
+                                />
                             </div>
-                            <FormInputField
-                                id="parent-occupation"
-                                v-model="parentForm.occupation"
-                                label="Occupation"
-                                :disabled="!isEditingParent"
-                                :error="parentForm.errors.occupation"
-                            />
                             <div class="grid gap-2">
                                 <label for="parent-notes" class="text-sm font-medium">Notes</label>
                                 <textarea
