@@ -15,7 +15,6 @@ class UpdateParentProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['nullable', 'string', 'max:20'],
             'relation' => ['required', Rule::in(['father', 'mother', 'guardian'])],
             'occupation' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string'],
