@@ -186,19 +186,29 @@ class PaymentController extends Controller
             'company_name' => 'RF IS',
         ]);
 
+        $isPayroll = strtoupper((string) $payment->bill_kind) === 'PAYROLL';
         $invoiceData = [
-            'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
+            'is_payroll' => $isPayroll,
+            'document_title' => $isPayroll ? 'SLIP PEMBAYARAN PAYROLL' : 'INVOICE',
+            'recipient_label' => $isPayroll ? 'Dibayarkan kepada' : 'Ditagihkan kepada',
+            'invoice_number' => $payment->invoice_number ?: ($isPayroll ? 'PAY-' : 'INV-').$payment->payment_id,
             'invoice_date' => optional($payment->payment_date)->format('d M Y') ?? now()->format('d M Y'),
             'due_date' => optional($payment->due_date)->format('d M Y') ?? '-',
             'collection_method' => $payment->collection_method ?? 'TRANSFER',
             'athlete_name' => $this->paymentRows->subject($payment),
             'athlete_email' => $payment->athlete?->user?->email ?? $payment->billableUser?->email ?? $payment->payeeUser?->email ?? '-',
-            'payment_type' => Str::headline(strtolower((string) $payment->payment_type)),
-            'status' => $payment->status,
+            'payment_type' => $isPayroll ? 'Honor pelatih' : Str::headline(strtolower((string) $payment->payment_type)),
+            'status' => $isPayroll && (float) $payment->remaining_amount <= 0 ? 'PAID' : $payment->status,
             'total_amount' => (float) ($payment->total_amount ?? $payment->amount),
             'paid_amount' => (float) ($payment->paid_amount ?? 0),
             'remaining_amount' => (float) ($payment->remaining_amount ?? 0),
             'notes' => $payment->notes,
+            'payroll_period' => $payment->payroll_period?->translatedFormat('F Y'),
+            'payroll_basis' => $this->payrollBasisLabel((string) $payment->payroll_basis_type),
+            'payroll_units' => $payment->payroll_units,
+            'payroll_rate' => (float) ($payment->payroll_rate ?? 0),
+            'payroll_base_amount' => (float) ($payment->payroll_base_amount ?? 0),
+            'payroll_bonus_amount' => (float) ($payment->payroll_bonus_amount ?? 0),
         ];
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
@@ -207,7 +217,7 @@ class PaymentController extends Controller
                 'invoice' => $invoiceData,
             ])->setPaper('a4');
 
-            ActivityLogger::log($request, 'payment.invoice.exported', 'payment', 'Exported invoice PDF', $payment);
+            ActivityLogger::log($request, 'payment.invoice.exported', 'payment', 'Exported invoice or payroll receipt PDF', $payment);
 
             return $pdf->download(strtolower($invoiceData['invoice_number']).'.pdf');
         }
@@ -242,5 +252,17 @@ class PaymentController extends Controller
         ]);
 
         return redirect()->route('payments.index');
+    }
+
+    private function payrollBasisLabel(string $basis): string
+    {
+        return match ($basis) {
+            'SESSION' => 'Jumlah sesi × tarif per sesi',
+            'HOUR' => 'Jumlah jam × tarif per jam',
+            'MONTH' => 'Jumlah bulan × tarif bulanan',
+            'FIXED' => 'Nominal tetap',
+            'CUSTOM' => 'Nominal kustom',
+            default => '-',
+        };
     }
 }
