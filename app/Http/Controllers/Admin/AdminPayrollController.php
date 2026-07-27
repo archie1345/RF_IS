@@ -24,55 +24,53 @@ class AdminPayrollController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $currentMonth = now(config('app.timezone', 'Asia/Jakarta'))->startOfMonth();
+        $coaches = User::query()
+            ->withRole('coach')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
         $payrolls = Payment::query()
             ->where('bill_kind', 'PAYROLL')
             ->with(['payeeUser:id,name,email', 'transactions'])
             ->latest('payroll_period')
             ->latest('payment_id')
             ->get();
-        $currentMonthCount = $payrolls->filter(
-            fn (Payment $payment): bool => $payment->payroll_period?->isSameMonth($currentMonth)
-                ?? $payment->payment_date?->isSameMonth($currentMonth)
-                ?? false,
-        )->count();
+        $currentMonthPayrolls = $payrolls
+            ->filter(fn (Payment $payment): bool => $this->paymentFallsInMonth($payment, $currentMonth))
+            ->values();
+        $paidCoachIds = $currentMonthPayrolls->pluck('payee_user_id')->filter()->unique();
+        $missingCoachCount = $coaches->whereNotIn('id', $paidCoachIds)->count();
 
         return Inertia::render('admin/AdminPayrollPage', [
             'reminder' => [
-                'needed' => $currentMonthCount === 0,
+                'needed' => $missingCoachCount > 0,
                 'month' => $currentMonth->translatedFormat('F Y'),
-                'count' => $currentMonthCount,
+                'count' => $paidCoachIds->count(),
+                'expected' => $coaches->count(),
+                'missing' => $missingCoachCount,
             ],
             'metrics' => [
                 [
                     'label' => 'Payroll bulan ini',
-                    'value' => (string) $currentMonthCount,
-                    'detail' => $currentMonthCount === 0 ? 'Belum ada bukti payroll bulan ini' : 'Bukti pembayaran yang sudah diterbitkan',
-                    'tone' => $currentMonthCount === 0 ? 'danger' : 'success',
+                    'value' => $paidCoachIds->count().' / '.$coaches->count(),
+                    'detail' => $missingCoachCount > 0
+                        ? $missingCoachCount.' pelatih belum memiliki slip pembayaran'
+                        : 'Semua pelatih sudah memiliki bukti pembayaran',
+                    'tone' => $missingCoachCount > 0 ? 'danger' : 'success',
                 ],
                 [
                     'label' => 'Total dibayar bulan ini',
-                    'value' => $this->rupiah((float) $payrolls->filter(
-                        fn (Payment $payment): bool => $payment->payroll_period?->isSameMonth($currentMonth)
-                            ?? $payment->payment_date?->isSameMonth($currentMonth)
-                            ?? false,
-                    )->sum('paid_amount')),
+                    'value' => $this->rupiah((float) $currentMonthPayrolls->sum('paid_amount')),
                     'detail' => 'Termasuk bonus pelatih',
                     'tone' => 'info',
                 ],
                 [
                     'label' => 'Bonus bulan ini',
-                    'value' => $this->rupiah((float) $payrolls->filter(
-                        fn (Payment $payment): bool => $payment->payroll_period?->isSameMonth($currentMonth)
-                            ?? false,
-                    )->sum('payroll_bonus_amount')),
+                    'value' => $this->rupiah((float) $currentMonthPayrolls->sum('payroll_bonus_amount')),
                     'detail' => 'Bonus yang tercatat di slip payroll',
                     'tone' => 'warning',
                 ],
             ],
-            'coaches' => User::query()
-                ->withRole('coach')
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
+            'coaches' => $coaches
                 ->map(fn (User $user): array => [
                     'value' => $user->id,
                     'label' => trim($user->name.' - '.$user->email),
@@ -83,7 +81,9 @@ class AdminPayrollController extends Controller
                 'payment_id' => $payment->payment_id,
                 'invoice_number' => $payment->invoice_number,
                 'coach' => $payment->payeeUser?->name ?? 'Pelatih tidak dikenal',
-                'period' => $payment->payroll_period?->format('F Y') ?? $payment->payment_date?->format('F Y') ?? '-',
+                'period' => $payment->payroll_period?->translatedFormat('F Y')
+                    ?? $payment->payment_date?->translatedFormat('F Y')
+                    ?? '-',
                 'basis' => $this->basisLabel((string) $payment->payroll_basis_type),
                 'units' => $payment->payroll_units === null ? '-' : (string) $payment->payroll_units,
                 'rate' => $this->rupiah((float) ($payment->payroll_rate ?? 0)),
@@ -119,6 +119,17 @@ class AdminPayrollController extends Controller
             throw ValidationException::withMessages(['coach_user_id' => 'Akun yang dipilih bukan pelatih.']);
         }
 
+        $period = Carbon::createFromFormat('Y-m', $validated['payroll_period'])->startOfMonth();
+        if (Payment::query()
+            ->where('bill_kind', 'PAYROLL')
+            ->where('payee_user_id', $coach->id)
+            ->whereDate('payroll_period', $period->toDateString())
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'payroll_period' => 'Slip payroll pelatih ini untuk periode tersebut sudah ada.',
+            ]);
+        }
+
         $basisType = $validated['basis_type'];
         $units = (float) ($validated['units'] ?? 0);
         $rate = (float) ($validated['rate'] ?? 0);
@@ -134,8 +145,7 @@ class AdminPayrollController extends Controller
             ]);
         }
 
-        $payment = DB::transaction(function () use ($request, $validated, $coach, $basisType, $units, $rate, $baseAmount, $bonusAmount, $totalAmount): Payment {
-            $period = Carbon::createFromFormat('Y-m', $validated['payroll_period'])->startOfMonth();
+        $payment = DB::transaction(function () use ($request, $validated, $coach, $period, $basisType, $units, $rate, $baseAmount, $bonusAmount, $totalAmount): Payment {
             $paidAt = Carbon::parse($validated['paid_at']);
 
             $payment = Payment::query()->create([
@@ -157,7 +167,7 @@ class AdminPayrollController extends Controller
                 'collection_method' => $validated['payment_method'],
                 'status' => PaymentStatus::COMPLETED,
                 'proof_status' => PaymentStatus::PROOF_APPROVED,
-                'notes' => trim((string) ($validated['notes'] ?? '')) ?: 'Payroll '.$period->format('F Y'),
+                'notes' => trim((string) ($validated['notes'] ?? '')) ?: 'Payroll '.$period->translatedFormat('F Y'),
             ]);
 
             PaymentTransaction::query()->create([
@@ -182,6 +192,13 @@ class AdminPayrollController extends Controller
         ]);
 
         return back()->with('status', 'Slip payroll dan bukti pembayaran berhasil dibuat.');
+    }
+
+    private function paymentFallsInMonth(Payment $payment, Carbon $month): bool
+    {
+        $date = $payment->payroll_period ?? $payment->payment_date;
+
+        return $date?->isSameMonth($month) ?? false;
     }
 
     private function basisLabel(string $basis): string
