@@ -14,7 +14,6 @@ import {
     Megaphone,
     MessageCircleMore,
     Network,
-    QrCode,
     ReceiptText,
     ScanLine,
     ScrollText,
@@ -28,18 +27,12 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
-} from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as achievementsIndex } from '@/routes/achievements';
 import {
     attendance as adminAttendance,
     classes as adminClasses,
-    dashboard as adminDashboard,
     index as adminIndex,
     instructorAttendance as adminInstructorAttendance,
     locations as adminLocations,
@@ -59,30 +52,17 @@ import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
 
 const page = usePage<{ auth: Auth }>();
-
-const activeRole = computed<AppRole>(() =>
-    page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
-);
-
+const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
 const assignedRoles = computed<AppRole[]>(() => {
     const roles = page.props.auth.user?.roles ?? [];
-
     return roles.length > 0 ? roles : [activeRole.value];
 });
-
 const allRoles: AppRole[] = ['admin', 'coach', 'parent', 'athlete'];
 
 const navigation: NavSection[] = [
     {
         label: 'Utama',
-        items: [
-            {
-                title: 'Beranda',
-                href: dashboard.url(),
-                icon: LayoutDashboard,
-                roles: allRoles,
-            },
-        ],
+        items: [{ title: 'Beranda', href: dashboard.url(), icon: LayoutDashboard, roles: allRoles }],
     },
     {
         label: 'Latihan',
@@ -92,19 +72,9 @@ const navigation: NavSection[] = [
             { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
             { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
             { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock, roles: ['admin', 'coach'] },
-            {
-                title: 'Absensi & Check-in',
-                href: attendanceIndex.url(),
-                icon: ScanLine,
-                roles: ['coach', 'parent', 'athlete'],
-            },
+            { title: 'Absensi & Check-in', href: attendanceIndex.url(), icon: ScanLine, roles: ['coach', 'parent', 'athlete'] },
             { title: 'Laporan Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck, roles: ['admin'] },
-            {
-                title: 'Kehadiran Pelatih',
-                href: adminInstructorAttendance.url(),
-                icon: BadgeCheck,
-                roles: ['admin'],
-            },
+            { title: 'Kehadiran Pelatih', href: adminInstructorAttendance.url(), icon: BadgeCheck, roles: ['admin'] },
         ],
     },
     {
@@ -118,47 +88,17 @@ const navigation: NavSection[] = [
     {
         label: 'Keuangan',
         items: [
-            {
-                title: 'Keuangan & Pembayaran',
-                href: paymentsIndex.url(),
-                icon: WalletCards,
-                roles: allRoles,
-            },
-            {
-                title: 'Aturan Tagihan',
-                href: '/admin/billing-settings',
-                icon: ReceiptText,
-                roles: ['admin'],
-            },
-            {
-                title: 'Template WhatsApp',
-                href: '/admin/whatsapp-template',
-                icon: MessageCircleMore,
-                roles: ['admin'],
-            },
-            {
-                title: 'Bayar via QRIS',
-                href: '/payments/qris',
-                icon: QrCode,
-                roles: ['admin', 'parent', 'athlete'],
-            },
+            { title: 'Keuangan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards, roles: allRoles },
+            { title: 'Payroll Pelatih', href: '/admin/payroll', icon: ReceiptText, roles: ['admin'] },
+            { title: 'Aturan Tagihan', href: '/admin/billing-settings', icon: ReceiptText, roles: ['admin'] },
+            { title: 'Template & Kontak WhatsApp', href: '/admin/whatsapp-template', icon: MessageCircleMore, roles: ['admin'] },
         ],
     },
     {
         label: 'Kompetisi',
         items: [
-            {
-                title: 'Kejuaraan & UKT',
-                href: championshipsIndex.url(),
-                icon: Trophy,
-                roles: allRoles,
-            },
-            {
-                title: 'Prestasi & Sertifikat',
-                href: achievementsIndex.url(),
-                icon: Award,
-                roles: ['coach', 'parent', 'athlete'],
-            },
+            { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy, roles: allRoles },
+            { title: 'Prestasi & Sertifikat', href: achievementsIndex.url(), icon: Award, roles: ['coach', 'parent', 'athlete'] },
             { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History, roles: ['admin'] },
         ],
     },
@@ -177,14 +117,9 @@ function canSee(item: NavItem): boolean {
 
 const mainNavSections = computed<NavSection[]>(() =>
     navigation
-        .map((section) => ({
-            ...section,
-            items: section.items.filter(canSee),
-        }))
+        .map((section) => ({ ...section, items: section.items.filter(canSee) }))
         .filter((section) => section.items.length > 0),
 );
-
-const homeHref = computed(() => (activeRole.value === 'admin' ? adminDashboard.url() : dashboard.url()));
 const footerNavItems: NavItem[] = [];
 </script>
 
@@ -192,20 +127,17 @@ const footerNavItems: NavItem[] = [];
     <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader class="min-w-0 overflow-hidden p-2">
             <Link
-                :href="homeHref"
-                class="flex h-24 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition-[width,height,padding] hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
+                :href="dashboard.url()"
+                class="flex h-20 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition hover:bg-sidebar-accent group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
             >
                 <AppLogoIcon
-                    class-name="block h-auto w-44 max-h-[5.5rem] max-w-full shrink-0 object-contain object-center group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
+                    class-name="block h-auto w-40 max-h-16 max-w-full shrink-0 object-contain group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
                 />
                 <span class="sr-only">RF IS dashboard</span>
             </Link>
         </SidebarHeader>
 
-        <SidebarContent>
-            <NavMain :sections="mainNavSections" />
-        </SidebarContent>
-
+        <SidebarContent><NavMain :sections="mainNavSections" /></SidebarContent>
         <SidebarFooter>
             <NavFooter :items="footerNavItems" />
             <NavUser />
