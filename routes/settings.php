@@ -32,6 +32,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
 
     Route::middleware('role:admin')->group(function (): void {
         Route::get('admin/payroll', [AdminPayrollController::class, 'index'])->name('admin.payroll.index');
+        Route::get('admin/payroll/estimate', [AdminPayrollController::class, 'estimate'])->name('admin.payroll.estimate');
         Route::post('admin/payroll', [AdminPayrollController::class, 'store'])->name('admin.payroll.store');
     });
 
