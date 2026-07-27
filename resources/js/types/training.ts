@@ -85,6 +85,10 @@ export type WeeklySchedule = {
     training_group?: string | null;
     dedicated_athlete_id?: number | string | null;
     dedicated_athlete?: string | null;
+    /** Athlete names shown for private or dedicated schedules. */
+    athletes?: string | null;
+    /** Linked child names whose parent can view this schedule. */
+    child?: string | null;
     session_type?: string | null;
     coach_id?: string | null;
     coach_ids?: Array<string | number>;
