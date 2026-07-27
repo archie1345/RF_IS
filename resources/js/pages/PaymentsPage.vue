@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Download, ImagePlus, MessageCircle, PencilLine, Trash2, WalletCards } from 'lucide-vue-next';
+import { AlertTriangle, Download, MessageCircle, PencilLine, Trash2, WalletCards } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
@@ -47,6 +47,7 @@ const props = withDefaults(
             company_phone: string | null;
             company_email: string | null;
             logo_url: string | null;
+            logo_image_url: string | null;
             header_text: string | null;
             footer_text: string | null;
             payment_notes: string | null;
@@ -235,7 +236,8 @@ const invoiceTemplateForm = useForm({
     company_address: props.invoiceTemplate?.company_address ?? '',
     company_phone: props.invoiceTemplate?.company_phone ?? '',
     company_email: props.invoiceTemplate?.company_email ?? '',
-    logo_url: props.invoiceTemplate?.logo_url ?? '',
+    logo_file: null as File | null,
+    remove_logo_file: false,
     header_text: props.invoiceTemplate?.header_text ?? '',
     footer_text: props.invoiceTemplate?.footer_text ?? '',
     payment_notes: props.invoiceTemplate?.payment_notes ?? '',
@@ -379,8 +381,11 @@ async function deleteFromEdit(): Promise<void> {
 
 function saveInvoiceTemplate() {
     invoiceTemplateForm.post('/admin/invoice-template', {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            invoiceTemplateForm.logo_file = null;
+            invoiceTemplateForm.remove_logo_file = false;
             invoiceTemplateModalOpen.value = false;
         },
     });
@@ -748,24 +753,32 @@ function submitManualPayment() {
         >
             <PageSection
                 title="Pengaturan invoice"
-                description="Informasi ini tampil pada invoice yang diunduh dan instruksi pembayaran anggota."
+                description="Atur identitas klub dan upload logo yang akan ditanam langsung ke invoice PDF."
             >
                 <form class="grid gap-6" @submit.prevent="saveInvoiceTemplate">
-                    <div class="grid gap-2">
-                        <label class="text-sm font-medium">Logo</label>
-                        <div class="flex items-center gap-4">
-                            <div class="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/50">
-                                <ImagePlus class="size-8 text-muted-foreground" />
-                            </div>
-                            <FormInputField
-                                id="invoice-logo-url"
-                                v-model="invoiceTemplateForm.logo_url"
-                                type="url"
-                                label="URL logo"
-                                placeholder="https://example.com/logo.png"
-                                :error="invoiceTemplateForm.errors.logo_url"
-                            />
-                        </div>
+                    <div class="grid gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                        <FormFileField
+                            id="invoice-logo-file"
+                            v-model="invoiceTemplateForm.logo_file"
+                            label="File logo invoice"
+                            accept="image/png,image/jpeg,image/webp"
+                            current-file-name="Logo invoice saat ini"
+                            :current-file-url="props.invoiceTemplate?.logo_image_url ?? props.invoiceTemplate?.logo_url"
+                            :error="invoiceTemplateForm.errors.logo_file"
+                        />
+                        <p v-if="!invoiceTemplateForm.errors.logo_file" class="text-xs leading-5 text-muted-foreground">
+                            Gunakan PNG, JPG, atau WebP maksimal 5 MB. Logo berbentuk persegi atau horizontal dengan latar transparan memberikan hasil terbaik pada PDF.
+                        </p>
+                        <label
+                            v-if="props.invoiceTemplate?.logo_image_url || props.invoiceTemplate?.logo_url"
+                            class="flex items-center gap-2 text-sm"
+                        >
+                            <input v-model="invoiceTemplateForm.remove_logo_file" type="checkbox" class="size-4 rounded border-input" />
+                            Hapus logo dari invoice
+                        </label>
+                        <p v-if="invoiceTemplateForm.errors.remove_logo_file" class="text-sm text-destructive">
+                            {{ invoiceTemplateForm.errors.remove_logo_file }}
+                        </p>
                     </div>
                     <div class="grid gap-4 md:grid-cols-2">
                         <FormInputField id="invoice-company-name" v-model="invoiceTemplateForm.company_name" label="Nama klub" required :error="invoiceTemplateForm.errors.company_name" />
@@ -776,7 +789,7 @@ function submitManualPayment() {
                         Alamat
                         <textarea v-model="invoiceTemplateForm.company_address" rows="2" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
                     </label>
-                    <FormInputField id="invoice-header-text" v-model="invoiceTemplateForm.header_text" label="Judul invoice" :error="invoiceTemplateForm.errors.header_text" />
+                    <FormInputField id="invoice-header-text" v-model="invoiceTemplateForm.header_text" label="Tagline atau subjudul" :error="invoiceTemplateForm.errors.header_text" />
                     <label class="grid gap-2 text-sm font-medium">
                         Catatan footer
                         <textarea v-model="invoiceTemplateForm.footer_text" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
@@ -786,7 +799,9 @@ function submitManualPayment() {
                         <textarea v-model="invoiceTemplateForm.payment_notes" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
                     </label>
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" :disabled="invoiceTemplateForm.processing">Simpan pengaturan</Button>
+                        <Button type="submit" :disabled="invoiceTemplateForm.processing">
+                            {{ invoiceTemplateForm.processing ? 'Menyimpan...' : 'Simpan pengaturan' }}
+                        </Button>
                         <Button type="button" variant="outline" @click="invoiceTemplateModalOpen = false">Batal</Button>
                     </div>
                 </form>
