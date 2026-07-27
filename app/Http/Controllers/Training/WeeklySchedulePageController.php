@@ -75,10 +75,36 @@ class WeeklySchedulePageController extends Controller
             $weeklySchedules = collect();
         }
 
+        $scheduleModels = $weeklySchedules->keyBy(
+            fn (WeeklyTrainingSchedule $schedule): string => (string) $schedule->weekly_training_schedule_id,
+        );
+        $schedulePayload = $this->weeklySchedulePayload($request, $weeklySchedules)
+            ->map(function (array $row) use ($role, $athletes, $scheduleModels): array {
+                /** @var WeeklyTrainingSchedule|null $schedule */
+                $schedule = $scheduleModels->get((string) $row['id']);
+                $childNames = $role === 'parent' && $schedule
+                    ? $athletes
+                        ->filter(fn (Athlete $athlete): bool => $this->athleteCanJoinSchedule($athlete, $schedule))
+                        ->map(fn (Athlete $athlete): string => $athlete->user?->name ?? 'Atlet')
+                        ->unique()
+                        ->values()
+                        ->join(', ')
+                    : null;
+
+                return [
+                    ...$row,
+                    'child' => $childNames,
+                    'athletes' => filled($row['dedicated_athlete'] ?? null)
+                        ? (string) $row['dedicated_athlete']
+                        : null,
+                ];
+            })
+            ->values();
+
         return Inertia::render('WeeklySchedulePage', [
             'title' => 'Jadwal Latihan',
             'subtitle' => $role === 'parent'
-                ? 'Jadwal latihan untuk anak yang terhubung'
+                ? 'Jadwal semua anak yang terhubung; gunakan nama anak pada setiap jadwal untuk membedakannya.'
                 : 'Jadwal latihan rutin',
             'canManageSchedule' => $canManageSchedule,
             'currentCoachId' => $coachId,
@@ -86,7 +112,7 @@ class WeeklySchedulePageController extends Controller
                 'from' => $weekStart->toDateString(),
                 'to' => $weekEnd->toDateString(),
             ],
-            'weeklySchedules' => $this->weeklySchedulePayload($request, $weeklySchedules),
+            'weeklySchedules' => $schedulePayload,
             'branchOptions' => $canManageSchedule ? $this->branchOptions($role, $user) : [],
             'groupOptions' => $canManageSchedule ? $this->groupOptions($role, $user) : [],
             'coachOptions' => $role === 'admin' ? $this->coachOptions() : [],
@@ -106,13 +132,16 @@ class WeeklySchedulePageController extends Controller
     private function visibleAthletes(Request $request, string $role): Collection
     {
         if ($role === 'athlete') {
-            return collect([$request->user()?->athleteProfile])->filter();
+            $athlete = $request->user()?->athleteProfile;
+            $athlete?->loadMissing(['user:id,name', 'group:group_id,min_belt']);
+
+            return collect([$athlete])->filter();
         }
 
         if ($role === 'parent') {
             return $request->user()
                 ->children()
-                ->with(['group:group_id,min_belt'])
+                ->with(['user:id,name', 'group:group_id,min_belt'])
                 ->get();
         }
 
@@ -197,6 +226,12 @@ class WeeklySchedulePageController extends Controller
         }
 
         if ((string) $athlete->group_id === (string) $schedule->group_id) {
+            return true;
+        }
+
+        if ($schedule->group?->privateAthletes?->contains(
+            fn (Athlete $privateAthlete): bool => (string) $privateAthlete->athlete_id === (string) $athlete->athlete_id,
+        )) {
             return true;
         }
 
