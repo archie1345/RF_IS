@@ -66,10 +66,10 @@ class FullSystemSimulationSeeder extends Seeder
         $branch = Branch::query()->findOrFail($group->branch_id);
         $today = now(config('app.timezone', 'Asia/Jakarta'))->startOfDay();
         $monthStart = $today->copy()->startOfMonth();
-        $dates = [
-            $monthStart->copy()->addDay()->min($today),
-            $monthStart->copy()->addDays(4)->min($today),
-        ];
+        $dates = array_map(
+            fn (Carbon $date): Carbon => $date->isAfter($today) ? $today->copy() : $date,
+            [$monthStart->copy()->addDay(), $monthStart->copy()->addDays(4)],
+        );
 
         foreach ([
             ['Simulation Payroll Session A', '18:00:00', '19:30:00'],
@@ -147,10 +147,13 @@ class FullSystemSimulationSeeder extends Seeder
     private function seedCoachAttendanceStatusMatrix(): void
     {
         $coach = Coach::query()->whereHas('user', fn ($query) => $query->where('email', 'coach2@rfis.test'))->firstOrFail();
+        $occupiedSessionIds = CoachAttendance::query()
+            ->where('coach_id', $coach->coach_id)
+            ->pluck('training_session_id');
         $session = TrainingSession::query()
             ->whereDate('session_date', '<=', today())
             ->where('status', '!=', 'CANCELED')
-            ->whereDoesntHave('coachAttendances', fn ($query) => $query->where('coach_id', $coach->coach_id))
+            ->when($occupiedSessionIds->isNotEmpty(), fn ($query) => $query->whereNotIn('training_session_id', $occupiedSessionIds))
             ->orderByDesc('session_date')
             ->first();
 
@@ -213,7 +216,7 @@ class FullSystemSimulationSeeder extends Seeder
             ['role' => 'Head Coach'],
         );
 
-        $ongoingRegistration = EventRegistration::query()->updateOrCreate(
+        EventRegistration::query()->updateOrCreate(
             ['event_id' => $ongoing->event_id, 'athlete_id' => $nadia->athlete_id],
             [
                 'category' => 'POOMSAE',
@@ -242,8 +245,6 @@ class FullSystemSimulationSeeder extends Seeder
                 'championship_name' => 'RFIS Simulation Historical Championship',
             ],
             [
-                'event_registration_id' => $ongoingRegistration->evrid,
-                'event_id' => $ongoing->event_id,
                 'medal' => 'BRONZE',
                 'location' => 'Central Dojang',
                 'event_date' => now()->subMonths(2),
@@ -264,7 +265,7 @@ class FullSystemSimulationSeeder extends Seeder
         $nadia = Athlete::query()->whereHas('user', fn ($query) => $query->where('email', 'nadia@rfis.test'))->firstOrFail();
         $coachUser = User::query()->where('email', 'coach2@rfis.test')->firstOrFail();
 
-        $overdue = Payment::query()->updateOrCreate(
+        Payment::query()->updateOrCreate(
             ['bill_kind' => 'INVOICE', 'reference_id' => 997000000000001],
             [
                 'athlete_id' => $nadia->athlete_id,
@@ -356,8 +357,6 @@ class FullSystemSimulationSeeder extends Seeder
                 'payment_method' => 'TRANSFER',
             ],
         );
-
-        $overdue->touch();
     }
 
     private function seedAnnouncementStatusMatrix(): void
