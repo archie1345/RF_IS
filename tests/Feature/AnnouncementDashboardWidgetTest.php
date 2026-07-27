@@ -12,7 +12,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
-it('shows compact dashboard announcements for only the selected active role', function () {
+it('shows dashboard announcements for every assigned role on a multi-role account', function () {
     $user = User::factory()->create(['role' => 'coach']);
     UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'coach']);
     UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'athlete']);
@@ -61,10 +61,12 @@ it('shows compact dashboard announcements for only the selected active role', fu
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->where('auth.user.activeRole', 'athlete')
-            ->has('announcements', 2)
+            ->has('announcements', 3)
             ->where('announcements.0.title', 'Athlete widget')
             ->where('announcements.0.target', 'Atlet')
-            ->where('announcements.1.title', 'Shared widget'));
+            ->where('announcements.1.title', 'Coach widget')
+            ->where('announcements.1.target', 'Pelatih')
+            ->where('announcements.2.title', 'Shared widget'));
 
     $this->put(route('role-context.update'), ['role' => 'coach'])
         ->assertRedirect(route('dashboard'));
@@ -73,8 +75,8 @@ it('shows compact dashboard announcements for only the selected active role', fu
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('auth.user.activeRole', 'coach')
-            ->has('announcements', 2)
-            ->where('announcements.0.title', 'Coach widget')
-            ->where('announcements.0.target', 'Pelatih')
-            ->where('announcements.1.title', 'Shared widget'));
+            ->has('announcements', 3)
+            ->where('announcements.0.title', 'Athlete widget')
+            ->where('announcements.1.title', 'Coach widget')
+            ->where('announcements.2.title', 'Shared widget'));
 });
