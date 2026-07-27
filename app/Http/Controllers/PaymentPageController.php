@@ -69,7 +69,9 @@ class PaymentPageController extends Controller
                     ['label' => 'Previous unpaid', 'value' => (string) $tuitionMetrics['previous_unpaid'], 'detail' => 'Unpaid tuition bills before '.$tuitionMetrics['month_label'], 'tone' => 'danger'],
                 ],
             'financeAttention' => $financeAttention,
-            'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
+            'rows' => $payments->map(
+                fn (Payment $payment) => $this->paymentRows->row($payment, $isAdmin),
+            )->values(),
             'athletes' => $isAdmin ? $this->athleteOptions() : [],
             'users' => $isAdmin ? $this->userOptions() : [],
             'coaches' => $isAdmin ? $this->coachOptions() : [],
