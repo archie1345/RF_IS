@@ -20,16 +20,20 @@ it('allows admins to manage the WhatsApp payment reminder template', function ()
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/WhatsAppTemplatePage')
             ->where('template.body', PaymentReminderTemplate::DEFAULT_BODY)
+            ->where('contactNumber', '')
             ->has('placeholders', count(PaymentReminderTemplate::PLACEHOLDERS)));
 
     $this->actingAs($admin)
         ->put(route('admin.whatsapp-template.update'), [
             'body' => 'Halo {name}, invoice {invoice_number} memiliki sisa {remaining_amount}. Buka {payment_url}.',
+            'contact_number' => '081234567890',
         ])
         ->assertRedirect();
 
     expect(MessageTemplate::query()->where('key', PaymentReminderTemplate::KEY)->value('body'))
         ->toBe('Halo {name}, invoice {invoice_number} memiliki sisa {remaining_amount}. Buka {payment_url}.');
+    expect(MessageTemplate::query()->where('key', 'public_admin_whatsapp')->value('body'))
+        ->toBe('081234567890');
 
     $this->actingAs($admin)
         ->put(route('admin.whatsapp-template.update'), [
@@ -42,7 +46,7 @@ it('allows admins to manage the WhatsApp payment reminder template', function ()
         ->assertForbidden();
 });
 
-it('uses the configured template when building a WhatsApp reminder link', function () {
+it('uses the configured template when an admin payment row builds a WhatsApp reminder link', function () {
     $member = User::factory()->create([
         'name' => 'Ayu Pratama',
         'role' => 'athlete',
@@ -66,12 +70,14 @@ it('uses the configured template when building a WhatsApp reminder link', functi
         'proof_status' => 'NONE',
     ]);
 
-    $row = app(PaymentRowPresenter::class)->row(
-        $payment->load(['billableUser', 'transactions']),
-    );
-    parse_str((string) parse_url((string) $row['whatsapp_url'], PHP_URL_QUERY), $query);
+    $presenter = app(PaymentRowPresenter::class);
+    $payment->load(['billableUser', 'transactions']);
+    $memberRow = $presenter->row($payment);
+    $adminRow = $presenter->row($payment, true);
+    parse_str((string) parse_url((string) $adminRow['whatsapp_url'], PHP_URL_QUERY), $query);
 
-    expect($row['whatsapp_url'])->toStartWith('https://wa.me/6281234567890?text=')
+    expect($memberRow['whatsapp_url'])->toBeNull()
+        ->and($adminRow['whatsapp_url'])->toStartWith('https://wa.me/6281234567890?text=')
         ->and($query['text'] ?? null)->toContain('Halo Ayu Pratama.')
         ->and($query['text'] ?? null)->toContain('Sisa Rp 150.000.')
         ->and($query['text'] ?? null)->toContain((string) $payment->invoice_number)
