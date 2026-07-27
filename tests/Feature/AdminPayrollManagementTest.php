@@ -63,6 +63,7 @@ test('admin creates a paid payroll slip with basis and bonus', function () {
 
 test('admin payroll page and dashboard remind admin until current month payroll exists', function () {
     $admin = User::factory()->create(['role' => 'admin']);
+    User::factory()->create(['role' => 'coach', 'name' => 'Unpaid Coach']);
 
     $this->actingAs($admin)
         ->get(route('admin.payroll.index'))
@@ -70,7 +71,9 @@ test('admin payroll page and dashboard remind admin until current month payroll 
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/AdminPayrollPage')
             ->where('reminder.needed', true)
-            ->where('reminder.count', 0));
+            ->where('reminder.count', 0)
+            ->where('reminder.expected', 1)
+            ->where('reminder.missing', 1));
 
     $this->get(route('dashboard'))
         ->assertOk()
