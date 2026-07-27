@@ -9,12 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table): void {
-            $table->date('payroll_period')->nullable()->after('billing_run_key')->index();
-            $table->string('payroll_basis_type', 40)->nullable()->after('payroll_period');
-            $table->decimal('payroll_units', 10, 2)->nullable()->after('payroll_basis_type');
-            $table->decimal('payroll_rate', 14, 2)->nullable()->after('payroll_units');
-            $table->decimal('payroll_base_amount', 14, 2)->nullable()->after('payroll_rate');
-            $table->decimal('payroll_bonus_amount', 14, 2)->default(0)->after('payroll_base_amount');
+            // Do not depend on a particular legacy column order. This keeps the
+            // migration portable across MySQL and SQLite test databases.
+            $table->date('payroll_period')->nullable()->index();
+            $table->string('payroll_basis_type', 40)->nullable();
+            $table->decimal('payroll_units', 10, 2)->nullable();
+            $table->decimal('payroll_rate', 14, 2)->nullable();
+            $table->decimal('payroll_base_amount', 14, 2)->nullable();
+            $table->decimal('payroll_bonus_amount', 14, 2)->default(0);
         });
     }
 
