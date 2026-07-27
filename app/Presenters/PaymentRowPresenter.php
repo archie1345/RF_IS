@@ -15,7 +15,7 @@ class PaymentRowPresenter
 
     public function __construct(private readonly PaymentReminderTemplate $reminderTemplate) {}
 
-    public function row(Payment $payment): array
+    public function row(Payment $payment, bool $includeWhatsApp = false): array
     {
         $phone = $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '';
         $paidAmount = (float) ($payment->paid_amount ?? 0);
@@ -35,7 +35,7 @@ class PaymentRowPresenter
             'bill_kind' => $payment->bill_kind ?? 'INVOICE',
             'athlete' => $this->subject($payment),
             'athlete_phone' => $phone,
-            'whatsapp_url' => $this->whatsAppUrl($payment, $phone),
+            'whatsapp_url' => $includeWhatsApp ? $this->whatsAppUrl($payment, $phone) : null,
             'type' => Str::headline(strtolower((string) $payment->payment_type)),
             'payment_type_raw' => $payment->payment_type,
             'amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount)),
