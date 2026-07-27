@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActiveRoleContextController;
+use App\Http\Controllers\Admin\AdminPayrollController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SettingsOverviewController;
@@ -27,6 +28,11 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
+
+    Route::middleware('role:admin')->group(function (): void {
+        Route::get('admin/payroll', [AdminPayrollController::class, 'index'])->name('admin.payroll.index');
+        Route::post('admin/payroll', [AdminPayrollController::class, 'store'])->name('admin.payroll.store');
+    });
 
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
