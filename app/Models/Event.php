@@ -17,6 +17,7 @@ class Event extends Model
     protected $fillable = [
         'e_name',
         'e_date',
+        'registration_deadline',
         'location',
         'gmaps_url',
         'level',
@@ -34,6 +35,7 @@ class Event extends Model
     {
         return [
             'e_date' => 'date',
+            'registration_deadline' => 'datetime',
             'entry_fee' => 'decimal:2',
             'max_slots' => 'integer',
         ];
