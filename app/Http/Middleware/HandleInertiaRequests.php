@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\MessageTemplate;
 use App\Services\ActiveRoleContextService;
 use App\Services\ParentChildContextService;
 use Illuminate\Http\Request;
@@ -10,40 +11,23 @@ use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
-    /**
-     * The root template that's loaded on the first page visit.
-     *
-     * @see https://inertiajs.com/server-side-setup#root-template
-     *
-     * @var string
-     */
     protected $rootView = 'app';
 
-    /**
-     * Determines the current asset version.
-     *
-     * @see https://inertiajs.com/asset-versioning
-     */
     public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
-    /**
-     * Define the props that are shared by default.
-     *
-     * @see https://inertiajs.com/shared-data
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function share(Request $request): array
     {
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            // Resolve role-sensitive data lazily so route middleware can first
-            // authorize and automatically switch a multi-role user's context.
             'auth' => fn (): array => $this->sharedAuth($request),
+            'publicAdminWhatsapp' => fn (): string => (string) (MessageTemplate::query()
+                ->where('key', 'public_admin_whatsapp')
+                ->value('body') ?? ''),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
@@ -57,9 +41,7 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     private function sharedAuth(Request $request): array
     {
         $user = $request->user();
@@ -69,15 +51,12 @@ class HandleInertiaRequests extends Middleware
         $activeRole = $roleContext->activeRole($request, $user);
         $primaryRole = $roles[0] ?? $activeRole;
         $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
-        $activeChild = $activeRole === 'parent' ? $childContext->activeChildFor($request) : null;
 
         return [
             'user' => $user ? [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                // `role` remains a compatibility alias for the selected role so existing
-                // pages become multi-role aware without reading the legacy users.role column.
                 'role' => $activeRole,
                 'activeRole' => $activeRole,
                 'primaryRole' => $primaryRole,
@@ -88,7 +67,9 @@ class HandleInertiaRequests extends Middleware
                     : null,
             ] : null,
             'children' => $children,
-            'activeChild' => $activeChild,
+            // Parent pages now show all children and filter locally instead of
+            // carrying one persistent child context through the application.
+            'activeChild' => null,
         ];
     }
 }
