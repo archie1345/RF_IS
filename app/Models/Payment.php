@@ -32,6 +32,12 @@ class Payment extends Model
         'reference_id',
         'billing_rule_id',
         'billing_run_key',
+        'payroll_period',
+        'payroll_basis_type',
+        'payroll_units',
+        'payroll_rate',
+        'payroll_base_amount',
+        'payroll_bonus_amount',
         'total_amount',
         'paid_amount',
         'remaining_amount',
@@ -65,8 +71,9 @@ class Payment extends Model
         static::created(function (Payment $payment): void {
             if (blank($payment->invoice_number)) {
                 $issuedOn = Carbon::parse($payment->payment_date ?? $payment->created_at ?? today());
+                $prefix = strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'PAYROLL' ? 'PAY' : 'INV';
                 $payment->forceFill([
-                    'invoice_number' => 'INV-'.$issuedOn->format('Ym').'-'.str_pad((string) $payment->payment_id, 6, '0', STR_PAD_LEFT),
+                    'invoice_number' => $prefix.'-'.$issuedOn->format('Ym').'-'.str_pad((string) $payment->payment_id, 6, '0', STR_PAD_LEFT),
                 ])->saveQuietly();
             }
         });
@@ -76,6 +83,11 @@ class Payment extends Model
     {
         return [
             'amount' => 'decimal:2',
+            'payroll_period' => 'date',
+            'payroll_units' => 'decimal:2',
+            'payroll_rate' => 'decimal:2',
+            'payroll_base_amount' => 'decimal:2',
+            'payroll_bonus_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'remaining_amount' => 'decimal:2',
