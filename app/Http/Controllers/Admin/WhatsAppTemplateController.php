@@ -42,11 +42,12 @@ class WhatsAppTemplateController extends Controller
     {
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:3000'],
-            'contact_number' => ['required', 'string', 'max:24', 'regex:/^[0-9+()\-\s]+$/'],
+            // Optional for backwards-compatible API clients that only update
+            // the reminder body. The admin UI always submits this field.
+            'contact_number' => ['nullable', 'string', 'max:24', 'regex:/^[0-9+()\-\s]+$/'],
         ], [
             'body.required' => 'Template WhatsApp wajib diisi.',
             'body.max' => 'Template WhatsApp maksimal 3000 karakter.',
-            'contact_number.required' => 'Nomor WhatsApp admin wajib diisi.',
             'contact_number.regex' => 'Nomor WhatsApp admin tidak valid.',
         ]);
 
@@ -61,10 +62,14 @@ class WhatsAppTemplateController extends Controller
             ['key' => PaymentReminderTemplate::KEY],
             ['body' => trim($validated['body'])],
         );
-        MessageTemplate::query()->updateOrCreate(
-            ['key' => self::PUBLIC_CONTACT_KEY],
-            ['body' => trim($validated['contact_number'])],
-        );
+
+        if (array_key_exists('contact_number', $validated) && filled($validated['contact_number'])) {
+            MessageTemplate::query()->updateOrCreate(
+                ['key' => self::PUBLIC_CONTACT_KEY],
+                ['body' => trim($validated['contact_number'])],
+            );
+        }
+
         $this->template->clearCache();
 
         ActivityLogger::log(
@@ -75,6 +80,6 @@ class WhatsAppTemplateController extends Controller
             $messageTemplate,
         );
 
-        return back()->with('status', 'Template dan nomor WhatsApp admin berhasil diperbarui.');
+        return back()->with('status', 'Pengaturan WhatsApp berhasil diperbarui.');
     }
 }
