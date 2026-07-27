@@ -53,7 +53,7 @@ test('admin creates a paid payroll slip with basis and bonus', function () {
             ->component('CoachPayrollPage')
             ->where('rows.0.payment_id', $payment->payment_id)
             ->where('rows.0.payroll_basis', 'Per sesi')
-            ->where('rows.0.payroll_bonus', 'Rp250.000')
+            ->where('rows.0.payroll_bonus', 'Rp 250.000')
             ->where('rows.0.receipt_url', route('payments.export', $payment)));
 
     $this->actingAs($coach)
@@ -63,7 +63,7 @@ test('admin creates a paid payroll slip with basis and bonus', function () {
 
 test('admin payroll page and dashboard remind admin until current month payroll exists', function () {
     $admin = User::factory()->create(['role' => 'admin']);
-    User::factory()->create(['role' => 'coach', 'name' => 'Unpaid Coach']);
+    $coach = User::factory()->create(['role' => 'coach', 'name' => 'Unpaid Coach']);
 
     $this->actingAs($admin)
         ->get(route('admin.payroll.index'))
@@ -80,6 +80,34 @@ test('admin payroll page and dashboard remind admin until current month payroll 
         ->assertInertia(fn (Assert $page) => $page
             ->where('roles', ['admin'])
             ->where('metrics.0.value', 'Belum dibuat'));
+
+    Payment::query()->create([
+        'payee_user_id' => $coach->id,
+        'bill_kind' => 'PAYROLL',
+        'payment_type' => 'OTHER',
+        'payroll_period' => now()->startOfMonth()->toDateString(),
+        'payroll_basis_type' => 'FIXED',
+        'payroll_units' => 0,
+        'payroll_rate' => 0,
+        'payroll_base_amount' => 1000000,
+        'payroll_bonus_amount' => 0,
+        'amount' => 1000000,
+        'total_amount' => 1000000,
+        'paid_amount' => 1000000,
+        'remaining_amount' => 0,
+        'payment_date' => now()->toDateString(),
+        'status' => 'COMPLETED',
+        'proof_status' => 'APPROVED',
+    ]);
+
+    $this->get(route('admin.payroll.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/AdminPayrollPage')
+            ->where('reminder.needed', false)
+            ->where('reminder.count', 1)
+            ->where('reminder.expected', 1)
+            ->where('reminder.missing', 0));
 });
 
 test('non admin cannot create payroll', function () {
