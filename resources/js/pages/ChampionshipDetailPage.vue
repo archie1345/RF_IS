@@ -102,6 +102,7 @@ const editForm = useForm({
     class_name: '',
     division: '',
     team_contingent: 'Rhino Fighter',
+    registration: '',
 });
 
 function addCoach(): void {
