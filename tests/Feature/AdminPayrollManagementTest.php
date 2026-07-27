@@ -1,40 +1,86 @@
 <?php
 
+use App\Models\Branch;
+use App\Models\Coach;
+use App\Models\CoachAttendance;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
+use App\Models\TrainingSession;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('admin creates a paid payroll slip with basis and bonus', function () {
+test('admin creates a paid payroll slip from recorded coach sessions with bonus', function () {
     $admin = User::factory()->create(['role' => 'admin']);
-    $coach = User::factory()->create(['role' => 'coach', 'name' => 'Payroll Coach']);
+    $coachUser = User::factory()->create(['role' => 'coach', 'name' => 'Payroll Coach']);
+    $coach = Coach::query()->create(['id' => $coachUser->id, 'status' => 'active']);
+    $branch = Branch::query()->create(['branch_name' => 'Payroll Branch', 'location' => 'Payroll Hall']);
+
+    foreach ([
+        ['08:00:00', '09:00:00'],
+        ['10:00:00', '11:30:00'],
+    ] as $index => [$start, $end]) {
+        $session = TrainingSession::query()->create([
+            'coach_id' => $coach->coach_id,
+            'branch_id' => $branch->branch_id,
+            'title' => 'Payroll Session '.($index + 1),
+            'location' => 'Payroll Hall',
+            'session_date' => now()->startOfMonth()->addDays($index + 1)->toDateString(),
+            'start_time' => $start,
+            'end_time' => $end,
+            'status' => 'CONFIRMED',
+        ]);
+
+        CoachAttendance::query()->create([
+            'training_session_id' => $session->training_session_id,
+            'coach_id' => $coach->coach_id,
+            'status' => 'TEACH',
+            'checked_at' => now(),
+        ]);
+    }
 
     $this->actingAs($admin)
-        ->post(route('admin.payroll.store'), [
-            'coach_user_id' => $coach->id,
+        ->getJson(route('admin.payroll.estimate', [
+            'coach_user_id' => $coachUser->id,
             'payroll_period' => now()->format('Y-m'),
             'basis_type' => 'SESSION',
-            'units' => 12,
-            'rate' => 100000,
-            'base_amount' => 0,
-            'bonus_amount' => 250000,
-            'paid_at' => now()->toDateString(),
-            'payment_method' => 'TRANSFER',
-            'notes' => 'Twelve sessions plus championship bonus',
-        ])
-        ->assertRedirect();
+        ]))
+        ->assertOk()
+        ->assertJsonPath('units', 2)
+        ->assertJsonPath('session_count', 2)
+        ->assertJsonPath('hours', 2.5);
+
+    $this->getJson(route('admin.payroll.estimate', [
+        'coach_user_id' => $coachUser->id,
+        'payroll_period' => now()->format('Y-m'),
+        'basis_type' => 'HOUR',
+    ]))
+        ->assertOk()
+        ->assertJsonPath('units', 2.5);
+
+    $this->post(route('admin.payroll.store'), [
+        'coach_user_id' => $coachUser->id,
+        'payroll_period' => now()->format('Y-m'),
+        'basis_type' => 'SESSION',
+        'units' => 999,
+        'rate' => 100000,
+        'base_amount' => 0,
+        'bonus_amount' => 250000,
+        'paid_at' => now()->toDateString(),
+        'payment_method' => 'TRANSFER',
+        'notes' => 'Database sessions plus championship bonus',
+    ])->assertRedirect();
 
     $payment = Payment::query()->where('bill_kind', 'PAYROLL')->firstOrFail();
 
-    expect($payment->payee_user_id)->toBe($coach->id)
+    expect($payment->payee_user_id)->toBe($coachUser->id)
         ->and($payment->invoice_number)->toStartWith('PAY-')
         ->and($payment->payroll_basis_type)->toBe('SESSION')
-        ->and((float) $payment->payroll_units)->toBe(12.0)
+        ->and((float) $payment->payroll_units)->toBe(2.0)
         ->and((float) $payment->payroll_rate)->toBe(100000.0)
-        ->and((float) $payment->payroll_base_amount)->toBe(1200000.0)
+        ->and((float) $payment->payroll_base_amount)->toBe(200000.0)
         ->and((float) $payment->payroll_bonus_amount)->toBe(250000.0)
-        ->and((float) $payment->total_amount)->toBe(1450000.0)
-        ->and((float) $payment->paid_amount)->toBe(1450000.0)
+        ->and((float) $payment->total_amount)->toBe(450000.0)
+        ->and((float) $payment->paid_amount)->toBe(450000.0)
         ->and((float) $payment->remaining_amount)->toBe(0.0)
         ->and($payment->status)->toBe('COMPLETED');
 
@@ -42,11 +88,11 @@ test('admin creates a paid payroll slip with basis and bonus', function () {
         'payment_id' => $payment->payment_id,
         'verified_by' => $admin->id,
         'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
-        'amount' => 1450000,
+        'amount' => 450000,
         'payment_method' => 'TRANSFER',
     ]);
 
-    $this->actingAs($coach)
+    $this->actingAs($coachUser)
         ->get(route('payments.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -56,9 +102,40 @@ test('admin creates a paid payroll slip with basis and bonus', function () {
             ->where('rows.0.payroll_bonus', 'Rp 250.000')
             ->where('rows.0.receipt_url', route('payments.export', $payment)));
 
-    $this->actingAs($coach)
+    $this->actingAs($coachUser)
         ->get(route('payments.export', $payment))
         ->assertOk();
+});
+
+test('monthly payroll automatically uses one selected database period', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $coachUser = User::factory()->create(['role' => 'coach', 'name' => 'Monthly Coach']);
+    Coach::query()->create(['id' => $coachUser->id, 'status' => 'active']);
+
+    $this->actingAs($admin)
+        ->getJson(route('admin.payroll.estimate', [
+            'coach_user_id' => $coachUser->id,
+            'payroll_period' => now()->format('Y-m'),
+            'basis_type' => 'MONTH',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('units', 1)
+        ->assertJsonPath('months', 1);
+
+    $this->post(route('admin.payroll.store'), [
+        'coach_user_id' => $coachUser->id,
+        'payroll_period' => now()->format('Y-m'),
+        'basis_type' => 'MONTH',
+        'units' => 50,
+        'rate' => 3000000,
+        'bonus_amount' => 0,
+        'paid_at' => now()->toDateString(),
+        'payment_method' => 'TRANSFER',
+    ])->assertRedirect();
+
+    $payment = Payment::query()->where('payee_user_id', $coachUser->id)->firstOrFail();
+    expect((float) $payment->payroll_units)->toBe(1.0)
+        ->and((float) $payment->payroll_base_amount)->toBe(3000000.0);
 });
 
 test('admin payroll page and dashboard remind admin until current month payroll exists', function () {
@@ -110,18 +187,24 @@ test('admin payroll page and dashboard remind admin until current month payroll 
             ->where('reminder.missing', 0));
 });
 
-test('non admin cannot create payroll', function () {
+test('non admin cannot create or estimate payroll', function () {
     $coach = User::factory()->create(['role' => 'coach']);
 
     $this->actingAs($coach)
-        ->post(route('admin.payroll.store'), [
+        ->getJson(route('admin.payroll.estimate', [
             'coach_user_id' => $coach->id,
             'payroll_period' => now()->format('Y-m'),
-            'basis_type' => 'FIXED',
-            'base_amount' => 1000000,
-            'bonus_amount' => 0,
-            'paid_at' => now()->toDateString(),
-            'payment_method' => 'TRANSFER',
-        ])
+            'basis_type' => 'MONTH',
+        ]))
         ->assertForbidden();
+
+    $this->post(route('admin.payroll.store'), [
+        'coach_user_id' => $coach->id,
+        'payroll_period' => now()->format('Y-m'),
+        'basis_type' => 'FIXED',
+        'base_amount' => 1000000,
+        'bonus_amount' => 0,
+        'paid_at' => now()->toDateString(),
+        'payment_method' => 'TRANSFER',
+    ])->assertForbidden();
 });
