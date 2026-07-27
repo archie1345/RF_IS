@@ -67,7 +67,7 @@ class FullSystemSimulationSeeder extends Seeder
         $today = now(config('app.timezone', 'Asia/Jakarta'))->startOfDay();
         $monthStart = $today->copy()->startOfMonth();
         $dates = array_map(
-            fn (Carbon $date): Carbon => $date->isAfter($today) ? $today->copy() : $date,
+            fn ($date) => $date->isAfter($today) ? $today->copy() : $date,
             [$monthStart->copy()->addDay(), $monthStart->copy()->addDays(4)],
         );
 
