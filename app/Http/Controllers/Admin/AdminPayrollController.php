@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use App\Support\Domain\PaymentStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -194,7 +195,7 @@ class AdminPayrollController extends Controller
         return back()->with('status', 'Slip payroll dan bukti pembayaran berhasil dibuat.');
     }
 
-    private function paymentFallsInMonth(Payment $payment, Carbon $month): bool
+    private function paymentFallsInMonth(Payment $payment, CarbonInterface $month): bool
     {
         $date = $payment->payroll_period ?? $payment->payment_date;
 
