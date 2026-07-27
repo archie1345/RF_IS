@@ -1,6 +1,6 @@
 # UI simplification changelog
 
-This file records the interface reductions introduced with the payroll, family, multi-role, schedule, attendance, and championship workflow update. It exists so the removed or condensed presentation can be restored without guessing.
+This file records the interface reductions introduced with the payroll, family, multi-role, schedule, attendance, and championship workflow update. It exists so removed or condensed presentation can be restored without guessing.
 
 ## Global tables
 
@@ -67,11 +67,12 @@ This file records the interface reductions introduced with the payroll, family, 
 - `resources/js/features/training/components/WeeklyScheduleBoard.vue`
 - `resources/js/types/training.ts`
 
-- Reduced gradients, oversized headings, repeated decorative labels, and heavy shadows.
-- Added child filtering for parent users.
-- Added athlete names to private/dedicated schedules and child names to parent-visible schedules.
+- The original weekly schedule board design has been restored, including the seven-day desktop layout, mobile day cards, colored type badges, gradients, and original detail modal styling.
+- The added `Atlet / Anak` row remains visible on schedule cards and in the detail modal.
+- Parent users retain child filtering.
+- Private and dedicated schedules retain athlete names.
 
-**Restore approach:** restore the previous `WeeklyScheduleBoard.vue`; keep the controller fields if athlete labels are still required.
+**Restore approach:** to remove only the added participant information, remove `participantLabel()` and the `Atlet / Anak` rows from `WeeklyScheduleBoard.vue`; the original visual structure can remain unchanged.
 
 ## Public page and WhatsApp settings
 
