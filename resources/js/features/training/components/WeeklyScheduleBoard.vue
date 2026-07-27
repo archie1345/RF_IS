@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw } from 'lucide-vue-next';
+import { CalendarDays, Clock3, Crown, MapPin, RefreshCcw, UserRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
@@ -28,35 +28,23 @@ const emit = defineEmits<{
 }>();
 
 const selectedSchedule = ref<WeeklyScheduleCard | null>(null);
-
 const days = [
-    { id: 1, name: 'Senin', english: 'Monday' },
-    { id: 2, name: 'Selasa', english: 'Tuesday' },
-    { id: 3, name: 'Rabu', english: 'Wednesday' },
-    { id: 4, name: 'Kamis', english: 'Thursday' },
-    { id: 5, name: 'Jumat', english: 'Friday' },
-    { id: 6, name: 'Sabtu', english: 'Saturday' },
-    { id: 7, name: 'Minggu', english: 'Sunday' },
+    { id: 1, name: 'Senin' },
+    { id: 2, name: 'Selasa' },
+    { id: 3, name: 'Rabu' },
+    { id: 4, name: 'Kamis' },
+    { id: 5, name: 'Jumat' },
+    { id: 6, name: 'Sabtu' },
+    { id: 7, name: 'Minggu' },
 ];
-
-const today = new Date();
-const todayDay = today.getDay() === 0 ? 7 : today.getDay();
+const todayDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
 
 const schedulesByDay = computed(() => {
     const grouped = new Map<number, WeeklyScheduleCard[]>();
     props.schedules
         .filter((schedule) => schedule.is_active !== false)
-        .forEach((schedule) => {
-            grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]);
-        });
+        .forEach((schedule) => grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]));
     return grouped;
-});
-
-const branchLabel = computed(() => {
-    const branches = [...new Set(props.schedules.map((schedule) => schedule.branch).filter(Boolean))];
-    if (branches.length === 1) return branches[0];
-    if (branches.length > 1) return 'Multiple Dojang';
-    return 'Rhino Fighter';
 });
 
 function typeLabel(schedule: WeeklyScheduleCard): string {
@@ -66,108 +54,99 @@ function typeLabel(schedule: WeeklyScheduleCard): string {
         .toUpperCase();
 }
 
-function typeTone(schedule: WeeklyScheduleCard): string {
-    const value = typeLabel(schedule).toLowerCase();
-    if (value.includes('prestasi') || value.includes('advanced') || value.includes('senior'))
-        return 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-200';
-    if (value.includes('private')) return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-200';
-    if (value.includes('dedicated')) return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200';
-    return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-200';
+function participantLabel(schedule: WeeklyScheduleCard): string {
+    return String(schedule.child || schedule.athletes || schedule.dedicated_athlete || '').trim();
 }
 
-function openSchedule(schedule: WeeklyScheduleCard) {
+function openSchedule(schedule: WeeklyScheduleCard): void {
     selectedSchedule.value = schedule;
 }
 </script>
 
 <template>
-    <section class="rounded-2xl border border-border bg-background p-4 text-foreground shadow-sm md:p-6">
-        <div class="mb-7 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-start">
+    <section class="rounded-xl border bg-card p-4 shadow-sm md:p-5">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-                <h2 class="text-3xl font-black tracking-tight text-foreground">{{ title }}</h2>
-                <p class="mt-1 text-xs font-black text-red-500 uppercase dark:text-red-400">DOJANG: {{ branchLabel }}</p>
-                <p class="mt-1 text-sm font-medium text-muted-foreground">{{ subtitle }}</p>
+                <h2 class="text-2xl font-bold">{{ title }}</h2>
+                <p class="mt-1 text-sm text-muted-foreground">{{ subtitle }}</p>
             </div>
-            <div class="flex justify-start gap-3 xl:justify-end">
-                <button type="button" class="inline-flex size-12 items-center justify-center rounded-xl bg-red-100 text-red-600 transition hover:bg-red-200 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25" @click="emit('refresh')">
-                    <RefreshCcw class="size-6" />
-                </button>
-                <div v-if="showManagementHint" class="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-4 text-sm font-black text-muted-foreground uppercase shadow-sm">
-                    <Info class="size-5 text-muted-foreground" />
-                    Atur jadwal di menu Master Data &gt; Kelas
-                </div>
-            </div>
+            <button
+                type="button"
+                class="inline-flex size-10 items-center justify-center self-start rounded-lg border bg-background hover:bg-muted"
+                title="Muat ulang jadwal"
+                @click="emit('refresh')"
+            >
+                <RefreshCcw class="size-4" />
+            </button>
         </div>
 
-        <div class="grid gap-4 xl:hidden">
-            <section v-for="day in days" :key="`mobile-${day.id}`" class="grid gap-3">
-                <div class="rounded-xl border px-5 py-5 shadow-sm transition" :class="day.id === todayDay ? 'border-red-500 bg-red-500 text-white shadow-red-500/20 dark:border-red-400 dark:bg-red-500 dark:text-white' : 'border-border bg-card text-card-foreground'">
-                    <p class="text-xl leading-none font-black">{{ day.name }}</p>
-                    <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">{{ day.english }}</p>
+        <div class="grid gap-4 xl:grid-cols-7">
+            <section v-for="day in days" :key="day.id" class="min-w-0">
+                <div
+                    class="mb-2 rounded-lg border px-3 py-2"
+                    :class="day.id === todayDay ? 'border-primary bg-primary text-primary-foreground' : 'bg-background'"
+                >
+                    <p class="font-bold">{{ day.name }}</p>
                 </div>
 
-                <div class="min-h-[220px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40">
-                    <div v-if="(schedulesByDay.get(day.id) ?? []).length" class="columns-1 gap-3 space-y-3 md:columns-2 xl:columns-1">
-                        <article v-for="schedule in schedulesByDay.get(day.id)" :key="schedule.id" class="mb-3 break-inside-avoid cursor-pointer rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-l-red-400" @click="openSchedule(schedule)">
-                            <div class="mb-3 border-b border-border pb-3">
-                                <h3 class="truncate text-base font-black text-card-foreground">{{ schedule.session_type === 'private' && schedule.dedicated_athlete ? schedule.dedicated_athlete : schedule.title }}</h3>
-                                <p class="mt-1 truncate text-xs font-semibold text-muted-foreground">{{ schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka' }}</p>
-                                <span class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black" :class="typeTone(schedule)"><Crown class="size-3" /> {{ typeLabel(schedule) }}</span>
+                <div class="grid min-h-32 gap-2 rounded-lg border bg-muted/20 p-2">
+                    <article
+                        v-for="schedule in schedulesByDay.get(day.id) ?? []"
+                        :key="schedule.id"
+                        class="cursor-pointer rounded-lg border bg-background p-3 transition hover:border-primary/50 hover:bg-muted/20"
+                        @click="openSchedule(schedule)"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <h3 class="truncate text-sm font-bold">{{ schedule.title }}</h3>
+                                <p class="truncate text-xs text-muted-foreground">{{ schedule.group || 'Sesi terbuka' }}</p>
                             </div>
-                            <div class="space-y-4 text-xs font-black text-muted-foreground uppercase">
-                                <div class="flex min-w-0 gap-3"><Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-400" /><div class="min-w-0"><p>Waktu</p><p class="truncate text-sm text-card-foreground">{{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}</p></div></div>
-                                <div class="flex min-w-0 gap-3"><MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" /><div class="min-w-0"><p>Lokasi</p><p class="truncate text-sm text-card-foreground normal-case">{{ schedule.location || schedule.branch || 'Rhino Fighter' }}</p></div></div>
-                            </div>
-                        </article>
-                    </div>
-                    <div v-else class="flex h-full min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase">
-                        <CalendarDays class="mb-3 size-8 opacity-70" />Libur
+                            <span class="shrink-0 rounded-md bg-primary/10 px-1.5 py-1 text-[10px] font-bold text-primary">
+                                {{ typeLabel(schedule) }}
+                            </span>
+                        </div>
+
+                        <div class="mt-3 grid gap-1.5 text-xs text-muted-foreground">
+                            <p class="flex items-center gap-1.5"><Clock3 class="size-3.5" />{{ schedule.start_time || '--:--' }}–{{ schedule.end_time || '--:--' }}</p>
+                            <p class="flex items-center gap-1.5"><MapPin class="size-3.5" />{{ schedule.location || schedule.branch || '-' }}</p>
+                            <p v-if="participantLabel(schedule)" class="flex items-start gap-1.5 font-medium text-foreground">
+                                <UserRound class="mt-0.5 size-3.5 shrink-0" />
+                                <span class="break-words">{{ participantLabel(schedule) }}</span>
+                            </p>
+                        </div>
+                    </article>
+
+                    <div
+                        v-if="(schedulesByDay.get(day.id) ?? []).length === 0"
+                        class="flex min-h-24 flex-col items-center justify-center text-xs text-muted-foreground"
+                    >
+                        <CalendarDays class="mb-2 size-5" /> Tidak ada jadwal
                     </div>
                 </div>
             </section>
         </div>
 
-        <div class="hidden gap-3 xl:grid xl:grid-cols-7">
-            <div v-for="day in days" :key="`head-${day.id}`" class="rounded-xl border px-5 py-5 shadow-sm transition" :class="day.id === todayDay ? 'border-red-500 bg-red-500 text-white shadow-red-500/20 dark:border-red-400 dark:bg-red-500 dark:text-white' : 'border-border bg-card text-card-foreground'">
-                <p class="text-xl leading-none font-black">{{ day.name }}</p>
-                <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">{{ day.english }}</p>
-            </div>
-        </div>
-
-        <div class="mt-4 hidden gap-3 xl:grid xl:grid-cols-7">
-            <div v-for="day in days" :key="`body-${day.id}`" class="min-h-[280px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40">
-                <div v-if="(schedulesByDay.get(day.id) ?? []).length" class="space-y-3">
-                    <article v-for="schedule in schedulesByDay.get(day.id)" :key="schedule.id" class="cursor-pointer rounded-xl border border-border border-l-4 border-l-red-500 bg-card p-4 text-card-foreground shadow-md transition hover:-translate-y-0.5 hover:shadow-lg dark:border-l-red-400" @click="openSchedule(schedule)">
-                        <div class="mb-3 border-b border-border pb-3">
-                            <h3 class="truncate text-base font-black text-card-foreground">{{ schedule.session_type === 'private' && schedule.dedicated_athlete ? schedule.dedicated_athlete : schedule.title }}</h3>
-                            <p class="mt-1 truncate text-xs font-semibold text-muted-foreground">{{ schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka' }}</p>
-                            <span class="mt-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black" :class="typeTone(schedule)"><Crown class="size-3" /> {{ typeLabel(schedule) }}</span>
-                        </div>
-                        <div class="space-y-4 text-xs font-black text-muted-foreground uppercase">
-                            <div class="flex min-w-0 gap-3"><Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-400" /><div class="min-w-0"><p>Waktu</p><p class="truncate text-sm text-card-foreground">{{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}</p></div></div>
-                            <div class="flex min-w-0 gap-3"><MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" /><div class="min-w-0"><p>Lokasi</p><p class="truncate text-sm text-card-foreground normal-case">{{ schedule.location || schedule.branch || 'Rhino Fighter' }}</p></div></div>
-                        </div>
-                    </article>
-                </div>
-                <div v-else class="flex h-full min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase"><CalendarDays class="mb-3 size-8 opacity-70" />Libur</div>
-            </div>
-        </div>
-
-        <FormModal :open="Boolean(selectedSchedule)" max-width-class="max-w-3xl" @close="selectedSchedule = null">
+        <FormModal :open="Boolean(selectedSchedule)" max-width-class="max-w-2xl" @close="selectedSchedule = null">
             <section v-if="selectedSchedule" class="grid gap-4">
                 <div>
-                    <p class="text-xs font-black tracking-wide text-red-500 uppercase">Detail Jadwal</p>
-                    <h2 class="text-2xl font-black">{{ selectedSchedule.title }}</h2>
-                    <p class="text-sm text-muted-foreground">{{ selectedSchedule.day_label }} · {{ selectedSchedule.start_time }} - {{ selectedSchedule.end_time }}</p>
+                    <p class="text-xs font-bold tracking-wide text-primary uppercase">Detail jadwal</p>
+                    <h2 class="text-2xl font-bold">{{ selectedSchedule.title }}</h2>
+                    <p class="text-sm text-muted-foreground">
+                        {{ selectedSchedule.day_label }} · {{ selectedSchedule.start_time }}–{{ selectedSchedule.end_time }}
+                    </p>
                 </div>
 
-                <div class="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
-                    <p><span class="font-black">Tipe:</span> {{ typeLabel(selectedSchedule) }}</p>
-                    <p><span class="font-black">Kelas:</span> {{ selectedSchedule.group || 'Sesi terbuka' }}</p>
-                    <p><span class="font-black">Minimal sabuk:</span> {{ selectedSchedule.min_belt_label || '-' }}</p>
-                    <p><span class="font-black">Coach:</span> {{ selectedSchedule.coach || '-' }}</p>
-                    <p><span class="font-black">Lokasi:</span> {{ selectedSchedule.location || selectedSchedule.branch || '-' }}</p>
-                </div>
+                <dl class="grid gap-3 rounded-xl border bg-muted/20 p-4 text-sm sm:grid-cols-2">
+                    <div><dt class="text-xs text-muted-foreground">Tipe</dt><dd class="font-semibold">{{ typeLabel(selectedSchedule) }}</dd></div>
+                    <div><dt class="text-xs text-muted-foreground">Kelas</dt><dd class="font-semibold">{{ selectedSchedule.group || 'Sesi terbuka' }}</dd></div>
+                    <div><dt class="text-xs text-muted-foreground">Pelatih</dt><dd class="font-semibold">{{ selectedSchedule.coach || '-' }}</dd></div>
+                    <div><dt class="text-xs text-muted-foreground">Lokasi</dt><dd class="font-semibold">{{ selectedSchedule.location || selectedSchedule.branch || '-' }}</dd></div>
+                    <div v-if="participantLabel(selectedSchedule)" class="sm:col-span-2">
+                        <dt class="text-xs text-muted-foreground">Atlet / anak pada jadwal ini</dt>
+                        <dd class="font-semibold">{{ participantLabel(selectedSchedule) }}</dd>
+                    </div>
+                    <div><dt class="text-xs text-muted-foreground">Minimal sabuk</dt><dd class="font-semibold">{{ selectedSchedule.min_belt_label || '-' }}</dd></div>
+                </dl>
 
                 <LeafletLocationMap
                     v-if="selectedSchedule.latitude && selectedSchedule.longitude"
@@ -175,7 +154,6 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                     :longitude="selectedSchedule.longitude"
                     :marker-label="selectedSchedule.location || selectedSchedule.branch || selectedSchedule.title"
                 />
-                <div v-else class="rounded-xl border border-dashed p-6 text-center text-sm font-semibold text-muted-foreground">Koordinat lokasi belum diisi.</div>
             </section>
         </FormModal>
     </section>
