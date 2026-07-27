@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Athlete;
 use App\Models\Coach;
 use App\Models\Event;
 use App\Models\EventCoachRegistration;
@@ -11,6 +12,7 @@ use App\Models\UserAchievement;
 use App\Services\EventAccessService;
 use App\Support\ActivityLogger;
 use App\Support\Domain\PaymentStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -34,11 +36,13 @@ class ChampionshipController extends Controller
         ]);
 
         $canManageEvent = $this->eventAccess->canManage($user, $event);
+        $canAddRegistration = ($user?->isAdmin() ?? false) || (($user?->isCoach() ?? false) && $canManageEvent);
         $registrationOpen = $this->registrationIsOpen($event);
         $ownedAthleteIds = $this->ownedAthleteIds($user);
         $registrations = $event->registrations;
 
-        // Athletes may see the public participant list, but only their own row is editable.
+        // Athletes can inspect the participant list. Parents keep access to
+        // linked children only, while staff access follows event ownership.
         if ($user?->isParent() && ! $canManageEvent) {
             $registrations = $registrations
                 ->filter(fn (EventRegistration $registration): bool => $ownedAthleteIds->contains((string) $registration->athlete_id));
@@ -52,6 +56,7 @@ class ChampionshipController extends Controller
             'canManageCoaches' => $canManageEvent,
             'canRecordResult' => $canManageEvent,
             'canDeleteRegistration' => $canManageEvent,
+            'canAddRegistration' => $canAddRegistration,
             'event' => [
                 'id' => $event->event_id,
                 'name' => $event->e_name,
@@ -81,6 +86,9 @@ class ChampionshipController extends Controller
                     'can_edit_registration' => $canManageEvent || ($registrationOpen && $isOwned),
                 ];
             })->values(),
+            'registrationAthleteOptions' => $canAddRegistration
+                ? $this->registrationAthleteOptions($user, $event)
+                : [],
             'coachRows' => ($canManageEvent ? $event->coachRegistrations : collect())->map(
                 fn (EventCoachRegistration $registration): array => [
                     'id' => 'COAREG-'.$registration->id,
@@ -171,9 +179,7 @@ class ChampionshipController extends Controller
         }
 
         $registration = DB::transaction(function () use ($validated): EventRegistration {
-            $event = Event::query()
-                ->lockForUpdate()
-                ->findOrFail($validated['event_id']);
+            $event = Event::query()->lockForUpdate()->findOrFail($validated['event_id']);
 
             if (! $this->registrationIsOpen($event)) {
                 throw ValidationException::withMessages([
@@ -181,61 +187,9 @@ class ChampionshipController extends Controller
                 ]);
             }
 
-            $duplicateExists = EventRegistration::query()
-                ->where('event_id', $event->event_id)
-                ->where('athlete_id', $validated['athlete_id'])
-                ->exists();
+            $this->ensureRegistrationAvailable($event, (string) $validated['athlete_id'], false);
 
-            if ($duplicateExists) {
-                throw ValidationException::withMessages([
-                    'athlete_id' => 'This athlete is already registered for the selected championship.',
-                ]);
-            }
-
-            $registrationCount = EventRegistration::query()
-                ->where('event_id', $event->event_id)
-                ->lockForUpdate()
-                ->count();
-
-            if ($registrationCount >= (int) $event->max_slots) {
-                throw ValidationException::withMessages([
-                    'event_id' => 'This championship has reached its maximum slot capacity.',
-                ]);
-            }
-
-            $registration = EventRegistration::query()->create([
-                'athlete_id' => $validated['athlete_id'],
-                'event_id' => $event->event_id,
-                'category' => $validated['category'],
-                'classification' => $validated['classification'] ?? null,
-                'class_name' => $validated['class_name'] ?? null,
-                'division' => $validated['division'] ?? null,
-                'team_contingent' => $validated['team_contingent'] ?: 'Rhino Fighter',
-                'status' => 'PENDING',
-            ]);
-            $registration->loadMissing('athlete');
-
-            $entryFee = (float) $event->entry_fee;
-            if ($entryFee > 0) {
-                Payment::query()->create([
-                    'athlete_id' => $registration->athlete_id,
-                    'billable_user_id' => $registration->athlete?->id,
-                    'bill_kind' => 'INVOICE',
-                    'payment_type' => 'CHAMPIONSHIP',
-                    'reference_id' => $registration->evrid,
-                    'amount' => $entryFee,
-                    'total_amount' => $entryFee,
-                    'paid_amount' => 0,
-                    'remaining_amount' => $entryFee,
-                    'payment_date' => now()->toDateString(),
-                    'collection_method' => 'TRANSFER',
-                    'status' => PaymentStatus::PENDING,
-                    'proof_status' => PaymentStatus::PROOF_NONE,
-                    'notes' => 'Event registration #'.$registration->evrid,
-                ]);
-            }
-
-            return $registration;
+            return $this->createRegistration($event, $validated, 'PENDING', true);
         });
 
         ActivityLogger::log($request, 'event.registration.created', 'event', 'Created event registration', $registration, [
@@ -244,6 +198,59 @@ class ChampionshipController extends Controller
         ]);
 
         return redirect()->route('championships.index')->with('status', 'Pendaftaran berhasil dibuat.');
+    }
+
+    public function storeManagedRegistration(Request $request, Event $event): RedirectResponse
+    {
+        $user = $request->user();
+        $isAdmin = $user?->isAdmin() ?? false;
+        $isAssignedCoach = ($user?->isCoach() ?? false) && $this->eventAccess->canManage($user, $event);
+        abort_unless($isAdmin || $isAssignedCoach, 403);
+
+        if ($event->status === 'CANCELED') {
+            return back()->withErrors(['athlete_id' => 'Peserta tidak dapat ditambahkan ke event yang dibatalkan.']);
+        }
+
+        if (! $isAdmin && ! $this->registrationIsOpen($event)) {
+            return back()->withErrors([
+                'athlete_id' => 'Pelatih hanya dapat menambahkan atlet selama pendaftaran masih dibuka.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'athlete_id' => ['required', Rule::exists('athletes', 'athlete_id')->whereNull('deleted_at')],
+            ...$this->registrationRules(false),
+            'create_payment' => ['nullable', 'boolean'],
+        ]);
+
+        if (! $isAdmin && ! $this->coachCanSelectAthlete($user, (string) $validated['athlete_id'])) {
+            abort(403);
+        }
+
+        $registration = DB::transaction(function () use ($event, $validated, $isAdmin): EventRegistration {
+            $lockedEvent = Event::query()->lockForUpdate()->findOrFail($event->event_id);
+            $this->ensureRegistrationAvailable($lockedEvent, (string) $validated['athlete_id'], $isAdmin);
+
+            $status = in_array($lockedEvent->status, ['ONGOING', 'COMPLETED'], true) ? 'CONFIRMED' : 'PENDING';
+            $createPayment = (bool) ($validated['create_payment'] ?? false);
+
+            return $this->createRegistration($lockedEvent, $validated, $status, $createPayment);
+        });
+
+        ActivityLogger::log(
+            $request,
+            'event.registration.staff_added',
+            'event',
+            $isAdmin ? 'Admin added missing athlete registration' : 'Coach added athlete registration',
+            $registration,
+            [
+                'event_id' => $event->event_id,
+                'athlete_id' => $registration->athlete_id,
+                'post_event' => in_array($event->status, ['ONGOING', 'COMPLETED'], true),
+            ],
+        );
+
+        return back()->with('status', 'Atlet berhasil ditambahkan ke daftar peserta.');
     }
 
     public function updateRegistration(Request $request, EventRegistration $registration): RedirectResponse
@@ -418,6 +425,111 @@ class ChampionshipController extends Controller
         );
 
         return back()->with('status', 'Hasil pertandingan berhasil disimpan.');
+    }
+
+    private function createRegistration(Event $event, array $validated, string $status, bool $createPayment): EventRegistration
+    {
+        $registration = EventRegistration::query()->create([
+            'athlete_id' => $validated['athlete_id'],
+            'event_id' => $event->event_id,
+            'category' => $validated['category'],
+            'classification' => $validated['classification'] ?? null,
+            'class_name' => $validated['class_name'] ?? null,
+            'division' => $validated['division'] ?? null,
+            'team_contingent' => $validated['team_contingent'] ?: 'Rhino Fighter',
+            'status' => $status,
+        ]);
+        $registration->loadMissing('athlete');
+
+        if ($createPayment && (float) $event->entry_fee > 0) {
+            Payment::query()->create([
+                'athlete_id' => $registration->athlete_id,
+                'billable_user_id' => $registration->athlete?->id,
+                'bill_kind' => 'INVOICE',
+                'payment_type' => 'CHAMPIONSHIP',
+                'reference_id' => $registration->evrid,
+                'amount' => (float) $event->entry_fee,
+                'total_amount' => (float) $event->entry_fee,
+                'paid_amount' => 0,
+                'remaining_amount' => (float) $event->entry_fee,
+                'payment_date' => now()->toDateString(),
+                'collection_method' => 'TRANSFER',
+                'status' => PaymentStatus::PENDING,
+                'proof_status' => PaymentStatus::PROOF_NONE,
+                'notes' => 'Event registration #'.$registration->evrid,
+            ]);
+        }
+
+        return $registration;
+    }
+
+    private function ensureRegistrationAvailable(Event $event, string $athleteId, bool $bypassCapacity): void
+    {
+        if (EventRegistration::query()
+            ->where('event_id', $event->event_id)
+            ->where('athlete_id', $athleteId)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'athlete_id' => 'Atlet ini sudah tercatat pada kejuaraan yang dipilih.',
+            ]);
+        }
+
+        if (! $bypassCapacity) {
+            $registrationCount = EventRegistration::query()
+                ->where('event_id', $event->event_id)
+                ->lockForUpdate()
+                ->count();
+
+            if ($registrationCount >= (int) $event->max_slots) {
+                throw ValidationException::withMessages([
+                    'athlete_id' => 'Kejuaraan sudah mencapai kapasitas maksimum.',
+                ]);
+            }
+        }
+    }
+
+    private function registrationAthleteOptions($user, Event $event): Collection
+    {
+        $query = Athlete::query()
+            ->with('user:id,name')
+            ->whereNotIn('athlete_id', $event->registrations()->select('athlete_id'));
+
+        if (! $user?->isAdmin()) {
+            $coachId = $user?->coachProfile?->coach_id;
+            if (! $coachId) {
+                return collect();
+            }
+
+            $query->where(function (Builder $athletes) use ($coachId): void {
+                $athletes->whereHas('group', fn (Builder $group) => $group->assignedToCoach($coachId))
+                    ->orWhereHas('privateGroups', fn (Builder $group) => $group->assignedToCoach($coachId));
+            });
+        }
+
+        return $query
+            ->get()
+            ->sortBy(fn (Athlete $athlete): string => $athlete->user?->name ?? '')
+            ->map(fn (Athlete $athlete): array => [
+                'value' => $athlete->athlete_id,
+                'label' => $athlete->user?->name ?? 'Atlet #'.$athlete->athlete_id,
+            ])
+            ->values();
+    }
+
+    private function coachCanSelectAthlete($user, string $athleteId): bool
+    {
+        $coachId = $user?->coachProfile?->coach_id;
+        if (! $coachId) {
+            return false;
+        }
+
+        return Athlete::query()
+            ->where('athlete_id', $athleteId)
+            ->where(function (Builder $athletes) use ($coachId): void {
+                $athletes->whereHas('group', fn (Builder $group) => $group->assignedToCoach($coachId))
+                    ->orWhereHas('privateGroups', fn (Builder $group) => $group->assignedToCoach($coachId));
+            })
+            ->exists();
     }
 
     private function eventRules(): array
