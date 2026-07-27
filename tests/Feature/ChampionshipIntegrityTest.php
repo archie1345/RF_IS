@@ -114,7 +114,7 @@ it('refuses registration after event capacity is reached', function () {
         'athlete_id' => $secondAthlete->athlete_id,
         'event_id' => $event->event_id,
         'category' => 'POOMSAE',
-    ])->assertSessionHasErrors('event_id');
+    ])->assertSessionHasErrors('athlete_id');
 
     expect(EventRegistration::query()->where('event_id', $event->event_id)->count())->toBe(1);
 });
