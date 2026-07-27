@@ -33,6 +33,7 @@ import type { SelectOption, TableColumn, TableRow } from '@/types/resource-table
 
 const props = defineProps<{
     isAdmin: boolean;
+    isAthlete: boolean;
     canManageCoaches: boolean;
     canRecordResult: boolean;
     canDeleteRegistration: boolean;
@@ -44,6 +45,8 @@ const props = defineProps<{
         gmaps_url?: string | null;
         entry_fee: number;
         status: string;
+        registration_deadline: string;
+        registration_open: boolean;
     };
     athleteRows: TableRow[];
     coachRows: TableRow[];
@@ -90,6 +93,7 @@ const showCoachForm = ref(false);
 const showResultForm = ref(false);
 const showRegistrationEditForm = ref(false);
 const activeRegistrationId = ref<number | null>(null);
+const editingOwnRegistration = ref(false);
 const coachForm = useForm({ coach_id: '', role: '' });
 const resultForm = useForm({ medal: 'NONE', class_name: '', division: '', category: '' });
 const editForm = useForm({
@@ -124,9 +128,11 @@ function openResultForm(row: TableRow): void {
 
 function openRegistrationEdit(row: TableRow): void {
     const registrationId = routeId(row.registration_id ?? row.id);
-    if (registrationId === null) return;
+    if (registrationId === null || row.can_edit_registration !== true) return;
 
     activeRegistrationId.value = registrationId;
+    editingOwnRegistration.value = row.is_own_registration === true;
+    editForm.clearErrors();
     editForm.category = String(row.category ?? 'KYORUGI');
     editForm.classification = row.classification === '-' ? '' : String(row.classification ?? '');
     editForm.class_name = row.class_name === '-' ? '' : String(row.class_name ?? '');
@@ -144,9 +150,11 @@ function saveRegistrationEdit(): void {
     if (activeRegistrationId.value === null) return;
 
     editForm.put(championshipRegistrationUpdate.url(activeRegistrationId.value), {
+        preserveScroll: true,
         onSuccess: () => {
             showRegistrationEditForm.value = false;
             activeRegistrationId.value = null;
+            editingOwnRegistration.value = false;
         },
     });
 }
@@ -201,7 +209,7 @@ async function removeCoach(row: TableRow): Promise<void> {
             <PageSection
                 eyebrow="Detail kejuaraan"
                 :title="props.event.name"
-                description="Kelola peserta, pelatih pendamping, hasil pertandingan, dan data ekspor."
+                description="Lihat peserta, pelatih pendamping, hasil pertandingan, dan data kejuaraan."
             >
                 <template #actions>
                     <Button as-child type="button" variant="outline">
@@ -221,10 +229,17 @@ async function removeCoach(row: TableRow): Promise<void> {
                     </Button>
                 </template>
 
-                <div class="grid gap-3 rounded-xl border bg-card p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div class="grid gap-3 rounded-xl border bg-card p-4 text-sm sm:grid-cols-2 lg:grid-cols-5">
                     <div>
                         <p class="text-xs text-muted-foreground">Tanggal</p>
                         <p class="mt-1 font-semibold">{{ props.event.date }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-muted-foreground">Batas pendaftaran</p>
+                        <p class="mt-1 font-semibold">{{ props.event.registration_deadline }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ props.event.registration_open ? 'Masih dapat diubah' : 'Sudah ditutup' }}
+                        </p>
                     </div>
                     <div>
                         <p class="text-xs text-muted-foreground">Lokasi</p>
@@ -238,7 +253,7 @@ async function removeCoach(row: TableRow): Promise<void> {
                         <p class="text-xs text-muted-foreground">Status</p>
                         <p class="mt-1 font-semibold">{{ props.event.status }}</p>
                     </div>
-                    <div v-if="props.event.gmaps_url" class="sm:col-span-2 lg:col-span-4">
+                    <div v-if="props.event.gmaps_url" class="sm:col-span-2 lg:col-span-5">
                         <a
                             :href="props.event.gmaps_url"
                             target="_blank"
@@ -253,7 +268,7 @@ async function removeCoach(row: TableRow): Promise<void> {
 
             <DataTable
                 title="Peserta terdaftar"
-                description="Ubah data pertandingan, buka profil atlet, catat hasil, atau hapus entri yang belum memiliki pembayaran."
+                description="Atlet dapat melihat peserta lain. Hanya entri milik sendiri yang dapat diubah sebelum batas pendaftaran; admin dan pelatih tetap memiliki tindakan pengelolaan."
                 :columns="athleteColumns"
                 :rows="props.athleteRows"
                 action-label="Tindakan"
@@ -263,13 +278,13 @@ async function removeCoach(row: TableRow): Promise<void> {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button
-                            v-if="props.canRecordResult"
+                            v-if="row.can_edit_registration === true"
                             type="button"
                             size="sm"
                             variant="outline"
                             @click="openRegistrationEdit(row)"
                         >
-                            Ubah entri
+                            {{ row.is_own_registration === true ? 'Ubah pendaftaran' : 'Ubah entri' }}
                         </Button>
                         <Button
                             v-if="props.isAdmin && athleteProfileUrl(row)"
@@ -351,13 +366,17 @@ async function removeCoach(row: TableRow): Promise<void> {
         </FormModal>
 
         <FormModal
-            :open="showRegistrationEditForm && props.canRecordResult"
+            :open="showRegistrationEditForm"
             max-width-class="max-w-xl"
             @close="showRegistrationEditForm = false"
         >
             <PageSection
-                title="Ubah entri peserta"
-                description="Perbarui klasifikasi, kelas, divisi, kategori, dan kontingen peserta."
+                :title="editingOwnRegistration ? 'Ubah pendaftaran saya' : 'Ubah entri peserta'"
+                :description="
+                    editingOwnRegistration
+                        ? `Data ini dapat diperbarui sampai ${props.event.registration_deadline}.`
+                        : 'Perbarui klasifikasi, kelas, divisi, kategori, dan kontingen peserta.'
+                "
             >
                 <form class="grid min-w-0 gap-4" @submit.prevent="saveRegistrationEdit">
                     <FormSelectField
@@ -391,6 +410,9 @@ async function removeCoach(row: TableRow): Promise<void> {
                         label="Tim/Kontingen"
                         :error="editForm.errors.team_contingent"
                     />
+                    <p v-if="editForm.errors.registration" class="text-sm text-destructive">
+                        {{ editForm.errors.registration }}
+                    </p>
                     <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
                         <Button type="button" variant="outline" @click="showRegistrationEditForm = false">Batal</Button>
                         <Button type="submit" :disabled="editForm.processing">Simpan entri</Button>
