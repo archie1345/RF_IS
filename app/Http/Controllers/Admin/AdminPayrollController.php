@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CoachAttendance;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Support\ActivityLogger;
 use App\Support\Domain\PaymentStatus;
 use Carbon\CarbonInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -98,6 +100,46 @@ class AdminPayrollController extends Controller
         ]);
     }
 
+    public function estimate(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'coach_user_id' => ['required', 'integer', Rule::exists('users', 'id')->whereNull('deleted_at')],
+            'payroll_period' => ['required', 'date_format:Y-m'],
+            'basis_type' => ['required', Rule::in(['SESSION', 'HOUR', 'MONTH'])],
+        ]);
+
+        $coach = User::query()->with('coachProfile')->findOrFail($validated['coach_user_id']);
+        if (! $coach->hasRole('coach') || ! $coach->coachProfile) {
+            throw ValidationException::withMessages([
+                'coach_user_id' => 'Akun yang dipilih belum memiliki profil pelatih yang valid.',
+            ]);
+        }
+
+        $period = Carbon::createFromFormat('Y-m', $validated['payroll_period'])->startOfMonth();
+        $workload = $this->payrollWorkload($coach, $period);
+        $basisType = $validated['basis_type'];
+        $units = match ($basisType) {
+            'SESSION' => $workload['sessions'],
+            'HOUR' => $workload['hours'],
+            default => 1,
+        };
+
+        return response()->json([
+            'units' => $units,
+            'session_count' => $workload['sessions'],
+            'hours' => $workload['hours'],
+            'months' => 1,
+            'suggested_rate' => $this->suggestedRate($coach, $basisType),
+            'source_label' => match ($basisType) {
+                'SESSION' => $workload['sessions'].' sesi mengajar tercatat pada periode ini',
+                'HOUR' => $workload['hours'].' jam mengajar dari sesi yang tercatat pada periode ini',
+                default => '1 bulan untuk periode '.$period->translatedFormat('F Y'),
+            },
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
@@ -115,9 +157,11 @@ class AdminPayrollController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $coach = User::query()->findOrFail($validated['coach_user_id']);
-        if (! $coach->hasRole('coach')) {
-            throw ValidationException::withMessages(['coach_user_id' => 'Akun yang dipilih bukan pelatih.']);
+        $coach = User::query()->with('coachProfile')->findOrFail($validated['coach_user_id']);
+        if (! $coach->hasRole('coach') || ! $coach->coachProfile) {
+            throw ValidationException::withMessages([
+                'coach_user_id' => 'Akun yang dipilih belum memiliki profil pelatih yang valid.',
+            ]);
         }
 
         $period = Carbon::createFromFormat('Y-m', $validated['payroll_period'])->startOfMonth();
@@ -132,8 +176,23 @@ class AdminPayrollController extends Controller
         }
 
         $basisType = $validated['basis_type'];
-        $units = (float) ($validated['units'] ?? 0);
         $rate = (float) ($validated['rate'] ?? 0);
+        $workload = in_array($basisType, ['SESSION', 'HOUR', 'MONTH'], true)
+            ? $this->payrollWorkload($coach, $period)
+            : ['sessions' => 0, 'hours' => 0.0];
+        $units = match ($basisType) {
+            'SESSION' => (float) $workload['sessions'],
+            'HOUR' => (float) $workload['hours'],
+            'MONTH' => 1.0,
+            default => (float) ($validated['units'] ?? 0),
+        };
+
+        if (in_array($basisType, ['SESSION', 'HOUR'], true) && $units <= 0) {
+            throw ValidationException::withMessages([
+                'basis_type' => 'Tidak ada data mengajar yang tercatat untuk pelatih pada periode tersebut.',
+            ]);
+        }
+
         $baseAmount = in_array($basisType, ['FIXED', 'CUSTOM'], true)
             ? (float) ($validated['base_amount'] ?? 0)
             : $units * $rate;
@@ -190,9 +249,62 @@ class AdminPayrollController extends Controller
             'base_amount' => $baseAmount,
             'bonus_amount' => $bonusAmount,
             'total_amount' => $totalAmount,
+            'database_units' => $units,
         ]);
 
         return back()->with('status', 'Slip payroll dan bukti pembayaran berhasil dibuat.');
+    }
+
+    private function payrollWorkload(User $coach, CarbonInterface $month): array
+    {
+        $start = Carbon::parse($month->toDateString())->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $records = CoachAttendance::query()
+            ->where('coach_id', $coach->coachProfile?->coach_id)
+            ->where('status', 'TEACH')
+            ->whereNotNull('checked_at')
+            ->whereHas('trainingSession', function ($query) use ($start, $end): void {
+                $query->whereBetween('session_date', [$start->toDateString(), $end->toDateString()])
+                    ->where('status', '!=', 'CANCELED');
+            })
+            ->with('trainingSession')
+            ->get()
+            ->unique('training_session_id')
+            ->values();
+
+        $minutes = $records->sum(function (CoachAttendance $attendance): float {
+            $session = $attendance->trainingSession;
+            if (! $session?->session_date || ! $session->start_time || ! $session->end_time) {
+                return 0;
+            }
+
+            $date = Carbon::parse($session->session_date)->toDateString();
+            $start = Carbon::parse($date.' '.$session->start_time);
+            $end = Carbon::parse($date.' '.$session->end_time);
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+
+            return (float) $start->diffInMinutes($end);
+        });
+
+        return [
+            'sessions' => $records->count(),
+            'hours' => round($minutes / 60, 2),
+        ];
+    }
+
+    private function suggestedRate(User $coach, string $basisType): float
+    {
+        return (float) (Payment::query()
+            ->where('bill_kind', 'PAYROLL')
+            ->where('payee_user_id', $coach->id)
+            ->where('payroll_basis_type', $basisType)
+            ->where('payroll_rate', '>', 0)
+            ->latest('payroll_period')
+            ->latest('payment_id')
+            ->value('payroll_rate') ?? 0);
     }
 
     private function paymentFallsInMonth(Payment $payment, CarbonInterface $month): bool
