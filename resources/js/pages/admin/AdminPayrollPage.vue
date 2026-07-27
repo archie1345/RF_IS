@@ -15,7 +15,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
-    reminder: { needed: boolean; month: string; count: number };
+    reminder: { needed: boolean; month: string; count: number; expected: number; missing: number };
     metrics: Metric[];
     coaches: SelectOption[];
     rows: TableRow[];
@@ -46,7 +46,6 @@ const basisOptions = [
     { value: 'FIXED', label: 'Nominal tetap' },
     { value: 'CUSTOM', label: 'Nominal kustom' },
 ];
-
 const paymentMethodOptions = [
     { value: 'TRANSFER', label: 'Transfer' },
     { value: 'CASH', label: 'Tunai' },
@@ -125,8 +124,10 @@ function submit(): void {
             >
                 <AlertTriangle class="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
                 <div>
-                    <p class="font-bold">Payroll {{ props.reminder.month }} belum dibuat</p>
-                    <p class="text-muted-foreground">Buat slip untuk setiap pelatih setelah pembayaran bulan ini dilakukan.</p>
+                    <p class="font-bold">{{ props.reminder.missing }} payroll {{ props.reminder.month }} masih perlu dibuat</p>
+                    <p class="text-muted-foreground">
+                        {{ props.reminder.count }} dari {{ props.reminder.expected }} pelatih sudah memiliki slip pembayaran bulan ini.
+                    </p>
                 </div>
             </section>
 
@@ -172,90 +173,20 @@ function submit(): void {
                         :error="form.errors.coach_user_id"
                     />
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <FormInputField
-                            id="payroll-period"
-                            v-model="form.payroll_period"
-                            label="Periode payroll"
-                            type="month"
-                            required
-                            :error="form.errors.payroll_period"
-                        />
-                        <FormInputField
-                            id="payroll-paid-at"
-                            v-model="form.paid_at"
-                            label="Tanggal dibayar"
-                            type="date"
-                            required
-                            :error="form.errors.paid_at"
-                        />
+                        <FormInputField id="payroll-period" v-model="form.payroll_period" label="Periode payroll" type="month" required :error="form.errors.payroll_period" />
+                        <FormInputField id="payroll-paid-at" v-model="form.paid_at" label="Tanggal dibayar" type="date" required :error="form.errors.paid_at" />
                     </div>
-                    <FormSelectField
-                        id="payroll-basis"
-                        v-model="form.basis_type"
-                        label="Dasar perhitungan"
-                        :options="basisOptions"
-                        required
-                        :error="form.errors.basis_type"
-                    />
+                    <FormSelectField id="payroll-basis" v-model="form.basis_type" label="Dasar perhitungan" :options="basisOptions" required :error="form.errors.basis_type" />
                     <div v-if="usesCalculatedBase" class="grid gap-4 sm:grid-cols-2">
-                        <FormInputField
-                            id="payroll-units"
-                            v-model="form.units"
-                            label="Jumlah unit"
-                            type="number"
-                            min="0"
-                            step="0.25"
-                            required
-                            :error="form.errors.units"
-                        />
-                        <FormInputField
-                            id="payroll-rate"
-                            v-model="form.rate"
-                            label="Tarif per unit"
-                            type="number"
-                            min="0"
-                            step="1000"
-                            required
-                            :error="form.errors.rate"
-                        />
+                        <FormInputField id="payroll-units" v-model="form.units" label="Jumlah unit" type="number" min="0" step="0.25" required :error="form.errors.units" />
+                        <FormInputField id="payroll-rate" v-model="form.rate" label="Tarif per unit" type="number" min="0" step="1000" required :error="form.errors.rate" />
                     </div>
-                    <FormInputField
-                        v-else
-                        id="payroll-base"
-                        v-model="form.base_amount"
-                        label="Honor dasar"
-                        type="number"
-                        min="0"
-                        step="1000"
-                        required
-                        :error="form.errors.base_amount"
-                    />
+                    <FormInputField v-else id="payroll-base" v-model="form.base_amount" label="Honor dasar" type="number" min="0" step="1000" required :error="form.errors.base_amount" />
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <FormInputField
-                            id="payroll-bonus"
-                            v-model="form.bonus_amount"
-                            label="Bonus"
-                            type="number"
-                            min="0"
-                            step="1000"
-                            :error="form.errors.bonus_amount"
-                        />
-                        <FormSelectField
-                            id="payroll-method"
-                            v-model="form.payment_method"
-                            label="Metode pembayaran"
-                            :options="paymentMethodOptions"
-                            required
-                            :error="form.errors.payment_method"
-                        />
+                        <FormInputField id="payroll-bonus" v-model="form.bonus_amount" label="Bonus" type="number" min="0" step="1000" :error="form.errors.bonus_amount" />
+                        <FormSelectField id="payroll-method" v-model="form.payment_method" label="Metode pembayaran" :options="paymentMethodOptions" required :error="form.errors.payment_method" />
                     </div>
-                    <FormInputField
-                        id="payroll-notes"
-                        v-model="form.notes"
-                        label="Catatan"
-                        placeholder="Contoh: 12 sesi reguler + bonus kejuaraan"
-                        :error="form.errors.notes"
-                    />
+                    <FormInputField id="payroll-notes" v-model="form.notes" label="Catatan" placeholder="Contoh: 12 sesi reguler + bonus kejuaraan" :error="form.errors.notes" />
 
                     <div class="rounded-xl border bg-muted/30 p-4 text-sm">
                         <div class="flex justify-between gap-3"><span>Honor dasar</span><strong>{{ rupiah(calculatedBase) }}</strong></div>
