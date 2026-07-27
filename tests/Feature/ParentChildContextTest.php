@@ -165,7 +165,7 @@ it('shows every linked child attendance even when a legacy active child remains 
         ->assertInertia(fn (Assert $page) => $page
             ->component('AttendancePage')
             ->has('rows', 2)
-            ->where('rows.0.athlete', 'Visible Child')
-            ->where('rows.1.athlete', 'Second Child')
+            ->where('rows.0.athlete', 'Second Child')
+            ->where('rows.1.athlete', 'Visible Child')
             ->where('auth.activeChild', null));
 });
