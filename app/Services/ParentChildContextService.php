@@ -32,7 +32,7 @@ class ParentChildContextService
                 'email' => $athlete->user?->email ?? '-',
                 'branch' => $athlete->branch?->branch_name ?? 'Unassigned',
                 'group' => $athlete->group?->group_name ?? 'Unassigned',
-                'is_active' => $activeChildId !== null && (string) $activeChildId === (string) $athlete->athlete_id,
+                'is_active' => false,
             ])
             ->values();
     }
@@ -48,6 +48,10 @@ class ParentChildContextService
             ->values();
     }
 
+    /**
+     * Kept for backwards compatibility with old links. Parent list pages no
+     * longer use this value to reduce their records to one child.
+     */
     public function activeChildId(Request $request, bool $defaultToFirst = false): ?string
     {
         $user = $request->user();
@@ -58,28 +62,20 @@ class ParentChildContextService
         $children = $this->childrenFor($user);
         $activeChildId = $request->session()->get('active_child_id');
 
-        if ($activeChildId !== null && $children->contains(fn (Athlete $athlete) => (string) $athlete->athlete_id === (string) $activeChildId)) {
+        if ($activeChildId !== null && $children->contains(
+            fn (Athlete $athlete) => (string) $athlete->athlete_id === (string) $activeChildId,
+        )) {
             return (string) $activeChildId;
         }
 
-        if ($activeChildId !== null) {
-            $request->session()->forget('active_child_id');
-        }
-
-        if ($defaultToFirst && $children->isNotEmpty()) {
-            $firstChildId = (string) $children->first()->athlete_id;
-            $request->session()->put('active_child_id', $firstChildId);
-
-            return $firstChildId;
-        }
+        $request->session()->forget('active_child_id');
 
         return null;
     }
 
     public function activeChildFor(Request $request, bool $defaultToFirst = false): ?array
     {
-        $activeChildId = $this->activeChildId($request, $defaultToFirst);
-
+        $activeChildId = $this->activeChildId($request, false);
         if ($activeChildId === null) {
             return null;
         }
@@ -88,6 +84,7 @@ class ParentChildContextService
             ->first(fn (array $child) => (string) $child['athlete_id'] === $activeChildId);
     }
 
+    /** @return array<int, string> */
     public function visibleChildAthleteIds(Request $request, bool $respectActiveChild = true, bool $defaultToFirst = false): array
     {
         $user = $request->user();
@@ -95,16 +92,14 @@ class ParentChildContextService
             return [];
         }
 
-        $children = $this->childrenFor($user)->pluck('athlete_id')->map(fn ($id) => (string) $id)->values()->all();
-        $activeChildId = $respectActiveChild ? $this->activeChildId($request, $defaultToFirst) : null;
-
-        if ($activeChildId !== null) {
-            return in_array($activeChildId, $children, true) ? [$activeChildId] : [];
-        }
-
-        return $children;
+        return $this->childrenFor($user)
+            ->pluck('athlete_id')
+            ->map(fn ($id): string => (string) $id)
+            ->values()
+            ->all();
     }
 
+    /** @return array<int, int> */
     public function visibleChildUserIds(Request $request, bool $respectActiveChild = true, bool $defaultToFirst = false): array
     {
         $user = $request->user();
@@ -112,13 +107,9 @@ class ParentChildContextService
             return [];
         }
 
-        $children = $this->childrenFor($user);
-        $activeChildId = $respectActiveChild ? $this->activeChildId($request, $defaultToFirst) : null;
-
-        return $children
-            ->when($activeChildId !== null, fn ($items) => $items->filter(fn (Athlete $athlete) => (string) $athlete->athlete_id === $activeChildId))
+        return $this->childrenFor($user)
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn ($id): int => (int) $id)
             ->values()
             ->all();
     }
