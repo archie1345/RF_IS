@@ -19,10 +19,22 @@ import {
     store as championshipEventStore,
     update as championshipEventUpdate,
 } from '@/routes/championships/events';
-import { store as championshipRegistrationStore } from '@/routes/championships/registrations';
+import {
+    store as championshipRegistrationStore,
+    update as championshipRegistrationUpdate,
+} from '@/routes/championships/registrations';
 import { index as paymentsIndex } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+
+type ExistingRegistration = {
+    registration_id: number;
+    category: string;
+    classification: string;
+    class_name: string;
+    division: string;
+    team_contingent: string;
+};
 
 const props = withDefaults(
     defineProps<{
@@ -49,6 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const columns: TableColumn[] = [
     { key: 'event', label: 'Kejuaraan' },
     { key: 'date', label: 'Tanggal' },
+    { key: 'registration_deadline', label: 'Batas pendaftaran' },
     { key: 'location', label: 'Lokasi' },
     { key: 'status', label: 'Status' },
     { key: 'slots', label: 'Peserta', align: 'right' },
@@ -88,6 +101,7 @@ const registrationForm = useForm({
 const eventForm = useForm({
     name: '',
     date: '',
+    registration_deadline: '',
     location: '',
     gmaps_url: '',
     entry_fee: '',
@@ -101,25 +115,49 @@ const showRegistrationForm = ref(false);
 const showEventForm = ref(false);
 const showPaymentPrompt = ref(false);
 const editingEventId = ref<number | null>(null);
+const editingRegistrationId = ref<number | null>(null);
+const registrationEventLabel = ref('');
+
+function existingRegistration(row: TableRow): ExistingRegistration | null {
+    const value = row.my_registration;
+    if (!value || typeof value !== 'object') return null;
+    return value as ExistingRegistration;
+}
 
 function resetRegistrationForm(): void {
     registrationForm.reset();
     registrationForm.clearErrors();
     registrationForm.category = 'KYORUGI';
     registrationForm.team_contingent = 'Rhino Fighter';
+    editingRegistrationId.value = null;
+    registrationEventLabel.value = '';
     if (props.isAthlete && props.athletes.length === 1) {
         registrationForm.athlete_id = String(props.athletes[0].value);
     }
 }
 
+function closeRegistrationForm(): void {
+    showRegistrationForm.value = false;
+    resetRegistrationForm();
+}
+
 function submitRegistration(): void {
-    registrationForm.post(championshipRegistrationStore.url(), {
+    const registrationId = editingRegistrationId.value;
+    const wasEditing = registrationId !== null;
+    const options = {
+        preserveScroll: true,
         onSuccess: () => {
-            resetRegistrationForm();
-            showRegistrationForm.value = false;
-            if (props.pendingPayments.length > 0) showPaymentPrompt.value = true;
+            closeRegistrationForm();
+            if (!wasEditing && props.pendingPayments.length > 0) showPaymentPrompt.value = true;
         },
-    });
+    };
+
+    if (registrationId !== null) {
+        registrationForm.put(championshipRegistrationUpdate.url(registrationId), options);
+        return;
+    }
+
+    registrationForm.post(championshipRegistrationStore.url(), options);
 }
 
 function resetEventForm(): void {
@@ -145,6 +183,7 @@ function openEditEvent(row: TableRow): void {
     editingEventId.value = eventId;
     eventForm.name = String(row.event ?? '');
     eventForm.date = String(row.date_value ?? '');
+    eventForm.registration_deadline = String(row.registration_deadline_value ?? '');
     eventForm.location = String(row.location ?? '');
     eventForm.gmaps_url = String(row.gmaps_url ?? '');
     eventForm.entry_fee = String(row.entry_fee ?? '0');
@@ -205,9 +244,25 @@ function openPaymentPrompt(): void {
 }
 
 function openRegistrationForEvent(row: TableRow): void {
-    if (String(row.status_value ?? row.status) !== 'SCHEDULED') return;
+    if (row.registration_open !== true) return;
+
     resetRegistrationForm();
     registrationForm.event_id = String(row.event_id ?? '');
+    registrationEventLabel.value = String(row.event ?? '');
+
+    const registration = existingRegistration(row);
+    if (registration) {
+        const registrationId = routeId(registration.registration_id);
+        if (registrationId === null) return;
+
+        editingRegistrationId.value = registrationId;
+        registrationForm.category = registration.category || 'KYORUGI';
+        registrationForm.classification = registration.classification || '';
+        registrationForm.class_name = registration.class_name || '';
+        registrationForm.division = registration.division || '';
+        registrationForm.team_contingent = registration.team_contingent || 'Rhino Fighter';
+    }
+
     showRegistrationForm.value = true;
 }
 
@@ -251,7 +306,7 @@ onMounted(() => {
 
             <DataTable
                 title="Daftar kejuaraan"
-                description="Pilih detail untuk melihat peserta dan pelatih. Admin dapat mengubah atau menghapus agenda yang belum memiliki peserta."
+                description="Atlet yang sudah terdaftar dapat mengubah data pertandingan sendiri sampai batas waktu yang ditetapkan admin."
                 :columns="columns"
                 :rows="props.rows"
                 action-label="Tindakan"
@@ -261,7 +316,16 @@ onMounted(() => {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button
-                            v-if="props.canRegister && String(row.status_value ?? row.status) === 'SCHEDULED'"
+                            v-if="props.isAthlete && row.my_registration && row.can_edit_registration === true"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="openRegistrationForEvent(row)"
+                        >
+                            Ubah pendaftaran
+                        </Button>
+                        <Button
+                            v-else-if="props.canRegister && !row.my_registration && row.registration_open === true"
                             type="button"
                             size="sm"
                             variant="outline"
@@ -283,10 +347,14 @@ onMounted(() => {
             </DataTable>
         </div>
 
-        <FormModal :open="showRegistrationForm" max-width-class="max-w-2xl" @close="showRegistrationForm = false">
+        <FormModal :open="showRegistrationForm" max-width-class="max-w-2xl" @close="closeRegistrationForm">
             <PageSection
-                title="Daftar kejuaraan"
-                description="Pilih atlet dan isi klasifikasi pertandingan. Tagihan pendaftaran akan dibuat otomatis."
+                :title="editingRegistrationId === null ? 'Daftar kejuaraan' : 'Ubah pendaftaran kejuaraan'"
+                :description="
+                    editingRegistrationId === null
+                        ? 'Pilih atlet dan isi klasifikasi pertandingan. Tagihan pendaftaran akan dibuat otomatis.'
+                        : `Perbarui data pertandingan untuk ${registrationEventLabel} sebelum batas pendaftaran.`
+                "
             >
                 <form class="grid min-w-0 gap-4" @submit.prevent="submitRegistration">
                     <FormSelectField
@@ -297,6 +365,7 @@ onMounted(() => {
                         :options="props.athletes"
                         placeholder="Pilih atlet"
                         required
+                        :disabled="editingRegistrationId !== null"
                         :error="registrationForm.errors.athlete_id"
                     />
                     <div v-else-if="props.athletes.length === 1" class="grid min-w-0 gap-2">
@@ -315,6 +384,7 @@ onMounted(() => {
                             :options="props.events"
                             placeholder="Pilih kejuaraan"
                             required
+                            :disabled="editingRegistrationId !== null"
                             :error="registrationForm.errors.event_id"
                         />
                         <FormSelectField
@@ -356,9 +426,14 @@ onMounted(() => {
                         placeholder="Rhino Fighter"
                         :error="registrationForm.errors.team_contingent"
                     />
+                    <p v-if="registrationForm.errors.registration" class="text-sm text-destructive">
+                        {{ registrationForm.errors.registration }}
+                    </p>
                     <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
-                        <Button type="button" variant="outline" @click="showRegistrationForm = false">Batal</Button>
-                        <Button type="submit" :disabled="registrationForm.processing">Kirim pendaftaran</Button>
+                        <Button type="button" variant="outline" @click="closeRegistrationForm">Batal</Button>
+                        <Button type="submit" :disabled="registrationForm.processing">
+                            {{ editingRegistrationId === null ? 'Kirim pendaftaran' : 'Simpan perubahan' }}
+                        </Button>
                     </div>
                 </form>
             </PageSection>
@@ -367,7 +442,7 @@ onMounted(() => {
         <FormModal :open="showEventForm && props.isAdmin" max-width-class="max-w-2xl" @close="closeEventForm">
             <PageSection
                 :title="editingEventId === null ? 'Tambah kejuaraan' : 'Ubah kejuaraan'"
-                description="Atur tanggal, lokasi, biaya, kapasitas, tingkat, dan status agenda."
+                description="Atur tanggal, batas pendaftaran, lokasi, biaya, kapasitas, tingkat, dan status agenda."
             >
                 <form class="grid min-w-0 gap-4" @submit.prevent="submitEvent">
                     <FormInputField
@@ -386,15 +461,23 @@ onMounted(() => {
                             required
                             :error="eventForm.errors.date"
                         />
-                        <FormSelectField
-                            id="event-new-status"
-                            v-model="eventForm.status"
-                            label="Status"
-                            :options="statusOptions"
-                            required
-                            :error="eventForm.errors.status"
+                        <FormInputField
+                            id="event-registration-deadline"
+                            v-model="eventForm.registration_deadline"
+                            label="Batas pendaftaran"
+                            type="datetime-local"
+                            :error="eventForm.errors.registration_deadline"
+                            help="Jika dikosongkan, batas otomatis menjadi akhir hari pada tanggal kejuaraan."
                         />
                     </div>
+                    <FormSelectField
+                        id="event-new-status"
+                        v-model="eventForm.status"
+                        label="Status"
+                        :options="statusOptions"
+                        required
+                        :error="eventForm.errors.status"
+                    />
                     <FormInputField
                         id="event-new-location"
                         v-model="eventForm.location"
