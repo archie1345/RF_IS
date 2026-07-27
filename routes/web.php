@@ -161,9 +161,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
             Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
         });
 
+        Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])
+            ->middleware('role:admin,coach,parent,athlete')
+            ->name('registrations.update');
+
         Route::middleware('role:admin,coach')->group(function (): void {
             Route::get('{event}/export', ChampionshipExportController::class)->name('export');
-            Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])->name('registrations.update');
             Route::delete('registrations/{registration}', [ChampionshipController::class, 'destroyRegistration'])->name('registrations.destroy');
             Route::post('{event}/coaches', [ChampionshipController::class, 'storeCoachRegistration'])->name('coaches.store');
             Route::delete('coaches/{coachRegistration}', [ChampionshipController::class, 'destroyCoachRegistration'])->name('coaches.destroy');
