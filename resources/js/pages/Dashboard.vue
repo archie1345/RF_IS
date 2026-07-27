@@ -7,20 +7,14 @@ import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewS
 import { useLiveReload } from '@/composables/useLiveReload';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
-import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole, AttendanceRow, Metric, TableRow, TrainingDay } from '@/types/resource-table';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard.url(),
-    },
-];
-
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard.url() }];
 const page = usePage<{ auth: Auth }>();
 const props = defineProps({
+    roles: { type: Array as PropType<AppRole[]>, default: () => [] },
     metrics: { type: Array as PropType<Metric[]>, required: true },
     activityPreviewRows: { type: Array as PropType<TableRow[]>, required: true },
     announcements: { type: Array as PropType<TableRow[]>, required: true },
@@ -32,29 +26,20 @@ const props = defineProps({
     profileSummary: { type: Object as PropType<Record<string, string>>, required: true },
 });
 
-const role = computed<AppRole>(() => {
-    const activeRole = page.props.auth?.user?.activeRole ?? page.props.auth?.user?.role;
-
-    return activeRole === 'admin' || activeRole === 'coach' || activeRole === 'parent' || activeRole === 'athlete'
-        ? activeRole
-        : 'athlete';
+const activeRole = computed<AppRole>(() => {
+    const value = page.props.auth?.user?.activeRole ?? page.props.auth?.user?.role;
+    return value === 'admin' || value === 'coach' || value === 'parent' || value === 'athlete' ? value : 'athlete';
 });
-
-const children = computed(() => page.props.auth.children ?? []);
-const activeChild = computed(() => page.props.auth.activeChild ?? null);
-
-const switchChild = (athleteId: string) => {
-    if (!athleteId) {
-        router.delete(clearChildRoute.url(), { preserveState: true });
-
-        return;
-    }
-
-    router.post(switchChildRoute.url(), { athlete_id: athleteId }, { preserveState: true });
+const dashboardRoles = computed<AppRole[]>(() => props.roles.length > 0 ? props.roles : [activeRole.value]);
+const roleLabels: Record<AppRole, string> = {
+    admin: 'Operasional admin',
+    coach: 'Kepelatihan',
+    parent: 'Keluarga',
+    athlete: 'Aktivitas atlet',
 };
 
 useLiveReload(
-    () => role.value === 'admin',
+    () => dashboardRoles.value.includes('admin'),
     () => router.reload({ only: ['activityPreviewRows', 'metrics', 'announcements'], preserveUrl: true }),
     10000,
 );
@@ -64,28 +49,27 @@ useLiveReload(
     <Head title="Dashboard" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <DashboardHeroSection
-                :role="role"
-                :metrics="props.metrics"
-                :children="children"
-                :active-child="activeChild"
-                @switch-child="switchChild"
-            />
-
+        <div class="flex flex-1 flex-col gap-5 p-4 md:p-6">
+            <DashboardHeroSection :role="activeRole" :roles="dashboardRoles" :metrics="props.metrics" />
             <DashboardAnnouncementWidget :announcements="props.announcements" />
 
-            <DashboardOverviewSections
-                :role="role"
-                :announcements="props.announcements"
-                :upcoming-events="props.upcomingEvents"
-                :profile-summary="props.profileSummary"
-                :medal-rows="props.medalRows"
-                :activity-preview-rows="props.activityPreviewRows"
-                :attendance-rows="props.attendanceRows"
-                :training-days="props.trainingDays"
-                :payment-rows="props.paymentRows"
-            />
+            <section v-for="dashboardRole in dashboardRoles" :key="dashboardRole" class="space-y-3">
+                <div v-if="dashboardRoles.length > 1" class="flex items-center gap-3">
+                    <h2 class="text-sm font-bold tracking-wide uppercase">{{ roleLabels[dashboardRole] }}</h2>
+                    <div class="h-px flex-1 bg-border" />
+                </div>
+                <DashboardOverviewSections
+                    :role="dashboardRole"
+                    :announcements="props.announcements"
+                    :upcoming-events="props.upcomingEvents"
+                    :profile-summary="props.profileSummary"
+                    :medal-rows="props.medalRows"
+                    :activity-preview-rows="props.activityPreviewRows"
+                    :attendance-rows="props.attendanceRows"
+                    :training-days="props.trainingDays"
+                    :payment-rows="props.paymentRows"
+                />
+            </section>
         </div>
     </AppLayout>
 </template>
