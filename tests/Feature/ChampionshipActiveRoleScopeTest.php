@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('uses the selected role and limits coach metrics to assigned events', function () {
+it('shows athletes the full participant count and limits coach metrics to assigned events', function () {
     $user = User::factory()->create([
         'name' => 'Championship Multi Role',
         'role' => 'coach',
@@ -107,7 +107,7 @@ it('uses the selected role and limits coach metrics to assigned events', functio
             ->where('canRegister', true)
             ->has('athletes', 1)
             ->where('athletes.0.value', $athlete->athlete_id)
-            ->where('metrics.1.value', '1'));
+            ->where('metrics.1.value', '2'));
 
     $this->put(route('role-context.update'), ['role' => 'coach'])
         ->assertRedirect(route('dashboard'));
