@@ -2,6 +2,7 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import { Copy, Eye, MessageCircleMore, RotateCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
+import FormInputField from '@/components/forms/FormInputField.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
@@ -10,6 +11,7 @@ import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
     template: { body: string };
+    contactNumber: string;
     defaultTemplate: string;
     placeholders: Array<{ key: string; token: string; description: string }>;
 }>();
@@ -18,11 +20,12 @@ const popup = useAppPopup();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: '/dashboard' },
     { title: 'Aturan Tagihan', href: '/admin/billing-settings' },
-    { title: 'Template WhatsApp', href: '/admin/whatsapp-template' },
+    { title: 'WhatsApp', href: '/admin/whatsapp-template' },
 ];
 
 const form = useForm({
     body: props.template.body,
+    contact_number: props.contactNumber,
 });
 
 const sampleValues: Record<string, string> = {
@@ -58,11 +61,10 @@ async function copyPlaceholder(token: string): Promise<void> {
 async function resetTemplate(): Promise<void> {
     const confirmed = await popup.confirm({
         title: 'Kembalikan template bawaan?',
-        message: 'Isi editor akan diganti dengan template bawaan. Perubahan baru tersimpan setelah menekan Simpan template.',
+        message: 'Isi editor akan diganti dengan template bawaan. Nomor kontak admin tidak akan berubah.',
         tone: 'warning',
         confirmLabel: 'Gunakan template bawaan',
     });
-
     if (!confirmed) return;
     form.body = props.defaultTemplate;
     form.clearErrors('body');
@@ -70,14 +72,14 @@ async function resetTemplate(): Promise<void> {
 </script>
 
 <template>
-    <Head title="Template WhatsApp" />
+    <Head title="Pengaturan WhatsApp" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
+        <div class="flex min-w-0 flex-1 flex-col gap-5 p-3 sm:p-4 md:p-6">
             <PageSection
-                eyebrow="Konfigurasi komunikasi"
-                title="Template Pengingat WhatsApp"
-                description="Atur pesan yang dibuat dari tombol WhatsApp pada ledger pembayaran. Nomor tujuan tetap berasal dari profil penerima tagihan."
+                eyebrow="Komunikasi"
+                title="Pengaturan WhatsApp"
+                description="Atur nomor admin untuk tombol pendaftaran publik dan template pengingat pembayaran."
             >
                 <template #actions>
                     <Button type="button" variant="outline" class="gap-2" @click="resetTemplate">
@@ -86,60 +88,63 @@ async function resetTemplate(): Promise<void> {
                 </template>
             </PageSection>
 
-            <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
-                <section class="min-w-0 rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
-                    <div class="mb-5 flex items-start gap-3">
+            <form class="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]" @submit.prevent="saveTemplate">
+                <section class="min-w-0 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+                    <div class="mb-4 flex items-start gap-3">
                         <span class="rounded-xl bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300">
                             <MessageCircleMore class="size-5" />
                         </span>
                         <div>
-                            <h2 class="font-semibold">Isi pesan</h2>
-                            <p class="text-sm text-muted-foreground">
-                                Gunakan placeholder yang tersedia. Placeholder yang tidak dikenal akan ditolak agar pesan tidak salah kirim.
-                            </p>
+                            <h2 class="font-semibold">Kontak dan isi pesan</h2>
+                            <p class="text-sm text-muted-foreground">Nomor kontak ini dipakai oleh tombol Daftar pada halaman publik.</p>
                         </div>
                     </div>
 
-                    <form class="grid gap-4" @submit.prevent="saveTemplate">
+                    <div class="grid gap-4">
+                        <FormInputField
+                            id="public-admin-whatsapp"
+                            v-model="form.contact_number"
+                            label="Nomor WhatsApp admin"
+                            placeholder="Contoh: 6281234567890"
+                            inputmode="tel"
+                            required
+                            :error="form.errors.contact_number"
+                            help="Gunakan nomor yang aktif menerima pendaftaran anggota baru."
+                        />
+
                         <label class="grid gap-2 text-sm font-semibold">
-                            Template pesan
+                            Template pengingat pembayaran
                             <textarea
                                 v-model="form.body"
-                                rows="11"
+                                rows="10"
                                 maxlength="3000"
-                                class="min-h-64 w-full resize-y rounded-xl border bg-background px-3 py-3 text-sm leading-6 shadow-sm focus:border-ring focus:ring-2 focus:ring-ring/20 focus:outline-none"
-                                :class="form.errors.body ? 'border-destructive ring-2 ring-destructive/15' : 'border-input'"
-                                aria-describedby="whatsapp-template-help whatsapp-template-error"
+                                class="min-h-56 w-full resize-y rounded-xl border bg-background px-3 py-3 text-sm leading-6 focus:ring-2 focus:ring-ring/20 focus:outline-none"
+                                :class="form.errors.body ? 'border-destructive' : 'border-input'"
                                 required
                             />
                         </label>
                         <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span id="whatsapp-template-help">Pesan akan dibuka di WhatsApp; sistem tidak mengirimkannya secara otomatis.</span>
+                            <span>Pesan dibuka di WhatsApp dan tidak dikirim otomatis.</span>
                             <span>{{ form.body.length }} / 3000 karakter</span>
                         </div>
-                        <p
-                            v-if="form.errors.body"
-                            id="whatsapp-template-error"
-                            class="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                        >
+                        <p v-if="form.errors.body" class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                             {{ form.errors.body }}
                         </p>
                         <Button type="submit" class="w-full sm:w-fit" :disabled="form.processing">
-                            {{ form.processing ? 'Menyimpan...' : 'Simpan template' }}
+                            {{ form.processing ? 'Menyimpan...' : 'Simpan pengaturan' }}
                         </Button>
-                    </form>
+                    </div>
                 </section>
 
-                <div class="grid min-w-0 content-start gap-6">
-                    <section class="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
-                        <h2 class="font-semibold">Placeholder tersedia</h2>
-                        <p class="mt-1 text-sm text-muted-foreground">Klik untuk menyalin token.</p>
-                        <div class="mt-4 grid gap-2">
+                <div class="grid content-start gap-5">
+                    <section class="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+                        <h2 class="font-semibold">Placeholder</h2>
+                        <div class="mt-3 grid gap-2">
                             <button
                                 v-for="placeholder in props.placeholders"
                                 :key="placeholder.key"
                                 type="button"
-                                class="flex min-w-0 items-center justify-between gap-3 rounded-xl border bg-background p-3 text-left transition hover:border-primary/40 hover:bg-muted/30"
+                                class="flex items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:bg-muted/30"
                                 @click="copyPlaceholder(placeholder.token)"
                             >
                                 <span class="min-w-0">
@@ -151,18 +156,14 @@ async function resetTemplate(): Promise<void> {
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border bg-card p-4 shadow-sm sm:p-6">
-                        <div class="flex items-center gap-2">
-                            <Eye class="size-5 text-primary" />
-                            <h2 class="font-semibold">Pratinjau</h2>
-                        </div>
-                        <p class="mt-1 text-xs text-muted-foreground">Contoh menggunakan data tagihan simulasi.</p>
-                        <div class="mt-4 whitespace-pre-wrap break-words rounded-2xl bg-emerald-950 p-4 text-sm leading-6 text-emerald-50">
+                    <section class="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+                        <div class="flex items-center gap-2"><Eye class="size-5 text-primary" /><h2 class="font-semibold">Pratinjau</h2></div>
+                        <div class="mt-3 whitespace-pre-wrap break-words rounded-xl bg-emerald-950 p-4 text-sm leading-6 text-emerald-50">
                             {{ preview || 'Template kosong.' }}
                         </div>
                     </section>
                 </div>
-            </div>
+            </form>
         </div>
     </AppLayout>
 </template>
