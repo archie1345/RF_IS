@@ -14,6 +14,7 @@ use App\Support\Domain\PaymentStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -33,15 +34,15 @@ class ChampionshipController extends Controller
         ]);
 
         $canManageEvent = $this->eventAccess->canManage($user, $event);
+        $registrationOpen = $this->registrationIsOpen($event);
+        $ownedAthleteIds = $this->ownedAthleteIds($user);
         $registrations = $event->registrations;
 
-        if ($user?->isAthlete() && ! $canManageEvent) {
-            $registrations = $registrations->where('athlete_id', $user->athleteProfile?->athlete_id);
-        } elseif ($user?->isParent() && ! $canManageEvent) {
-            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id);
+        // Athletes may see the public participant list, but only their own row is editable.
+        if ($user?->isParent() && ! $canManageEvent) {
             $registrations = $registrations
-                ->filter(fn (EventRegistration $registration): bool => $childIds->contains((string) $registration->athlete_id));
-        } elseif (! $canManageEvent) {
+                ->filter(fn (EventRegistration $registration): bool => $ownedAthleteIds->contains((string) $registration->athlete_id));
+        } elseif (! $user?->isAthlete() && ! $canManageEvent) {
             $registrations = collect();
         }
 
@@ -59,19 +60,27 @@ class ChampionshipController extends Controller
                 'gmaps_url' => $event->gmaps_url,
                 'entry_fee' => (float) $event->entry_fee,
                 'status' => $event->status,
+                'registration_deadline' => $this->effectiveRegistrationDeadline($event)->format('d M Y H:i'),
+                'registration_open' => $registrationOpen,
             ],
-            'athleteRows' => $registrations->map(fn (EventRegistration $registration): array => [
-                'id' => 'ATHREG-'.$registration->evrid,
-                'registration_id' => $registration->evrid,
-                'athlete_user_id' => $registration->athlete?->user?->id,
-                'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete',
-                'category' => $registration->category,
-                'classification' => $registration->classification ?? '-',
-                'class_name' => $registration->class_name ?? '-',
-                'division' => $registration->division ?? '-',
-                'team_contingent' => $registration->team_contingent ?? 'Rhino Fighter',
-                'status' => $registration->status,
-            ])->values(),
+            'athleteRows' => $registrations->map(function (EventRegistration $registration) use ($canManageEvent, $ownedAthleteIds, $registrationOpen): array {
+                $isOwned = $ownedAthleteIds->contains((string) $registration->athlete_id);
+
+                return [
+                    'id' => 'ATHREG-'.$registration->evrid,
+                    'registration_id' => $registration->evrid,
+                    'athlete_user_id' => $registration->athlete?->user?->id,
+                    'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete',
+                    'category' => $registration->category,
+                    'classification' => $registration->classification ?? '-',
+                    'class_name' => $registration->class_name ?? '-',
+                    'division' => $registration->division ?? '-',
+                    'team_contingent' => $registration->team_contingent ?? 'Rhino Fighter',
+                    'status' => $registration->status,
+                    'is_own_registration' => $isOwned,
+                    'can_edit_registration' => $canManageEvent || ($registrationOpen && $isOwned),
+                ];
+            })->values(),
             'coachRows' => ($canManageEvent ? $event->coachRegistrations : collect())->map(
                 fn (EventCoachRegistration $registration): array => [
                     'id' => 'COAREG-'.$registration->id,
@@ -98,6 +107,7 @@ class ChampionshipController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate($this->eventRules());
+        $this->ensureValidRegistrationDeadline($validated);
         $event = Event::query()->create($this->eventPayload($validated));
         ActivityLogger::log($request, 'event.created', 'event', 'Created championship event', $event);
 
@@ -108,6 +118,7 @@ class ChampionshipController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $validated = $request->validate($this->eventRules());
+        $this->ensureValidRegistrationDeadline($validated);
         $registrationCount = $event->registrations()->count();
 
         if ((int) ($validated['max_slots'] ?? 24) < $registrationCount) {
@@ -164,9 +175,9 @@ class ChampionshipController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($validated['event_id']);
 
-            if ($event->status !== 'SCHEDULED' || Carbon::parse($event->e_date)->isBefore(today())) {
+            if (! $this->registrationIsOpen($event)) {
                 throw ValidationException::withMessages([
-                    'event_id' => 'This championship is not accepting registrations.',
+                    'event_id' => 'Batas waktu pendaftaran kejuaraan sudah berakhir atau pendaftaran sudah ditutup.',
                 ]);
             }
 
@@ -238,7 +249,19 @@ class ChampionshipController extends Controller
     public function updateRegistration(Request $request, EventRegistration $registration): RedirectResponse
     {
         $registration->loadMissing('event');
-        abort_unless($registration->event && $this->eventAccess->canManage($request->user(), $registration->event), 403);
+        abort_unless($registration->event, 404);
+
+        $canManage = $this->eventAccess->canManage($request->user(), $registration->event);
+        $ownsRegistration = $this->ownedAthleteIds($request->user())
+            ->contains((string) $registration->athlete_id);
+
+        abort_unless($canManage || $ownsRegistration, 403);
+
+        if (! $canManage && ! $this->registrationIsOpen($registration->event)) {
+            return back()->withErrors([
+                'registration' => 'Data pendaftaran tidak dapat diubah setelah batas waktu yang ditetapkan admin.',
+            ]);
+        }
 
         $validated = $request->validate($this->registrationRules(false));
         $validated['team_contingent'] = $validated['team_contingent'] ?: 'Rhino Fighter';
@@ -402,6 +425,7 @@ class ChampionshipController extends Controller
         return [
             'name' => ['required', 'string', 'max:100'],
             'date' => ['required', 'date'],
+            'registration_deadline' => ['nullable', 'date'],
             'location' => ['required', 'string', 'max:255'],
             'gmaps_url' => ['nullable', 'url', 'max:255'],
             'entry_fee' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
@@ -413,9 +437,14 @@ class ChampionshipController extends Controller
 
     private function eventPayload(array $validated): array
     {
+        $registrationDeadline = filled($validated['registration_deadline'] ?? null)
+            ? Carbon::parse($validated['registration_deadline'])
+            : Carbon::parse($validated['date'])->endOfDay();
+
         return [
             'e_name' => $validated['name'],
             'e_date' => $validated['date'],
+            'registration_deadline' => $registrationDeadline,
             'location' => $validated['location'],
             'gmaps_url' => $validated['gmaps_url'] ?? null,
             'level' => $validated['level'] ?? 'LOCAL',
@@ -440,5 +469,55 @@ class ChampionshipController extends Controller
             'division' => ['nullable', 'string', 'max:120'],
             'team_contingent' => ['nullable', 'string', 'max:120'],
         ]);
+    }
+
+    private function effectiveRegistrationDeadline(Event $event): Carbon
+    {
+        return $event->registration_deadline
+            ? Carbon::parse($event->registration_deadline)
+            : Carbon::parse($event->e_date)->endOfDay();
+    }
+
+    private function registrationIsOpen(Event $event): bool
+    {
+        return $event->status === 'SCHEDULED'
+            && now(config('app.timezone', 'Asia/Jakarta'))->lt($this->effectiveRegistrationDeadline($event));
+    }
+
+    private function ensureValidRegistrationDeadline(array $validated): void
+    {
+        if (blank($validated['registration_deadline'] ?? null)) {
+            return;
+        }
+
+        $deadline = Carbon::parse($validated['registration_deadline']);
+        $eventEnd = Carbon::parse($validated['date'])->endOfDay();
+
+        if ($deadline->gt($eventEnd)) {
+            throw ValidationException::withMessages([
+                'registration_deadline' => 'Batas pendaftaran tidak boleh melewati tanggal kejuaraan.',
+            ]);
+        }
+    }
+
+    private function ownedAthleteIds($user): Collection
+    {
+        if (! $user) {
+            return collect();
+        }
+
+        if ($user->isAthlete()) {
+            return collect([$user->athleteProfile?->athlete_id])
+                ->filter()
+                ->map(fn ($id): string => (string) $id);
+        }
+
+        if ($user->isParent()) {
+            return $user->children()
+                ->pluck('athletes.athlete_id')
+                ->map(fn ($id): string => (string) $id);
+        }
+
+        return collect();
     }
 }
