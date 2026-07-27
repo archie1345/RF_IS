@@ -29,6 +29,12 @@ class InvoiceTemplateController extends Controller
             'company_phone' => ['sometimes', 'nullable', 'string', 'max:60'],
             'company_email' => ['sometimes', 'nullable', 'email', 'max:120'],
             'logo_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'logo_file' => [
+                'sometimes',
+                'nullable',
+                File::image()->types(['jpg', 'jpeg', 'png', 'webp'])->max(5 * 1024),
+            ],
+            'remove_logo_file' => ['sometimes', 'nullable', 'boolean'],
             'header_text' => ['sometimes', 'nullable', 'string', 'max:255'],
             'footer_text' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'payment_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
@@ -44,34 +50,63 @@ class InvoiceTemplateController extends Controller
         ]);
 
         $template = InvoiceTemplate::query()->firstOrNew(['name' => 'default']);
-        $oldImagePath = $template->qris_image_path;
-        $newImagePath = $request->file('qris_image')?->store('payment-qris', 'public');
-        $removeImage = (bool) ($validated['remove_qris_image'] ?? false);
+        $oldLogoPath = $template->logo_path;
+        $oldQrisImagePath = $template->qris_image_path;
+        $newLogoPath = $request->file('logo_file')?->store('invoice-logos', 'public');
+        $newQrisImagePath = $request->file('qris_image')?->store('payment-qris', 'public');
+        $removeLogo = (bool) ($validated['remove_logo_file'] ?? false);
+        $removeQrisImage = (bool) ($validated['remove_qris_image'] ?? false);
 
-        unset($validated['qris_image'], $validated['remove_qris_image']);
+        unset(
+            $validated['logo_file'],
+            $validated['remove_logo_file'],
+            $validated['qris_image'],
+            $validated['remove_qris_image'],
+        );
 
         try {
-            DB::transaction(function () use ($template, $validated, $newImagePath, $removeImage): void {
+            DB::transaction(function () use (
+                $template,
+                $validated,
+                $newLogoPath,
+                $removeLogo,
+                $newQrisImagePath,
+                $removeQrisImage,
+            ): void {
                 $template->fill($validated);
 
-                if ($newImagePath !== null) {
-                    $template->qris_image_path = $newImagePath;
-                } elseif ($removeImage) {
+                if ($newLogoPath !== null) {
+                    $template->logo_path = $newLogoPath;
+                    $template->logo_url = null;
+                } elseif ($removeLogo) {
+                    $template->logo_path = null;
+                    $template->logo_url = null;
+                }
+
+                if ($newQrisImagePath !== null) {
+                    $template->qris_image_path = $newQrisImagePath;
+                } elseif ($removeQrisImage) {
                     $template->qris_image_path = null;
                 }
 
                 $template->save();
             });
         } catch (\Throwable $exception) {
-            if ($newImagePath !== null) {
-                Storage::disk('public')->delete($newImagePath);
+            if ($newLogoPath !== null) {
+                Storage::disk('public')->delete($newLogoPath);
+            }
+            if ($newQrisImagePath !== null) {
+                Storage::disk('public')->delete($newQrisImagePath);
             }
 
             throw $exception;
         }
 
-        if ($oldImagePath !== null && ($newImagePath !== null || $removeImage)) {
-            Storage::disk('public')->delete($oldImagePath);
+        if ($oldLogoPath !== null && ($newLogoPath !== null || $removeLogo)) {
+            Storage::disk('public')->delete($oldLogoPath);
+        }
+        if ($oldQrisImagePath !== null && ($newQrisImagePath !== null || $removeQrisImage)) {
+            Storage::disk('public')->delete($oldQrisImagePath);
         }
 
         ActivityLogger::log(
@@ -81,9 +116,11 @@ class InvoiceTemplateController extends Controller
             'Updated invoice or QRIS payment settings',
             $template,
             [
+                'logo_replaced' => $newLogoPath !== null,
+                'logo_removed' => $removeLogo && $newLogoPath === null,
                 'qris_enabled' => $template->qris_enabled,
-                'qris_image_replaced' => $newImagePath !== null,
-                'qris_image_removed' => $removeImage && $newImagePath === null,
+                'qris_image_replaced' => $newQrisImagePath !== null,
+                'qris_image_removed' => $removeQrisImage && $newQrisImagePath === null,
             ],
         );
 
