@@ -2,11 +2,13 @@
 import { Head } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import DataTable from '@/components/shared/DataTable.vue';
 import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import type { BreadcrumbItem } from '@/types';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 import type { SelectOption, WeeklySchedule } from '@/types/training';
 
 const props = withDefaults(
@@ -42,6 +44,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 const scheduleView = ref<'cards' | 'table'>('cards');
 const selectedChild = ref('');
+const scheduleColumns: TableColumn[] = [
+    { key: 'title', label: 'Jadwal' },
+    { key: 'day_label', label: 'Hari' },
+    { key: 'time', label: 'Waktu' },
+    { key: 'location_display', label: 'Lokasi' },
+    { key: 'session_type_display', label: 'Tipe' },
+    { key: 'group_display', label: 'Kelas' },
+    { key: 'participant_display', label: 'Atlet / Anak' },
+    { key: 'status', label: 'Status' },
+];
 
 const childFilterOptions = computed<SelectOption[]>(() => {
     const names = new Set<string>();
@@ -69,6 +81,20 @@ const displayedSchedules = computed(() => {
             .includes(selectedChild.value),
     );
 });
+
+const scheduleTableRows = computed<TableRow[]>(() =>
+    displayedSchedules.value.map((schedule) => ({
+        id: `WS-${schedule.id}`,
+        title: schedule.title,
+        day_label: schedule.day_label ?? '-',
+        time: `${schedule.start_time || '--:--'}–${schedule.end_time || '--:--'}`,
+        location_display: schedule.location || schedule.branch || '-',
+        session_type_display: String(schedule.session_type ?? 'reguler').replaceAll('_', ' '),
+        group_display: schedule.group || 'Semua kelas',
+        participant_display: schedule.child || schedule.athletes || schedule.dedicated_athlete || '-',
+        status: schedule.is_active === false ? 'INACTIVE' : 'ACTIVE',
+    })),
+);
 </script>
 
 <template>
@@ -116,51 +142,17 @@ const displayedSchedules = computed(() => {
                 :subtitle="props.subtitle"
             />
 
-            <section
+            <DataTable
                 v-if="props.canManageSchedule && scheduleView === 'table'"
-                class="rounded-xl border bg-card p-4 shadow-sm sm:p-5"
-            >
-                <div class="mb-4">
-                    <h1 class="text-2xl font-bold">{{ props.title }}</h1>
-                    <p class="mt-1 text-sm text-muted-foreground">{{ props.subtitle }}</p>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1050px] text-sm">
-                        <thead>
-                            <tr class="border-b text-left">
-                                <th class="px-3 py-3 font-bold">Jadwal</th>
-                                <th class="px-3 py-3 font-bold">Hari</th>
-                                <th class="px-3 py-3 font-bold">Waktu</th>
-                                <th class="px-3 py-3 font-bold">Lokasi</th>
-                                <th class="px-3 py-3 font-bold">Tipe</th>
-                                <th class="px-3 py-3 font-bold">Kelas</th>
-                                <th class="px-3 py-3 font-bold">Atlet / Anak</th>
-                                <th class="px-3 py-3 font-bold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="displayedSchedules.length === 0">
-                                <td colspan="8" class="h-32 px-3 text-center text-muted-foreground">Belum ada jadwal latihan.</td>
-                            </tr>
-                            <tr v-for="schedule in displayedSchedules" :key="schedule.id" class="border-b hover:bg-muted/30">
-                                <td class="px-3 py-4 font-bold">{{ schedule.title }}</td>
-                                <td class="px-3 py-4">{{ schedule.day_label ?? '-' }}</td>
-                                <td class="px-3 py-4">{{ schedule.start_time || '--:--' }}–{{ schedule.end_time || '--:--' }}</td>
-                                <td class="px-3 py-4">{{ schedule.location || schedule.branch || '-' }}</td>
-                                <td class="px-3 py-4 capitalize">{{ (schedule.session_type ?? 'reguler').replace('_', ' ') }}</td>
-                                <td class="px-3 py-4">{{ schedule.group || 'Semua kelas' }}</td>
-                                <td class="px-3 py-4">{{ schedule.child || schedule.athletes || schedule.dedicated_athlete || '-' }}</td>
-                                <td class="px-3 py-4">
-                                    <span class="rounded-full px-3 py-1 text-xs font-bold" :class="schedule.is_active === false ? 'bg-muted text-muted-foreground' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'">
-                                        {{ schedule.is_active === false ? 'NONAKTIF' : 'AKTIF' }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                :title="props.title"
+                :description="props.subtitle"
+                :columns="scheduleColumns"
+                :rows="scheduleTableRows"
+                searchable
+                filterable
+                search-placeholder="Cari jadwal, kelas, pelatih, anak, atau atlet"
+                empty-text="Belum ada jadwal latihan."
+            />
         </div>
     </AppLayout>
 </template>
