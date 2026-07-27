@@ -36,6 +36,14 @@ class PaymentRowPresenter
             'athlete' => $this->subject($payment),
             'athlete_phone' => $phone,
             'whatsapp_url' => $includeWhatsApp ? $this->whatsAppUrl($payment, $phone) : null,
+            'receipt_url' => route('payments.export', $payment),
+            'payroll_period' => $payment->payroll_period?->format('F Y') ?? '-',
+            'payroll_basis_type' => $payment->payroll_basis_type,
+            'payroll_basis' => $this->payrollBasisLabel((string) $payment->payroll_basis_type),
+            'payroll_units' => $payment->payroll_units === null ? '-' : (string) $payment->payroll_units,
+            'payroll_rate' => $this->rupiah((float) ($payment->payroll_rate ?? 0)),
+            'payroll_base' => $this->rupiah((float) ($payment->payroll_base_amount ?? 0)),
+            'payroll_bonus' => $this->rupiah((float) ($payment->payroll_bonus_amount ?? 0)),
             'type' => Str::headline(strtolower((string) $payment->payment_type)),
             'payment_type_raw' => $payment->payment_type,
             'amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount)),
@@ -77,7 +85,7 @@ class PaymentRowPresenter
     public function subject(Payment $payment): string
     {
         if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
-            return 'Payroll: '.($payment->payeeUser?->name ?? 'Unknown coach');
+            return $payment->payeeUser?->name ?? 'Unknown coach';
         }
 
         return $payment->athlete?->user?->name
@@ -154,23 +162,18 @@ class PaymentRowPresenter
         if ($payment->proof_status === PaymentStatus::PROOF_SUBMITTED) {
             return $this->badge('Tinjau bukti', 'warning');
         }
-
         if ($payment->status === PaymentStatus::REFUNDED) {
             return $this->badge('Sudah direfund', 'info');
         }
-
         if ($payment->status === PaymentStatus::FAILED) {
             return $this->badge('Periksa tagihan gagal', 'danger');
         }
-
         if ((float) ($payment->remaining_amount ?? 0) <= 0) {
             return $this->badge('Selesai', 'success');
         }
-
         if ($payment->isOverdue()) {
             return $this->badge('Tindak lanjut jatuh tempo', 'danger');
         }
-
         if ((float) ($payment->paid_amount ?? 0) > 0) {
             return $this->badge('Menunggu cicilan berikutnya', 'warning');
         }
@@ -199,6 +202,18 @@ class PaymentRowPresenter
             PaymentTransaction::TYPE_STATUS_CHANGE => 'Perubahan status',
             PaymentTransaction::TYPE_REFUND => 'Refund',
             default => Str::headline(strtolower($type)),
+        };
+    }
+
+    private function payrollBasisLabel(string $basis): string
+    {
+        return match ($basis) {
+            'SESSION' => 'Per sesi',
+            'HOUR' => 'Per jam',
+            'MONTH' => 'Per bulan',
+            'FIXED' => 'Nominal tetap',
+            'CUSTOM' => 'Kustom',
+            default => '-',
         };
     }
 
