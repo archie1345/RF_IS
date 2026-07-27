@@ -96,6 +96,7 @@ const registrationForm = useForm({
     class_name: '',
     division: '',
     team_contingent: 'Rhino Fighter',
+    registration: '',
 });
 
 const eventForm = useForm({
