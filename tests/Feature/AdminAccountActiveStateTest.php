@@ -79,3 +79,24 @@ test('admin cannot mark their own account as not active', function () {
 
     expect($admin->refresh()->isActiveAccount())->toBeTrue();
 });
+
+test('invited accounts must accept the invitation before becoming active', function () {
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        'email_verified_at' => now(),
+    ]);
+    $invited = User::factory()->create([
+        'role' => 'athlete',
+        'account_status' => User::ACCOUNT_STATUS_INVITED,
+        'email_verified_at' => null,
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.accounts.status.update', $invited), [
+            'status' => User::ACCOUNT_STATUS_ACTIVE,
+        ])
+        ->assertSessionHasErrors('status');
+
+    expect($invited->refresh()->isInvited())->toBeTrue();
+});
