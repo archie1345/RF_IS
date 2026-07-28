@@ -75,7 +75,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libonig-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath opcache \
-    && a2enmod rewrite \
+    && a2enmod rewrite headers expires deflate \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
@@ -87,6 +87,8 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
         echo 'opcache.interned_strings_buffer=8'; \
         echo 'opcache.max_accelerated_files=10000'; \
         echo 'opcache.validate_timestamps=0'; \
+        echo 'realpath_cache_size=4096K'; \
+        echo 'realpath_cache_ttl=600'; \
       } > /usr/local/etc/php/conf.d/opcache-recommended.ini \
     && { \
         echo 'sys_temp_dir=/tmp/laravel'; \
@@ -98,10 +100,30 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
     ServerName localhost
     DocumentRoot /var/www/html/public
 
+    KeepAlive On
+    MaxKeepAliveRequests 100
+    KeepAliveTimeout 2
+
     <Directory /var/www/html/public>
         AllowOverride All
         Require all granted
     </Directory>
+
+    <IfModule mod_deflate.c>
+        AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json application/xml image/svg+xml
+    </IfModule>
+
+    <IfModule mod_headers.c>
+        <LocationMatch "^/build/assets/">
+            Header set Cache-Control "public, max-age=31536000, immutable"
+        </LocationMatch>
+        <LocationMatch "^/storage/">
+            Header set Cache-Control "public, max-age=604800"
+        </LocationMatch>
+        <FilesMatch "\.(woff2?|ttf|otf)$">
+            Header set Access-Control-Allow-Origin "*"
+        </FilesMatch>
+    </IfModule>
 
     ErrorLog ${APACHE_LOG_DIR}/error.log
     CustomLog ${APACHE_LOG_DIR}/access.log combined
