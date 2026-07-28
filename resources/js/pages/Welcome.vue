@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { MessageCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { dashboard, login } from '@/routes';
 
-const page = usePage<{ publicAdminWhatsapp?: string; auth: { user?: unknown } }>();
+const page = usePage<{
+    publicAdminWhatsapp?: string;
+    publicWhatsappBubbleEnabled?: boolean;
+    auth: { user?: unknown };
+}>();
 
-const whatsappUrl = computed(() => {
-    let digits = String(page.props.publicAdminWhatsapp ?? '').replace(/\D+/g, '');
-    if (!digits) return null;
-    if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
+const whatsappUrl = computed(() =>
+    buildWhatsAppUrl(
+        page.props.publicAdminWhatsapp,
+        'Halo Admin Rhino Fighter, saya ingin mendaftar sebagai anggota baru. Mohon informasi proses pendaftarannya.',
+    ),
+);
 
-    const message = encodeURIComponent('Halo Admin Rhino Fighter, saya ingin mendaftar sebagai anggota baru. Mohon informasi proses pendaftarannya.');
-    return `https://wa.me/${digits}?text=${message}`;
-});
+const showWhatsappBubble = computed(
+    () => Boolean(whatsappUrl.value) && page.props.publicWhatsappBubbleEnabled !== false,
+);
 
 const highlights = [
     { title: 'Profil & peran', detail: 'Admin, pelatih, orang tua, dan atlet terhubung dalam satu sistem.' },
@@ -44,7 +52,7 @@ const highlights = [
                             rel="noopener noreferrer"
                             class="inline-flex h-10 items-center rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-400"
                         >
-                            Daftar via WhatsApp
+                            Hubungi admin
                         </a>
                         <Link
                             :href="login()"
@@ -79,7 +87,7 @@ const highlights = [
                             rel="noopener noreferrer"
                             class="inline-flex h-11 items-center rounded-lg border border-white/25 px-5 text-sm font-semibold hover:bg-white/10"
                         >
-                            Hubungi admin untuk mendaftar
+                            Hubungi admin untuk membuat akun
                         </a>
                     </div>
                 </div>
@@ -98,5 +106,17 @@ const highlights = [
             <span>Rhino Fighter Information System</span>
             <span>Pendaftaran akun baru diproses oleh admin.</span>
         </footer>
+
+        <a
+            v-if="showWhatsappBubble"
+            :href="whatsappUrl ?? '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hubungi admin melalui WhatsApp"
+            title="Hubungi admin melalui WhatsApp"
+            class="fixed right-5 bottom-5 z-50 inline-flex size-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl ring-1 ring-white/20 transition hover:scale-105 hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-7 sm:bottom-7"
+        >
+            <MessageCircle class="size-7" aria-hidden="true" />
+        </a>
     </main>
 </template>
