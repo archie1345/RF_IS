@@ -51,6 +51,27 @@ const validationMessage = ref('');
 
 const activeDataset = computed(() => props.datasets.find((dataset) => dataset.key === datasetKey.value) ?? null);
 const datasetOptions = computed(() => props.datasets.map((dataset) => ({ value: dataset.key, label: dataset.label })));
+const activeStatusOptions = computed<ExportOption[]>(() => {
+    if (datasetKey.value === 'training_sessions') {
+        return [
+            { value: 'DRAFT', label: 'Draft' },
+            { value: 'CONFIRMED', label: 'Confirmed' },
+            { value: 'NEEDS_ASSISTANT', label: 'Needs assistant' },
+            { value: 'CANCELED', label: 'Canceled' },
+        ];
+    }
+
+    if (datasetKey.value === 'events') {
+        return [
+            { value: 'SCHEDULED', label: 'Scheduled' },
+            { value: 'ONGOING', label: 'Ongoing' },
+            { value: 'COMPLETED', label: 'Completed' },
+            { value: 'CANCELED', label: 'Canceled' },
+        ];
+    }
+
+    return activeDataset.value?.statusOptions ?? [];
+});
 const allFieldsSelected = computed(
     () => Boolean(activeDataset.value?.fields.length) && selectedFields.value.length === activeDataset.value?.fields.length,
 );
@@ -145,11 +166,11 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                     </p>
 
                     <FormSelectField
-                        v-if="activeDataset?.statusOptions.length"
+                        v-if="activeStatusOptions.length"
                         id="export-status"
                         v-model="status"
                         label="Status filter"
-                        :options="activeDataset.statusOptions"
+                        :options="activeStatusOptions"
                         placeholder="All statuses"
                     />
 
@@ -220,7 +241,7 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                         <p class="text-xs leading-5 text-muted-foreground">
                             The export is generated from a server-side query and downloaded as .xlsx. Large exports are processed in chunks.
                         </p>
-                        <Button type="button" class="gap-2" :disabled="!allFieldsSelected && selectedFields.length === 0" @click="downloadExport">
+                        <Button type="button" class="gap-2" :disabled="selectedFields.length === 0" @click="downloadExport">
                             <Download class="size-4" /> Download selected data
                         </Button>
                     </div>
