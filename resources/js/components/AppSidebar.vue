@@ -8,6 +8,7 @@ import {
     ClipboardCheck,
     Contact,
     Dumbbell,
+    FileSpreadsheet,
     History,
     LayoutDashboard,
     MapPinned,
@@ -106,6 +107,7 @@ const navigation: NavSection[] = [
         label: 'Informasi & Sistem',
         items: [
             { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone, roles: allRoles },
+            { title: 'Export Data Excel', href: '/admin/data-export', icon: FileSpreadsheet, roles: ['admin'] },
             { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: ScrollText, roles: ['admin'] },
         ],
     },
