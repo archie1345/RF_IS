@@ -10,6 +10,7 @@ use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AdminAccountLifecycleController extends Controller
 {
@@ -26,6 +27,12 @@ class AdminAccountLifecycleController extends Controller
                 User::ACCOUNT_STATUS_SUSPENDED,
             ])],
         ]);
+
+        if ($user->isInvited()) {
+            throw ValidationException::withMessages([
+                'status' => 'Invited accounts become active only after the invitation is accepted.',
+            ]);
+        }
 
         $nextStatus = $validated['status'];
         $this->accountSafety->ensureUpdateIsSafe($actor, $user, $user->assignedRoles(), $nextStatus);
