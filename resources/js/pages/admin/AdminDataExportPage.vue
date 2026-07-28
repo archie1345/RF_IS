@@ -72,9 +72,6 @@ const activeStatusOptions = computed<ExportOption[]>(() => {
 
     return activeDataset.value?.statusOptions ?? [];
 });
-const allFieldsSelected = computed(
-    () => Boolean(activeDataset.value?.fields.length) && selectedFields.value.length === activeDataset.value?.fields.length,
-);
 
 function resetDatasetSelection(): void {
     selectedFields.value = activeDataset.value?.fields.map((field) => field.key) ?? [];
