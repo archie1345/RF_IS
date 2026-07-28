@@ -10,7 +10,6 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AdminDataExportController extends Controller
 {
@@ -25,7 +24,7 @@ class AdminDataExportController extends Controller
         ]);
     }
 
-    public function download(Request $request): BinaryFileResponse
+    public function download(Request $request)
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
