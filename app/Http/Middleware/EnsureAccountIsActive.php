@@ -19,7 +19,7 @@ class EnsureAccountIsActive
         }
 
         $message = $user->isSuspended()
-            ? 'This account has been suspended. Please contact an administrator.'
+            ? 'This account is not active. Please contact an administrator.'
             : 'Please accept your invitation before signing in.';
 
         if ($request->expectsJson() || $request->is('api/*')) {
