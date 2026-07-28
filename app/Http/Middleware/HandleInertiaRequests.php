@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\MessageTemplate;
 use App\Services\ActiveRoleContextService;
 use App\Services\ParentChildContextService;
+use App\Services\PublicContactSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
@@ -21,13 +21,14 @@ class HandleInertiaRequests extends Middleware
     /** @return array<string, mixed> */
     public function share(Request $request): array
     {
+        $publicContact = app(PublicContactSettings::class);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => fn (): array => $this->sharedAuth($request),
-            'publicAdminWhatsapp' => fn (): string => (string) (MessageTemplate::query()
-                ->where('key', 'public_admin_whatsapp')
-                ->value('body') ?? ''),
+            'publicAdminWhatsapp' => fn (): string => $publicContact->contactNumber(),
+            'publicWhatsappBubbleEnabled' => fn (): bool => $publicContact->bubbleEnabled(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
