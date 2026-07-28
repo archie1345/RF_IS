@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MessageTemplate;
 use App\Services\PaymentReminderTemplate;
+use App\Services\PublicContactSettings;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,9 +15,12 @@ use Inertia\Response;
 
 class WhatsAppTemplateController extends Controller
 {
-    public const PUBLIC_CONTACT_KEY = 'public_admin_whatsapp';
+    public const PUBLIC_CONTACT_KEY = PublicContactSettings::CONTACT_KEY;
 
-    public function __construct(private readonly PaymentReminderTemplate $template) {}
+    public function __construct(
+        private readonly PaymentReminderTemplate $template,
+        private readonly PublicContactSettings $publicContact,
+    ) {}
 
     public function edit(): Response
     {
@@ -24,9 +28,8 @@ class WhatsAppTemplateController extends Controller
             'template' => [
                 'body' => $this->template->body(),
             ],
-            'contactNumber' => MessageTemplate::query()
-                ->where('key', self::PUBLIC_CONTACT_KEY)
-                ->value('body') ?? '',
+            'contactNumber' => $this->publicContact->contactNumber(),
+            'bubbleEnabled' => $this->publicContact->bubbleEnabled(),
             'defaultTemplate' => PaymentReminderTemplate::DEFAULT_BODY,
             'placeholders' => collect(PaymentReminderTemplate::PLACEHOLDERS)
                 ->map(fn (string $description, string $key): array => [
@@ -43,8 +46,9 @@ class WhatsAppTemplateController extends Controller
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:3000'],
             // Optional for backwards-compatible API clients that only update
-            // the reminder body. The admin UI always submits this field.
-            'contact_number' => ['nullable', 'string', 'max:24', 'regex:/^[0-9+()\-\s]+$/'],
+            // the reminder body. The admin UI always submits these fields.
+            'contact_number' => ['sometimes', 'nullable', 'string', 'max:24', 'regex:/^[0-9+()\-\s]+$/'],
+            'bubble_enabled' => ['sometimes', 'boolean'],
         ], [
             'body.required' => 'Template WhatsApp wajib diisi.',
             'body.max' => 'Template WhatsApp maksimal 3000 karakter.',
@@ -63,21 +67,33 @@ class WhatsAppTemplateController extends Controller
             ['body' => trim($validated['body'])],
         );
 
-        if (array_key_exists('contact_number', $validated) && filled($validated['contact_number'])) {
+        if (array_key_exists('contact_number', $validated)) {
             MessageTemplate::query()->updateOrCreate(
-                ['key' => self::PUBLIC_CONTACT_KEY],
-                ['body' => trim($validated['contact_number'])],
+                ['key' => PublicContactSettings::CONTACT_KEY],
+                ['body' => trim((string) ($validated['contact_number'] ?? ''))],
+            );
+        }
+
+        if (array_key_exists('bubble_enabled', $validated)) {
+            MessageTemplate::query()->updateOrCreate(
+                ['key' => PublicContactSettings::BUBBLE_ENABLED_KEY],
+                ['body' => $validated['bubble_enabled'] ? '1' : '0'],
             );
         }
 
         $this->template->clearCache();
+        $this->publicContact->clearCache();
 
         ActivityLogger::log(
             $request,
             'finance.whatsapp_template.updated',
             'finance',
-            'Updated WhatsApp payment reminder template and public admin contact',
+            'Updated WhatsApp payment reminder and public contact settings',
             $messageTemplate,
+            [
+                'public_contact_configured' => filled($this->publicContact->contactNumber()),
+                'landing_bubble_enabled' => $this->publicContact->bubbleEnabled(),
+            ],
         );
 
         return back()->with('status', 'Pengaturan WhatsApp berhasil diperbarui.');
