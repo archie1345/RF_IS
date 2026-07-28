@@ -9,10 +9,48 @@ use App\Services\AdminAccountSafetyService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AdminAccountLifecycleController extends Controller
 {
     public function __construct(private readonly AdminAccountSafetyService $accountSafety) {}
+
+    public function updateStatus(Request $request, User $user): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in([
+                User::ACCOUNT_STATUS_ACTIVE,
+                User::ACCOUNT_STATUS_SUSPENDED,
+            ])],
+        ]);
+
+        $nextStatus = $validated['status'];
+        $this->accountSafety->ensureUpdateIsSafe($actor, $user, $user->assignedRoles(), $nextStatus);
+        $previousStatus = $user->account_status;
+        $user->update(['account_status' => $nextStatus]);
+
+        ActivityLogger::log(
+            $request,
+            'admin.account.status_updated',
+            'admin',
+            'Updated account active state',
+            $user,
+            [
+                'previous_status' => $previousStatus,
+                'next_status' => $nextStatus,
+            ],
+        );
+
+        return back()->with(
+            'status',
+            $nextStatus === User::ACCOUNT_STATUS_ACTIVE
+                ? 'Account activated.'
+                : 'Account marked as not active.',
+        );
+    }
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
