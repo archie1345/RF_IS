@@ -12,6 +12,7 @@ import type { BreadcrumbItem } from '@/types';
 const props = defineProps<{
     template: { body: string };
     contactNumber: string;
+    bubbleEnabled: boolean;
     defaultTemplate: string;
     placeholders: Array<{ key: string; token: string; description: string }>;
 }>();
@@ -26,6 +27,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     body: props.template.body,
     contact_number: props.contactNumber,
+    bubble_enabled: props.bubbleEnabled,
 });
 
 const sampleValues: Record<string, string> = {
@@ -61,7 +63,7 @@ async function copyPlaceholder(token: string): Promise<void> {
 async function resetTemplate(): Promise<void> {
     const confirmed = await popup.confirm({
         title: 'Kembalikan template bawaan?',
-        message: 'Isi editor akan diganti dengan template bawaan. Nomor kontak admin tidak akan berubah.',
+        message: 'Isi editor akan diganti dengan template bawaan. Nomor kontak admin dan status bubble tidak akan berubah.',
         tone: 'warning',
         confirmLabel: 'Gunakan template bawaan',
     });
@@ -79,7 +81,7 @@ async function resetTemplate(): Promise<void> {
             <PageSection
                 eyebrow="Komunikasi"
                 title="Pengaturan WhatsApp"
-                description="Atur nomor admin untuk tombol pendaftaran publik dan template pengingat pembayaran."
+                description="Atur nomor admin, bubble WhatsApp pada landing page, dan template pengingat pembayaran."
             >
                 <template #actions>
                     <Button type="button" variant="outline" class="gap-2" @click="resetTemplate">
@@ -96,7 +98,7 @@ async function resetTemplate(): Promise<void> {
                         </span>
                         <div>
                             <h2 class="font-semibold">Kontak dan isi pesan</h2>
-                            <p class="text-sm text-muted-foreground">Nomor kontak ini dipakai oleh tombol Daftar pada halaman publik.</p>
+                            <p class="text-sm text-muted-foreground">Nomor kontak dipakai oleh tombol pendaftaran publik, halaman login, dan bubble landing page.</p>
                         </div>
                     </div>
 
@@ -109,8 +111,35 @@ async function resetTemplate(): Promise<void> {
                             inputmode="tel"
                             required
                             :error="form.errors.contact_number"
-                            help="Gunakan nomor yang aktif menerima pendaftaran anggota baru."
+                            help="Gunakan nomor yang aktif menerima permintaan pembuatan akun baru."
                         />
+
+                        <button
+                            type="button"
+                            role="switch"
+                            :aria-checked="form.bubble_enabled"
+                            class="flex w-full items-center justify-between gap-4 rounded-xl border bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                            @click="form.bubble_enabled = !form.bubble_enabled"
+                        >
+                            <span class="min-w-0">
+                                <span class="block font-semibold">Bubble WhatsApp di landing page</span>
+                                <span class="mt-1 block text-sm leading-5 text-muted-foreground">
+                                    Tampilkan tombol WhatsApp mengambang di kanan bawah halaman publik.
+                                </span>
+                            </span>
+                            <span
+                                class="relative inline-flex h-7 w-12 shrink-0 rounded-full transition"
+                                :class="form.bubble_enabled ? 'bg-emerald-500' : 'bg-muted-foreground/30'"
+                            >
+                                <span
+                                    class="absolute top-1 size-5 rounded-full bg-white shadow-sm transition"
+                                    :class="form.bubble_enabled ? 'left-6' : 'left-1'"
+                                />
+                            </span>
+                        </button>
+                        <p v-if="form.errors.bubble_enabled" class="text-sm text-destructive">
+                            {{ form.errors.bubble_enabled }}
+                        </p>
 
                         <label class="grid gap-2 text-sm font-semibold">
                             Template pengingat pembayaran
