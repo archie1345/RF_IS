@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\TrainingSession;
 use App\Policies\SessionPolicy;
+use App\Services\PublicContactSettings;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PublicContactSettings::class);
     }
 
     /**
