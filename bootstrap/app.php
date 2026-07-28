@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(function (): void {
                     require base_path('routes/legacy-billing.php');
                     require base_path('routes/admin-message-templates.php');
+                    require base_path('routes/admin-data-export.php');
                 });
         },
     )
