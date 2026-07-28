@@ -59,8 +59,14 @@ const breadcrumbs: BreadcrumbItem[] = [
                     </div>
 
                     <dl class="mt-4 grid gap-2 text-sm">
-                        <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Cabang</dt><dd class="text-right font-medium">{{ child.branch }}</dd></div>
-                        <div class="flex justify-between gap-3"><dt class="text-muted-foreground">Kelas</dt><dd class="text-right font-medium">{{ child.group }}</dd></div>
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-muted-foreground">Cabang</dt>
+                            <dd class="text-right font-medium">{{ child.branch }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-muted-foreground">Kelas</dt>
+                            <dd class="text-right font-medium">{{ child.group }}</dd>
+                        </div>
                     </dl>
 
                     <Button as-child class="mt-5 w-full">

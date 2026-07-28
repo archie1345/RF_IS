@@ -41,10 +41,7 @@ const sampleValues: Record<string, string> = {
 };
 
 const preview = computed(() =>
-    Object.entries(sampleValues).reduce(
-        (message, [key, value]) => message.replaceAll(`{${key}}`, value),
-        form.body,
-    ),
+    Object.entries(sampleValues).reduce((message, [key, value]) => message.replaceAll(`{${key}}`, value), form.body),
 );
 
 function saveTemplate(): void {
@@ -63,7 +60,8 @@ async function copyPlaceholder(token: string): Promise<void> {
 async function resetTemplate(): Promise<void> {
     const confirmed = await popup.confirm({
         title: 'Kembalikan template bawaan?',
-        message: 'Isi editor akan diganti dengan template bawaan. Nomor kontak admin dan status bubble tidak akan berubah.',
+        message:
+            'Isi editor akan diganti dengan template bawaan. Nomor kontak admin dan status bubble tidak akan berubah.',
         tone: 'warning',
         confirmLabel: 'Gunakan template bawaan',
     });
@@ -90,7 +88,10 @@ async function resetTemplate(): Promise<void> {
                 </template>
             </PageSection>
 
-            <form class="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]" @submit.prevent="saveTemplate">
+            <form
+                class="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]"
+                @submit.prevent="saveTemplate"
+            >
                 <section class="min-w-0 rounded-xl border bg-card p-4 shadow-sm sm:p-5">
                     <div class="mb-4 flex items-start gap-3">
                         <span class="rounded-xl bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-300">
@@ -98,7 +99,10 @@ async function resetTemplate(): Promise<void> {
                         </span>
                         <div>
                             <h2 class="font-semibold">Kontak dan isi pesan</h2>
-                            <p class="text-sm text-muted-foreground">Nomor kontak dipakai oleh tombol pendaftaran publik, halaman login, dan bubble landing page.</p>
+                            <p class="text-sm text-muted-foreground">
+                                Nomor kontak dipakai oleh tombol pendaftaran publik, halaman login, dan bubble landing
+                                page.
+                            </p>
                         </div>
                     </div>
 
@@ -118,7 +122,7 @@ async function resetTemplate(): Promise<void> {
                             type="button"
                             role="switch"
                             :aria-checked="form.bubble_enabled"
-                            class="flex w-full items-center justify-between gap-4 rounded-xl border bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                            class="flex w-full items-center justify-between gap-4 rounded-xl border bg-background p-4 text-left transition hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
                             @click="form.bubble_enabled = !form.bubble_enabled"
                         >
                             <span class="min-w-0">
@@ -156,7 +160,10 @@ async function resetTemplate(): Promise<void> {
                             <span>Pesan dibuka di WhatsApp dan tidak dikirim otomatis.</span>
                             <span>{{ form.body.length }} / 3000 karakter</span>
                         </div>
-                        <p v-if="form.errors.body" class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        <p
+                            v-if="form.errors.body"
+                            class="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                        >
                             {{ form.errors.body }}
                         </p>
                         <Button type="submit" class="w-full sm:w-fit" :disabled="form.processing">
@@ -177,8 +184,12 @@ async function resetTemplate(): Promise<void> {
                                 @click="copyPlaceholder(placeholder.token)"
                             >
                                 <span class="min-w-0">
-                                    <code class="break-all text-xs font-bold text-primary">{{ placeholder.token }}</code>
-                                    <span class="mt-1 block text-xs text-muted-foreground">{{ placeholder.description }}</span>
+                                    <code class="text-xs font-bold break-all text-primary">{{
+                                        placeholder.token
+                                    }}</code>
+                                    <span class="mt-1 block text-xs text-muted-foreground">{{
+                                        placeholder.description
+                                    }}</span>
                                 </span>
                                 <Copy class="size-4 shrink-0 text-muted-foreground" />
                             </button>
@@ -186,8 +197,13 @@ async function resetTemplate(): Promise<void> {
                     </section>
 
                     <section class="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
-                        <div class="flex items-center gap-2"><Eye class="size-5 text-primary" /><h2 class="font-semibold">Pratinjau</h2></div>
-                        <div class="mt-3 whitespace-pre-wrap break-words rounded-xl bg-emerald-950 p-4 text-sm leading-6 text-emerald-50">
+                        <div class="flex items-center gap-2">
+                            <Eye class="size-5 text-primary" />
+                            <h2 class="font-semibold">Pratinjau</h2>
+                        </div>
+                        <div
+                            class="mt-3 rounded-xl bg-emerald-950 p-4 text-sm leading-6 break-words whitespace-pre-wrap text-emerald-50"
+                        >
                             {{ preview || 'Template kosong.' }}
                         </div>
                     </section>

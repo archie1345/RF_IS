@@ -181,7 +181,9 @@ const scheduleHref = computed(() =>
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
-                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda operasional</p>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Agenda operasional
+                            </p>
                             <h2 class="mt-1 text-lg font-bold">Sesi latihan terdekat</h2>
                         </div>
                         <Button as-child variant="ghost" size="sm" class="gap-2">
@@ -190,8 +192,14 @@ const scheduleHref = computed(() =>
                     </div>
 
                     <div v-if="upcomingTraining.length" class="divide-y">
-                        <div v-for="session in upcomingTraining" :key="session.id" class="flex gap-4 py-4 first:pt-0 last:pb-0">
-                            <div class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <div
+                            v-for="session in upcomingTraining"
+                            :key="session.id"
+                            class="flex gap-4 py-4 first:pt-0 last:pb-0"
+                        >
+                            <div
+                                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+                            >
                                 <CalendarClock class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
@@ -203,8 +211,12 @@ const scheduleHref = computed(() =>
                                     <p class="text-sm font-medium">{{ formatDate(session.date) }}</p>
                                 </div>
                                 <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                    <span class="inline-flex items-center gap-1.5"><Clock3 class="size-3.5" />{{ session.time }}</span>
-                                    <span class="inline-flex items-center gap-1.5"><MapPin class="size-3.5" />{{ session.branch }}</span>
+                                    <span class="inline-flex items-center gap-1.5"
+                                        ><Clock3 class="size-3.5" />{{ session.time }}</span
+                                    >
+                                    <span class="inline-flex items-center gap-1.5"
+                                        ><MapPin class="size-3.5" />{{ session.branch }}</span
+                                    >
                                 </div>
                             </div>
                         </div>
@@ -216,35 +228,58 @@ const scheduleHref = computed(() =>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5">
-                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Perlu ditindaklanjuti</p>
+                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Perlu ditindaklanjuti
+                        </p>
                         <h2 class="mt-1 text-lg font-bold">Prioritas hari ini</h2>
                     </div>
                     <div class="space-y-3">
-                        <Link :href="paymentsIndex.url()" class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40">
-                            <div class="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                        <Link
+                            :href="paymentsIndex.url()"
+                            class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40"
+                        >
+                            <div
+                                class="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            >
                                 <WalletCards class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold">{{ attentionPayments.length }} pembayaran terbuka</p>
-                                <p class="text-sm text-muted-foreground">Belum lunas atau masih menunggu penyelesaian.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Belum lunas atau masih menunggu penyelesaian.
+                                </p>
                             </div>
                         </Link>
-                        <Link :href="attendanceIndex.url()" class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40">
-                            <div class="flex size-10 items-center justify-center rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300">
+                        <Link
+                            :href="attendanceIndex.url()"
+                            class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40"
+                        >
+                            <div
+                                class="flex size-10 items-center justify-center rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                            >
                                 <CircleAlert class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold">{{ attendanceSummary.absent }} catatan tidak hadir</p>
-                                <p class="text-sm text-muted-foreground">Berdasarkan data absensi terbaru yang tampil.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Berdasarkan data absensi terbaru yang tampil.
+                                </p>
                             </div>
                         </Link>
-                        <Link :href="announcementsIndex.url()" class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40">
-                            <div class="flex size-10 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300">
+                        <Link
+                            :href="announcementsIndex.url()"
+                            class="flex items-center gap-3 rounded-xl border p-4 transition hover:bg-muted/40"
+                        >
+                            <div
+                                class="flex size-10 items-center justify-center rounded-lg bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                            >
                                 <Megaphone class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold">{{ props.announcements.length }} pengumuman aktif</p>
-                                <p class="text-sm text-muted-foreground">Informasi yang sedang terlihat oleh pengguna.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Informasi yang sedang terlihat oleh pengguna.
+                                </p>
                             </div>
                         </Link>
                     </div>
@@ -255,10 +290,14 @@ const scheduleHref = computed(() =>
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
-                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Audit singkat</p>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Audit singkat
+                            </p>
                             <h2 class="mt-1 text-lg font-bold">Aktivitas terbaru</h2>
                         </div>
-                        <Button as-child variant="ghost" size="sm"><Link :href="activityLogsIndex.url()">Lihat log</Link></Button>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="activityLogsIndex.url()">Lihat log</Link></Button
+                        >
                     </div>
                     <div v-if="latestActivity.length" class="space-y-4">
                         <div v-for="row in latestActivity" :key="String(row.id)" class="flex gap-3">
@@ -276,16 +315,22 @@ const scheduleHref = computed(() =>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5">
-                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Komposisi atlet</p>
+                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Komposisi atlet
+                        </p>
                         <h2 class="mt-1 text-lg font-bold">Distribusi tingkat sabuk</h2>
                     </div>
                     <div v-if="beltRows.length" class="space-y-4">
                         <div v-for="row in beltRows" :key="row.label">
                             <div class="mb-1.5 flex items-center justify-between text-sm">
-                                <span>{{ row.label }}</span><strong>{{ row.count }}</strong>
+                                <span>{{ row.label }}</span
+                                ><strong>{{ row.count }}</strong>
                             </div>
                             <div class="h-2 overflow-hidden rounded-full bg-muted">
-                                <div class="h-full rounded-full bg-primary" :style="{ width: `${(row.count / largestBeltCount) * 100}%` }"></div>
+                                <div
+                                    class="h-full rounded-full bg-primary"
+                                    :style="{ width: `${(row.count / largestBeltCount) * 100}%` }"
+                                ></div>
                             </div>
                         </div>
                     </div>
@@ -304,7 +349,9 @@ const scheduleHref = computed(() =>
                                 <p class="text-2xl font-bold">{{ nextTraining.title }}</p>
                                 <p class="mt-1 text-muted-foreground">{{ nextTraining.group }}</p>
                                 <div class="mt-4 flex flex-wrap gap-3 text-sm">
-                                    <span class="rounded-lg bg-muted px-3 py-2">{{ formatDate(nextTraining.date) }}</span>
+                                    <span class="rounded-lg bg-muted px-3 py-2">{{
+                                        formatDate(nextTraining.date)
+                                    }}</span>
                                     <span class="rounded-lg bg-muted px-3 py-2">{{ nextTraining.time }}</span>
                                     <span class="rounded-lg bg-muted px-3 py-2">{{ nextTraining.branch }}</span>
                                 </div>
@@ -312,7 +359,10 @@ const scheduleHref = computed(() =>
                             <Button as-child><Link :href="sessionsIndex.url()">Buka sesi</Link></Button>
                         </div>
                     </div>
-                    <p v-else class="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    <p
+                        v-else
+                        class="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground"
+                    >
                         Tidak ada sesi yang ditugaskan dalam waktu dekat.
                     </p>
                 </section>
@@ -321,11 +371,22 @@ const scheduleHref = computed(() =>
                     <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Absensi sesi</p>
                     <h2 class="mt-1 text-lg font-bold">Ringkasan terbaru</h2>
                     <div class="mt-5 grid grid-cols-3 gap-3 text-center">
-                        <div class="rounded-xl bg-emerald-500/10 p-4"><p class="text-2xl font-bold">{{ attendanceSummary.present }}</p><p class="text-xs text-muted-foreground">Hadir</p></div>
-                        <div class="rounded-xl bg-amber-500/10 p-4"><p class="text-2xl font-bold">{{ attendanceSummary.excused }}</p><p class="text-xs text-muted-foreground">Izin/Terlambat</p></div>
-                        <div class="rounded-xl bg-rose-500/10 p-4"><p class="text-2xl font-bold">{{ attendanceSummary.absent }}</p><p class="text-xs text-muted-foreground">Tidak hadir</p></div>
+                        <div class="rounded-xl bg-emerald-500/10 p-4">
+                            <p class="text-2xl font-bold">{{ attendanceSummary.present }}</p>
+                            <p class="text-xs text-muted-foreground">Hadir</p>
+                        </div>
+                        <div class="rounded-xl bg-amber-500/10 p-4">
+                            <p class="text-2xl font-bold">{{ attendanceSummary.excused }}</p>
+                            <p class="text-xs text-muted-foreground">Izin/Terlambat</p>
+                        </div>
+                        <div class="rounded-xl bg-rose-500/10 p-4">
+                            <p class="text-2xl font-bold">{{ attendanceSummary.absent }}</p>
+                            <p class="text-xs text-muted-foreground">Tidak hadir</p>
+                        </div>
                     </div>
-                    <Button as-child variant="outline" class="mt-5 w-full"><Link :href="attendanceIndex.url()">Kelola absensi</Link></Button>
+                    <Button as-child variant="outline" class="mt-5 w-full"
+                        ><Link :href="attendanceIndex.url()">Kelola absensi</Link></Button
+                    >
                 </section>
             </div>
 
@@ -333,12 +394,23 @@ const scheduleHref = computed(() =>
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <h2 class="text-lg font-bold">Jadwal saya</h2>
-                        <Button as-child variant="ghost" size="sm"><Link :href="trainingScheduleIndex.url()">Lihat jadwal</Link></Button>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="trainingScheduleIndex.url()">Lihat jadwal</Link></Button
+                        >
                     </div>
                     <div v-if="upcomingTraining.length" class="space-y-3">
-                        <div v-for="session in upcomingTraining.slice(0, 4)" :key="session.id" class="rounded-xl border p-4">
+                        <div
+                            v-for="session in upcomingTraining.slice(0, 4)"
+                            :key="session.id"
+                            class="rounded-xl border p-4"
+                        >
                             <div class="flex items-start justify-between gap-3">
-                                <div><p class="font-semibold">{{ session.title }}</p><p class="text-sm text-muted-foreground">{{ session.group }} · {{ session.branch }}</p></div>
+                                <div>
+                                    <p class="font-semibold">{{ session.title }}</p>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ session.group }} · {{ session.branch }}
+                                    </p>
+                                </div>
                                 <p class="text-sm font-medium">{{ formatDate(session.date) }}</p>
                             </div>
                             <p class="mt-2 text-xs text-muted-foreground">{{ session.time }}</p>
@@ -349,13 +421,29 @@ const scheduleHref = computed(() =>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <div><p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Honor pelatih</p><h2 class="mt-1 text-lg font-bold">Catatan pembayaran</h2></div>
-                        <Button as-child variant="ghost" size="sm"><Link :href="paymentsIndex.url()">Selengkapnya</Link></Button>
+                        <div>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Honor pelatih
+                            </p>
+                            <h2 class="mt-1 text-lg font-bold">Catatan pembayaran</h2>
+                        </div>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="paymentsIndex.url()">Selengkapnya</Link></Button
+                        >
                     </div>
                     <div v-if="props.paymentRows.length" class="space-y-3">
-                        <div v-for="row in props.paymentRows.slice(0, 4)" :key="String(row.id)" class="flex items-center justify-between gap-4 rounded-xl border p-4">
-                            <div><p class="font-semibold">{{ row.total || row.athlete || 'Honor' }}</p><p class="text-sm text-muted-foreground">Sisa: {{ row.remaining || '-' }}</p></div>
-                            <span class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{{ cellText(row.status) }}</span>
+                        <div
+                            v-for="row in props.paymentRows.slice(0, 4)"
+                            :key="String(row.id)"
+                            class="flex items-center justify-between gap-4 rounded-xl border p-4"
+                        >
+                            <div>
+                                <p class="font-semibold">{{ row.total || row.athlete || 'Honor' }}</p>
+                                <p class="text-sm text-muted-foreground">Sisa: {{ row.remaining || '-' }}</p>
+                            </div>
+                            <span class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{{
+                                cellText(row.status)
+                            }}</span>
                         </div>
                     </div>
                     <p v-else class="text-sm text-muted-foreground">Belum ada catatan honor untuk akun ini.</p>
@@ -366,39 +454,87 @@ const scheduleHref = computed(() =>
         <template v-else-if="props.role === 'parent'">
             <div class="grid gap-4 md:grid-cols-3">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:col-span-2">
-                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Latihan berikutnya</p>
-                    <div v-if="nextTraining" class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div><h2 class="text-xl font-bold">{{ nextTraining.title }}</h2><p class="mt-1 text-sm text-muted-foreground">{{ formatDate(nextTraining.date) }} · {{ nextTraining.time }} · {{ nextTraining.branch }}</p></div>
-                        <Button as-child variant="outline"><Link :href="trainingScheduleIndex.url()">Buka jadwal</Link></Button>
+                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Latihan berikutnya
+                    </p>
+                    <div
+                        v-if="nextTraining"
+                        class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            <h2 class="text-xl font-bold">{{ nextTraining.title }}</h2>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                {{ formatDate(nextTraining.date) }} · {{ nextTraining.time }} ·
+                                {{ nextTraining.branch }}
+                            </p>
+                        </div>
+                        <Button as-child variant="outline"
+                            ><Link :href="trainingScheduleIndex.url()">Buka jadwal</Link></Button
+                        >
                     </div>
-                    <p v-else class="mt-3 text-sm text-muted-foreground">Belum ada latihan mendatang untuk anak yang dipilih.</p>
+                    <p v-else class="mt-3 text-sm text-muted-foreground">
+                        Belum ada latihan mendatang untuk anak yang dipilih.
+                    </p>
                 </section>
                 <section class="rounded-xl border bg-card p-5 shadow-sm">
                     <ReceiptText class="size-5 text-primary" />
                     <p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p>
                     <p class="text-sm font-medium">Tagihan perlu perhatian</p>
-                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">Lihat pembayaran</Link>
+                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
+                        >Lihat pembayaran</Link
+                    >
                 </section>
             </div>
 
             <div class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-bold">Jadwal anak</h2><Button as-child variant="ghost" size="sm"><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button></div>
+                    <div class="mb-5 flex items-center justify-between gap-3">
+                        <h2 class="text-lg font-bold">Jadwal anak</h2>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button
+                        >
+                    </div>
                     <div v-if="upcomingTraining.length" class="space-y-3">
-                        <div v-for="session in upcomingTraining.slice(0, 5)" :key="session.id" class="flex gap-3 rounded-xl border p-4">
+                        <div
+                            v-for="session in upcomingTraining.slice(0, 5)"
+                            :key="session.id"
+                            class="flex gap-3 rounded-xl border p-4"
+                        >
                             <CalendarDays class="mt-0.5 size-5 shrink-0 text-primary" />
-                            <div class="min-w-0"><p class="font-semibold">{{ session.title }}</p><p class="text-sm text-muted-foreground">{{ formatDate(session.date) }} · {{ session.time }}</p><p class="text-xs text-muted-foreground">{{ session.branch }} · {{ session.group }}</p></div>
+                            <div class="min-w-0">
+                                <p class="font-semibold">{{ session.title }}</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ formatDate(session.date) }} · {{ session.time }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">{{ session.branch }} · {{ session.group }}</p>
+                            </div>
                         </div>
                     </div>
                     <p v-else class="text-sm text-muted-foreground">Belum ada jadwal yang tersedia.</p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-bold">Kehadiran terbaru</h2><Button as-child variant="ghost" size="sm"><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button></div>
+                    <div class="mb-5 flex items-center justify-between gap-3">
+                        <h2 class="text-lg font-bold">Kehadiran terbaru</h2>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button
+                        >
+                    </div>
                     <div v-if="recentAttendance.length" class="space-y-3">
-                        <div v-for="row in recentAttendance" :key="String(row.id)" class="flex items-center justify-between gap-3 rounded-xl border p-4">
-                            <div><p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p><p class="text-xs text-muted-foreground">Catatan kehadiran latihan</p></div>
-                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendanceClass(row)">{{ attendanceLabel(row) }}</span>
+                        <div
+                            v-for="row in recentAttendance"
+                            :key="String(row.id)"
+                            class="flex items-center justify-between gap-3 rounded-xl border p-4"
+                        >
+                            <div>
+                                <p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p>
+                                <p class="text-xs text-muted-foreground">Catatan kehadiran latihan</p>
+                            </div>
+                            <span
+                                class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                                :class="attendanceClass(row)"
+                                >{{ attendanceLabel(row) }}</span
+                            >
                         </div>
                     </div>
                     <p v-else class="text-sm text-muted-foreground">Belum ada riwayat kehadiran.</p>
@@ -411,51 +547,197 @@ const scheduleHref = computed(() =>
                 <section class="relative overflow-hidden rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="absolute -top-16 -right-16 size-48 rounded-full bg-primary/10"></div>
                     <div class="relative">
-                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Latihan berikutnya</p>
+                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Latihan berikutnya
+                        </p>
                         <div v-if="nextTraining" class="mt-4">
                             <h2 class="text-2xl font-bold">{{ nextTraining.title }}</h2>
                             <p class="mt-1 text-muted-foreground">{{ nextTraining.group }}</p>
                             <div class="mt-5 grid gap-3 sm:grid-cols-3">
-                                <div class="rounded-xl bg-muted/70 p-3"><p class="text-xs text-muted-foreground">Tanggal</p><p class="mt-1 font-semibold">{{ formatDate(nextTraining.date) }}</p></div>
-                                <div class="rounded-xl bg-muted/70 p-3"><p class="text-xs text-muted-foreground">Waktu</p><p class="mt-1 font-semibold">{{ nextTraining.time }}</p></div>
-                                <div class="rounded-xl bg-muted/70 p-3"><p class="text-xs text-muted-foreground">Lokasi</p><p class="mt-1 font-semibold">{{ nextTraining.branch }}</p></div>
+                                <div class="rounded-xl bg-muted/70 p-3">
+                                    <p class="text-xs text-muted-foreground">Tanggal</p>
+                                    <p class="mt-1 font-semibold">{{ formatDate(nextTraining.date) }}</p>
+                                </div>
+                                <div class="rounded-xl bg-muted/70 p-3">
+                                    <p class="text-xs text-muted-foreground">Waktu</p>
+                                    <p class="mt-1 font-semibold">{{ nextTraining.time }}</p>
+                                </div>
+                                <div class="rounded-xl bg-muted/70 p-3">
+                                    <p class="text-xs text-muted-foreground">Lokasi</p>
+                                    <p class="mt-1 font-semibold">{{ nextTraining.branch }}</p>
+                                </div>
                             </div>
-                            <Button as-child class="mt-5"><Link :href="attendanceIndex.url()">Buka absensi</Link></Button>
+                            <Button as-child class="mt-5"
+                                ><Link :href="attendanceIndex.url()">Buka absensi</Link></Button
+                            >
                         </div>
                         <p v-else class="mt-4 text-sm text-muted-foreground">Belum ada jadwal latihan mendatang.</p>
                     </div>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <div class="flex items-center gap-3"><div class="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary"><UserRound class="size-5" /></div><div><p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Profil latihan</p><h2 class="text-lg font-bold">Data saya</h2></div></div>
-                    <div v-if="profileRows.length" class="mt-5 divide-y">
-                        <div v-for="item in profileRows" :key="item.key" class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"><span class="text-sm text-muted-foreground">{{ item.label }}</span><strong class="text-sm">{{ item.value }}</strong></div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <UserRound class="size-5" />
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                Profil latihan
+                            </p>
+                            <h2 class="text-lg font-bold">Data saya</h2>
+                        </div>
                     </div>
-                    <Button as-child variant="outline" class="mt-5 w-full"><Link :href="achievementsIndex.url()"><Award class="mr-2 size-4" />Prestasi & sertifikat</Link></Button>
+                    <div v-if="profileRows.length" class="mt-5 divide-y">
+                        <div
+                            v-for="item in profileRows"
+                            :key="item.key"
+                            class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                        >
+                            <span class="text-sm text-muted-foreground">{{ item.label }}</span
+                            ><strong class="text-sm">{{ item.value }}</strong>
+                        </div>
+                    </div>
+                    <Button as-child variant="outline" class="mt-5 w-full"
+                        ><Link :href="achievementsIndex.url()"
+                            ><Award class="mr-2 size-4" />Prestasi & sertifikat</Link
+                        ></Button
+                    >
                 </section>
             </div>
 
             <div class="grid gap-4 md:grid-cols-3">
-                <section class="rounded-xl border bg-card p-5 shadow-sm"><CheckCircle2 class="size-5 text-emerald-600" /><p class="mt-3 text-2xl font-bold">{{ attendanceSummary.present }}</p><p class="text-sm font-medium">Kehadiran tercatat</p><Link :href="attendanceIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">Lihat riwayat</Link></section>
-                <section class="rounded-xl border bg-card p-5 shadow-sm"><WalletCards class="size-5 text-amber-600" /><p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p><p class="text-sm font-medium">Pembayaran perlu perhatian</p><Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">Buka pembayaran</Link></section>
-                <section class="rounded-xl border bg-card p-5 shadow-sm"><Trophy class="size-5 text-primary" /><p class="mt-3 text-2xl font-bold">{{ nextEvents.length }}</p><p class="text-sm font-medium">Event mendatang</p><Link :href="championshipsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">Lihat kejuaraan</Link></section>
+                <section class="rounded-xl border bg-card p-5 shadow-sm">
+                    <CheckCircle2 class="size-5 text-emerald-600" />
+                    <p class="mt-3 text-2xl font-bold">{{ attendanceSummary.present }}</p>
+                    <p class="text-sm font-medium">Kehadiran tercatat</p>
+                    <Link :href="attendanceIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
+                        >Lihat riwayat</Link
+                    >
+                </section>
+                <section class="rounded-xl border bg-card p-5 shadow-sm">
+                    <WalletCards class="size-5 text-amber-600" />
+                    <p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p>
+                    <p class="text-sm font-medium">Pembayaran perlu perhatian</p>
+                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
+                        >Buka pembayaran</Link
+                    >
+                </section>
+                <section class="rounded-xl border bg-card p-5 shadow-sm">
+                    <Trophy class="size-5 text-primary" />
+                    <p class="mt-3 text-2xl font-bold">{{ nextEvents.length }}</p>
+                    <p class="text-sm font-medium">Event mendatang</p>
+                    <Link :href="championshipsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
+                        >Lihat kejuaraan</Link
+                    >
+                </section>
             </div>
 
             <div class="grid gap-6 xl:grid-cols-2">
-                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6"><div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-bold">Jadwal latihan saya</h2><Button as-child variant="ghost" size="sm"><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button></div><div v-if="upcomingTraining.length" class="space-y-3"><div v-for="session in upcomingTraining.slice(0, 5)" :key="session.id" class="flex gap-3 rounded-xl border p-4"><CalendarDays class="mt-0.5 size-5 shrink-0 text-primary" /><div><p class="font-semibold">{{ session.title }}</p><p class="text-sm text-muted-foreground">{{ formatDate(session.date) }} · {{ session.time }}</p><p class="text-xs text-muted-foreground">{{ session.branch }} · {{ session.group }}</p></div></div></div><p v-else class="text-sm text-muted-foreground">Belum ada jadwal latihan.</p></section>
-                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6"><div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-bold">Absensi terakhir</h2><Button as-child variant="ghost" size="sm"><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button></div><div v-if="recentAttendance.length" class="space-y-3"><div v-for="row in recentAttendance" :key="String(row.id)" class="flex items-center justify-between gap-3 rounded-xl border p-4"><p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p><span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendanceClass(row)">{{ attendanceLabel(row) }}</span></div></div><p v-else class="text-sm text-muted-foreground">Belum ada riwayat absensi.</p></section>
+                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
+                    <div class="mb-5 flex items-center justify-between gap-3">
+                        <h2 class="text-lg font-bold">Jadwal latihan saya</h2>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button
+                        >
+                    </div>
+                    <div v-if="upcomingTraining.length" class="space-y-3">
+                        <div
+                            v-for="session in upcomingTraining.slice(0, 5)"
+                            :key="session.id"
+                            class="flex gap-3 rounded-xl border p-4"
+                        >
+                            <CalendarDays class="mt-0.5 size-5 shrink-0 text-primary" />
+                            <div>
+                                <p class="font-semibold">{{ session.title }}</p>
+                                <p class="text-sm text-muted-foreground">
+                                    {{ formatDate(session.date) }} · {{ session.time }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">{{ session.branch }} · {{ session.group }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-muted-foreground">Belum ada jadwal latihan.</p>
+                </section>
+                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
+                    <div class="mb-5 flex items-center justify-between gap-3">
+                        <h2 class="text-lg font-bold">Absensi terakhir</h2>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button
+                        >
+                    </div>
+                    <div v-if="recentAttendance.length" class="space-y-3">
+                        <div
+                            v-for="row in recentAttendance"
+                            :key="String(row.id)"
+                            class="flex items-center justify-between gap-3 rounded-xl border p-4"
+                        >
+                            <p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p>
+                            <span
+                                class="rounded-full px-2.5 py-1 text-xs font-semibold"
+                                :class="attendanceClass(row)"
+                                >{{ attendanceLabel(row) }}</span
+                            >
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-muted-foreground">Belum ada riwayat absensi.</p>
+                </section>
             </div>
         </template>
 
         <div class="grid gap-6 xl:grid-cols-2">
             <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                <div class="mb-5 flex items-center justify-between gap-3"><div><p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Informasi terbaru</p><h2 class="mt-1 text-lg font-bold">Pengumuman</h2></div><Button as-child variant="ghost" size="sm"><Link :href="announcementsIndex.url()">Semua</Link></Button></div>
-                <div v-if="latestAnnouncements.length" class="space-y-4"><div v-for="row in latestAnnouncements" :key="String(row.id)" class="flex gap-3"><div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><Megaphone class="size-4" /></div><div class="min-w-0"><p class="font-semibold">{{ row.title }}</p><p class="mt-1 line-clamp-2 text-sm text-muted-foreground">{{ row.message }}</p><p class="mt-1 text-xs text-muted-foreground">{{ row.published }}</p></div></div></div><p v-else class="text-sm text-muted-foreground">Belum ada pengumuman aktif.</p>
+                <div class="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            Informasi terbaru
+                        </p>
+                        <h2 class="mt-1 text-lg font-bold">Pengumuman</h2>
+                    </div>
+                    <Button as-child variant="ghost" size="sm"
+                        ><Link :href="announcementsIndex.url()">Semua</Link></Button
+                    >
+                </div>
+                <div v-if="latestAnnouncements.length" class="space-y-4">
+                    <div v-for="row in latestAnnouncements" :key="String(row.id)" class="flex gap-3">
+                        <div
+                            class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+                        >
+                            <Megaphone class="size-4" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-semibold">{{ row.title }}</p>
+                            <p class="mt-1 line-clamp-2 text-sm text-muted-foreground">{{ row.message }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ row.published }}</p>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">Belum ada pengumuman aktif.</p>
             </section>
 
             <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                <div class="mb-5 flex items-center justify-between gap-3"><div><p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda klub</p><h2 class="mt-1 text-lg font-bold">Kejuaraan & UKT</h2></div><Button as-child variant="ghost" size="sm"><Link :href="championshipsIndex.url()">Semua</Link></Button></div>
-                <div v-if="nextEvents.length" class="space-y-4"><div v-for="row in nextEvents" :key="String(row.id)" class="flex gap-3"><div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300"><Trophy class="size-4" /></div><div class="min-w-0"><p class="font-semibold">{{ row.event }}</p><p class="mt-1 text-sm text-muted-foreground">{{ row.date }} · {{ row.location }}</p></div></div></div><p v-else class="text-sm text-muted-foreground">Belum ada event mendatang.</p>
+                <div class="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda klub</p>
+                        <h2 class="mt-1 text-lg font-bold">Kejuaraan & UKT</h2>
+                    </div>
+                    <Button as-child variant="ghost" size="sm"
+                        ><Link :href="championshipsIndex.url()">Semua</Link></Button
+                    >
+                </div>
+                <div v-if="nextEvents.length" class="space-y-4">
+                    <div v-for="row in nextEvents" :key="String(row.id)" class="flex gap-3">
+                        <div
+                            class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        >
+                            <Trophy class="size-4" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-semibold">{{ row.event }}</p>
+                            <p class="mt-1 text-sm text-muted-foreground">{{ row.date }} · {{ row.location }}</p>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-sm text-muted-foreground">Belum ada event mendatang.</p>
             </section>
         </div>
     </div>

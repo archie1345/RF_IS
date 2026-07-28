@@ -7,7 +7,7 @@ import { index as adminIndex } from '@/routes/admin';
 import type { BreadcrumbItem } from '@/types';
 import type { AdminAccountRow } from '@/types/admin';
 
-const { users} = defineProps<{
+const { users } = defineProps<{
     users: AdminAccountRow[];
     debugbar?: {
         enabled: boolean;

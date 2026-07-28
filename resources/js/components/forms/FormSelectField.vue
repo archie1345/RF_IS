@@ -151,7 +151,7 @@ function removeValue(value: string | number): void {
             :disabled="props.disabled"
             :aria-invalid="Boolean(props.error)"
             :aria-expanded="open"
-            class="flex min-h-11 min-w-0 w-full items-center justify-between gap-2 rounded-xl border bg-background px-3 py-2 text-left text-sm shadow-sm transition focus:ring-2 focus:ring-ring/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            class="flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl border bg-background px-3 py-2 text-left text-sm shadow-sm transition focus:ring-2 focus:ring-ring/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             :class="props.error ? 'border-destructive ring-2 ring-destructive/15' : 'border-input hover:border-ring/60'"
             @click="toggleDropdown"
         >
@@ -201,7 +201,11 @@ function removeValue(value: string | number): void {
                 >
                     <span
                         class="flex size-5 shrink-0 items-center justify-center rounded-md border"
-                        :class="optionSelected(option.value) ? 'border-primary bg-primary text-primary-foreground' : 'border-input'"
+                        :class="
+                            optionSelected(option.value)
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-input'
+                        "
                     >
                         <Check v-if="optionSelected(option.value)" class="size-3" />
                     </span>
@@ -219,7 +223,7 @@ function removeValue(value: string | number): void {
             </div>
         </div>
 
-        <p v-if="props.help && !props.error" class="break-words text-xs leading-5 text-muted-foreground">
+        <p v-if="props.help && !props.error" class="text-xs leading-5 break-words text-muted-foreground">
             {{ props.help }}
         </p>
         <InputError :message="props.error" />

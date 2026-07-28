@@ -152,13 +152,13 @@ const isOneDayClass = computed(() => form.schedule_mode === 'one_day');
 const classCanBeActive = computed(() =>
     Boolean(
         form.name.trim() &&
-            form.class_type &&
-            (isPrivateClass.value ? form.dedicated_athlete_ids.length > 0 : form.training_group_id) &&
-            form.branch_id &&
-            form.start_time &&
-            form.end_time &&
-            (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
-            (!isPrivateClass.value || form.coach_ids.length > 0),
+        form.class_type &&
+        (isPrivateClass.value ? form.dedicated_athlete_ids.length > 0 : form.training_group_id) &&
+        form.branch_id &&
+        form.start_time &&
+        form.end_time &&
+        (isOneDayClass.value ? form.single_session_date : form.day_of_week) &&
+        (!isPrivateClass.value || form.coach_ids.length > 0),
     ),
 );
 
@@ -176,7 +176,7 @@ const activationHint = computed(() => {
 
 const classTableRows = computed<TableRow[]>(() =>
     props.classes.map((item) => {
-        const minBeltLabel : Record<string,string> = {
+        const minBeltLabel: Record<string, string> = {
             GEUP_1: 'Geup 1',
             GEUP_2: 'Geup 2',
             GEUP_3: 'Geup 3',
@@ -188,9 +188,9 @@ const classTableRows = computed<TableRow[]>(() =>
             GEUP_9: 'Geup 9',
             GEUP_10: 'Geup 10',
             DAN: 'Dan',
-        }
+        };
         const typeLabel = classTypeLabel(item.class_type);
-        const minBelt = minBeltLabel[item.min_belt ?? '']??'-';
+        const minBelt = minBeltLabel[item.min_belt ?? ''] ?? '-';
         const privateAthlete = privateAthleteLabel(item);
         const classMeta =
             normalizeClassType(item.class_type) === 'private'
@@ -211,9 +211,7 @@ const classTableRows = computed<TableRow[]>(() =>
             class_meta: classMeta,
             class_type_label: typeLabel,
             category:
-                normalizeClassType(item.class_type) === 'private'
-                    ? '-'
-                    : item.training_group || 'Belum ada kategori',
+                normalizeClassType(item.class_type) === 'private' ? '-' : item.training_group || 'Belum ada kategori',
             private_athlete: privateAthlete,
             branch: item.branch || '-',
             coach: coachNames.join(', ') || 'Belum ada pelatih',
@@ -373,7 +371,8 @@ function editClass(item: ClassRecord) {
     form.clearErrors();
     form.name = item.name;
     form.class_type = classType;
-    form.training_group_id = classType === 'private' ? '' : item.training_group_id ? String(item.training_group_id) : '';
+    form.training_group_id =
+        classType === 'private' ? '' : item.training_group_id ? String(item.training_group_id) : '';
     form.dedicated_athlete_ids =
         classType === 'private' ? (item.dedicated_athlete_ids ?? []).map((id) => String(id)) : [];
     form.coach_ids = (item.coach_ids ?? (item.coach_id ? [item.coach_id] : [])).map((id) => String(id));
@@ -483,7 +482,10 @@ watch(
                             <UserRoundCheck class="size-3.5" />
                             {{ coachName }}
                         </span>
-                        <span v-if="!Array.isArray(row.coach_names) || row.coach_names.length === 0" class="text-muted-foreground">
+                        <span
+                            v-if="!Array.isArray(row.coach_names) || row.coach_names.length === 0"
+                            class="text-muted-foreground"
+                        >
                             Belum ada pelatih
                         </span>
                     </div>
@@ -493,20 +495,31 @@ watch(
                         </span>
                         <span class="text-xs text-muted-foreground">{{ row.schedule_time }}</span>
                     </div>
-                    <span v-else-if="column.key === 'participants'" class="inline-flex items-center gap-1 font-bold text-foreground">
+                    <span
+                        v-else-if="column.key === 'participants'"
+                        class="inline-flex items-center gap-1 font-bold text-foreground"
+                    >
                         <Users class="size-3.5" /> {{ value }}
                     </span>
                     <span
                         v-else-if="column.key === 'weekly_schedule_status'"
                         class="inline-flex rounded-full px-3 py-1 text-xs font-black"
-                        :class="String(value).toLowerCase().includes('active') ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'"
+                        :class="
+                            String(value).toLowerCase().includes('active')
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-muted text-muted-foreground'
+                        "
                     >
                         {{ value }}
                     </span>
                     <span
                         v-else-if="column.key === 'status'"
                         class="inline-flex rounded-full px-3 py-1 text-xs font-black"
-                        :class="row.status_tone === 'success' ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'"
+                        :class="
+                            row.status_tone === 'success'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-muted text-muted-foreground'
+                        "
                     >
                         {{ value }}
                     </span>
@@ -515,7 +528,13 @@ watch(
 
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" title="Lihat sesi kelas" @click="openClassSessionsFromRow(row)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            title="Lihat sesi kelas"
+                            @click="openClassSessionsFromRow(row)"
+                        >
                             <Eye class="size-4" />
                         </Button>
                         <Button
@@ -607,7 +626,8 @@ watch(
                                 <div class="min-w-0">
                                     <h3 class="font-bold text-foreground">Pelatih Kelas</h3>
                                     <p class="text-xs leading-5 text-muted-foreground">
-                                        Pilih satu atau beberapa pelatih. Semua pelatih terpilih akan melihat dan menangani sesi yang dibuat dari kelas ini.
+                                        Pilih satu atau beberapa pelatih. Semua pelatih terpilih akan melihat dan
+                                        menangani sesi yang dibuat dari kelas ini.
                                     </p>
                                 </div>
                             </div>
@@ -721,7 +741,10 @@ watch(
                                 />
                                 Aktif
                             </span>
-                            <span class="text-xs" :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'">
+                            <span
+                                class="text-xs"
+                                :class="classCanBeActive ? 'text-green-600' : 'text-muted-foreground'"
+                            >
                                 {{ activationHint }}
                             </span>
                         </label>
@@ -742,7 +765,11 @@ watch(
                         <p class="text-xs font-black tracking-wide text-red-500 uppercase">Daftar Atlet</p>
                         <h2 class="text-2xl font-black">{{ selectedClass.name }}</h2>
                         <p class="text-sm text-muted-foreground">
-                            {{ normalizeClassType(selectedClass.class_type) === 'private' ? 'Atlet private' : `Kategori: ${selectedClass.training_group || 'Belum ada kategori'}` }}
+                            {{
+                                normalizeClassType(selectedClass.class_type) === 'private'
+                                    ? 'Atlet private'
+                                    : `Kategori: ${selectedClass.training_group || 'Belum ada kategori'}`
+                            }}
                         </p>
                         <p class="mt-1 text-sm text-muted-foreground">
                             Pelatih: {{ selectedClass.coach || 'Belum ada pelatih' }}

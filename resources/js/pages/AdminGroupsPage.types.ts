@@ -1,4 +1,3 @@
-
 export type TrainingGroupRecord = {
     id: number;
     name: string;

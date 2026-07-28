@@ -4,7 +4,13 @@ import { KeyRound, LayoutDashboard, Palette, ShieldCheck, UserRound } from 'luci
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 
 const navigation = [
-    { title: 'Ringkasan', description: 'Status akun dan pintasan', href: '/settings', icon: LayoutDashboard, exact: true },
+    {
+        title: 'Ringkasan',
+        description: 'Status akun dan pintasan',
+        href: '/settings',
+        icon: LayoutDashboard,
+        exact: true,
+    },
     { title: 'Profil', description: 'Identitas dan dokumen', href: '/settings/profile', icon: UserRound },
     { title: 'Kata sandi', description: 'Perbarui kredensial', href: '/settings/password', icon: KeyRound },
     { title: 'Dua faktor', description: 'Keamanan login', href: '/settings/two-factor', icon: ShieldCheck },
@@ -41,13 +47,19 @@ function active(item: (typeof navigation)[number]): boolean {
                         :key="item.href"
                         :href="item.href"
                         class="group min-w-[10.5rem] rounded-xl border p-3 transition xl:min-w-0"
-                        :class="active(item) ? 'border-primary/40 bg-primary/10 text-primary shadow-sm' : 'border-border bg-card hover:border-primary/30 hover:bg-muted/40'"
+                        :class="
+                            active(item)
+                                ? 'border-primary/40 bg-primary/10 text-primary shadow-sm'
+                                : 'border-border bg-card hover:border-primary/30 hover:bg-muted/40'
+                        "
                     >
                         <div class="flex items-start gap-3">
                             <component :is="item.icon" class="mt-0.5 size-4 shrink-0" />
                             <div class="min-w-0">
                                 <p class="text-sm font-semibold">{{ item.title }}</p>
-                                <p class="mt-0.5 hidden text-xs text-muted-foreground xl:block">{{ item.description }}</p>
+                                <p class="mt-0.5 hidden text-xs text-muted-foreground xl:block">
+                                    {{ item.description }}
+                                </p>
                             </div>
                         </div>
                     </Link>

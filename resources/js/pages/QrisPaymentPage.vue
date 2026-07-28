@@ -73,9 +73,7 @@ function saveQrisSettings(): void {
             >
                 <template #actions>
                     <Button as-child type="button" variant="outline">
-                        <Link :href="paymentsIndex.url()">
-                            <ArrowLeft class="mr-2 size-4" /> Kembali ke keuangan
-                        </Link>
+                        <Link :href="paymentsIndex.url()"> <ArrowLeft class="mr-2 size-4" /> Kembali ke keuangan </Link>
                     </Button>
                 </template>
 
@@ -90,7 +88,8 @@ function saveQrisSettings(): void {
                     v-if="!props.qris.enabled"
                     class="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground"
                 >
-                    Kanal QRIS sedang dinonaktifkan oleh admin. Gunakan metode pembayaran lain yang tercantum pada tagihan.
+                    Kanal QRIS sedang dinonaktifkan oleh admin. Gunakan metode pembayaran lain yang tercantum pada
+                    tagihan.
                 </div>
             </PageSection>
 
@@ -119,7 +118,7 @@ function saveQrisSettings(): void {
                             </p>
                         </div>
                         <div class="text-left md:text-right">
-                            <p class="text-xs uppercase tracking-wide text-muted-foreground">Sisa pembayaran</p>
+                            <p class="text-xs tracking-wide text-muted-foreground uppercase">Sisa pembayaran</p>
                             <p class="font-semibold">{{ payment.balance }}</p>
                         </div>
                     </article>

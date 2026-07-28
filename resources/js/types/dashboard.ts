@@ -10,4 +10,3 @@ export type DashboardPageProps = {
     medalRows: TableRow[];
     profileSummary: Record<string, string>;
 };
-

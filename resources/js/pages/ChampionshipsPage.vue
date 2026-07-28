@@ -337,10 +337,22 @@ onMounted(() => {
                         <Button v-if="championshipUrl(row)" as-child type="button" size="sm" variant="outline">
                             <Link :href="championshipUrl(row) ?? '#'">Detail</Link>
                         </Button>
-                        <Button v-if="props.isAdmin" type="button" size="sm" variant="outline" @click="openEditEvent(row)">
+                        <Button
+                            v-if="props.isAdmin"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="openEditEvent(row)"
+                        >
                             Ubah
                         </Button>
-                        <Button v-if="props.isAdmin" type="button" size="sm" variant="destructive" @click="removeEvent(row)">
+                        <Button
+                            v-if="props.isAdmin"
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            @click="removeEvent(row)"
+                        >
                             Hapus
                         </Button>
                     </ActionButtonsRow>
@@ -540,7 +552,10 @@ onMounted(() => {
                 title="Tagihan pendaftaran tersedia"
                 description="Buka halaman pembayaran untuk melihat petunjuk dan mengunggah bukti pembayaran."
             >
-                <div v-if="props.pendingPayments.length > 0" class="grid gap-2 rounded-xl border bg-muted/30 p-4 text-sm">
+                <div
+                    v-if="props.pendingPayments.length > 0"
+                    class="grid gap-2 rounded-xl border bg-muted/30 p-4 text-sm"
+                >
                     <p><span class="font-medium">Atlet:</span> {{ props.pendingPayments[0].athlete }}</p>
                     <p>
                         <span class="font-medium">Jumlah:</span>

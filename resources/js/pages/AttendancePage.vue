@@ -93,17 +93,23 @@ watch(
 );
 
 function modeLabel(mode: AppRole): string {
-    return ({ admin: 'Admin', coach: 'Pelatih', parent: 'Orang tua', athlete: 'Atlet' } as Record<AppRole, string>)[mode];
+    return ({ admin: 'Admin', coach: 'Pelatih', parent: 'Orang tua', athlete: 'Atlet' } as Record<AppRole, string>)[
+        mode
+    ];
 }
 
 function switchAttendanceMode(mode: AppRole): void {
     if (mode === props.role) return;
 
-    router.get(attendanceIndex.url(), { mode }, {
-        preserveScroll: true,
-        preserveState: false,
-        replace: true,
-    });
+    router.get(
+        attendanceIndex.url(),
+        { mode },
+        {
+            preserveScroll: true,
+            preserveState: false,
+            replace: true,
+        },
+    );
 }
 
 function rowStatusText(row: AttendanceRow | TableRow): string {
@@ -132,12 +138,14 @@ function csrfHeaders(): HeadersInit {
 }
 
 function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell {
-    return ({
-        PRESENT: { kind: 'badge', text: 'Hadir', tone: 'success' },
-        ABSENT: { kind: 'badge', text: 'Tidak hadir', tone: 'danger' },
-        EXCUSED: { kind: 'badge', text: 'Izin', tone: 'warning' },
-        LATE: { kind: 'badge', text: 'Terlambat', tone: 'warning' },
-    } as Record<AttendanceStatusValue, TableBadgeCell>)[status];
+    return (
+        {
+            PRESENT: { kind: 'badge', text: 'Hadir', tone: 'success' },
+            ABSENT: { kind: 'badge', text: 'Tidak hadir', tone: 'danger' },
+            EXCUSED: { kind: 'badge', text: 'Izin', tone: 'warning' },
+            LATE: { kind: 'badge', text: 'Terlambat', tone: 'warning' },
+        } as Record<AttendanceStatusValue, TableBadgeCell>
+    )[status];
 }
 
 function isAttendancePending(rowId: string): boolean {
@@ -156,9 +164,7 @@ function replaceAttendanceRow(rowId: string, row: TableRow): void {
 
 function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue): void {
     attendanceRows.value = attendanceRows.value.map((row) =>
-        String(row.id) === rowId
-            ? { ...row, status_value: status, status: fallbackAttendanceStatus(status) }
-            : row,
+        String(row.id) === rowId ? { ...row, status_value: status, status: fallbackAttendanceStatus(status) } : row,
     );
 }
 
@@ -205,18 +211,22 @@ function attendCoachSession(row: TableRow): void {
 
     pendingCoachSessionIds.value = [...pendingCoachSessionIds.value, sessionId];
 
-    router.post(coachAttend.url(sessionId), {}, {
-        preserveScroll: true,
-        onError: (errors) => {
-            void popup.error(
-                'Attendance pelatih gagal',
-                String(errors.session ?? 'Attendance pelatih gagal disimpan.'),
-            );
+    router.post(
+        coachAttend.url(sessionId),
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                void popup.error(
+                    'Attendance pelatih gagal',
+                    String(errors.session ?? 'Attendance pelatih gagal disimpan.'),
+                );
+            },
+            onFinish: () => {
+                pendingCoachSessionIds.value = pendingCoachSessionIds.value.filter((id) => id !== sessionId);
+            },
         },
-        onFinish: () => {
-            pendingCoachSessionIds.value = pendingCoachSessionIds.value.filter((id) => id !== sessionId);
-        },
-    });
+    );
 }
 
 function submitSession(): void {
@@ -296,16 +306,19 @@ function submitSession(): void {
             <PageSection
                 v-if="isAthlete || isParent"
                 :title="isParent ? 'Scan QR untuk anak' : 'Scan QR attendance'"
-                :description="isParent
-                    ? 'Orang tua tetap wajib memindai QR pelatih. Setelah QR terbuka, pilih anak yang terhubung dan konfirmasi check-in.'
-                    : 'Attendance atlet hanya dapat dilakukan melalui QR sesi yang dibuka oleh pelatih atau admin.'"
+                :description="
+                    isParent
+                        ? 'Orang tua tetap wajib memindai QR pelatih. Setelah QR terbuka, pilih anak yang terhubung dan konfirmasi check-in.'
+                        : 'Attendance atlet hanya dapat dilakukan melalui QR sesi yang dibuka oleh pelatih atau admin.'
+                "
             >
                 <div class="mb-4 flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
                     <ShieldCheck class="mt-0.5 size-5 shrink-0 text-emerald-600" />
                     <div>
                         <p class="font-medium">QR wajib digunakan</p>
                         <p class="mt-1 text-sm leading-6 text-muted-foreground">
-                            Tidak tersedia tombol hadir manual untuk atlet maupun orang tua. Koreksi manual hanya dapat dilakukan oleh admin atau pelatih yang berwenang.
+                            Tidak tersedia tombol hadir manual untuk atlet maupun orang tua. Koreksi manual hanya dapat
+                            dilakukan oleh admin atau pelatih yang berwenang.
                         </p>
                     </div>
                 </div>
@@ -320,10 +333,16 @@ function submitSession(): void {
 
                     <DataTable
                         :title="isParent ? 'Riwayat attendance anak' : 'Riwayat attendance atlet'"
-                        :description="isParent ? 'Semua anak yang terhubung ditampilkan bersama dan bersifat hanya-baca.' : 'Riwayat ini berasal dari QR scan atau koreksi petugas.'"
+                        :description="
+                            isParent
+                                ? 'Semua anak yang terhubung ditampilkan bersama dan bersifat hanya-baca.'
+                                : 'Riwayat ini berasal dari QR scan atau koreksi petugas.'
+                        "
                         :columns="attendanceColumns"
                         :rows="attendanceRows"
-                        :empty-text="isParent ? 'Belum ada riwayat attendance anak.' : 'Belum ada riwayat attendance atlet.'"
+                        :empty-text="
+                            isParent ? 'Belum ada riwayat attendance anak.' : 'Belum ada riwayat attendance atlet.'
+                        "
                         searchable
                         search-placeholder="Cari atlet, sesi, atau pelatih..."
                         action-label="Metode"
@@ -354,9 +373,30 @@ function submitSession(): void {
                     <template #row-actions="{ row }">
                         <span v-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">Hanya lihat</span>
                         <ActionButtonsRow v-else>
-                            <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Present' || isAttendancePending(String(row.id))" @click="setAttendanceStatus(String(row.id), 'PRESENT')">Hadir</Button>
-                            <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Absent' || isAttendancePending(String(row.id))" @click="setAttendanceStatus(String(row.id), 'ABSENT')">Tidak hadir</Button>
-                            <Button type="button" size="sm" variant="outline" :disabled="rowStatusText(row) === 'Excused' || isAttendancePending(String(row.id))" @click="setAttendanceStatus(String(row.id), 'EXCUSED')">Izin</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="rowStatusText(row) === 'Present' || isAttendancePending(String(row.id))"
+                                @click="setAttendanceStatus(String(row.id), 'PRESENT')"
+                                >Hadir</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="rowStatusText(row) === 'Absent' || isAttendancePending(String(row.id))"
+                                @click="setAttendanceStatus(String(row.id), 'ABSENT')"
+                                >Tidak hadir</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="rowStatusText(row) === 'Excused' || isAttendancePending(String(row.id))"
+                                @click="setAttendanceStatus(String(row.id), 'EXCUSED')"
+                                >Izin</Button
+                            >
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
@@ -364,16 +404,61 @@ function submitSession(): void {
         </div>
 
         <FormModal :open="showSessionForm && isAdmin" max-width-class="max-w-2xl" @close="showSessionForm = false">
-            <PageSection title="Buat sesi attendance" description="Buat sesi latihan lalu lanjutkan ke halaman sesi untuk membuka QR dan mengelola attendance.">
+            <PageSection
+                title="Buat sesi attendance"
+                description="Buat sesi latihan lalu lanjutkan ke halaman sesi untuk membuka QR dan mengelola attendance."
+            >
                 <form class="grid gap-4" @submit.prevent="submitSession">
-                    <FormInputField id="session-name" v-model="sessionForm.title" label="Nama sesi" placeholder="Latihan sore" :error="sessionForm.errors.title" />
-                    <FormSelectField id="session-branch" v-model="sessionForm.branch_id" label="Cabang" :options="props.branches" :error="sessionForm.errors.branch_id" />
-                    <FormSelectField id="session-group" v-model="sessionForm.group_id" label="Kelas" :options="props.groups" placeholder="Semua kelas" :error="sessionForm.errors.group_id" />
-                    <FormInputField id="session-location" v-model="sessionForm.location" label="Lokasi" :error="sessionForm.errors.location" />
+                    <FormInputField
+                        id="session-name"
+                        v-model="sessionForm.title"
+                        label="Nama sesi"
+                        placeholder="Latihan sore"
+                        :error="sessionForm.errors.title"
+                    />
+                    <FormSelectField
+                        id="session-branch"
+                        v-model="sessionForm.branch_id"
+                        label="Cabang"
+                        :options="props.branches"
+                        :error="sessionForm.errors.branch_id"
+                    />
+                    <FormSelectField
+                        id="session-group"
+                        v-model="sessionForm.group_id"
+                        label="Kelas"
+                        :options="props.groups"
+                        placeholder="Semua kelas"
+                        :error="sessionForm.errors.group_id"
+                    />
+                    <FormInputField
+                        id="session-location"
+                        v-model="sessionForm.location"
+                        label="Lokasi"
+                        :error="sessionForm.errors.location"
+                    />
                     <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="sessionForm.session_date" label="Tanggal" type="date" :error="sessionForm.errors.session_date" />
-                        <FormInputField id="session-start" v-model="sessionForm.start_time" label="Mulai" type="time" :error="sessionForm.errors.start_time" />
-                        <FormInputField id="session-end" v-model="sessionForm.end_time" label="Selesai" type="time" :error="sessionForm.errors.end_time" />
+                        <FormInputField
+                            id="session-date"
+                            v-model="sessionForm.session_date"
+                            label="Tanggal"
+                            type="date"
+                            :error="sessionForm.errors.session_date"
+                        />
+                        <FormInputField
+                            id="session-start"
+                            v-model="sessionForm.start_time"
+                            label="Mulai"
+                            type="time"
+                            :error="sessionForm.errors.start_time"
+                        />
+                        <FormInputField
+                            id="session-end"
+                            v-model="sessionForm.end_time"
+                            label="Selesai"
+                            type="time"
+                            :error="sessionForm.errors.end_time"
+                        />
                     </div>
                     <FormSelectField
                         id="session-status"
@@ -389,7 +474,9 @@ function submitSession(): void {
                     />
                     <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <Button type="button" variant="outline" @click="showSessionForm = false">Batal</Button>
-                        <Button type="submit" :disabled="sessionForm.processing">{{ sessionForm.processing ? 'Menyimpan...' : 'Buat sesi' }}</Button>
+                        <Button type="submit" :disabled="sessionForm.processing">{{
+                            sessionForm.processing ? 'Menyimpan...' : 'Buat sesi'
+                        }}</Button>
                     </div>
                 </form>
             </PageSection>

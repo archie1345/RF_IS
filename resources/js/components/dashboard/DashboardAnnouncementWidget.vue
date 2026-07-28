@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button';
 import { index as announcementsIndex } from '@/routes/announcements';
 import type { TableRow } from '@/types/resource-table';
 
-const props = withDefaults(defineProps<{
-    announcements?: TableRow[];
-}>(), {
-    announcements: () => [],
-});
+const props = withDefaults(
+    defineProps<{
+        announcements?: TableRow[];
+    }>(),
+    {
+        announcements: () => [],
+    },
+);
 </script>
 
 <template>
@@ -21,7 +24,9 @@ const props = withDefaults(defineProps<{
                     <Megaphone class="size-4" />
                 </div>
                 <div class="min-w-0">
-                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Informasi terbaru</p>
+                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        Informasi terbaru
+                    </p>
                     <h2 class="truncate font-bold">Pengumuman</h2>
                 </div>
             </div>

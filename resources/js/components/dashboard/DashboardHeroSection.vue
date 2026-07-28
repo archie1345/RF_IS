@@ -26,7 +26,7 @@ const props = withDefaults(
 
 const page = usePage<{ auth: Auth }>();
 const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'Pengguna');
-const dashboardRoles = computed<AppRole[]>(() => props.roles.length > 0 ? props.roles : [props.role]);
+const dashboardRoles = computed<AppRole[]>(() => (props.roles.length > 0 ? props.roles : [props.role]));
 const isMultiRole = computed(() => dashboardRoles.value.length > 1);
 
 const roleLabels: Record<AppRole, string> = {
@@ -88,7 +88,9 @@ const quickActions = computed(() => {
         );
     }
 
-    return actions.filter((action, index, all) => all.findIndex((candidate) => candidate.href === action.href) === index).slice(0, 6);
+    return actions
+        .filter((action, index, all) => all.findIndex((candidate) => candidate.href === action.href) === index)
+        .slice(0, 6);
 });
 </script>
 

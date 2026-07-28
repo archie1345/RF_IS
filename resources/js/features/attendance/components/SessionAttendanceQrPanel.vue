@@ -73,7 +73,8 @@ async function closeQr(): Promise<void> {
 
     const confirmed = await popup.confirm({
         title: 'Tutup QR attendance?',
-        message: 'Kode ini langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
+        message:
+            'Kode ini langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
         tone: 'danger',
         confirmLabel: 'Tutup QR',
     });
@@ -108,7 +109,11 @@ async function copyScanUrl(): Promise<void> {
             <div class="flex min-w-0 items-start gap-3">
                 <div
                     class="flex size-11 shrink-0 items-center justify-center rounded-xl"
-                    :class="props.qr.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-muted text-muted-foreground'"
+                    :class="
+                        props.qr.is_active
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-muted text-muted-foreground'
+                    "
                 >
                     <QrCode class="size-6" />
                 </div>
@@ -117,7 +122,11 @@ async function copyScanUrl(): Promise<void> {
                         <h2 class="font-semibold">QR attendance atlet</h2>
                         <span
                             class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                            :class="props.qr.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-muted text-muted-foreground'"
+                            :class="
+                                props.qr.is_active
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-muted text-muted-foreground'
+                            "
                         >
                             {{ props.qr.is_active ? 'Terbuka' : 'Tertutup' }}
                         </span>
@@ -178,7 +187,8 @@ async function copyScanUrl(): Promise<void> {
                         <div>
                             <p class="font-medium">Pemindaian tetap wajib</p>
                             <p class="mt-1 text-sm leading-6 text-muted-foreground">
-                                Atlet atau orang tua harus membuka tautan dari QR ini menggunakan ponsel. Orang tua kemudian memilih anak yang terhubung sebelum check-in disimpan.
+                                Atlet atau orang tua harus membuka tautan dari QR ini menggunakan ponsel. Orang tua
+                                kemudian memilih anak yang terhubung sebelum check-in disimpan.
                             </p>
                         </div>
                     </div>

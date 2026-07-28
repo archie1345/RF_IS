@@ -13,7 +13,14 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { AttendanceReportPeriod } from '@/types/admin-feature';
-import type { SelectOption, StatusTone, TableBadgeCell, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type {
+    SelectOption,
+    StatusTone,
+    TableBadgeCell,
+    TableColumn,
+    TableFilter,
+    TableRow,
+} from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -51,11 +58,20 @@ const manualCoachForm = useForm({ coach_id: '', training_session_id: '', status:
 const isCoachReport = computed(() => props.mode === 'instructor-attendance');
 const reportColumns = computed<TableColumn[]>(() => props.columns.map((column) => ({ key: column, label: column })));
 const reportRows = computed<TableRow[]>(() =>
-    props.rows.map((row, index) => ({ id: String(row.No ?? row.ID ?? row.Id ?? row.Coach ?? row.Atlet ?? index), ...row })),
+    props.rows.map((row, index) => ({
+        id: String(row.No ?? row.ID ?? row.Id ?? row.Coach ?? row.Atlet ?? index),
+        ...row,
+    })),
 );
-const totalCoachRecords = computed(() => reportRows.value.reduce((total, row) => total + Number(row['Total Catatan'] ?? 0), 0));
-const totalTeachingRecords = computed(() => reportRows.value.reduce((total, row) => total + Number(row.Mengajar ?? 0), 0));
-const coachTeachingRate = computed(() => totalCoachRecords.value > 0 ? Math.round((totalTeachingRecords.value / totalCoachRecords.value) * 100) : 0);
+const totalCoachRecords = computed(() =>
+    reportRows.value.reduce((total, row) => total + Number(row['Total Catatan'] ?? 0), 0),
+);
+const totalTeachingRecords = computed(() =>
+    reportRows.value.reduce((total, row) => total + Number(row.Mengajar ?? 0), 0),
+);
+const coachTeachingRate = computed(() =>
+    totalCoachRecords.value > 0 ? Math.round((totalTeachingRecords.value / totalCoachRecords.value) * 100) : 0,
+);
 
 const exportUrl = computed(() => {
     const url = new URL(props.period.exportUrl, window.location.origin);
@@ -64,13 +80,19 @@ const exportUrl = computed(() => {
     if (attendanceMonth.value) url.searchParams.set('month', attendanceMonth.value);
     return `${url.pathname}?${url.searchParams.toString()}`;
 });
-const usesClassFilter = computed(() =>
-    props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)),
+const usesClassFilter = computed(
+    () => props.mode !== 'instructor-attendance' && props.columns.some((column) => ['Kelas', 'Class'].includes(column)),
 );
 const reportFilters = computed<TableFilter[]>(() => {
     const filters: TableFilter[] = [];
     if (usesClassFilter.value) {
-        filters.push({ key: 'class', label: 'Kelas', type: 'select', placeholder: 'Semua kelas', accessor: (row) => String(row.Kelas ?? row.Class ?? '') });
+        filters.push({
+            key: 'class',
+            label: 'Kelas',
+            type: 'select',
+            placeholder: 'Semua kelas',
+            accessor: (row) => String(row.Kelas ?? row.Class ?? ''),
+        });
     }
     if (isCoachReport.value) {
         filters.push({ key: 'coach', label: 'Coach', type: 'select', columnKey: 'Coach', placeholder: 'Semua coach' });
@@ -157,31 +179,105 @@ function submitManualCoachAttendance(): void {
                 <p class="mt-1 text-xs font-semibold tracking-wide text-primary uppercase">{{ props.roleAccess }}</p>
 
                 <div v-if="isCoachReport" class="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border bg-card p-4"><p class="text-xs text-muted-foreground">Coach</p><p class="mt-1 text-2xl font-bold">{{ reportRows.length }}</p></div>
-                    <div class="rounded-xl border bg-card p-4"><p class="text-xs text-muted-foreground">Catatan mengajar</p><p class="mt-1 text-2xl font-bold">{{ totalTeachingRecords }} / {{ totalCoachRecords }}</p></div>
-                    <div class="rounded-xl border bg-card p-4"><p class="text-xs text-muted-foreground">Tingkat mengajar</p><p class="mt-1 text-2xl font-bold">{{ coachTeachingRate }}%</p></div>
+                    <div class="rounded-xl border bg-card p-4">
+                        <p class="text-xs text-muted-foreground">Coach</p>
+                        <p class="mt-1 text-2xl font-bold">{{ reportRows.length }}</p>
+                    </div>
+                    <div class="rounded-xl border bg-card p-4">
+                        <p class="text-xs text-muted-foreground">Catatan mengajar</p>
+                        <p class="mt-1 text-2xl font-bold">{{ totalTeachingRecords }} / {{ totalCoachRecords }}</p>
+                    </div>
+                    <div class="rounded-xl border bg-card p-4">
+                        <p class="text-xs text-muted-foreground">Tingkat mengajar</p>
+                        <p class="mt-1 text-2xl font-bold">{{ coachTeachingRate }}%</p>
+                    </div>
                 </div>
             </PageSection>
 
-            <FormModal :open="isCoachReport && showManualCoachForm" max-width-class="max-w-4xl" @close="cancelManualCoachForm">
-                <PageSection title="Tambah presensi coach manual" description="Gunakan saat catatan mengajar belum tersimpan.">
-                    <form class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px]" @submit.prevent="submitManualCoachAttendance">
-                        <FormSelectField id="manual-coach-id" v-model="manualCoachForm.coach_id" label="Coach" :options="props.coachOptions" placeholder="Pilih coach" :multiple="false" :error="manualCoachForm.errors.coach_id" />
-                        <FormSelectField id="manual-session-id" v-model="manualCoachForm.training_session_id" label="Sesi" :options="props.sessionOptions" placeholder="Pilih sesi sampai hari ini" :multiple="false" :error="manualCoachForm.errors.training_session_id" />
-                        <FormSelectField id="manual-coach-status" v-model="manualCoachForm.status" label="Status" :options="[{ value: 'TEACH', label: 'Mengajar' }, { value: 'NOT_TEACH', label: 'Tidak Mengajar' }]" :multiple="false" :error="manualCoachForm.errors.status" />
-                        <div class="flex gap-2 lg:col-span-3"><Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button><Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button></div>
+            <FormModal
+                :open="isCoachReport && showManualCoachForm"
+                max-width-class="max-w-4xl"
+                @close="cancelManualCoachForm"
+            >
+                <PageSection
+                    title="Tambah presensi coach manual"
+                    description="Gunakan saat catatan mengajar belum tersimpan."
+                >
+                    <form
+                        class="grid gap-4 lg:grid-cols-[1fr_1.5fr_180px]"
+                        @submit.prevent="submitManualCoachAttendance"
+                    >
+                        <FormSelectField
+                            id="manual-coach-id"
+                            v-model="manualCoachForm.coach_id"
+                            label="Coach"
+                            :options="props.coachOptions"
+                            placeholder="Pilih coach"
+                            :multiple="false"
+                            :error="manualCoachForm.errors.coach_id"
+                        />
+                        <FormSelectField
+                            id="manual-session-id"
+                            v-model="manualCoachForm.training_session_id"
+                            label="Sesi"
+                            :options="props.sessionOptions"
+                            placeholder="Pilih sesi sampai hari ini"
+                            :multiple="false"
+                            :error="manualCoachForm.errors.training_session_id"
+                        />
+                        <FormSelectField
+                            id="manual-coach-status"
+                            v-model="manualCoachForm.status"
+                            label="Status"
+                            :options="[
+                                { value: 'TEACH', label: 'Mengajar' },
+                                { value: 'NOT_TEACH', label: 'Tidak Mengajar' },
+                            ]"
+                            :multiple="false"
+                            :error="manualCoachForm.errors.status"
+                        />
+                        <div class="flex gap-2 lg:col-span-3">
+                            <Button type="submit" :disabled="manualCoachForm.processing">Simpan</Button
+                            ><Button type="button" variant="outline" @click="cancelManualCoachForm">Batal</Button>
+                        </div>
                     </form>
                 </PageSection>
             </FormModal>
 
             <section class="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
                 <div class="mb-4 grid gap-3 xl:grid-cols-[220px_1fr_1fr_auto]">
-                    <label class="grid gap-1 text-sm font-semibold">Bulan<input v-model="attendanceMonth" type="month" class="h-10 rounded-lg border bg-background px-3 text-sm" @change="applyMonth()" /></label>
-                    <FormInputField id="attendance-range-start" v-model="attendanceRangeStart" label="Dari" type="date" @update:model-value="applyDateRange" />
-                    <FormInputField id="attendance-range-end" v-model="attendanceRangeEnd" label="Sampai" type="date" @update:model-value="applyDateRange" />
-                    <div class="flex items-end"><a :href="exportUrl" class="inline-flex h-10 items-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"><Download class="mr-2 size-4" />Export</a></div>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Bulan<input
+                            v-model="attendanceMonth"
+                            type="month"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            @change="applyMonth()"
+                    /></label>
+                    <FormInputField
+                        id="attendance-range-start"
+                        v-model="attendanceRangeStart"
+                        label="Dari"
+                        type="date"
+                        @update:model-value="applyDateRange"
+                    />
+                    <FormInputField
+                        id="attendance-range-end"
+                        v-model="attendanceRangeEnd"
+                        label="Sampai"
+                        type="date"
+                        @update:model-value="applyDateRange"
+                    />
+                    <div class="flex items-end">
+                        <a
+                            :href="exportUrl"
+                            class="inline-flex h-10 items-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground"
+                            ><Download class="mr-2 size-4" />Export</a
+                        >
+                    </div>
                 </div>
-                <div class="mb-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3 text-sm font-semibold"><CalendarDays class="size-4" />Periode: {{ props.period.label }}</div>
+                <div class="mb-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3 text-sm font-semibold">
+                    <CalendarDays class="size-4" />Periode: {{ props.period.label }}
+                </div>
 
                 <DataTable
                     :title="isCoachReport ? 'Ringkasan presensi coach' : 'Detail presensi atlet'"
@@ -196,7 +292,11 @@ function submitManualCoachAttendance(): void {
                     search-placeholder="Cari semua kolom presensi..."
                 >
                     <template #cell="{ column, value }">
-                        <StatusBadge v-if="isStatusColumn(column.key)" :label="cellText(value)" :tone="attendanceTone(value)" />
+                        <StatusBadge
+                            v-if="isStatusColumn(column.key)"
+                            :label="cellText(value)"
+                            :tone="attendanceTone(value)"
+                        />
                         <span v-else>{{ cellText(value) }}</span>
                     </template>
                 </DataTable>

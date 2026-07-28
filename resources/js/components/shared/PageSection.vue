@@ -12,15 +12,15 @@ defineProps<{
             <div class="min-w-0 space-y-2">
                 <p
                     v-if="eyebrow"
-                    class="break-words text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase"
+                    class="text-xs font-semibold tracking-[0.16em] break-words text-muted-foreground uppercase"
                 >
                     {{ eyebrow }}
                 </p>
                 <div class="min-w-0 space-y-1">
-                    <h2 class="break-words text-xl font-semibold text-foreground sm:text-2xl">
+                    <h2 class="text-xl font-semibold break-words text-foreground sm:text-2xl">
                         {{ title }}
                     </h2>
-                    <p class="max-w-3xl break-words text-sm leading-6 text-muted-foreground">
+                    <p class="max-w-3xl text-sm leading-6 break-words text-muted-foreground">
                         {{ description }}
                     </p>
                 </div>

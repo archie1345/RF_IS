@@ -85,7 +85,10 @@ const locationTableRows = computed<TableRow[]>(() =>
         address: location.address ?? '-',
         area: [location.city, location.province].filter(Boolean).join(' ') || '-',
         coordinates:
-            location.latitude !== null && location.latitude !== undefined && location.longitude !== null && location.longitude !== undefined
+            location.latitude !== null &&
+            location.latitude !== undefined &&
+            location.longitude !== null &&
+            location.longitude !== undefined
                 ? `${location.latitude}, ${location.longitude}`
                 : '-',
         usage: `${location.groups_count ?? 0} kelas · ${location.athletes_count ?? 0} atlet`,
@@ -102,11 +105,11 @@ const locationTableRows = computed<TableRow[]>(() =>
 const locationCanBeActive = computed(() => {
     return Boolean(
         form.name.trim() &&
-            form.address.trim() &&
-            form.city.trim() &&
-            form.province.trim() &&
-            isValidCoordinate(form.latitude) &&
-            isValidCoordinate(form.longitude),
+        form.address.trim() &&
+        form.city.trim() &&
+        form.province.trim() &&
+        isValidCoordinate(form.latitude) &&
+        isValidCoordinate(form.longitude),
     );
 });
 

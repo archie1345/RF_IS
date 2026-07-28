@@ -69,14 +69,13 @@ const filteredRows = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
     if (!query) return props.rows;
 
-    return props.rows.filter((row) => [
-        row.title,
-        row.message,
-        row.target,
-        row.author,
-        row.published,
-        statusText(row),
-    ].some((value) => String(value ?? '').toLowerCase().includes(query)));
+    return props.rows.filter((row) =>
+        [row.title, row.message, row.target, row.author, row.published, statusText(row)].some((value) =>
+            String(value ?? '')
+                .toLowerCase()
+                .includes(query),
+        ),
+    );
 });
 
 const metrics = computed(() => [
@@ -190,18 +189,22 @@ async function removeAnnouncement(row: TableRow): Promise<void> {
 
             <PageSection
                 title="Daftar pengumuman"
-                :description="props.isAdmin
-                    ? 'Kelola pengumuman aktif, terjadwal, disembunyikan, dan kedaluwarsa dalam tampilan kartu.'
-                    : 'Pengumuman yang berlaku untuk peran aktif Anda.'"
+                :description="
+                    props.isAdmin
+                        ? 'Kelola pengumuman aktif, terjadwal, disembunyikan, dan kedaluwarsa dalam tampilan kartu.'
+                        : 'Pengumuman yang berlaku untuk peran aktif Anda.'
+                "
             >
                 <template #actions>
                     <label class="relative block w-full sm:w-72">
-                        <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Search
+                            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
                         <input
                             v-model="searchQuery"
                             type="search"
                             placeholder="Cari pengumuman..."
-                            class="h-10 w-full rounded-xl border bg-background pr-3 pl-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                            class="h-10 w-full rounded-xl border bg-background pr-3 pl-10 text-sm transition outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
                         />
                     </label>
                 </template>
@@ -221,7 +224,11 @@ async function removeAnnouncement(row: TableRow): Promise<void> {
                     <Megaphone class="mx-auto size-9 text-muted-foreground" />
                     <p class="mt-3 font-semibold">Tidak ada pengumuman yang cocok</p>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        {{ searchQuery ? 'Ubah kata pencarian atau hapus filter.' : 'Belum ada pengumuman yang tersedia.' }}
+                        {{
+                            searchQuery
+                                ? 'Ubah kata pencarian atau hapus filter.'
+                                : 'Belum ada pengumuman yang tersedia.'
+                        }}
                     </p>
                 </div>
             </PageSection>

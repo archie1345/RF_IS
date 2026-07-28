@@ -20,7 +20,11 @@ withDefaults(
     >
         <div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
             <SidebarTrigger class="-ml-1 shrink-0" />
-            <Breadcrumbs v-if="breadcrumbs && breadcrumbs.length > 0" class="min-w-0 flex-1" :breadcrumbs="breadcrumbs" />
+            <Breadcrumbs
+                v-if="breadcrumbs && breadcrumbs.length > 0"
+                class="min-w-0 flex-1"
+                :breadcrumbs="breadcrumbs"
+            />
         </div>
 
         <RoleSwitcher class="ml-auto shrink-0" />

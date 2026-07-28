@@ -93,7 +93,9 @@ const unitLabel = computed(() => {
 });
 
 function rupiah(value: number): string {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value || 0);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(
+        value || 0,
+    );
 }
 
 async function refreshEstimate(): Promise<void> {
@@ -119,12 +121,18 @@ async function refreshEstimate(): Promise<void> {
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
         });
-        const payload = (await response.json()) as PayrollEstimate | { message?: string; errors?: Record<string, string[]> };
+        const payload = (await response.json()) as
+            | PayrollEstimate
+            | { message?: string; errors?: Record<string, string[]> };
 
         if (!response.ok) {
             const errors = 'errors' in payload ? payload.errors : undefined;
             const firstError = errors ? Object.values(errors).flat()[0] : undefined;
-            throw new Error(firstError || ('message' in payload ? payload.message : undefined) || 'Data payroll tidak dapat dimuat.');
+            throw new Error(
+                firstError ||
+                    ('message' in payload ? payload.message : undefined) ||
+                    'Data payroll tidak dapat dimuat.',
+            );
         }
         if (sequence !== estimateSequence) return;
 
@@ -142,10 +150,7 @@ async function refreshEstimate(): Promise<void> {
     }
 }
 
-watch(
-    [() => form.coach_user_id, () => form.payroll_period, () => form.basis_type],
-    () => void refreshEstimate(),
-);
+watch([() => form.coach_user_id, () => form.payroll_period, () => form.basis_type], () => void refreshEstimate());
 
 function openCreate(): void {
     form.reset();
@@ -186,7 +191,9 @@ function submit(): void {
                 description="Jumlah sesi dan jam diambil otomatis dari presensi mengajar. Basis bulanan menggunakan satu periode bulan. Admin hanya mengisi tarif, bonus, dan data pembayaran."
             >
                 <template #actions>
-                    <Button type="button" class="gap-2" @click="openCreate"><Plus class="size-4" /> Buat payroll</Button>
+                    <Button type="button" class="gap-2" @click="openCreate"
+                        ><Plus class="size-4" /> Buat payroll</Button
+                    >
                 </template>
             </PageSection>
 
@@ -196,9 +203,12 @@ function submit(): void {
             >
                 <AlertTriangle class="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-300" />
                 <div>
-                    <p class="font-bold">{{ props.reminder.missing }} payroll {{ props.reminder.month }} masih perlu dibuat</p>
+                    <p class="font-bold">
+                        {{ props.reminder.missing }} payroll {{ props.reminder.month }} masih perlu dibuat
+                    </p>
                     <p class="text-muted-foreground">
-                        {{ props.reminder.count }} dari {{ props.reminder.expected }} pelatih sudah memiliki slip pembayaran bulan ini.
+                        {{ props.reminder.count }} dari {{ props.reminder.expected }} pelatih sudah memiliki slip
+                        pembayaran bulan ini.
                     </p>
                 </div>
             </section>
@@ -245,30 +255,112 @@ function submit(): void {
                         :error="form.errors.coach_user_id"
                     />
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <FormInputField id="payroll-period" v-model="form.payroll_period" label="Periode payroll" type="month" required :error="form.errors.payroll_period" />
-                        <FormInputField id="payroll-paid-at" v-model="form.paid_at" label="Tanggal dibayar" type="date" required :error="form.errors.paid_at" />
+                        <FormInputField
+                            id="payroll-period"
+                            v-model="form.payroll_period"
+                            label="Periode payroll"
+                            type="month"
+                            required
+                            :error="form.errors.payroll_period"
+                        />
+                        <FormInputField
+                            id="payroll-paid-at"
+                            v-model="form.paid_at"
+                            label="Tanggal dibayar"
+                            type="date"
+                            required
+                            :error="form.errors.paid_at"
+                        />
                     </div>
-                    <FormSelectField id="payroll-basis" v-model="form.basis_type" label="Dasar perhitungan" :options="basisOptions" required :error="form.errors.basis_type" />
+                    <FormSelectField
+                        id="payroll-basis"
+                        v-model="form.basis_type"
+                        label="Dasar perhitungan"
+                        :options="basisOptions"
+                        required
+                        :error="form.errors.basis_type"
+                    />
                     <div v-if="usesCalculatedBase" class="grid gap-3">
                         <div class="grid gap-4 sm:grid-cols-2">
-                            <FormInputField id="payroll-units" v-model="form.units" :label="unitLabel" type="number" min="0" step="0.25" disabled :error="form.errors.units" />
-                            <FormInputField id="payroll-rate" v-model="form.rate" label="Tarif per unit" type="number" min="0" step="1000" required :error="form.errors.rate" />
+                            <FormInputField
+                                id="payroll-units"
+                                v-model="form.units"
+                                :label="unitLabel"
+                                type="number"
+                                min="0"
+                                step="0.25"
+                                disabled
+                                :error="form.errors.units"
+                            />
+                            <FormInputField
+                                id="payroll-rate"
+                                v-model="form.rate"
+                                label="Tarif per unit"
+                                type="number"
+                                min="0"
+                                step="1000"
+                                required
+                                :error="form.errors.rate"
+                            />
                         </div>
-                        <p v-if="estimateLoading" class="text-sm text-muted-foreground">Mengambil data mengajar dari database...</p>
-                        <p v-else-if="estimateError" class="text-sm font-medium text-destructive">{{ estimateError }}</p>
-                        <p v-else-if="estimateSource" class="text-sm text-muted-foreground">Sumber perhitungan: {{ estimateSource }}.</p>
+                        <p v-if="estimateLoading" class="text-sm text-muted-foreground">
+                            Mengambil data mengajar dari database...
+                        </p>
+                        <p v-else-if="estimateError" class="text-sm font-medium text-destructive">
+                            {{ estimateError }}
+                        </p>
+                        <p v-else-if="estimateSource" class="text-sm text-muted-foreground">
+                            Sumber perhitungan: {{ estimateSource }}.
+                        </p>
                     </div>
-                    <FormInputField v-else id="payroll-base" v-model="form.base_amount" label="Honor dasar" type="number" min="0" step="1000" required :error="form.errors.base_amount" />
+                    <FormInputField
+                        v-else
+                        id="payroll-base"
+                        v-model="form.base_amount"
+                        label="Honor dasar"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        required
+                        :error="form.errors.base_amount"
+                    />
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <FormInputField id="payroll-bonus" v-model="form.bonus_amount" label="Bonus" type="number" min="0" step="1000" :error="form.errors.bonus_amount" />
-                        <FormSelectField id="payroll-method" v-model="form.payment_method" label="Metode pembayaran" :options="paymentMethodOptions" required :error="form.errors.payment_method" />
+                        <FormInputField
+                            id="payroll-bonus"
+                            v-model="form.bonus_amount"
+                            label="Bonus"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            :error="form.errors.bonus_amount"
+                        />
+                        <FormSelectField
+                            id="payroll-method"
+                            v-model="form.payment_method"
+                            label="Metode pembayaran"
+                            :options="paymentMethodOptions"
+                            required
+                            :error="form.errors.payment_method"
+                        />
                     </div>
-                    <FormInputField id="payroll-notes" v-model="form.notes" label="Catatan" placeholder="Contoh: honor mengajar + bonus kejuaraan" :error="form.errors.notes" />
+                    <FormInputField
+                        id="payroll-notes"
+                        v-model="form.notes"
+                        label="Catatan"
+                        placeholder="Contoh: honor mengajar + bonus kejuaraan"
+                        :error="form.errors.notes"
+                    />
 
                     <div class="rounded-xl border bg-muted/30 p-4 text-sm">
-                        <div class="flex justify-between gap-3"><span>Honor dasar</span><strong>{{ rupiah(calculatedBase) }}</strong></div>
-                        <div class="mt-2 flex justify-between gap-3"><span>Bonus</span><strong>{{ rupiah(Number(form.bonus_amount || 0)) }}</strong></div>
-                        <div class="mt-3 flex justify-between gap-3 border-t pt-3 text-base"><span>Total dibayar</span><strong>{{ rupiah(totalPayroll) }}</strong></div>
+                        <div class="flex justify-between gap-3">
+                            <span>Honor dasar</span><strong>{{ rupiah(calculatedBase) }}</strong>
+                        </div>
+                        <div class="mt-2 flex justify-between gap-3">
+                            <span>Bonus</span><strong>{{ rupiah(Number(form.bonus_amount || 0)) }}</strong>
+                        </div>
+                        <div class="mt-3 flex justify-between gap-3 border-t pt-3 text-base">
+                            <span>Total dibayar</span><strong>{{ rupiah(totalPayroll) }}</strong>
+                        </div>
                     </div>
 
                     <div class="flex flex-wrap justify-end gap-2">

@@ -1,4 +1,3 @@
-
 export type AttendanceScanFlash = {
     status?: string;
     message?: string;

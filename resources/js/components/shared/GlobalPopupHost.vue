@@ -3,12 +3,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
-import {
-    dismissAppPopup,
-    settleAppPopup,
-    useAppPopup,
-    type AppPopupTone,
-} from '@/composables/useAppPopup';
+import { dismissAppPopup, settleAppPopup, useAppPopup, type AppPopupTone } from '@/composables/useAppPopup';
 
 const popup = useAppPopup();
 const page = usePage<{
@@ -75,7 +70,8 @@ function validationMessage(errors: unknown): string {
     }
 
     const visible = [...new Set(messages)].slice(0, 6);
-    const suffix = messages.length > visible.length ? `\n…dan ${messages.length - visible.length} kesalahan lainnya.` : '';
+    const suffix =
+        messages.length > visible.length ? `\n…dan ${messages.length - visible.length} kesalahan lainnya.` : '';
 
     return visible.map((message, index) => `${index + 1}. ${message}`).join('\n') + suffix;
 }
@@ -127,7 +123,11 @@ function handleOffline(): void {
 }
 
 function handleOnline(): void {
-    showFeedback('info', 'Koneksi kembali aktif', 'Koneksi internet tersedia kembali. Silakan ulangi tindakan yang sebelumnya gagal.');
+    showFeedback(
+        'info',
+        'Koneksi kembali aktif',
+        'Koneksi internet tersedia kembali. Silakan ulangi tindakan yang sebelumnya gagal.',
+    );
 }
 
 watch(
@@ -138,10 +138,26 @@ watch(
     },
 );
 
-watch(() => page.props.flash?.status, (value) => flashPopup('success', 'Berhasil', value), { immediate: true });
-watch(() => page.props.flash?.error, (value) => flashPopup('danger', 'Terjadi kesalahan', value), { immediate: true });
-watch(() => page.props.flash?.warning, (value) => flashPopup('warning', 'Perlu perhatian', value), { immediate: true });
-watch(() => page.props.flash?.info, (value) => flashPopup('info', 'Informasi', value), { immediate: true });
+watch(
+    () => page.props.flash?.status,
+    (value) => flashPopup('success', 'Berhasil', value),
+    { immediate: true },
+);
+watch(
+    () => page.props.flash?.error,
+    (value) => flashPopup('danger', 'Terjadi kesalahan', value),
+    { immediate: true },
+);
+watch(
+    () => page.props.flash?.warning,
+    (value) => flashPopup('warning', 'Perlu perhatian', value),
+    { immediate: true },
+);
+watch(
+    () => page.props.flash?.info,
+    (value) => flashPopup('info', 'Informasi', value),
+    { immediate: true },
+);
 
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
@@ -229,7 +245,10 @@ onBeforeUnmount(() => {
 
                         <div class="p-5 sm:p-6">
                             <div class="flex items-start gap-4 pr-7">
-                                <div class="flex size-11 shrink-0 items-center justify-center rounded-xl" :class="iconClass">
+                                <div
+                                    class="flex size-11 shrink-0 items-center justify-center rounded-xl"
+                                    :class="iconClass"
+                                >
                                     <component :is="icon" class="size-5" />
                                 </div>
                                 <div class="min-w-0 flex-1">
@@ -239,7 +258,7 @@ onBeforeUnmount(() => {
                                     <p
                                         v-if="popup.state.message"
                                         id="global-popup-message"
-                                        class="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground"
+                                        class="mt-2 text-sm leading-6 whitespace-pre-line text-muted-foreground"
                                     >
                                         {{ popup.state.message }}
                                     </p>

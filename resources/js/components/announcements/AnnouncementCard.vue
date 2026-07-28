@@ -4,14 +4,17 @@ import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import type { TableBadgeCell, TableRow } from '@/types/resource-table';
 
-const props = withDefaults(defineProps<{
-    announcement: TableRow;
-    compact?: boolean;
-    editable?: boolean;
-}>(), {
-    compact: false,
-    editable: false,
-});
+const props = withDefaults(
+    defineProps<{
+        announcement: TableRow;
+        compact?: boolean;
+        editable?: boolean;
+    }>(),
+    {
+        compact: false,
+        editable: false,
+    },
+);
 
 const emit = defineEmits<{
     edit: [announcement: TableRow];
@@ -33,13 +36,16 @@ const status = computed(() => {
     return { kind: 'badge', text: String(value ?? 'Diterbitkan'), tone: 'success' } as TableBadgeCell;
 });
 
-const statusClass = computed(() => ({
-    success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    danger: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    info: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
-    neutral: 'bg-muted text-muted-foreground',
-}[status.value.tone ?? 'neutral']));
+const statusClass = computed(
+    () =>
+        ({
+            success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+            warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+            danger: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+            info: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+            neutral: 'bg-muted text-muted-foreground',
+        })[status.value.tone ?? 'neutral'],
+);
 </script>
 
 <template>

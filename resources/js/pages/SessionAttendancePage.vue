@@ -141,9 +141,7 @@ function replaceAttendanceRow(rowId: string, row: TableRow): void {
 
 function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue): void {
     attendanceRows.value = attendanceRows.value.map((row) =>
-        String(row.id) === rowId
-            ? { ...row, status_value: status, status: fallbackAttendanceStatus(status) }
-            : row,
+        String(row.id) === rowId ? { ...row, status_value: status, status: fallbackAttendanceStatus(status) } : row,
     );
 }
 
@@ -192,9 +190,7 @@ function confirmBulkUpdate(): void {
 
     const status = pendingBulkStatus.value;
     pendingBulkStatus.value = null;
-    const attendanceIds = attendanceRows.value
-        .map((row) => routeId(row.id))
-        .filter((id): id is number => id !== null);
+    const attendanceIds = attendanceRows.value.map((row) => routeId(row.id)).filter((id): id is number => id !== null);
 
     router.post(attendanceBulkUpdate.url(), { attendance_ids: attendanceIds, status }, { preserveScroll: true });
 }
@@ -205,7 +201,8 @@ async function quickToggleQr(): Promise<void> {
     if (props.session.attendance_qr.is_active) {
         const confirmed = await popup.confirm({
             title: 'Tutup QR attendance?',
-            message: 'Kode aktif langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
+            message:
+                'Kode aktif langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.',
             tone: 'danger',
             confirmLabel: 'Tutup QR',
         });
@@ -271,12 +268,12 @@ function resetCoachForm(): void {
 
 function openEditSessionForm(): void {
     sessionForm.title = props.session.title;
-    sessionForm.branch_id = props.session.branch_id === null || props.session.branch_id === undefined
-        ? ''
-        : String(props.session.branch_id);
-    sessionForm.group_id = props.session.group_id === null || props.session.group_id === undefined
-        ? ''
-        : String(props.session.group_id);
+    sessionForm.branch_id =
+        props.session.branch_id === null || props.session.branch_id === undefined
+            ? ''
+            : String(props.session.branch_id);
+    sessionForm.group_id =
+        props.session.group_id === null || props.session.group_id === undefined ? '' : String(props.session.group_id);
     sessionForm.location = props.session.location ?? '';
     sessionForm.session_date = props.session.date;
     sessionForm.start_time = props.session.start_time ?? '';
@@ -312,7 +309,9 @@ function saveSession(): void {
                     <div class="min-w-0">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="rounded-full bg-muted px-3 py-1 text-xs font-semibold">Attendance sesi</span>
-                            <span class="rounded-full border px-3 py-1 text-xs font-semibold">{{ props.session.status }}</span>
+                            <span class="rounded-full border px-3 py-1 text-xs font-semibold">{{
+                                props.session.status
+                            }}</span>
                         </div>
                         <h1 class="mt-3 text-2xl font-bold tracking-tight md:text-3xl">{{ props.session.title }}</h1>
                         <p class="mt-2 text-sm leading-6 text-muted-foreground">
@@ -332,8 +331,8 @@ function saveSession(): void {
                                 qrProcessing
                                     ? 'Memproses...'
                                     : props.session.attendance_qr.is_active
-                                        ? 'Tutup QR'
-                                        : 'Buka QR cepat'
+                                      ? 'Tutup QR'
+                                      : 'Buka QR cepat'
                             }}
                         </Button>
                         <Button type="button" variant="outline" @click="openEditSessionForm">
@@ -348,23 +347,42 @@ function saveSession(): void {
                 <div class="grid border-t sm:grid-cols-2 lg:grid-cols-5">
                     <div class="flex items-start gap-3 border-b p-4 sm:border-r lg:border-b-0">
                         <CalendarDays class="mt-0.5 size-5 text-muted-foreground" />
-                        <div><p class="text-xs text-muted-foreground">Tanggal</p><p class="font-semibold">{{ props.session.date }}</p></div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Tanggal</p>
+                            <p class="font-semibold">{{ props.session.date }}</p>
+                        </div>
                     </div>
                     <div class="flex items-start gap-3 border-b p-4 lg:border-r lg:border-b-0">
                         <Clock3 class="mt-0.5 size-5 text-muted-foreground" />
-                        <div><p class="text-xs text-muted-foreground">Waktu</p><p class="font-semibold">{{ props.session.start_time ?? '-' }}–{{ props.session.end_time ?? '-' }}</p></div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Waktu</p>
+                            <p class="font-semibold">
+                                {{ props.session.start_time ?? '-' }}–{{ props.session.end_time ?? '-' }}
+                            </p>
+                        </div>
                     </div>
                     <div class="flex items-start gap-3 border-b p-4 sm:border-r lg:border-b-0">
                         <MapPin class="mt-0.5 size-5 text-muted-foreground" />
-                        <div><p class="text-xs text-muted-foreground">Lokasi & kelas</p><p class="font-semibold">{{ props.session.branch }} · {{ props.session.group }}</p><p class="text-xs text-muted-foreground">{{ props.session.location ?? '-' }}</p></div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Lokasi & kelas</p>
+                            <p class="font-semibold">{{ props.session.branch }} · {{ props.session.group }}</p>
+                            <p class="text-xs text-muted-foreground">{{ props.session.location ?? '-' }}</p>
+                        </div>
                     </div>
                     <div class="flex items-start gap-3 border-b p-4 lg:border-r lg:border-b-0">
                         <UsersRound class="mt-0.5 size-5 text-muted-foreground" />
-                        <div><p class="text-xs text-muted-foreground">Atlet hadir</p><p class="font-semibold">{{ props.session.athlete_attendance_summary }}</p></div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Atlet hadir</p>
+                            <p class="font-semibold">{{ props.session.athlete_attendance_summary }}</p>
+                        </div>
                     </div>
                     <div class="flex items-start gap-3 p-4">
                         <UsersRound class="mt-0.5 size-5 text-muted-foreground" />
-                        <div><p class="text-xs text-muted-foreground">Pelatih mengajar</p><p class="font-semibold">{{ props.session.coach_attendance_summary }}</p><p class="text-xs text-muted-foreground">{{ props.session.coach }}</p></div>
+                        <div>
+                            <p class="text-xs text-muted-foreground">Pelatih mengajar</p>
+                            <p class="font-semibold">{{ props.session.coach_attendance_summary }}</p>
+                            <p class="text-xs text-muted-foreground">{{ props.session.coach }}</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -399,10 +417,38 @@ function saveSession(): void {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button type="button" size="sm" variant="outline" :disabled="isAttendancePending(String(row.id))" @click="updateStatus(String(row.id), 'PRESENT')">Hadir</Button>
-                            <Button type="button" size="sm" variant="outline" :disabled="isAttendancePending(String(row.id))" @click="updateStatus(String(row.id), 'LATE')">Terlambat</Button>
-                            <Button type="button" size="sm" variant="outline" :disabled="isAttendancePending(String(row.id))" @click="updateStatus(String(row.id), 'EXCUSED')">Izin</Button>
-                            <Button type="button" size="sm" variant="outline" :disabled="isAttendancePending(String(row.id))" @click="updateStatus(String(row.id), 'ABSENT')">Tidak hadir</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="isAttendancePending(String(row.id))"
+                                @click="updateStatus(String(row.id), 'PRESENT')"
+                                >Hadir</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="isAttendancePending(String(row.id))"
+                                @click="updateStatus(String(row.id), 'LATE')"
+                                >Terlambat</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="isAttendancePending(String(row.id))"
+                                @click="updateStatus(String(row.id), 'EXCUSED')"
+                                >Izin</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                :disabled="isAttendancePending(String(row.id))"
+                                @click="updateStatus(String(row.id), 'ABSENT')"
+                                >Tidak hadir</Button
+                            >
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
@@ -411,11 +457,25 @@ function saveSession(): void {
             <PageSection
                 eyebrow="Pelatih sesi"
                 title="Status mengajar pelatih"
-                :description="props.session.is_private ? 'Sesi privat dapat menambahkan pelatih khusus dari bagian ini.' : 'Daftar ini mengikuti semua pelatih yang ditugaskan ke kelas atau sesi.'"
+                :description="
+                    props.session.is_private
+                        ? 'Sesi privat dapat menambahkan pelatih khusus dari bagian ini.'
+                        : 'Daftar ini mengikuti semua pelatih yang ditugaskan ke kelas atau sesi.'
+                "
             >
-                <form v-if="props.session.is_private" class="mb-5 grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-[1fr_auto] md:items-end" @submit.prevent="addCoach">
+                <form
+                    v-if="props.session.is_private"
+                    class="mb-5 grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-[1fr_auto] md:items-end"
+                    @submit.prevent="addCoach"
+                >
                     <div class="grid gap-2">
-                        <FormSelectField id="coach-picker" v-model="coachForm.coach_id" label="Tambahkan pelatih privat" :options="props.coachOptions" placeholder="Pilih pelatih" />
+                        <FormSelectField
+                            id="coach-picker"
+                            v-model="coachForm.coach_id"
+                            label="Tambahkan pelatih privat"
+                            :options="props.coachOptions"
+                            placeholder="Pilih pelatih"
+                        />
                         <InputError :message="coachForm.errors.coach_id" />
                     </div>
                     <div class="flex flex-wrap gap-2">
@@ -436,18 +496,42 @@ function saveSession(): void {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'TEACH')">Mengajar</Button>
-                            <Button type="button" size="sm" variant="outline" @click="updateCoachStatus(String(row.id), 'NOT_TEACH')">Tidak mengajar</Button>
-                            <Button type="button" size="sm" variant="destructive" @click="requestRemoveCoach(String(row.id))">Hapus</Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'TEACH')"
+                                >Mengajar</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                @click="updateCoachStatus(String(row.id), 'NOT_TEACH')"
+                                >Tidak mengajar</Button
+                            >
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                @click="requestRemoveCoach(String(row.id))"
+                                >Hapus</Button
+                            >
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
             </PageSection>
         </div>
 
-        <FormModal :open="Boolean(attendanceUpdateError)" max-width-class="max-w-lg" @close="attendanceUpdateError = ''">
+        <FormModal
+            :open="Boolean(attendanceUpdateError)"
+            max-width-class="max-w-lg"
+            @close="attendanceUpdateError = ''"
+        >
             <PageSection title="Attendance gagal diperbarui" :description="attendanceUpdateError">
-                <div class="flex justify-end"><Button type="button" variant="outline" @click="attendanceUpdateError = ''">Tutup</Button></div>
+                <div class="flex justify-end">
+                    <Button type="button" variant="outline" @click="attendanceUpdateError = ''">Tutup</Button>
+                </div>
             </PageSection>
         </FormModal>
 
@@ -464,8 +548,15 @@ function saveSession(): void {
             </PageSection>
         </FormModal>
 
-        <FormModal :open="Boolean(pendingCoachDeleteId)" max-width-class="max-w-xl" @close="pendingCoachDeleteId = null">
-            <PageSection title="Hapus pelatih dari sesi?" description="Entri attendance mengajar pelatih ini akan dihapus dari sesi.">
+        <FormModal
+            :open="Boolean(pendingCoachDeleteId)"
+            max-width-class="max-w-xl"
+            @close="pendingCoachDeleteId = null"
+        >
+            <PageSection
+                title="Hapus pelatih dari sesi?"
+                description="Entri attendance mengajar pelatih ini akan dihapus dari sesi."
+            >
                 <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" @click="pendingCoachDeleteId = null">Batal</Button>
                     <Button type="button" variant="destructive" @click="confirmRemoveCoach">Hapus pelatih</Button>
@@ -474,18 +565,62 @@ function saveSession(): void {
         </FormModal>
 
         <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelSessionForm">
-            <PageSection title="Ubah sesi latihan" description="Perbarui waktu, kelas, cabang, lokasi, dan status sesi tanpa mengubah riwayat attendance.">
+            <PageSection
+                title="Ubah sesi latihan"
+                description="Perbarui waktu, kelas, cabang, lokasi, dan status sesi tanpa mengubah riwayat attendance."
+            >
                 <form class="grid gap-4" @submit.prevent="saveSession">
-                    <FormInputField id="session-name" v-model="sessionForm.title" label="Nama sesi" :error="sessionForm.errors.title" />
+                    <FormInputField
+                        id="session-name"
+                        v-model="sessionForm.title"
+                        label="Nama sesi"
+                        :error="sessionForm.errors.title"
+                    />
                     <div class="grid gap-4 md:grid-cols-2">
-                        <FormSelectField id="session-group" v-model="sessionForm.group_id" label="Kelas" :options="props.groups" placeholder="Semua kelas" :error="sessionForm.errors.group_id" />
-                        <FormSelectField id="session-branch" v-model="sessionForm.branch_id" label="Cabang" :options="props.branches" :error="sessionForm.errors.branch_id" />
+                        <FormSelectField
+                            id="session-group"
+                            v-model="sessionForm.group_id"
+                            label="Kelas"
+                            :options="props.groups"
+                            placeholder="Semua kelas"
+                            :error="sessionForm.errors.group_id"
+                        />
+                        <FormSelectField
+                            id="session-branch"
+                            v-model="sessionForm.branch_id"
+                            label="Cabang"
+                            :options="props.branches"
+                            :error="sessionForm.errors.branch_id"
+                        />
                     </div>
-                    <FormInputField id="session-location" v-model="sessionForm.location" label="Lokasi" :error="sessionForm.errors.location" />
+                    <FormInputField
+                        id="session-location"
+                        v-model="sessionForm.location"
+                        label="Lokasi"
+                        :error="sessionForm.errors.location"
+                    />
                     <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="sessionForm.session_date" label="Tanggal" type="date" :error="sessionForm.errors.session_date" />
-                        <FormInputField id="session-start" v-model="sessionForm.start_time" label="Mulai" type="time" :error="sessionForm.errors.start_time" />
-                        <FormInputField id="session-end" v-model="sessionForm.end_time" label="Selesai" type="time" :error="sessionForm.errors.end_time" />
+                        <FormInputField
+                            id="session-date"
+                            v-model="sessionForm.session_date"
+                            label="Tanggal"
+                            type="date"
+                            :error="sessionForm.errors.session_date"
+                        />
+                        <FormInputField
+                            id="session-start"
+                            v-model="sessionForm.start_time"
+                            label="Mulai"
+                            type="time"
+                            :error="sessionForm.errors.start_time"
+                        />
+                        <FormInputField
+                            id="session-end"
+                            v-model="sessionForm.end_time"
+                            label="Selesai"
+                            type="time"
+                            :error="sessionForm.errors.end_time"
+                        />
                     </div>
                     <FormSelectField
                         id="session-status"
@@ -501,7 +636,9 @@ function saveSession(): void {
                     />
                     <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <Button type="button" variant="outline" @click="cancelSessionForm">Batal</Button>
-                        <Button type="submit" :disabled="sessionForm.processing">{{ sessionForm.processing ? 'Menyimpan...' : 'Simpan perubahan' }}</Button>
+                        <Button type="submit" :disabled="sessionForm.processing">{{
+                            sessionForm.processing ? 'Menyimpan...' : 'Simpan perubahan'
+                        }}</Button>
                     </div>
                 </form>
             </PageSection>

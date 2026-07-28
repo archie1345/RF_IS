@@ -67,10 +67,12 @@ const currentPage = ref(1);
 const filterValues = reactive<Record<string, DataTableFilterValue>>({});
 
 function safeId(value: string): string {
-    return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') || 'table';
+    return (
+        value
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '') || 'table'
+    );
 }
 
 function getCellValue(row: TableRow, key: string): TableCell | undefined {
@@ -93,7 +95,19 @@ function statusTone(value: string): TableBadgeCell['tone'] {
     if (['PENDING', 'WAITING', 'DRAFT', 'NEEDS_ASSISTANT', 'MENUNGGU'].includes(status)) {
         return 'warning';
     }
-    if (['ABSENT', 'FAILED', 'REJECTED', 'CANCELED', 'CANCELLED', 'OVERDUE', 'INACTIVE', 'TIDAK HADIR', 'ALPHA'].includes(status)) {
+    if (
+        [
+            'ABSENT',
+            'FAILED',
+            'REJECTED',
+            'CANCELED',
+            'CANCELLED',
+            'OVERDUE',
+            'INACTIVE',
+            'TIDAK HADIR',
+            'ALPHA',
+        ].includes(status)
+    ) {
         return 'danger';
     }
 
@@ -212,7 +226,11 @@ function filterInputId(filter: TableFilter): string {
 
 function filterSelections(filter: TableFilter): string[] {
     const value = filterValues[filter.key];
-    if (Array.isArray(value)) return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+    if (Array.isArray(value))
+        return value
+            .map(String)
+            .map((entry) => entry.trim())
+            .filter(Boolean);
     const singleValue = String(value ?? '').trim();
     return singleValue ? [singleValue] : [];
 }
@@ -220,7 +238,9 @@ function filterSelections(filter: TableFilter): string[] {
 function filterOptions(filter: TableFilter): SelectOption[] {
     if (filter.options) return filter.options;
 
-    return Array.from(new Set(props.rows.map((row) => filterText(filter, row)).filter((value) => value && value !== '-')))
+    return Array.from(
+        new Set(props.rows.map((row) => filterText(filter, row)).filter((value) => value && value !== '-')),
+    )
         .sort((left, right) => left.localeCompare(right))
         .map((value) => ({ value, label: value }));
 }
@@ -292,7 +312,9 @@ const filteredRows = computed(() => {
             !props.searchable ||
             keyword === '' ||
             props.columns.some((column) =>
-                String(getCellText(getCellValue(row, column.key))).toLowerCase().includes(keyword),
+                String(getCellText(getCellValue(row, column.key)))
+                    .toLowerCase()
+                    .includes(keyword),
             );
         return matchesSearch && rowMatchesFilters(row);
     });
@@ -314,7 +336,9 @@ const visibleRows = computed(() => {
     const start = (currentPage.value - 1) * activePageSize.value;
     return filteredRows.value.slice(start, start + activePageSize.value);
 });
-const displayStart = computed(() => (visibleRows.value.length === 0 ? 0 : (currentPage.value - 1) * activePageSize.value + 1));
+const displayStart = computed(() =>
+    visibleRows.value.length === 0 ? 0 : (currentPage.value - 1) * activePageSize.value + 1,
+);
 const displayEnd = computed(() => displayStart.value + visibleRows.value.length - 1);
 
 watch(
@@ -343,7 +367,7 @@ watch(totalPages, (pages) => {
             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0 space-y-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <CardTitle class="break-words text-lg font-bold sm:text-xl">{{ title }}</CardTitle>
+                        <CardTitle class="text-lg font-bold break-words sm:text-xl">{{ title }}</CardTitle>
                         <slot v-if="hasHeaderActions" name="actions" />
                     </div>
                     <CardDescription v-if="description" class="text-sm leading-5">{{ description }}</CardDescription>
@@ -423,7 +447,7 @@ watch(totalPages, (pages) => {
                             class="grid grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] gap-3 border-b pb-2.5 last:border-0 last:pb-0"
                         >
                             <dt class="text-xs font-semibold text-muted-foreground">{{ column.label }}</dt>
-                            <dd class="min-w-0 break-words text-right text-sm">
+                            <dd class="min-w-0 text-right text-sm break-words">
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
                                     <StatusBadge
                                         v-if="badgeCell(getCellValue(row, column.key), column.key)"
@@ -437,7 +461,8 @@ watch(totalPages, (pages) => {
                                         rel="noreferrer"
                                         class="font-semibold text-primary hover:underline"
                                         @click.stop
-                                    >{{ linkText(String(getCellValue(row, column.key))) }}</a>
+                                        >{{ linkText(String(getCellValue(row, column.key))) }}</a
+                                    >
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </dd>
@@ -449,7 +474,10 @@ watch(totalPages, (pages) => {
                 </article>
             </div>
 
-            <div v-else class="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground sm:hidden">
+            <div
+                v-else
+                class="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground sm:hidden"
+            >
                 {{ props.emptyText ?? 'Belum ada data.' }}
             </div>
 
@@ -463,12 +491,21 @@ watch(totalPages, (pages) => {
                                 class="px-3 py-3 font-bold"
                                 :class="column.align === 'right' ? 'text-right' : 'text-left'"
                             >
-                                <button type="button" class="inline-flex items-center gap-1 hover:text-primary" @click="setSort(column)">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1 hover:text-primary"
+                                    @click="setSort(column)"
+                                >
                                     {{ column.label }}
-                                    <ArrowDownUp class="size-3" :class="sortKey === column.key ? 'text-primary' : 'opacity-30'" />
+                                    <ArrowDownUp
+                                        class="size-3"
+                                        :class="sortKey === column.key ? 'text-primary' : 'opacity-30'"
+                                    />
                                 </button>
                             </th>
-                            <th v-if="hasRowActions" class="px-3 py-3 text-right font-bold">{{ props.actionLabel ?? 'Tindakan' }}</th>
+                            <th v-if="hasRowActions" class="px-3 py-3 text-right font-bold">
+                                {{ props.actionLabel ?? 'Tindakan' }}
+                            </th>
                         </tr>
                     </thead>
                     <tbody v-if="visibleRows.length > 0">
@@ -484,8 +521,11 @@ watch(totalPages, (pages) => {
                             <td
                                 v-for="(column, columnIndex) in props.columns"
                                 :key="`${row.id}-${column.key}`"
-                                class="max-w-sm break-words px-3 py-3 align-middle"
-                                :class="[column.align === 'right' ? 'text-right' : 'text-left', columnIndex === 0 ? 'font-semibold' : '']"
+                                class="max-w-sm px-3 py-3 align-middle break-words"
+                                :class="[
+                                    column.align === 'right' ? 'text-right' : 'text-left',
+                                    columnIndex === 0 ? 'font-semibold' : '',
+                                ]"
                             >
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
                                     <StatusBadge
@@ -500,7 +540,8 @@ watch(totalPages, (pages) => {
                                         rel="noreferrer"
                                         class="font-semibold text-primary hover:underline"
                                         @click.stop
-                                    >{{ linkText(String(getCellValue(row, column.key))) }}</a>
+                                        >{{ linkText(String(getCellValue(row, column.key))) }}</a
+                                    >
                                     <span v-else>{{ getCellText(getCellValue(row, column.key)) }}</span>
                                 </slot>
                             </td>
@@ -511,7 +552,10 @@ watch(totalPages, (pages) => {
                     </tbody>
                     <tbody v-else>
                         <tr>
-                            <td :colspan="props.columns.length + (hasRowActions ? 1 : 0)" class="px-3 py-10 text-center text-sm text-muted-foreground">
+                            <td
+                                :colspan="props.columns.length + (hasRowActions ? 1 : 0)"
+                                class="px-3 py-10 text-center text-sm text-muted-foreground"
+                            >
                                 {{ props.emptyText ?? 'Belum ada data.' }}
                             </td>
                         </tr>
@@ -519,17 +563,34 @@ watch(totalPages, (pages) => {
                 </table>
             </div>
 
-            <div v-if="props.paginate" class="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                v-if="props.paginate"
+                class="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <p class="text-xs font-medium text-muted-foreground">
                     Menampilkan {{ displayStart }}–{{ displayEnd }} dari {{ filteredRows.length }} baris
                     <span v-if="filteredRows.length !== props.rows.length">({{ props.rows.length }} total)</span>
                 </p>
                 <div class="flex items-center justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" :disabled="currentPage <= 1" @click="currentPage -= 1">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        :disabled="currentPage <= 1"
+                        @click="currentPage -= 1"
+                    >
                         <ChevronLeft class="size-4" /> Sebelumnya
                     </Button>
-                    <span class="min-w-20 text-center text-xs font-semibold">Halaman {{ currentPage }} / {{ totalPages }}</span>
-                    <Button type="button" variant="outline" size="sm" :disabled="currentPage >= totalPages" @click="currentPage += 1">
+                    <span class="min-w-20 text-center text-xs font-semibold"
+                        >Halaman {{ currentPage }} / {{ totalPages }}</span
+                    >
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        :disabled="currentPage >= totalPages"
+                        @click="currentPage += 1"
+                    >
                         Berikutnya <ChevronRight class="size-4" />
                     </Button>
                 </div>

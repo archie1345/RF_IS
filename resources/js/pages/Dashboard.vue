@@ -30,7 +30,7 @@ const activeRole = computed<AppRole>(() => {
     const value = page.props.auth?.user?.activeRole ?? page.props.auth?.user?.role;
     return value === 'admin' || value === 'coach' || value === 'parent' || value === 'athlete' ? value : 'athlete';
 });
-const dashboardRoles = computed<AppRole[]>(() => props.roles.length > 0 ? props.roles : [activeRole.value]);
+const dashboardRoles = computed<AppRole[]>(() => (props.roles.length > 0 ? props.roles : [activeRole.value]));
 const roleLabels: Record<AppRole, string> = {
     admin: 'Operasional admin',
     coach: 'Kepelatihan',

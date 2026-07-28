@@ -314,7 +314,8 @@ function issueOneTimeCharge(): void {
                         <div>
                             <h2 class="font-semibold">Jadwal SPP otomatis</h2>
                             <p class="text-sm text-muted-foreground">
-                                Ini adalah satu-satunya pengaturan SPP umum. Tarif khusus cabang atau kelas dibuat di daftar aturan.
+                                Ini adalah satu-satunya pengaturan SPP umum. Tarif khusus cabang atau kelas dibuat di
+                                daftar aturan.
                             </p>
                         </div>
                     </div>
@@ -354,14 +355,22 @@ function issueOneTimeCharge(): void {
                         </div>
 
                         <label class="flex items-start gap-3 rounded-xl border bg-muted/20 p-3 text-sm">
-                            <input v-model="scheduleForm.is_active" type="checkbox" class="mt-1 size-4 rounded border-input" />
+                            <input
+                                v-model="scheduleForm.is_active"
+                                type="checkbox"
+                                class="mt-1 size-4 rounded border-input"
+                            />
                             <span>
                                 <strong class="block">Aktifkan penerbitan otomatis</strong>
-                                <span class="text-muted-foreground">Scheduler akan memeriksa pengaturan ini setiap hari.</span>
+                                <span class="text-muted-foreground"
+                                    >Scheduler akan memeriksa pengaturan ini setiap hari.</span
+                                >
                             </span>
                         </label>
 
-                        <Button type="submit" class="w-full sm:w-fit" :disabled="scheduleForm.processing">Simpan jadwal</Button>
+                        <Button type="submit" class="w-full sm:w-fit" :disabled="scheduleForm.processing"
+                            >Simpan jadwal</Button
+                        >
                     </form>
                 </section>
 
@@ -384,7 +393,9 @@ function issueOneTimeCharge(): void {
                             required
                             :error="monthlyGenerationForm.errors.month"
                         />
-                        <Button type="submit" :disabled="monthlyGenerationForm.processing">Terbitkan tagihan bulanan</Button>
+                        <Button type="submit" :disabled="monthlyGenerationForm.processing"
+                            >Terbitkan tagihan bulanan</Button
+                        >
                     </form>
                 </section>
             </div>
@@ -411,7 +422,9 @@ function issueOneTimeCharge(): void {
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                                    <span
+                                        class="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary"
+                                    >
                                         {{ kindLabel(rule.charge_kind) }}
                                     </span>
                                     <span
@@ -425,8 +438,8 @@ function issueOneTimeCharge(): void {
                                         {{ rule.is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 </div>
-                                <h3 class="mt-3 break-words text-base font-semibold">{{ rule.name }}</h3>
-                                <p class="mt-1 break-words text-sm text-muted-foreground">{{ rule.scope }}</p>
+                                <h3 class="mt-3 text-base font-semibold break-words">{{ rule.name }}</h3>
+                                <p class="mt-1 text-sm break-words text-muted-foreground">{{ rule.scope }}</p>
                             </div>
                             <ReceiptText class="size-5 shrink-0 text-muted-foreground" />
                         </div>
@@ -546,7 +559,9 @@ function issueOneTimeCharge(): void {
                         v-model="ruleForm.branch_id"
                         :label="ruleForm.charge_kind === 'MONTHLY' ? 'Cabang' : 'Cabang (opsional)'"
                         :options="props.branches"
-                        :placeholder="ruleForm.charge_kind === 'MONTHLY' ? 'Pilih cabang atau gunakan kelas' : 'Semua cabang'"
+                        :placeholder="
+                            ruleForm.charge_kind === 'MONTHLY' ? 'Pilih cabang atau gunakan kelas' : 'Semua cabang'
+                        "
                         :error="ruleForm.errors.branch_id"
                     />
                     <FormSelectField
@@ -554,7 +569,9 @@ function issueOneTimeCharge(): void {
                         v-model="ruleForm.group_id"
                         :label="ruleForm.charge_kind === 'MONTHLY' ? 'Kelas latihan' : 'Kelas latihan (opsional)'"
                         :options="filteredGroupOptions"
-                        :placeholder="ruleForm.charge_kind === 'MONTHLY' ? 'Pilih kelas atau gunakan cabang' : 'Semua kelas'"
+                        :placeholder="
+                            ruleForm.charge_kind === 'MONTHLY' ? 'Pilih kelas atau gunakan cabang' : 'Semua kelas'
+                        "
                         :error="ruleForm.errors.group_id"
                     />
 
@@ -565,7 +582,8 @@ function issueOneTimeCharge(): void {
                     >
                         <p class="font-medium">Pilih minimal satu cakupan</p>
                         <p class="mt-1 text-xs text-muted-foreground">
-                            Gunakan cabang untuk seluruh atlet di cabang tersebut, kelas untuk kelas tertentu, atau keduanya untuk cakupan paling spesifik.
+                            Gunakan cabang untuk seluruh atlet di cabang tersebut, kelas untuk kelas tertentu, atau
+                            keduanya untuk cakupan paling spesifik.
                         </p>
                     </div>
 
@@ -598,7 +616,8 @@ function issueOneTimeCharge(): void {
                     <span>
                         <strong class="block">Berlaku selamanya</strong>
                         <span class="text-muted-foreground">
-                            Tidak membatasi aturan dengan tanggal berakhir. Anda tetap dapat mengubah atau mengarsipkannya nanti.
+                            Tidak membatasi aturan dengan tanggal berakhir. Anda tetap dapat mengubah atau
+                            mengarsipkannya nanti.
                         </span>
                     </span>
                 </label>

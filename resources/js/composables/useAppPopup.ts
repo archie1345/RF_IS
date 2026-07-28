@@ -87,8 +87,7 @@ export function dismissAppPopup(): void {
 export function useAppPopup() {
     return {
         state: readonly(popupState),
-        confirm: (options: Omit<AppPopupOptions, 'showCancel'>) =>
-            openPopup({ ...options, showCancel: true }),
+        confirm: (options: Omit<AppPopupOptions, 'showCancel'>) => openPopup({ ...options, showCancel: true }),
         show: openPopup,
         info: (title: string, message?: string) => openPopup({ title, message, tone: 'info' }),
         success: (title: string, message?: string) => openPopup({ title, message, tone: 'success' }),

@@ -364,12 +364,20 @@ function confirmPendingAction(): void {
                         <Power v-else class="size-4" />
                         {{ row.statusValue === 'active' ? 'Not active' : 'Activate' }}
                     </Button>
-                    <Button v-if="row.deletedAt === '-' && isInvitedRow(row)" variant="outline" @click="resendInvitation(row)">
+                    <Button
+                        v-if="row.deletedAt === '-' && isInvitedRow(row)"
+                        variant="outline"
+                        @click="resendInvitation(row)"
+                    >
                         Resend invite
                     </Button>
-                    <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)">Delete</Button>
+                    <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)"
+                        >Delete</Button
+                    >
                     <Button v-else variant="outline" @click="restoreAccount(row)">Restore</Button>
-                    <Button v-if="row.deletedAt !== '-'" variant="destructive" @click="hardDeleteAccount(row)">Delete</Button>
+                    <Button v-if="row.deletedAt !== '-'" variant="destructive" @click="hardDeleteAccount(row)"
+                        >Delete</Button
+                    >
                 </div>
             </template>
         </ResourceTablePanel>
@@ -383,7 +391,8 @@ function confirmPendingAction(): void {
                     {{ editingId !== null ? 'Edit account' : 'Create user account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent, athlete, or admin.
+                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent,
+                    athlete, or admin.
                 </DialogDescription>
             </DialogHeader>
 

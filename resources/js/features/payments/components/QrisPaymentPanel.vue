@@ -38,21 +38,31 @@ const configured = computed(() => Boolean(props.imageUrl));
                 :alt="`${props.label || 'Pembayaran QRIS'} resmi`"
                 class="h-full w-full object-contain"
             />
-            <div v-else class="grid place-items-center gap-2 text-center text-muted-foreground" aria-label="Placeholder QRIS belum dikonfigurasi">
+            <div
+                v-else
+                class="grid place-items-center gap-2 text-center text-muted-foreground"
+                aria-label="Placeholder QRIS belum dikonfigurasi"
+            >
                 <QrCode class="size-20" aria-hidden="true" />
-                <span class="text-xs font-semibold uppercase tracking-wider">QRIS placeholder</span>
+                <span class="text-xs font-semibold tracking-wider uppercase">QRIS placeholder</span>
             </div>
         </div>
 
         <div class="grid gap-2">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pembayaran statis</p>
+                <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Pembayaran statis</p>
                 <h2 id="qris-payment-title" class="text-lg font-semibold">{{ props.label || 'Pembayaran QRIS' }}</h2>
             </div>
             <p v-if="configured" class="text-sm leading-6 text-muted-foreground">
-                {{ props.instructions || 'Pindai QRIS, lakukan pembayaran sesuai nominal tagihan, lalu unggah bukti untuk direview admin.' }}
+                {{
+                    props.instructions ||
+                    'Pindai QRIS, lakukan pembayaran sesuai nominal tagihan, lalu unggah bukti untuk direview admin.'
+                }}
             </p>
-            <div v-else class="rounded-lg border border-dashed border-amber-500/50 bg-amber-500/10 p-3 text-sm leading-6">
+            <div
+                v-else
+                class="rounded-lg border border-dashed border-amber-500/50 bg-amber-500/10 p-3 text-sm leading-6"
+            >
                 QRIS resmi belum diunggah. Gambar ini hanya placeholder dan tidak dapat digunakan untuk pembayaran.
             </div>
             <p class="text-xs text-muted-foreground">

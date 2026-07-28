@@ -153,9 +153,7 @@ async function enhanceActions(): Promise<void> {
     for (const root of Array.from(container.value?.children ?? [])) {
         if (!(root instanceof HTMLElement)) continue;
 
-        const target = root.matches('button, a')
-            ? root
-            : root.querySelector<HTMLElement>('button, a');
+        const target = root.matches('button, a') ? root : root.querySelector<HTMLElement>('button, a');
 
         if (target) enhanceAction(target);
     }

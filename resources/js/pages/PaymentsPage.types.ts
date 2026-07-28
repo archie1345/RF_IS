@@ -1,4 +1,3 @@
-
 export type PaymentHistoryEntry = {
     id: number | string;
     amount: string;

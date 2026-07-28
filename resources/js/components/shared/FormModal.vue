@@ -35,7 +35,7 @@ const emit = defineEmits<{
             >
                 <X class="size-4" />
             </button>
-            <div class="min-w-0 clear-both">
+            <div class="clear-both min-w-0">
                 <slot />
             </div>
         </div>

@@ -1,4 +1,3 @@
-
 export type SessionVisibility = 'upcoming' | 'archived' | 'all';
 
 export type SessionFilters = {

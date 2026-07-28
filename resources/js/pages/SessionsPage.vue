@@ -128,7 +128,8 @@ async function removeSession(row: TableRow): Promise<void> {
 
     const confirmed = await popup.confirm({
         title: 'Hapus sesi latihan?',
-        message: 'Sesi yang dihasilkan ini akan dihapus. Riwayat terkait dapat memblokir penghapusan dan harus ditangani melalui halaman attendance sesi.',
+        message:
+            'Sesi yang dihasilkan ini akan dihapus. Riwayat terkait dapat memblokir penghapusan dan harus ditangani melalui halaman attendance sesi.',
         tone: 'danger',
         confirmLabel: 'Hapus sesi',
     });
@@ -164,7 +165,8 @@ function joinSession(row: TableRow): void {
                         <div>
                             <h2 class="text-base font-black">Session visibility</h2>
                             <p class="text-sm text-muted-foreground">
-                                Default view shows today and future sessions. Archived stores finished sessions and completed one-day classes.
+                                Default view shows today and future sessions. Archived stores finished sessions and
+                                completed one-day classes.
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">
@@ -195,7 +197,12 @@ function joinSession(row: TableRow): void {
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button v-if="row.can_manage === true && sessionIdFromRow(row)" as-child size="sm" variant="outline">
+                            <Button
+                                v-if="row.can_manage === true && sessionIdFromRow(row)"
+                                as-child
+                                size="sm"
+                                variant="outline"
+                            >
                                 <Link :href="sessionAttendance.url(sessionIdFromRow(row)!)">Edit</Link>
                             </Button>
                             <Button v-if="row.can_join === true" size="sm" variant="outline" @click="joinSession(row)">

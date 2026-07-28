@@ -179,7 +179,9 @@ async function removeAchievement(row: TableRow): Promise<void> {
                     </a>
                     <span v-else-if="column.key === 'championship_name' && row.is_auto_recorded">
                         {{ value }}
-                        <span class="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">Otomatis</span>
+                        <span class="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                            >Otomatis</span
+                        >
                     </span>
                     <span v-else>{{ value ?? '-' }}</span>
                 </template>
@@ -197,11 +199,7 @@ async function removeAchievement(row: TableRow): Promise<void> {
             </DataTable>
         </div>
 
-        <FormModal
-            :open="showAchievementModal && props.canCreate"
-            max-width-class="max-w-2xl"
-            @close="closeForm"
-        >
+        <FormModal :open="showAchievementModal && props.canCreate" max-width-class="max-w-2xl" @close="closeForm">
             <PageSection
                 :title="editingId === null ? 'Tambah prestasi' : 'Ubah prestasi'"
                 description="Catat prestasi manual dan lampirkan sertifikat, lembar hasil, foto medali, atau PDF bila tersedia."
@@ -264,7 +262,7 @@ async function removeAchievement(row: TableRow): Promise<void> {
                             id="achievement-file"
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png,.webp"
-                            class="min-h-11 min-w-0 max-w-full rounded-lg border border-input px-3 py-2 text-sm file:max-w-full"
+                            class="min-h-11 max-w-full min-w-0 rounded-lg border border-input px-3 py-2 text-sm file:max-w-full"
                             @change="onAchievementFileChange"
                         />
                         <p class="text-xs leading-5 text-muted-foreground">

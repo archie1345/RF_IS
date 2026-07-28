@@ -12,4 +12,3 @@ export const dashboardColumns = {
 export function mapProfileSummary(summary: Record<string, string>): TableRow[] {
     return Object.entries(summary).map(([field, value]) => ({ id: field, field, value }));
 }
-

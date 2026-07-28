@@ -67,7 +67,9 @@ const childFilterOptions = computed<SelectOption[]>(() => {
 
     return [
         { value: '', label: 'Semua anak' },
-        ...Array.from(names).sort().map((name) => ({ value: name, label: name })),
+        ...Array.from(names)
+            .sort()
+            .map((name) => ({ value: name, label: name })),
     ];
 });
 

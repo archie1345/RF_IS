@@ -12,10 +12,7 @@ import { store } from '@/routes/register';
 </script>
 
 <template>
-    <AuthBase
-        title="Create an account"
-        description="Enter your details below to create your account"
-    >
+    <AuthBase title="Create an account" description="Enter your details below to create your account">
         <Head title="Register" />
 
         <Form
@@ -96,14 +93,8 @@ import { store } from '@/routes/register';
 
             <div class="text-center text-sm text-muted-foreground">
                 Already have an account?
-                <TextLink
-                    :href="login()"
-                    class="underline underline-offset-4"
-                    :tabindex="6"
-                    >Log in</TextLink
-                >
+                <TextLink :href="login()" class="underline underline-offset-4" :tabindex="6">Log in</TextLink>
             </div>
         </Form>
     </AuthBase>
 </template>
-

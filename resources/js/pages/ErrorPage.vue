@@ -40,13 +40,17 @@ function reloadPage() {
 <template>
     <Head :title="`${status} - ${title}`" />
 
-    <main class="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground">
+    <main
+        class="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground"
+    >
         <div class="pointer-events-none absolute inset-0 opacity-50">
             <div class="absolute -top-32 left-1/2 size-96 -translate-x-1/2 rounded-full bg-muted blur-3xl"></div>
             <div class="absolute -right-32 bottom-0 size-80 rounded-full bg-muted/70 blur-3xl"></div>
         </div>
 
-        <section class="relative grid w-full max-w-2xl gap-6 rounded-2xl border border-border/70 bg-card/95 p-6 shadow-sm backdrop-blur sm:p-8">
+        <section
+            class="relative grid w-full max-w-2xl gap-6 rounded-2xl border border-border/70 bg-card/95 p-6 shadow-sm backdrop-blur sm:p-8"
+        >
             <div class="space-y-4">
                 <div class="flex items-center gap-3">
                     <div

@@ -172,7 +172,13 @@ async function removeCertification(row: TableRow): Promise<void> {
                         <PencilLine class="h-3.5 w-3.5" />
                         Ubah
                     </Button>
-                    <Button type="button" variant="destructive" size="sm" class="gap-2" @click="removeCertification(row)">
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        class="gap-2"
+                        @click="removeCertification(row)"
+                    >
                         <Trash2 class="h-3.5 w-3.5" />
                         Hapus
                     </Button>

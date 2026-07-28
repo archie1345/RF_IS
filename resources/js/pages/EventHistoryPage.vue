@@ -111,14 +111,21 @@ function resultRows(event: HistoricalEvent): TableRow[] {
         id: String(registration.id),
         registration_id: registration.id,
         athlete: registration.athlete,
-        entry: [registration.classification, registration.entry_category, registration.entry_class_name, registration.entry_division]
-            .filter((value) => value && value !== '-')
-            .join(' · ') || '-',
+        entry:
+            [
+                registration.classification,
+                registration.entry_category,
+                registration.entry_class_name,
+                registration.entry_division,
+            ]
+                .filter((value) => value && value !== '-')
+                .join(' · ') || '-',
         contingent: registration.team_contingent,
         medal: medalLabel(registration.result_medal, registration.has_result),
-        result_detail: [registration.result_category, registration.result_class_name, registration.result_division]
-            .filter((value) => value && value !== '-')
-            .join(' · ') || '-',
+        result_detail:
+            [registration.result_category, registration.result_class_name, registration.result_division]
+                .filter((value) => value && value !== '-')
+                .join(' · ') || '-',
         status: registration.status,
         registration,
         event,
@@ -128,12 +135,16 @@ function resultRows(event: HistoricalEvent): TableRow[] {
 function medalLabel(medal: string, hasResult: boolean): string {
     if (!hasResult) return 'Belum dicatat';
 
-    return ({
-        GOLD: 'Emas',
-        SILVER: 'Perak',
-        BRONZE: 'Perunggu',
-        NONE: 'Tanpa medali / Tidak lulus',
-    } as Record<string, string>)[medal] ?? medal;
+    return (
+        (
+            {
+                GOLD: 'Emas',
+                SILVER: 'Perak',
+                BRONZE: 'Perunggu',
+                NONE: 'Tanpa medali / Tidak lulus',
+            } as Record<string, string>
+        )[medal] ?? medal
+    );
 }
 
 function rowHasResult(row: TableRow): boolean {
@@ -209,14 +220,18 @@ function saveResult(): void {
                         <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
                                 <h2 class="truncate text-lg font-bold">{{ event.name }}</h2>
-                                <span class="rounded-full border px-2.5 py-1 text-xs font-semibold">{{ event.status }}</span>
+                                <span class="rounded-full border px-2.5 py-1 text-xs font-semibold">{{
+                                    event.status
+                                }}</span>
                             </div>
                             <p class="mt-1 text-sm text-muted-foreground">
                                 {{ event.date }} · {{ event.location }} · {{ event.level }}
                             </p>
                             <p class="mt-1 text-xs text-muted-foreground">Penyelenggara: {{ event.organizer }}</p>
                             <div class="mt-3 flex flex-wrap gap-2 text-xs">
-                                <span class="rounded-full bg-muted px-3 py-1">{{ event.participants_count }} peserta</span>
+                                <span class="rounded-full bg-muted px-3 py-1"
+                                    >{{ event.participants_count }} peserta</span
+                                >
                                 <span class="rounded-full bg-muted px-3 py-1">
                                     {{ event.results_count }} / {{ event.participants_count }} hasil tercatat
                                 </span>

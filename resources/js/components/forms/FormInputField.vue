@@ -85,7 +85,7 @@ watch(
                     :min="props.min"
                     :max="rangeEnd || props.max"
                     :aria-invalid="Boolean(props.error)"
-                    class="h-11 min-w-0 w-full rounded-lg border-input bg-background text-foreground"
+                    class="h-11 w-full min-w-0 rounded-lg border-input bg-background text-foreground"
                     @update:model-value="updateRange"
                 />
             </label>
@@ -100,7 +100,7 @@ watch(
                     :min="rangeStart || props.min"
                     :max="props.max"
                     :aria-invalid="Boolean(props.error)"
-                    class="h-11 min-w-0 w-full rounded-lg border-input bg-background text-foreground"
+                    class="h-11 w-full min-w-0 rounded-lg border-input bg-background text-foreground"
                     @update:model-value="updateRange"
                 />
             </label>
@@ -120,11 +120,11 @@ watch(
             :max="props.max"
             :step="resolvedStep"
             :aria-invalid="Boolean(props.error)"
-            class="h-11 min-w-0 w-full rounded-lg border-input bg-background text-foreground"
+            class="h-11 w-full min-w-0 rounded-lg border-input bg-background text-foreground"
             @update:model-value="emit('update:modelValue', String($event ?? ''))"
         />
 
-        <p v-if="props.help && !props.error" class="break-words text-xs leading-5 text-muted-foreground">
+        <p v-if="props.help && !props.error" class="text-xs leading-5 break-words text-muted-foreground">
             {{ props.help }}
         </p>
         <InputError :message="props.error" />

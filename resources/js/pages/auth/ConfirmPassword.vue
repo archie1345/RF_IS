@@ -16,11 +16,7 @@ import { store } from '@/routes/password/confirm';
     >
         <Head title="Confirm password" />
 
-        <Form
-            v-bind="store.form()"
-            reset-on-success
-            v-slot="{ errors, processing }"
-        >
+        <Form v-bind="store.form()" reset-on-success v-slot="{ errors, processing }">
             <div class="space-y-6">
                 <div class="grid gap-2">
                     <Label htmlFor="password">Password</Label>
@@ -38,11 +34,7 @@ import { store } from '@/routes/password/confirm';
                 </div>
 
                 <div class="flex items-center">
-                    <Button
-                        class="w-full"
-                        :disabled="processing"
-                        data-test="confirm-password-button"
-                    >
+                    <Button class="w-full" :disabled="processing" data-test="confirm-password-button">
                         <Spinner v-if="processing" />
                         Confirm Password
                     </Button>
@@ -51,4 +43,3 @@ import { store } from '@/routes/password/confirm';
         </Form>
     </AuthLayout>
 </template>
-

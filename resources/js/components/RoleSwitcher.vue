@@ -19,9 +19,7 @@ const page = usePage<{ auth: Auth }>();
 const switchingRole = ref<AppRole | null>(null);
 
 const roles = computed<AppRole[]>(() => page.props.auth.user?.roles ?? []);
-const activeRole = computed<AppRole>(() =>
-    page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
-);
+const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
 const isMultiRole = computed(() => roles.value.length > 1);
 
 const roleLabels: Record<AppRole, string> = {

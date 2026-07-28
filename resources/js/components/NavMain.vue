@@ -30,9 +30,7 @@ const page = usePage<{ auth: Auth }>();
 const { isCurrentUrl } = useCurrentUrl();
 const switchingHref = ref<string | null>(null);
 
-const activeRole = computed<AppRole>(() =>
-    page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete',
-);
+const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
 const assignedRoles = computed<AppRole[]>(() => {
     const roles = page.props.auth.user?.roles ?? [];
     return roles.length > 0 ? roles : [activeRole.value];

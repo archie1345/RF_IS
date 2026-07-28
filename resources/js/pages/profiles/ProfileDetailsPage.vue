@@ -203,7 +203,10 @@ function showSaveError(section: string, errors: Record<string, string>) {
 
     saveError.value = {
         title: `${section} could not be saved`,
-        message: fields.length > 0 ? 'Review the highlighted fields and try again.' : 'The request failed. Please try again.',
+        message:
+            fields.length > 0
+                ? 'Review the highlighted fields and try again.'
+                : 'The request failed. Please try again.',
         fields,
     };
 }
@@ -388,7 +391,9 @@ function shortHash(value?: string | null) {
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 class="text-lg font-semibold">Child Password</h3>
-                                <p class="text-sm text-muted-foreground">Set a new login password for this child account.</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Set a new login password for this child account.
+                                </p>
                             </div>
                             <Button
                                 v-if="!isEditingPassword"
@@ -419,7 +424,12 @@ function shortHash(value?: string | null) {
                                 />
                             </div>
                             <div class="flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" size="sm" class="w-full sm:w-auto" :disabled="passwordForm.processing">
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    class="w-full sm:w-auto"
+                                    :disabled="passwordForm.processing"
+                                >
                                     Save Password
                                 </Button>
                                 <Button
@@ -508,7 +518,9 @@ function shortHash(value?: string | null) {
                                     </Button>
                                 </div>
 
-                                <p v-if="profilePictureError" class="text-sm text-destructive">{{ profilePictureError }}</p>
+                                <p v-if="profilePictureError" class="text-sm text-destructive">
+                                    {{ profilePictureError }}
+                                </p>
 
                                 <div v-if="selectedImage" class="mt-4 grid gap-3">
                                     <div class="overflow-hidden rounded-lg border border-border bg-muted">
@@ -524,10 +536,18 @@ function shortHash(value?: string | null) {
                                     </div>
 
                                     <div class="flex flex-wrap gap-2">
-                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(1.1)">Zoom in</Button>
-                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(0.9)">Zoom out</Button>
-                                        <Button type="button" variant="outline" size="sm" @click="rotateCrop">Rotate</Button>
-                                        <Button type="button" variant="outline" size="sm" @click="resetCrop">Reset</Button>
+                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(1.1)"
+                                            >Zoom in</Button
+                                        >
+                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(0.9)"
+                                            >Zoom out</Button
+                                        >
+                                        <Button type="button" variant="outline" size="sm" @click="rotateCrop"
+                                            >Rotate</Button
+                                        >
+                                        <Button type="button" variant="outline" size="sm" @click="resetCrop"
+                                            >Reset</Button
+                                        >
                                         <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
                                     </div>
 
@@ -537,7 +557,12 @@ function shortHash(value?: string | null) {
                                 </div>
                             </div>
                             <div v-if="isEditingProfile" class="flex flex-col gap-2 sm:flex-row">
-                                <Button type="submit" :disabled="profileForm.processing" size="sm" class="w-full sm:w-auto">
+                                <Button
+                                    type="submit"
+                                    :disabled="profileForm.processing"
+                                    size="sm"
+                                    class="w-full sm:w-auto"
+                                >
                                     Save Changes
                                 </Button>
                                 <Button
@@ -553,10 +578,7 @@ function shortHash(value?: string | null) {
                         </form>
                     </div>
 
-                    <div
-                        v-if="hasRoleDetails"
-                        class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5"
-                    >
+                    <div v-if="hasRoleDetails" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
                         <h3 class="mb-4 flex items-center gap-2 text-lg font-semibold">
                             <ShieldCheck class="h-4 w-4 text-muted-foreground" />
                             Role Details
@@ -744,7 +766,9 @@ function shortHash(value?: string | null) {
                                     rows="3"
                                     class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                                 />
-                                <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">{{ coachForm.errors.bio }}</p>
+                                <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">
+                                    {{ coachForm.errors.bio }}
+                                </p>
                             </div>
                         </ProfileRoleDetailsSection>
 
@@ -794,10 +818,13 @@ function shortHash(value?: string | null) {
                                     class="mt-1 ml-4 list-disc text-muted-foreground"
                                 >
                                     <li v-for="athlete in user.parentProfile?.athletes" :key="athlete.id">
-                                        {{ athlete.name }} ({{ athlete.branch?.branch_name }} - {{ athlete.group?.group_name }})
+                                        {{ athlete.name }} ({{ athlete.branch?.branch_name }} -
+                                        {{ athlete.group?.group_name }})
                                     </li>
                                 </ul>
-                                <p v-else class="mt-1 text-muted-foreground italic">No children linked to this account yet.</p>
+                                <p v-else class="mt-1 text-muted-foreground italic">
+                                    No children linked to this account yet.
+                                </p>
                             </div>
                         </ProfileRoleDetailsSection>
                     </div>

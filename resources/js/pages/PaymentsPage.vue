@@ -430,7 +430,8 @@ async function submitReview(decision: 'APPROVED' | 'REJECTED'): Promise<void> {
     if (decision === 'REJECTED') {
         const confirmed = await popup.confirm({
             title: 'Tolak bukti pembayaran?',
-            message: 'Bukti aktif akan ditandai ditolak tanpa mengubah saldo. Pengguna dapat mengunggah bukti baru setelah membaca catatan admin.',
+            message:
+                'Bukti aktif akan ditandai ditolak tanpa mengubah saldo. Pengguna dapat mengunggah bukti baru setelah membaca catatan admin.',
             tone: 'danger',
             confirmLabel: 'Tolak bukti',
         });
@@ -484,7 +485,12 @@ function submitManualPayment() {
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button v-if="props.isAdmin" type="button" variant="outline" @click="invoiceTemplateModalOpen = true">
+                        <Button
+                            v-if="props.isAdmin"
+                            type="button"
+                            variant="outline"
+                            @click="invoiceTemplateModalOpen = true"
+                        >
                             Pengaturan invoice
                         </Button>
                         <Button v-if="props.isAdmin" type="button" variant="outline" @click="exportPaymentCsv">
@@ -522,8 +528,12 @@ function submitManualPayment() {
                     <p class="text-xs text-muted-foreground">Semua cicilan tetap berada pada tagihan yang sama.</p>
                 </div>
                 <div>
-                    <p class="font-medium">{{ props.financeAttention.ledger_mismatch_count }} ledger perlu rekonsiliasi</p>
-                    <p class="text-xs text-muted-foreground">Nilai di atas nol berarti saldo lama tidak memiliki transaksi lengkap.</p>
+                    <p class="font-medium">
+                        {{ props.financeAttention.ledger_mismatch_count }} ledger perlu rekonsiliasi
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        Nilai di atas nol berarti saldo lama tidak memiliki transaksi lengkap.
+                    </p>
                 </div>
             </section>
 
@@ -539,7 +549,13 @@ function submitManualPayment() {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" title="Download invoice" @click="exportInvoice(row.payment_id)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            title="Download invoice"
+                            @click="exportInvoice(row.payment_id)"
+                        >
                             <Download class="size-4" />
                         </Button>
                         <a
@@ -605,7 +621,11 @@ function submitManualPayment() {
             "
         >
             <PageSection
-                :title="editingPaymentId ? `Kelola ${String(editingPaymentRow?.invoice_number ?? 'tagihan')}` : 'Buat tagihan baru'"
+                :title="
+                    editingPaymentId
+                        ? `Kelola ${String(editingPaymentRow?.invoice_number ?? 'tagihan')}`
+                        : 'Buat tagihan baru'
+                "
                 description="Saldo terbayar tidak dapat diubah dari form ini. Gunakan Catat pembayaran atau Review bukti agar ledger tetap lengkap."
             >
                 <form class="grid gap-4" @submit.prevent="submit">
@@ -613,12 +633,23 @@ function submitManualPayment() {
                         v-if="editingPaymentRow"
                         class="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm md:grid-cols-3"
                     >
-                        <div><span class="text-muted-foreground">Total</span><p class="font-medium">{{ editingPaymentRow.amount }}</p></div>
-                        <div><span class="text-muted-foreground">Terbayar</span><p class="font-medium">{{ editingPaymentRow.paid }}</p></div>
-                        <div><span class="text-muted-foreground">Sisa</span><p class="font-medium">{{ editingPaymentRow.balance }}</p></div>
+                        <div>
+                            <span class="text-muted-foreground">Total</span>
+                            <p class="font-medium">{{ editingPaymentRow.amount }}</p>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Terbayar</span>
+                            <p class="font-medium">{{ editingPaymentRow.paid }}</p>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Sisa</span>
+                            <p class="font-medium">{{ editingPaymentRow.balance }}</p>
+                        </div>
                         <div class="md:col-span-3">
                             <span class="text-muted-foreground">Kesehatan ledger</span>
-                            <p class="font-medium">{{ editingPaymentRow.ledger_consistent ? 'Sesuai' : 'Perlu rekonsiliasi' }}</p>
+                            <p class="font-medium">
+                                {{ editingPaymentRow.ledger_consistent ? 'Sesuai' : 'Perlu rekonsiliasi' }}
+                            </p>
                         </div>
                     </div>
 
@@ -767,13 +798,18 @@ function submitManualPayment() {
                             :error="invoiceTemplateForm.errors.logo_file"
                         />
                         <p v-if="!invoiceTemplateForm.errors.logo_file" class="text-xs leading-5 text-muted-foreground">
-                            Gunakan PNG, JPG, atau WebP maksimal 5 MB. Logo berbentuk persegi atau horizontal dengan latar transparan memberikan hasil terbaik pada PDF.
+                            Gunakan PNG, JPG, atau WebP maksimal 5 MB. Logo berbentuk persegi atau horizontal dengan
+                            latar transparan memberikan hasil terbaik pada PDF.
                         </p>
                         <label
                             v-if="props.invoiceTemplate?.logo_image_url || props.invoiceTemplate?.logo_url"
                             class="flex items-center gap-2 text-sm"
                         >
-                            <input v-model="invoiceTemplateForm.remove_logo_file" type="checkbox" class="size-4 rounded border-input" />
+                            <input
+                                v-model="invoiceTemplateForm.remove_logo_file"
+                                type="checkbox"
+                                class="size-4 rounded border-input"
+                            />
                             Hapus logo dari invoice
                         </label>
                         <p v-if="invoiceTemplateForm.errors.remove_logo_file" class="text-sm text-destructive">
@@ -781,22 +817,56 @@ function submitManualPayment() {
                         </p>
                     </div>
                     <div class="grid gap-4 md:grid-cols-2">
-                        <FormInputField id="invoice-company-name" v-model="invoiceTemplateForm.company_name" label="Nama klub" required :error="invoiceTemplateForm.errors.company_name" />
-                        <FormInputField id="invoice-company-email" v-model="invoiceTemplateForm.company_email" label="Email keuangan" type="email" :error="invoiceTemplateForm.errors.company_email" />
-                        <FormInputField id="invoice-company-phone" v-model="invoiceTemplateForm.company_phone" label="Nomor keuangan" :error="invoiceTemplateForm.errors.company_phone" />
+                        <FormInputField
+                            id="invoice-company-name"
+                            v-model="invoiceTemplateForm.company_name"
+                            label="Nama klub"
+                            required
+                            :error="invoiceTemplateForm.errors.company_name"
+                        />
+                        <FormInputField
+                            id="invoice-company-email"
+                            v-model="invoiceTemplateForm.company_email"
+                            label="Email keuangan"
+                            type="email"
+                            :error="invoiceTemplateForm.errors.company_email"
+                        />
+                        <FormInputField
+                            id="invoice-company-phone"
+                            v-model="invoiceTemplateForm.company_phone"
+                            label="Nomor keuangan"
+                            :error="invoiceTemplateForm.errors.company_phone"
+                        />
                     </div>
                     <label class="grid gap-2 text-sm font-medium">
                         Alamat
-                        <textarea v-model="invoiceTemplateForm.company_address" rows="2" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea
+                            v-model="invoiceTemplateForm.company_address"
+                            rows="2"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
                     </label>
-                    <FormInputField id="invoice-header-text" v-model="invoiceTemplateForm.header_text" label="Tagline atau subjudul" :error="invoiceTemplateForm.errors.header_text" />
+                    <FormInputField
+                        id="invoice-header-text"
+                        v-model="invoiceTemplateForm.header_text"
+                        label="Tagline atau subjudul"
+                        :error="invoiceTemplateForm.errors.header_text"
+                    />
                     <label class="grid gap-2 text-sm font-medium">
                         Catatan footer
-                        <textarea v-model="invoiceTemplateForm.footer_text" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea
+                            v-model="invoiceTemplateForm.footer_text"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
                     </label>
                     <label class="grid gap-2 text-sm font-medium">
                         Instruksi pembayaran
-                        <textarea v-model="invoiceTemplateForm.payment_notes" rows="3" class="rounded-lg border border-input bg-background px-3 py-2 text-sm"></textarea>
+                        <textarea
+                            v-model="invoiceTemplateForm.payment_notes"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
                     </label>
                     <div class="flex flex-wrap gap-3">
                         <Button type="submit" :disabled="invoiceTemplateForm.processing">
@@ -809,9 +879,15 @@ function submitManualPayment() {
         </FormModal>
 
         <FormModal :open="showProofForm" max-width-class="max-w-xl" @close="showProofForm = false">
-            <PageSection title="Upload bukti pembayaran" description="Bukti akan masuk ke antrean review admin dan tidak langsung mengubah saldo.">
+            <PageSection
+                title="Upload bukti pembayaran"
+                description="Bukti akan masuk ke antrean review admin dan tidak langsung mengubah saldo."
+            >
                 <div v-if="activeProofRow" class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                    <p><span class="font-medium">Tagihan:</span> {{ activeProofRow.invoice_number }} — {{ activeProofRow.type }}</p>
+                    <p>
+                        <span class="font-medium">Tagihan:</span> {{ activeProofRow.invoice_number }} —
+                        {{ activeProofRow.type }}
+                    </p>
                     <p><span class="font-medium">Sisa:</span> {{ activeProofRow.balance }}</p>
                     <p class="leading-6 text-muted-foreground">{{ props.paymentInstructions }}</p>
                 </div>
@@ -823,11 +899,27 @@ function submitManualPayment() {
                     :bordered="true"
                 />
                 <form class="grid gap-4" @submit.prevent="submitProof">
-                    <FormInputField id="proof-notes" v-model="proofForm.notes" label="Catatan bukti" placeholder="Contoh: Transfer cicilan pertama" :error="proofForm.errors.notes" />
-                    <FormFileField id="proof-file" v-model="proofForm.proof_file" label="File bukti" accept="image/*,.pdf" :error="proofForm.errors.proof_file" />
-                    <p v-if="!proofForm.errors.proof_file" class="text-xs text-muted-foreground">Gambar atau PDF, maksimal 10 MB.</p>
+                    <FormInputField
+                        id="proof-notes"
+                        v-model="proofForm.notes"
+                        label="Catatan bukti"
+                        placeholder="Contoh: Transfer cicilan pertama"
+                        :error="proofForm.errors.notes"
+                    />
+                    <FormFileField
+                        id="proof-file"
+                        v-model="proofForm.proof_file"
+                        label="File bukti"
+                        accept="image/*,.pdf"
+                        :error="proofForm.errors.proof_file"
+                    />
+                    <p v-if="!proofForm.errors.proof_file" class="text-xs text-muted-foreground">
+                        Gambar atau PDF, maksimal 10 MB.
+                    </p>
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file">Kirim untuk review</Button>
+                        <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file"
+                            >Kirim untuk review</Button
+                        >
                         <Button type="button" variant="outline" @click="showProofForm = false">Batal</Button>
                     </div>
                 </form>
@@ -835,42 +927,118 @@ function submitManualPayment() {
         </FormModal>
 
         <FormModal :open="showReviewForm" max-width-class="max-w-lg" @close="showReviewForm = false">
-            <PageSection title="Review bukti pembayaran" description="Masukkan nilai yang benar-benar terlihat pada bukti. Nilai ini akan menjadi transaksi ledger.">
+            <PageSection
+                title="Review bukti pembayaran"
+                description="Masukkan nilai yang benar-benar terlihat pada bukti. Nilai ini akan menjadi transaksi ledger."
+            >
                 <form class="grid gap-4">
-                    <div v-if="reviewPaymentRow" class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <div
+                        v-if="reviewPaymentRow"
+                        class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm"
+                    >
                         <p><span class="font-medium">Tagihan:</span> {{ reviewPaymentRow.invoice_number }}</p>
                         <p><span class="font-medium">Penerima:</span> {{ reviewPaymentRow.athlete }}</p>
                         <p><span class="font-medium">Total:</span> {{ reviewPaymentRow.amount }}</p>
                         <p><span class="font-medium">Sisa saat ini:</span> {{ reviewPaymentRow.balance }}</p>
-                        <a v-if="reviewPaymentRow.proof_url" :href="String(reviewPaymentRow.proof_url)" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex h-8 w-fit items-center rounded-md border bg-background px-3 text-xs font-medium">
+                        <a
+                            v-if="reviewPaymentRow.proof_url"
+                            :href="String(reviewPaymentRow.proof_url)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-1 inline-flex h-8 w-fit items-center rounded-md border bg-background px-3 text-xs font-medium"
+                        >
                             Buka dokumen bukti
                         </a>
                     </div>
-                    <FormInputField id="review-approved-amount" v-model="reviewForm.approved_amount" label="Nominal yang disetujui" type="number" inputmode="decimal" min="0.01" step="0.01" required :error="reviewForm.errors.approved_amount" />
-                    <FormInputField id="review-notes" v-model="reviewForm.notes" label="Catatan admin" placeholder="Contoh: Nominal sesuai mutasi bank" :error="reviewForm.errors.notes || reviewForm.errors.proof_review" />
+                    <FormInputField
+                        id="review-approved-amount"
+                        v-model="reviewForm.approved_amount"
+                        label="Nominal yang disetujui"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        required
+                        :error="reviewForm.errors.approved_amount"
+                    />
+                    <FormInputField
+                        id="review-notes"
+                        v-model="reviewForm.notes"
+                        label="Catatan admin"
+                        placeholder="Contoh: Nominal sesuai mutasi bank"
+                        :error="reviewForm.errors.notes || reviewForm.errors.proof_review"
+                    />
                     <div class="mt-4 flex flex-wrap gap-3">
-                        <Button type="button" :disabled="reviewForm.processing" @click="submitReview('APPROVED')">Setujui nominal</Button>
-                        <Button type="button" variant="destructive" :disabled="reviewForm.processing" @click="submitReview('REJECTED')">Tolak bukti</Button>
+                        <Button type="button" :disabled="reviewForm.processing" @click="submitReview('APPROVED')"
+                            >Setujui nominal</Button
+                        >
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            :disabled="reviewForm.processing"
+                            @click="submitReview('REJECTED')"
+                            >Tolak bukti</Button
+                        >
                         <Button type="button" variant="outline" @click="showReviewForm = false">Batal</Button>
                     </div>
                 </form>
             </PageSection>
         </FormModal>
 
-        <FormModal :open="showManualPaymentForm && props.isAdmin" max-width-class="max-w-lg" @close="showManualPaymentForm = false">
-            <PageSection title="Catat pembayaran" description="Gunakan untuk pembayaran tunai atau transfer yang diverifikasi langsung oleh admin tanpa upload bukti dari anggota.">
+        <FormModal
+            :open="showManualPaymentForm && props.isAdmin"
+            max-width-class="max-w-lg"
+            @close="showManualPaymentForm = false"
+        >
+            <PageSection
+                title="Catat pembayaran"
+                description="Gunakan untuk pembayaran tunai atau transfer yang diverifikasi langsung oleh admin tanpa upload bukti dari anggota."
+            >
                 <form class="grid gap-4" @submit.prevent="submitManualPayment">
-                    <div v-if="manualPaymentRow" class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <div
+                        v-if="manualPaymentRow"
+                        class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm"
+                    >
                         <p><span class="font-medium">Tagihan:</span> {{ manualPaymentRow.invoice_number }}</p>
                         <p><span class="font-medium">Penerima:</span> {{ manualPaymentRow.athlete }}</p>
                         <p><span class="font-medium">Sisa sebelum transaksi:</span> {{ manualPaymentRow.balance }}</p>
                     </div>
-                    <FormInputField id="manual-payment-amount" v-model="manualPaymentForm.amount" label="Nominal diterima" type="number" inputmode="decimal" min="0.01" step="0.01" required :error="manualPaymentForm.errors.amount" />
+                    <FormInputField
+                        id="manual-payment-amount"
+                        v-model="manualPaymentForm.amount"
+                        label="Nominal diterima"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        required
+                        :error="manualPaymentForm.errors.amount"
+                    />
                     <div class="grid gap-4 md:grid-cols-2">
-                        <FormInputField id="manual-payment-date" v-model="manualPaymentForm.transaction_date" label="Tanggal transaksi" type="date" required :error="manualPaymentForm.errors.transaction_date" />
-                        <FormSelectField id="manual-payment-method" v-model="manualPaymentForm.payment_method" label="Metode" :options="collectionMethodOptions" required :error="manualPaymentForm.errors.payment_method" />
+                        <FormInputField
+                            id="manual-payment-date"
+                            v-model="manualPaymentForm.transaction_date"
+                            label="Tanggal transaksi"
+                            type="date"
+                            required
+                            :error="manualPaymentForm.errors.transaction_date"
+                        />
+                        <FormSelectField
+                            id="manual-payment-method"
+                            v-model="manualPaymentForm.payment_method"
+                            label="Metode"
+                            :options="collectionMethodOptions"
+                            required
+                            :error="manualPaymentForm.errors.payment_method"
+                        />
                     </div>
-                    <FormInputField id="manual-payment-notes" v-model="manualPaymentForm.notes" label="Catatan transaksi" placeholder="Contoh: Diterima tunai oleh admin" :error="manualPaymentForm.errors.notes" />
+                    <FormInputField
+                        id="manual-payment-notes"
+                        v-model="manualPaymentForm.notes"
+                        label="Catatan transaksi"
+                        placeholder="Contoh: Diterima tunai oleh admin"
+                        :error="manualPaymentForm.errors.notes"
+                    />
                     <PaymentTransactionHistory
                         :entries="paymentHistory(manualPaymentRow)"
                         title="Riwayat ledger"

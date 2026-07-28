@@ -146,7 +146,9 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                         </span>
                         <div>
                             <h2 class="font-semibold">Dataset and filters</h2>
-                            <p class="text-sm leading-5 text-muted-foreground">Filters apply before the workbook is generated.</p>
+                            <p class="text-sm leading-5 text-muted-foreground">
+                                Filters apply before the workbook is generated.
+                            </p>
                         </div>
                     </div>
 
@@ -182,7 +184,13 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
 
                     <div v-if="activeDataset?.supportsDateRange" class="grid gap-4 sm:grid-cols-2">
                         <FormInputField id="export-date-from" v-model="dateFrom" label="Date from" type="date" />
-                        <FormInputField id="export-date-to" v-model="dateTo" label="Date to" type="date" :min="dateFrom" />
+                        <FormInputField
+                            id="export-date-to"
+                            v-model="dateTo"
+                            label="Date to"
+                            type="date"
+                            :min="dateFrom"
+                        />
                     </div>
 
                     <label
@@ -192,7 +200,9 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                         <input v-model="includeDeleted" type="checkbox" class="mt-0.5 size-4 rounded border-input" />
                         <span>
                             <span class="block font-semibold">Include deleted records</span>
-                            <span class="mt-1 block leading-5 text-muted-foreground">Adds soft-deleted records when the selected dataset supports them.</span>
+                            <span class="mt-1 block leading-5 text-muted-foreground"
+                                >Adds soft-deleted records when the selected dataset supports them.</span
+                            >
                         </span>
                     </label>
                 </section>
@@ -221,24 +231,40 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                             :key="field.key"
                             type="button"
                             class="flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left text-sm transition hover:bg-muted/30"
-                            :class="selectedFields.includes(field.key) ? 'border-primary/50 bg-primary/5' : 'border-border bg-background'"
+                            :class="
+                                selectedFields.includes(field.key)
+                                    ? 'border-primary/50 bg-primary/5'
+                                    : 'border-border bg-background'
+                            "
                             @click="toggleField(field.key)"
                         >
-                            <CheckSquare2 v-if="selectedFields.includes(field.key)" class="size-4 shrink-0 text-primary" />
+                            <CheckSquare2
+                                v-if="selectedFields.includes(field.key)"
+                                class="size-4 shrink-0 text-primary"
+                            />
                             <Square v-else class="size-4 shrink-0 text-muted-foreground" />
-                            <span class="min-w-0 break-words font-medium">{{ field.label }}</span>
+                            <span class="min-w-0 font-medium break-words">{{ field.label }}</span>
                         </button>
                     </div>
 
-                    <p v-if="validationMessage" class="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    <p
+                        v-if="validationMessage"
+                        class="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
                         {{ validationMessage }}
                     </p>
 
                     <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                         <p class="text-xs leading-5 text-muted-foreground">
-                            The export is generated from a server-side query and downloaded as .xlsx. Large exports are processed in chunks.
+                            The export is generated from a server-side query and downloaded as .xlsx. Large exports are
+                            processed in chunks.
                         </p>
-                        <Button type="button" class="gap-2" :disabled="selectedFields.length === 0" @click="downloadExport">
+                        <Button
+                            type="button"
+                            class="gap-2"
+                            :disabled="selectedFields.length === 0"
+                            @click="downloadExport"
+                        >
                             <Download class="size-4" /> Download selected data
                         </Button>
                     </div>

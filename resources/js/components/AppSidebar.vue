@@ -73,7 +73,12 @@ const navigation: NavSection[] = [
             { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
             { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
             { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock, roles: ['admin', 'coach'] },
-            { title: 'Absensi & Check-in', href: attendanceIndex.url(), icon: ScanLine, roles: ['coach', 'parent', 'athlete'] },
+            {
+                title: 'Absensi & Check-in',
+                href: attendanceIndex.url(),
+                icon: ScanLine,
+                roles: ['coach', 'parent', 'athlete'],
+            },
             { title: 'Laporan Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck, roles: ['admin'] },
             { title: 'Kehadiran Pelatih', href: adminInstructorAttendance.url(), icon: BadgeCheck, roles: ['admin'] },
         ],
@@ -92,14 +97,24 @@ const navigation: NavSection[] = [
             { title: 'Keuangan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards, roles: allRoles },
             { title: 'Payroll Pelatih', href: '/admin/payroll', icon: ReceiptText, roles: ['admin'] },
             { title: 'Aturan Tagihan', href: '/admin/billing-settings', icon: ReceiptText, roles: ['admin'] },
-            { title: 'Template & Kontak WhatsApp', href: '/admin/whatsapp-template', icon: MessageCircleMore, roles: ['admin'] },
+            {
+                title: 'Template & Kontak WhatsApp',
+                href: '/admin/whatsapp-template',
+                icon: MessageCircleMore,
+                roles: ['admin'],
+            },
         ],
     },
     {
         label: 'Kompetisi',
         items: [
             { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy, roles: allRoles },
-            { title: 'Prestasi & Sertifikat', href: achievementsIndex.url(), icon: Award, roles: ['coach', 'parent', 'athlete'] },
+            {
+                title: 'Prestasi & Sertifikat',
+                href: achievementsIndex.url(),
+                icon: Award,
+                roles: ['coach', 'parent', 'athlete'],
+            },
             { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History, roles: ['admin'] },
         ],
     },
@@ -130,7 +145,7 @@ const footerNavItems: NavItem[] = [];
         <SidebarHeader class="min-w-0 overflow-hidden p-2">
             <Link
                 :href="dashboard.url()"
-                class="flex h-20 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition hover:bg-sidebar-accent group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0"
+                class="flex h-20 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
             >
                 <AppLogoIcon
                     class-name="block h-auto w-40 max-h-16 max-w-full shrink-0 object-contain group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"

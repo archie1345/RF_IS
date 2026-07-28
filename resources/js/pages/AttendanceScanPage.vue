@@ -52,12 +52,20 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const childOptions = computed(() => props.children ?? []);
 const isParentScan = computed(() => childOptions.value.length > 0);
-const selectedChild = computed(() => childOptions.value.find((child) => String(child.value) === selectedAthleteId.value) ?? null);
-const displayedAthleteName = computed(() => selectedChild.value?.label ?? props.athlete?.name ?? 'Athlete login required');
-const displayedAthleteStatus = computed(() => selectedChild.value?.current_status ?? props.athlete?.current_status ?? null);
+const selectedChild = computed(
+    () => childOptions.value.find((child) => String(child.value) === selectedAthleteId.value) ?? null,
+);
+const displayedAthleteName = computed(
+    () => selectedChild.value?.label ?? props.athlete?.name ?? 'Athlete login required',
+);
+const displayedAthleteStatus = computed(
+    () => selectedChild.value?.current_status ?? props.athlete?.current_status ?? null,
+);
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
-const selectedChildAlreadyPresent = computed(() => isParentScan.value && selectedChild.value?.current_status === 'PRESENT');
+const selectedChildAlreadyPresent = computed(
+    () => isParentScan.value && selectedChild.value?.current_status === 'PRESENT',
+);
 const hasSaved = computed(
     () =>
         selectedChildAlreadyPresent.value ||
@@ -66,7 +74,13 @@ const hasSaved = computed(
         scanFlash.value?.status === 'already_recorded',
 );
 const blockingError = computed(
-    () => submitError.value ?? pageErrors.value.attendance ?? pageErrors.value.athlete_id ?? pageErrors.value.device ?? pageErrors.value.token ?? null,
+    () =>
+        submitError.value ??
+        pageErrors.value.attendance ??
+        pageErrors.value.athlete_id ??
+        pageErrors.value.device ??
+        pageErrors.value.token ??
+        null,
 );
 const parentSessionBlocked = computed(() => ['invalid', 'not_open', 'closed', 'revoked'].includes(props.state));
 const parentSelectionBlocked = computed(() => isParentScan.value && selectedAthleteId.value === '');
@@ -82,7 +96,12 @@ const canRecordNow = computed(() => {
 
 const stepState = computed(() => {
     if (!props.deviceAllowed) return 'blocked';
-    if (blockingError.value || parentSessionBlocked.value || (!isParentScan.value && ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state))) {
+    if (
+        blockingError.value ||
+        parentSessionBlocked.value ||
+        (!isParentScan.value &&
+            ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state))
+    ) {
         return 'blocked';
     }
     if (hasSaved.value) return 'done';
@@ -217,7 +236,13 @@ function recordAttendance() {
                         @click="recordAttendance"
                     >
                         <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
-                        {{ isSubmitting ? 'Saving attendance...' : isParentScan ? 'Save child attendance now' : 'Save attendance now' }}
+                        {{
+                            isSubmitting
+                                ? 'Saving attendance...'
+                                : isParentScan
+                                  ? 'Save child attendance now'
+                                  : 'Save attendance now'
+                        }}
                     </Button>
 
                     <section v-if="props.session" class="rounded-3xl border bg-background p-4">
@@ -235,7 +260,9 @@ function recordAttendance() {
                     </section>
 
                     <section class="rounded-3xl border bg-background p-4">
-                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">{{ isParentScan ? 'Selected child' : 'Athlete' }}</p>
+                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                            {{ isParentScan ? 'Selected child' : 'Athlete' }}
+                        </p>
                         <p class="mt-1 text-lg font-black">{{ displayedAthleteName }}</p>
                         <p v-if="displayedAthleteStatus" class="mt-1 text-sm text-muted-foreground">
                             Current status: {{ displayedAthleteStatus }}
