@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import QRCode from 'qrcode';
 import { Check, Copy, QrCode, ShieldCheck, X } from 'lucide-vue-next';
+import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
-import type { PagePropsWithQrFlash } from './SessionAttendanceQrPanel.types';
 import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/sessions/attendance-qr';
+import type { PagePropsWithQrFlash } from './SessionAttendanceQrPanel.types';
 
 const props = defineProps<{
     sessionId: number;

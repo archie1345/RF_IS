@@ -14,9 +14,6 @@ import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-import type { PaymentHistoryEntry } from './PaymentsPage.types';
 import { dashboard } from '@/routes';
 import {
     destroy as paymentDestroy,
@@ -25,6 +22,9 @@ import {
     update as paymentUpdate,
 } from '@/routes/payments';
 import { review as paymentProofReview, submit as paymentProofSubmit } from '@/routes/payments/proof';
+import type { BreadcrumbItem } from '@/types';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { PaymentHistoryEntry } from './PaymentsPage.types';
 
 const props = withDefaults(
     defineProps<{

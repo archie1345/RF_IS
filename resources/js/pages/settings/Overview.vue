@@ -11,9 +11,9 @@ import {
     ShieldCheck,
     UserRound,
 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
-import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{

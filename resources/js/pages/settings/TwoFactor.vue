@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { disable, enable, show } from '@/routes/two-factor';
 import type { BreadcrumbItem } from '@/types';
 import type { Props } from './TwoFactor.types';
-import { disable, enable, show } from '@/routes/two-factor';
 
 withDefaults(defineProps<Props>(), {
     requiresConfirmation: false,

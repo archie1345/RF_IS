@@ -23,11 +23,11 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
 import { routeId } from '@/lib/routeIds';
 import { toUrl } from '@/lib/utils';
-import type { NavItem } from '@/types';
-import type { Props } from './AppHeader.types';
 import { dashboard } from '@/routes';
 import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { show as userShow } from '@/routes/users';
+import type { NavItem } from '@/types';
+import type { Props } from './AppHeader.types';
 
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],

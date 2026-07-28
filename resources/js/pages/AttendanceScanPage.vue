@@ -5,10 +5,10 @@ import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { BreadcrumbItem } from '@/types';
-import type { PagePropsWithAttendanceScan } from './AttendanceScanPage.types';
 import { dashboard } from '@/routes';
 import { show as attendanceScanShow } from '@/routes/attendance/scan';
+import type { BreadcrumbItem } from '@/types';
+import type { PagePropsWithAttendanceScan } from './AttendanceScanPage.types';
 
 type ChildOption = {
     value: string | number;

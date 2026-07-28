@@ -15,13 +15,13 @@ import { useAppPopup } from '@/composables/useAppPopup';
 import { useRole } from '@/composables/useRole';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
+import { dashboard } from '@/routes';
+import { coachAttend, index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
+import { store as sessionsStore } from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
 import type { AppRole, AttendanceRow } from '@/types/domain';
 import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
 import type { AttendanceStatusValue, AttendanceUpdateResponse } from './AttendancePage.types';
-import { dashboard } from '@/routes';
-import { coachAttend, index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
-import { store as sessionsStore } from '@/routes/sessions';
 
 const props = defineProps<{
     metrics: Metric[];

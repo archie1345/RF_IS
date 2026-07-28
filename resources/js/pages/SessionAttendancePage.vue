@@ -14,9 +14,6 @@ import { useAppPopup } from '@/composables/useAppPopup';
 import SessionAttendanceQrPanel from '@/features/attendance/components/SessionAttendanceQrPanel.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
-import type { BreadcrumbItem } from '@/types';
-import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
-import type { AttendanceStatusValue, AttendanceUpdateResponse } from './SessionAttendancePage.types';
 import { dashboard } from '@/routes';
 import { bulkUpdate as attendanceBulkUpdate, update as attendanceUpdate } from '@/routes/attendance';
 import { attendance as sessionAttendance, index as sessionsIndex, update as sessionUpdate } from '@/routes/sessions';
@@ -26,6 +23,9 @@ import {
     store as sessionCoachAttendanceStore,
     update as sessionCoachAttendanceUpdate,
 } from '@/routes/sessions/coach-attendance';
+import type { BreadcrumbItem } from '@/types';
+import type { SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
+import type { AttendanceStatusValue, AttendanceUpdateResponse } from './SessionAttendancePage.types';
 
 const props = defineProps<{
     branches: SelectOption[];

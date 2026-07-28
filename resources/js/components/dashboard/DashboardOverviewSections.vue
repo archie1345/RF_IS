@@ -168,10 +168,6 @@ const profileRows = computed(() => {
         value,
     }));
 });
-
-const scheduleHref = computed(() =>
-    props.role === 'admin' || props.role === 'coach' ? sessionsIndex.url() : trainingScheduleIndex.url(),
-);
 </script>
 
 <template>

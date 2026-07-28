@@ -9,10 +9,10 @@ import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 import type { TrainingGroupRecord } from './AdminGroupsPage.types';
-import { dashboard } from '@/routes';
 
 const props = withDefaults(
     defineProps<{

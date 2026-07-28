@@ -10,11 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 
-import type { Props } from './UserMenuContent.types';
 import { logout } from '@/routes';
 import { update as roleContextUpdate } from '@/routes/role-context';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
+import type { Props } from './UserMenuContent.types';
 
 const page = usePage<{ auth: Auth }>();
 const isSwitchingRole = ref(false);
