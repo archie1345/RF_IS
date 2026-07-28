@@ -3,11 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Athlete;
-use App\Models\ParentProfile;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Builder;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,14 +19,14 @@ class AdminPageController extends Controller
             ->withTrashed()
             ->with([
                 'roleAssignments:id,user_id,role',
-                'athleteProfile' => fn (HasOne $query): HasOne => $query
+                'athleteProfile' => fn (Builder $query): Builder => $query
                     ->select(['athlete_id', 'id', 'branch_id'])
                     ->with('branch:branch_id,branch_name'),
                 'coachProfile:coach_id,id',
-                'parentProfile' => fn (HasOne $query): HasOne => $query
+                'parentProfile' => fn (Builder $query): Builder => $query
                     ->select(['parent_id', 'id'])
                     ->with([
-                        'athletes' => fn (HasMany $athletes): HasMany => $athletes
+                        'athletes' => fn (Builder $athletes): Builder => $athletes
                             ->select(['athlete_id', 'parent_id', 'branch_id'])
                             ->with('branch:branch_id,branch_name'),
                     ]),
