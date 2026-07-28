@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  tests:
+  quality:
     runs-on: ubuntu-latest
 
     steps:
@@ -40,8 +40,15 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
-      - name: Build production assets
-        run: npm run build
+      - name: Verify Laravel configuration and routes
+        run: |
+          php artisan config:cache
+          php artisan route:list --except-vendor
+          php artisan view:cache
+          php artisan optimize:clear
 
-      - name: Run application tests
-        run: php artisan test
+      - name: Run frontend quality and production build
+        run: npm run quality
+
+      - name: Run backend formatting and tests
+        run: composer test
