@@ -31,6 +31,25 @@ services:
       db:
         condition: service_healthy
 
+  seed-admin:
+    <<: *app-common
+    profiles:
+      - tools
+    container_name: ${ADMIN_SEED_CONTAINER_NAME:-rf-seed-admin}
+    restart: "no"
+    user: www-data
+    command:
+      - php
+      - artisan
+      - db:seed
+      - --class=Database\\Seeders\\AdminSeeder
+      - --force
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   server:
     <<: *app-common
     container_name: ${APP_CONTAINER_NAME:-rf-server}
