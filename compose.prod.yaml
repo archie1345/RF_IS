@@ -42,7 +42,7 @@ services:
       - php
       - artisan
       - db:seed
-      - --class=Database\\Seeders\\AdminSeeder
+      - --class=AdminSeeder
       - --force
     depends_on:
       db:
