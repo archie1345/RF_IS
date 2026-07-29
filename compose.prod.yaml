@@ -1,56 +1,107 @@
+name: ${COMPOSE_PROJECT_NAME:-rf-is}
+
+x-app-common: &app-common
+  image: ${APP_IMAGE:-rf-is:production}
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: final
+    args:
+      VITE_APP_NAME: ${APP_NAME:-RF Information System}
+  env_file:
+    - ${APP_ENV_FILE:-.env.production}
+  networks:
+    - backend
+  volumes:
+    - app_storage:/var/www/html/storage/app
+
 services:
-  server:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: ${APP_CONTAINER_NAME}
-    restart: unless-stopped
-    ports:
-      - "${APP_PORT}:80"
+  migrate:
+    <<: *app-common
+    container_name: ${MIGRATE_CONTAINER_NAME:-rf-migrate}
+    restart: "no"
+    user: www-data
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          php artisan optimize:clear
+          php artisan migrate --force
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      APP_NAME: ${APP_NAME}
-      APP_ENV: ${APP_ENV}
-      APP_DEBUG: ${APP_DEBUG}
-      APP_URL: ${APP_URL}
-      APP_KEY: ${APP_KEY}
 
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE}
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-
-      SESSION_DRIVER: database
-      CACHE_STORE: database
-      QUEUE_CONNECTION: database
-      VITE_APP_NAME: ${APP_NAME}
-    command: >
-      sh -lc "
-      php artisan storage:link || true;
-      php artisan config:clear || true;
-      php artisan route:clear || true;
-      php artisan view:clear || true;
-      php artisan migrate --force;
-      php artisan config:cache || true;
-      php artisan route:cache || true;
-      php artisan view:cache || true;
-      apache2-foreground
-      "
+  server:
+    <<: *app-common
+    container_name: ${APP_CONTAINER_NAME:-rf-server}
+    restart: unless-stopped
+    expose:
+      - "80"
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          php artisan storage:link || true
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          exec apache2-foreground
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1/up >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
 
-  db:
-    image: mysql:8.4
-    container_name: ${DB_CONTAINER_NAME}
+  worker:
+    <<: *app-common
+    container_name: ${WORKER_CONTAINER_NAME:-rf-worker}
     restart: unless-stopped
+    user: www-data
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          php artisan config:cache
+          php artisan route:cache
+          exec php artisan queue:work --sleep=3 --tries=3 --timeout=120 --max-time=3600
+    stop_grace_period: 60s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *app-common
+    container_name: ${SCHEDULER_CONTAINER_NAME:-rf-scheduler}
+    restart: unless-stopped
+    user: www-data
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          php artisan config:cache
+          php artisan route:cache
+          exec php artisan schedule:work --no-interaction
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  db:
+    image: mysql:${MYSQL_VERSION:-8.4}
+    container_name: ${DB_CONTAINER_NAME:-rf-db}
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
@@ -58,12 +109,52 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
+    networks:
+      - backend
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD} || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent || exit 1"
+        ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 20
+      start_period: 60s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${CADDY_CONTAINER_NAME:-rf-caddy}
+    restart: unless-stopped
+    env_file:
+      - ${APP_ENV_FILE:-.env.production}
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - backend
+    depends_on:
+      server:
+        condition: service_healthy
+
+networks:
+  backend:
+    driver: bridge
 
 volumes:
   db_data:
+    name: ${DB_VOLUME_NAME:-rf_is_prod_db-data}
+  app_storage:
+    name: ${APP_STORAGE_VOLUME_NAME:-rf_is_prod_app-storage}
+  caddy_data:
+    name: ${CADDY_DATA_VOLUME_NAME:-rf_is_prod_caddy-data}
+  caddy_config:
+    name: ${CADDY_CONFIG_VOLUME_NAME:-rf_is_prod_caddy-config}
