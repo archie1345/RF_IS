@@ -9,14 +9,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
-    zip \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath \
+    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
@@ -25,6 +24,7 @@ COPY composer.json composer.lock ./
 RUN composer install \
     --no-dev \
     --no-interaction \
+    --no-progress \
     --prefer-dist \
     --optimize-autoloader \
     --no-scripts
@@ -36,9 +36,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    git \
-    unzip \
-    zip \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
@@ -47,15 +44,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath \
+    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 COPY --from=php-deps /app/vendor ./vendor
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 COPY . .
+
+ARG VITE_APP_NAME="RF Information System"
+ENV VITE_APP_NAME=${VITE_APP_NAME}
+
 RUN test -f .env || cp .env.example .env
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
     && LOG_CHANNEL=stderr VIEW_COMPILED_PATH=/tmp/laravel-views npm run build
@@ -64,23 +64,38 @@ FROM php:8.4-apache AS final
 
 WORKDIR /var/www/html
 
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    COMPOSER_ALLOW_SUPERUSER=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    unzip \
-    zip \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install mbstring gd zip pdo pdo_mysql bcmath opcache \
+    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath opcache \
     && a2enmod rewrite headers expires deflate \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
+    && apt-get purge -y \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libonig-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && { \
+        echo 'expose_php=Off'; \
+        echo 'memory_limit=256M'; \
+        echo 'upload_max_filesize=32M'; \
+        echo 'post_max_size=32M'; \
+        echo 'max_execution_time=120'; \
+      } > /usr/local/etc/php/conf.d/production.ini \
     && { \
         echo 'opcache.enable=1'; \
         echo 'opcache.memory_consumption=128'; \
@@ -106,6 +121,7 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 
     <Directory /var/www/html/public>
         AllowOverride All
+        Options -Indexes +FollowSymLinks
         Require all granted
     </Directory>
 
@@ -114,6 +130,10 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
     </IfModule>
 
     <IfModule mod_headers.c>
+        Header always unset X-Powered-By
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
         <LocationMatch "^/build/assets/">
             Header set Cache-Control "public, max-age=31536000, immutable"
         </LocationMatch>
@@ -133,23 +153,30 @@ EOF
 COPY . .
 COPY --from=php-deps /app/vendor ./vendor
 COPY --from=frontend-build /app/public/build ./public/build
+COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
-RUN set -eux; \
-    dev_gid=1000; \
-    group_name="$(getent group "$dev_gid" | cut -d: -f1 || true)"; \
-    if [ -z "$group_name" ]; then groupadd --gid "$dev_gid" appdev; group_name=appdev; fi; \
-    usermod -a -G "$group_name" www-data; \
+RUN composer dump-autoload \
+        --no-dev \
+        --classmap-authoritative \
+        --no-interaction \
+        --no-progress \
+    && rm -f /usr/local/bin/composer \
+    && set -eux; \
     mkdir -p \
         /tmp/laravel \
+        storage/app/public \
         storage/framework/cache/data \
         storage/framework/sessions \
         storage/framework/views \
         storage/logs \
         bootstrap/cache \
         public/build; \
-    chown -R www-data:"$group_name" /tmp/laravel storage bootstrap/cache public/build; \
+    chown -R www-data:www-data /tmp/laravel storage bootstrap/cache public/build; \
     find /tmp/laravel storage bootstrap/cache public/build -type d -exec chmod 2775 {} +; \
-    find /tmp/laravel storage bootstrap/cache public/build -type f -exec chmod ug+rw {} +
+    find /tmp/laravel storage bootstrap/cache public/build -type f -exec chmod 0664 {} +
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=5 \
+    CMD curl -fsS http://127.0.0.1/up >/dev/null || exit 1
 
 EXPOSE 80
 
