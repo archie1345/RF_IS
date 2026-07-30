@@ -8,9 +8,7 @@ use App\Services\AttendanceVisibilityService;
 
 class AttendancePolicy
 {
-    public function __construct(private readonly AttendanceVisibilityService $attendanceVisibility)
-    {
-    }
+    public function __construct(private readonly AttendanceVisibilityService $attendanceVisibility) {}
 
     public function update(User $user, Attendance $attendance): bool
     {

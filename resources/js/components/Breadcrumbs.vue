@@ -8,32 +8,30 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
-
-type Props = {
-    breadcrumbs: BreadcrumbItemType[];
-};
+import type { Props } from './Breadcrumbs.types';
 
 defineProps<Props>();
 </script>
 
 <template>
-    <Breadcrumb>
-        <BreadcrumbList>
+    <Breadcrumb class="min-w-0 overflow-hidden">
+        <BreadcrumbList class="min-w-0 flex-nowrap overflow-hidden">
             <template v-for="(item, index) in breadcrumbs" :key="index">
-                <BreadcrumbItem>
+                <BreadcrumbItem
+                    :class="index === breadcrumbs.length - 1 ? 'min-w-0' : 'hidden shrink-0 sm:inline-flex'"
+                >
                     <template v-if="index === breadcrumbs.length - 1">
-                        <BreadcrumbPage>{{ item.title }}</BreadcrumbPage>
+                        <BreadcrumbPage class="block max-w-[42vw] truncate sm:max-w-[55vw] lg:max-w-none">
+                            {{ item.title }}
+                        </BreadcrumbPage>
                     </template>
                     <template v-else>
                         <BreadcrumbLink as-child>
-                            <Link :href="item.href ?? '#'">{{
-                                item.title
-                            }}</Link>
+                            <Link :href="item.href ?? '#'">{{ item.title }}</Link>
                         </BreadcrumbLink>
                     </template>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" />
+                <BreadcrumbSeparator v-if="index !== breadcrumbs.length - 1" class="hidden shrink-0 sm:inline-flex" />
             </template>
         </BreadcrumbList>
     </Breadcrumb>

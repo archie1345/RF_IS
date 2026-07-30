@@ -13,11 +13,7 @@ import { useAppearance } from '@/composables/useAppearance';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { confirm } from '@/routes/two-factor';
 import type { TwoFactorConfigContent } from '@/types';
-
-type Props = {
-    requiresConfirmation: boolean;
-    twoFactorEnabled: boolean;
-};
+import type { Props } from './TwoFactorSetupModal.types';
 
 const { resolvedAppearance } = useAppearance();
 

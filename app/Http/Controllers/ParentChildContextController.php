@@ -18,23 +18,22 @@ class ParentChildContextController extends Controller
         private readonly ParentChildContextService $childContext,
         private readonly SwitchActiveChild $switchActiveChild,
         private readonly ClearActiveChild $clearActiveChild,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): Response
     {
         $user = $request->user();
         abort_unless($user && $user->isParent(), 403);
 
-        $activeChildId = $this->childContext->activeChildId($request);
-        $children = $this->childContext->childOptionsFor($user, $activeChildId);
-
         return Inertia::render('ParentChildSwitcherPage', [
-            'children' => $children,
-            'activeChildId' => $activeChildId ?? null,
+            'children' => $this->childContext->childOptionsFor($user),
         ]);
     }
 
+    /**
+     * Legacy context endpoints remain available for old bookmarked actions, but
+     * all parent-facing list pages now intentionally show every linked child.
+     */
     public function switch(SwitchActiveChildRequest $request): RedirectResponse
     {
         $this->switchActiveChild->handle($request, (string) $request->validated('athlete_id'));

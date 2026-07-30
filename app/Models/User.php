@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Services\ActiveRoleContextService;
 use App\Support\RoleResolver;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -21,11 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public const ACCOUNT_STATUS_SUSPENDED = 'suspended';
 
-    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
-
-    protected $table = 'users';
-
-    protected $primaryKey = 'id';
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     protected $fillable = [
         'name',
@@ -54,15 +53,6 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public $timestamps = true;
-
-    protected $dates = ['deleted_at', 'bday'];
-
-    public function getAuthPassword()
-    {
-        return $this->password;
-    }
-
     public function isActiveAccount(): bool
     {
         return $this->account_status === self::ACCOUNT_STATUS_ACTIVE;
@@ -78,29 +68,37 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->account_status === self::ACCOUNT_STATUS_SUSPENDED;
     }
 
-    public function isAdmin()
+    public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->isActingAs('admin');
     }
 
-    public function isCoach()
+    public function isCoach(): bool
     {
-        return $this->hasRole('coach');
+        return $this->isActingAs('coach');
     }
 
-    public function isParent()
+    public function isParent(): bool
     {
-        return $this->hasRole('parent');
+        return $this->isActingAs('parent');
     }
 
-    public function isAthlete()
+    public function isAthlete(): bool
     {
-        return $this->hasRole('athlete');
+        return $this->isActingAs('athlete');
     }
 
-    public function roleAssignments(): HasMany
+    public function isActingAs(string $role): bool
     {
-        return $this->hasMany(UserRoleAssignment::class);
+        if (! $this->hasRole($role)) {
+            return false;
+        }
+
+        if (! $this->canResolveActiveRoleFromRequest()) {
+            return true;
+        }
+
+        return app(ActiveRoleContextService::class)->activeRole(request(), $this) === strtolower(trim($role));
     }
 
     public function assignedRoles(): array
@@ -116,6 +114,33 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole(string $role): bool
     {
         return app(RoleResolver::class)->hasRole($this, $role);
+    }
+
+    public function scopeWithRole(Builder $query, string $role): Builder
+    {
+        $normalizedRole = strtolower(trim($role));
+
+        if (! in_array($normalizedRole, RoleResolver::ROLES, true)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $roleQuery) use ($normalizedRole): void {
+            $roleQuery
+                ->whereHas(
+                    'roleAssignments',
+                    fn (Builder $assignmentQuery): Builder => $assignmentQuery->where('role', $normalizedRole),
+                )
+                ->orWhere(function (Builder $legacyQuery) use ($normalizedRole): void {
+                    $legacyQuery
+                        ->whereDoesntHave('roleAssignments')
+                        ->whereRaw('LOWER(role) = ?', [$normalizedRole]);
+                });
+        });
+    }
+
+    public function roleAssignments(): HasMany
+    {
+        return $this->hasMany(UserRoleAssignment::class);
     }
 
     public function parentProfile(): HasOne
@@ -163,5 +188,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function achievements(): HasMany
     {
         return $this->hasMany(UserAchievement::class);
+    }
+
+    private function canResolveActiveRoleFromRequest(): bool
+    {
+        if (! app()->bound('request')) {
+            return false;
+        }
+
+        $request = request();
+
+        return $request->hasSession() && (int) $request->user()?->id === (int) $this->id;
     }
 }

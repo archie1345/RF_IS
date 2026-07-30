@@ -24,7 +24,7 @@ class ProfileMedia
             ->cover(600, 800)
             ->encodeUsingMediaType('image/jpeg', quality: 90);
 
-        $path = 'profiles/'.uniqid('profile_', true).'.jpg';
+        $path = 'profiles/'.str()->uuid().'.jpg';
         Storage::disk('public')->put($path, (string) $image);
 
         return $path;
@@ -37,15 +37,30 @@ class ProfileMedia
         }
 
         $file = $request->file($input);
-        $path = $file->store('user-files', 'public');
+        $disk = UserFile::DISK_PRIVATE;
+        $path = $file->store('user-files/'.$user->id, $disk);
 
         return UserFile::query()->create([
             'user_id' => $user->id,
             'file_type' => $fileType,
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => basename($file->getClientOriginalName()),
             'file_path' => $path,
+            'disk' => $disk,
             'mime_type' => $file->getMimeType(),
             'size_bytes' => $file->getSize(),
         ]);
+    }
+
+    public function deleteUserFile(?UserFile $file): void
+    {
+        if (! $file) {
+            return;
+        }
+
+        if ($file->file_path) {
+            Storage::disk($file->storageDisk())->delete($file->file_path);
+        }
+
+        $file->delete();
     }
 }

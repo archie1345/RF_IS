@@ -36,6 +36,17 @@ class CreateAttendanceRecord
             throw ValidationException::withMessages(['athlete_id' => 'Selected athlete is not linked to this parent account.']);
         }
 
+        if ($user->isParent() && ! empty($validated['training_session_id'])) {
+            $sessionIsVisible = $this->attendanceVisibility
+                ->visibleSessionQuery($user)
+                ->where('training_session_id', $validated['training_session_id'])
+                ->exists();
+
+            if (! $sessionIsVisible) {
+                throw ValidationException::withMessages(['training_session_id' => 'Selected session is not available for this child.']);
+            }
+        }
+
         if ($user->isCoach() && ! empty($validated['training_session_id'])) {
             $session = TrainingSession::query()->find($validated['training_session_id']);
             if (! $session || ! $this->attendanceVisibility->coachCanAccessSession($user, $session)) {

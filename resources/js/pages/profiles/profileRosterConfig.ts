@@ -1,14 +1,15 @@
 import type { TableColumn } from '@/types/resource-table';
 
 export const athleteRosterBaseColumns: TableColumn[] = [
-    { key: 'athlete', label: 'Athlete' },
+    { key: 'member_number', label: 'Nomor Anggota' },
+    { key: 'athlete', label: 'Atlet' },
     { key: 'account_email', label: 'Email' },
-    { key: 'branch', label: 'Branch' },
-    { key: 'group', label: 'Group' },
+    { key: 'branch', label: 'Lokasi' },
+    { key: 'group', label: 'Kelas' },
 ];
 
-
 export const athleteRosterTrailingColumns: TableColumn[] = [
+    { key: 'joined_at', label: 'Tanggal Bergabung' },
     { key: 'geup', label: 'Geup' },
     { key: 'status', label: 'Status' },
 ];

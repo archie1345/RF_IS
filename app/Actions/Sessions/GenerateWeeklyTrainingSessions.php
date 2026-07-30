@@ -36,7 +36,7 @@ class GenerateWeeklyTrainingSessions
 
         /** @var Collection<int, WeeklyTrainingSchedule> $schedules */
         $schedules = WeeklyTrainingSchedule::query()
-            ->with(['branch', 'group'])
+            ->with(['branch', 'group.coaches'])
             ->where('is_active', true)
             ->whereHas('branch', fn ($query) => $query->where('is_active', true))
             ->where(function ($query): void {
@@ -55,24 +55,25 @@ class GenerateWeeklyTrainingSessions
                 $existing = $this->existingSession($schedule, $date);
 
                 if ($existing) {
+                    $skipped++;
+
                     if ($this->isFutureSessionDate($date)) {
                         DB::transaction(function () use ($existing, $schedule, $date, $attachScheduleCoach, &$updated): void {
                             $this->refreshSessionFromSchedule($existing, $schedule, $date, $attachScheduleCoach);
                             $updated++;
                         });
-                    } else {
-                        $skipped++;
                     }
 
                     continue;
                 }
 
                 DB::transaction(function () use ($schedule, $date, $attachScheduleCoach, &$created): void {
+                    $coachIds = $this->coachIdsFor($schedule, $attachScheduleCoach);
                     $session = TrainingSession::query()->create(
-                        $this->sessionPayload($schedule, $date, $attachScheduleCoach),
+                        $this->sessionPayload($schedule, $date, $coachIds),
                     );
 
-                    $this->syncSessionCoach($session, $this->coachIdFor($schedule, $attachScheduleCoach));
+                    $this->syncSessionCoaches($session, $coachIds);
                     $this->initializeAttendance->handle($session);
                     $created++;
                 });
@@ -185,17 +186,17 @@ class GenerateWeeklyTrainingSessions
             $session->restore();
         }
 
-        $coachId = $this->coachIdFor($schedule, $attachScheduleCoach);
-        $session->forceFill($this->sessionPayload($schedule, $date, $attachScheduleCoach))->save();
-        $this->syncSessionCoach($session, $coachId);
+        $coachIds = $this->coachIdsFor($schedule, $attachScheduleCoach);
+        $session->forceFill($this->sessionPayload($schedule, $date, $coachIds))->save();
+        $this->syncSessionCoaches($session, $coachIds);
         $this->initializeAttendance->handle($session);
     }
 
-    private function sessionPayload(WeeklyTrainingSchedule $schedule, CarbonInterface $date, bool $attachScheduleCoach): array
+    private function sessionPayload(WeeklyTrainingSchedule $schedule, CarbonInterface $date, array $coachIds): array
     {
         return [
             'weekly_training_schedule_id' => $schedule->weekly_training_schedule_id,
-            'coach_id' => $this->coachIdFor($schedule, $attachScheduleCoach),
+            'coach_id' => $coachIds[0] ?? null,
             'branch_id' => $schedule->branch_id,
             'group_id' => $schedule->group_id,
             'session_type' => $schedule->session_type,
@@ -209,22 +210,28 @@ class GenerateWeeklyTrainingSessions
         ];
     }
 
-    private function coachIdFor(WeeklyTrainingSchedule $schedule, bool $attachScheduleCoach): ?string
+    private function coachIdsFor(WeeklyTrainingSchedule $schedule, bool $attachScheduleCoach): array
     {
-        return $attachScheduleCoach && $schedule->coach_id
-            ? $schedule->coach_id
-            : null;
+        if (! $attachScheduleCoach) {
+            return [];
+        }
+
+        return collect([$schedule->coach_id, $schedule->group?->coach_id])
+            ->merge($schedule->group?->coaches?->pluck('coach_id') ?? collect())
+            ->filter()
+            ->map(fn ($id) => (string) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 
-    private function syncSessionCoach(TrainingSession $session, ?string $coachId): void
+    private function syncSessionCoaches(TrainingSession $session, array $coachIds): void
     {
         if (! $this->sessionVisibility->hasCoachPivotTable()) {
             return;
         }
 
-        $coachId
-            ? $session->assignedCoaches()->sync([$coachId])
-            : $session->assignedCoaches()->detach();
+        $session->assignedCoaches()->sync($coachIds);
     }
 
     private function isFutureSessionDate(CarbonInterface $date): bool

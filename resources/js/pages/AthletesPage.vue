@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { router } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
@@ -15,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import {
     athleteRosterBaseColumns,
     athleteRosterTrailingColumns,
@@ -63,9 +63,9 @@ const showParentModal = ref(false);
 const showParentChildrenModal = ref(false);
 const editingAthleteId = ref<number | null>(null);
 const isLoadingAthlete = ref(false);
-const editingCoachId = ref<string | null>(null);
-const editingParentId = ref<string | null>(null);
-const editingParentChildrenId = ref<string | null>(null);
+const editingCoachId = ref<number | null>(null);
+const editingParentId = ref<number | null>(null);
+const editingParentChildrenId = ref<number | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
 const athleteBranchFilter = ref('');
@@ -169,18 +169,18 @@ function closeAthleteForm() {
     form.clearErrors();
 }
 
-function getUserId(row: TableRow): string {
-    return String(row.user_id ?? row.id ?? row.athlete_id ?? '');
+function getUserId(row: TableRow): number | null {
+    return routeId(row.user_id) ?? routeId(row.id) ?? routeId(row.athlete_id);
 }
 
-function getParentId(row: TableRow): string {
-    return String(row.parent_id ?? row.id ?? '');
+function getParentId(row: TableRow): number | null {
+    return routeId(row.parent_id) ?? routeId(row.user_id) ?? routeId(row.id);
 }
 
 function viewProfile(row: TableRow) {
     const userId = getUserId(row);
 
-    if (!userId) {
+    if (userId === null) {
         console.error('Invalid user ID', row);
         return;
     }
@@ -189,7 +189,14 @@ function viewProfile(row: TableRow) {
 }
 
 function openEditCoach(row: TableRow) {
-    editingCoachId.value = String(row.id);
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid coach user ID', row);
+        return;
+    }
+
+    editingCoachId.value = userId;
     coachForm.status = String(row.status ?? 'active');
     coachForm.specialization = String(row.specialization ?? '').replace('-', '');
     coachForm.bio = '';
@@ -209,7 +216,14 @@ function saveCoach() {
 }
 
 function openEditParent(row: TableRow) {
-    editingParentId.value = String(row.id);
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid parent user ID', row);
+        return;
+    }
+
+    editingParentId.value = userId;
     parentForm.relation = String(row.relation ?? 'guardian');
     parentForm.occupation = String(row.occupation ?? '').replace('-', '');
     parentForm.notes = '';
@@ -231,7 +245,7 @@ function saveParent() {
 function openLinkChildren(row: TableRow) {
     const parentId = getParentId(row);
 
-    if (!parentId) {
+    if (parentId === null) {
         console.error('Invalid parent ID', row);
         return;
     }
@@ -274,7 +288,7 @@ function toggleChild(value: string | number) {
 function saveParentChildren() {
     if (!editingParentChildrenId.value) return;
 
-    parentChildrenForm.put(parentChildrenSync.url(editingParentChildrenId.value), {
+    parentChildrenForm.put(parentChildrenSync.url(String(editingParentChildrenId.value)), {
         preserveScroll: true,
         onSuccess: closeParentChildrenModal,
     });

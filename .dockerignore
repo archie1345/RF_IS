@@ -1,6 +1,7 @@
 .git
 .gitignore
 .gitattributes
+.github
 
 node_modules
 vendor
@@ -8,6 +9,7 @@ vendor
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 npm-debug.log
 yarn-error.log
@@ -30,9 +32,18 @@ public/storage
 .vscode
 .vs
 .cache
+coverage
 
-docker-compose.override.yml
-compose.override.yaml
-compose.override.yml
+compose*.yaml
+compose*.yml
+docker-compose*.yaml
+docker-compose*.yml
+!compose.prod.yaml
+
 secrets.dev.yaml
 values.dev.yaml
+
+tests
+*.md
+*.docx
+*.pdf

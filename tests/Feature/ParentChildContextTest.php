@@ -8,7 +8,7 @@ use App\Models\ParentProfile;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('allows a parent to switch to their own child context', function () {
+it('keeps legacy child switching available for bookmarked actions', function () {
     $parentUser = User::factory()->create([
         'name' => 'Parent User',
         'email' => 'parent@example.com',
@@ -50,7 +50,8 @@ it('allows a parent to switch to their own child context', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('ParentChildSwitcherPage')
             ->where('children.0.athlete_id', $childAthlete->athlete_id)
-            ->where('children.0.user_id', $childUser->id));
+            ->where('children.0.user_id', $childUser->id)
+            ->where('auth.activeChild', null));
 
     $this->actingAs($parentUser)
         ->post(route('parent.children.switch'), ['athlete_id' => $childAthlete->athlete_id])
@@ -112,16 +113,16 @@ it('prevents a parent from switching to another parent child context', function 
         ->assertForbidden();
 });
 
-it('filters parent attendance by string active child identifiers', function () {
+it('shows every linked child attendance even when a legacy active child remains in session', function () {
     $parentUser = User::factory()->create(['role' => 'parent']);
     $parentProfile = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'guardian']);
     $branch = Branch::create(['branch_name' => 'String Branch', 'location' => 'Jakarta']);
     $group = Group::create(['group_name' => 'String Group']);
 
     $firstChildUser = User::factory()->create(['name' => 'Visible Child', 'role' => 'athlete']);
-    $secondChildUser = User::factory()->create(['name' => 'Hidden Child', 'role' => 'athlete']);
+    $secondChildUser = User::factory()->create(['name' => 'Second Child', 'role' => 'athlete']);
 
-    $visibleAthlete = Athlete::create([
+    $firstAthlete = Athlete::create([
         'id' => $firstChildUser->id,
         'group_id' => $group->group_id,
         'parent_id' => $parentProfile->parent_id,
@@ -133,7 +134,7 @@ it('filters parent attendance by string active child identifiers', function () {
         'geup' => 'GEUP_1',
     ]);
 
-    $hiddenAthlete = Athlete::create([
+    $secondAthlete = Athlete::create([
         'id' => $secondChildUser->id,
         'group_id' => $group->group_id,
         'parent_id' => $parentProfile->parent_id,
@@ -146,23 +147,25 @@ it('filters parent attendance by string active child identifiers', function () {
     ]);
 
     Attendance::create([
-        'athlete_id' => $visibleAthlete->athlete_id,
+        'athlete_id' => $firstAthlete->athlete_id,
         'date' => now()->toDateString(),
         'status' => 'PRESENT',
     ]);
 
     Attendance::create([
-        'athlete_id' => $hiddenAthlete->athlete_id,
+        'athlete_id' => $secondAthlete->athlete_id,
         'date' => now()->toDateString(),
         'status' => 'ABSENT',
     ]);
 
     $this->actingAs($parentUser)
-        ->withSession(['active_child_id' => $visibleAthlete->athlete_id])
+        ->withSession(['active_child_id' => $firstAthlete->athlete_id])
         ->get(route('attendance.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('AttendancePage')
-            ->where('rows.0.athlete', 'Visible Child')
-            ->missing('rows.1'));
+            ->has('rows', 2)
+            ->where('rows.0.athlete', 'Second Child')
+            ->where('rows.1.athlete', 'Visible Child')
+            ->where('auth.activeChild', null));
 });

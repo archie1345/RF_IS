@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, Plus, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, Power, PowerOff, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
@@ -16,7 +16,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { destroy as adminAccountDestroy, forceDelete as adminAccountForceDelete, restore as adminAccountRestore, store as adminAccountStore, update as adminAccountUpdate } from '@/routes/admin/accounts';
+import {
+    destroy as adminAccountDestroy,
+    forceDelete as adminAccountForceDelete,
+    restore as adminAccountRestore,
+    store as adminAccountStore,
+    update as adminAccountUpdate,
+} from '@/routes/admin/accounts';
 import { resend as adminAccountInvitationResend } from '@/routes/admin/accounts/invitation';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
 import type { TableColumn, TableRow } from '@/types/resource-table';
@@ -72,14 +78,20 @@ const roleOptions: Array<{ value: AdminAccountRole; label: string }> = [
 
 const statusOptions = [
     { value: 'active', label: 'Active' },
+    { value: 'suspended', label: 'Not active' },
     { value: 'invited', label: 'Invited' },
-    { value: 'suspended', label: 'Suspended' },
 ];
 
 const statusTone: Record<AdminAccountRow['status'], 'success' | 'warning' | 'danger'> = {
     active: 'success',
     invited: 'warning',
     suspended: 'danger',
+};
+
+const statusLabel: Record<AdminAccountRow['status'], string> = {
+    active: 'Active',
+    invited: 'Invited',
+    suspended: 'Not active',
 };
 
 const columns: TableColumn[] = [
@@ -107,7 +119,7 @@ const rows = computed<TableRow[]>(() =>
         branch: user.branch,
         statusLabel: {
             kind: 'badge',
-            text: user.status.charAt(0).toUpperCase() + user.status.slice(1),
+            text: statusLabel[user.status],
             tone: statusTone[user.status],
         },
         createdAt: user.createdAt,
@@ -116,17 +128,16 @@ const rows = computed<TableRow[]>(() =>
     })),
 );
 
-function openEditByRow(row: TableRow) {
-    const user = users.value.find((entry) => String(entry.id) === row.id);
-
-    if (!user) {
-        return;
-    }
-
-    openEdit(user);
+function accountForRow(row: TableRow): AdminAccountRow | undefined {
+    return users.value.find((entry) => String(entry.id) === row.id);
 }
 
-const resetForm = () => {
+function openEditByRow(row: TableRow): void {
+    const user = accountForRow(row);
+    if (user) openEdit(user);
+}
+
+function resetForm(): void {
     editingId.value = null;
     form.reset();
     form.clearErrors();
@@ -137,14 +148,14 @@ const resetForm = () => {
     form.status = 'active';
     form.password = '';
     form.password_confirmation = '';
-};
+}
 
-const openCreate = () => {
+function openCreate(): void {
     resetForm();
     isFormOpen.value = true;
-};
+}
 
-const openEdit = (user: AdminAccountRow) => {
+function openEdit(user: AdminAccountRow): void {
     editingId.value = user.id;
     form.name = user.name;
     form.email = user.email;
@@ -154,9 +165,9 @@ const openEdit = (user: AdminAccountRow) => {
     form.password = '';
     form.password_confirmation = '';
     isFormOpen.value = true;
-};
+}
 
-function generatePassword() {
+function generatePassword(): void {
     const lowerChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
@@ -169,9 +180,7 @@ function generatePassword() {
             window.crypto.getRandomValues(randomValues);
             const value = randomValues[0];
 
-            if (value < maxValid) {
-                result.push(charset[value % charset.length]);
-            }
+            if (value < maxValid) result.push(charset[value % charset.length]);
         }
 
         return result.join('');
@@ -182,7 +191,7 @@ function generatePassword() {
     form.password_confirmation = generated;
 }
 
-const submit = () => {
+function submit(): void {
     const payload = {
         name: form.name,
         email: form.email,
@@ -191,7 +200,6 @@ const submit = () => {
         password: form.password,
         password_confirmation: form.password_confirmation,
     };
-
     const options = {
         preserveScroll: true,
         onSuccess: () => {
@@ -202,24 +210,35 @@ const submit = () => {
 
     if (editingId.value !== null) {
         form.transform(() => payload).put(adminAccountUpdate.url(editingId.value), options);
-
         return;
     }
 
     form.transform(() => payload).post(adminAccountStore.url(), options);
-};
+}
 
-function isInvitedRow(row: TableRow) {
+function isInvitedRow(row: TableRow): boolean {
     return row.statusValue === 'invited';
 }
 
-function resendInvitation(row: TableRow) {
+function canToggleActiveState(row: TableRow): boolean {
+    return row.deletedAt === '-' && !isInvitedRow(row);
+}
+
+function toggleAccountStatus(row: TableRow): void {
+    const id = Number(row.id);
+    if (!id || !canToggleActiveState(row)) return;
+
+    const nextStatus = row.statusValue === 'active' ? 'suspended' : 'active';
+    router.put(`/admin/accounts/${id}/status`, { status: nextStatus }, { preserveScroll: true });
+}
+
+function resendInvitation(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     router.post(adminAccountInvitationResend.url(id), {}, { preserveScroll: true });
 }
 
-function deleteAccount(row: TableRow) {
+function deleteAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     pendingConfirmation.value = {
@@ -231,13 +250,13 @@ function deleteAccount(row: TableRow) {
     };
 }
 
-function restoreAccount(row: TableRow) {
+function restoreAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
 }
 
-function hardDeleteAccount(row: TableRow) {
+function hardDeleteAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     pendingConfirmation.value = {
@@ -249,32 +268,26 @@ function hardDeleteAccount(row: TableRow) {
     };
 }
 
-function cancelPendingConfirmation() {
+function cancelPendingConfirmation(): void {
     pendingConfirmation.value = null;
 }
 
-function handleConfirmationOpenChange(open: boolean) {
-    if (!open) {
-        cancelPendingConfirmation();
-    }
+function handleConfirmationOpenChange(open: boolean): void {
+    if (!open) cancelPendingConfirmation();
 }
 
-function confirmPendingAction() {
+function confirmPendingAction(): void {
     const confirmation = pendingConfirmation.value;
     if (!confirmation) return;
 
     pendingConfirmation.value = null;
 
     if (confirmation.kind === 'hard-delete') {
-        router.delete(adminAccountForceDelete.url(confirmation.id), {
-            preserveScroll: true,
-        });
+        router.delete(adminAccountForceDelete.url(confirmation.id), { preserveScroll: true });
         return;
     }
 
-    router.delete(adminAccountDestroy.url(confirmation.id), {
-        preserveScroll: true,
-    });
+    router.delete(adminAccountDestroy.url(confirmation.id), { preserveScroll: true });
 }
 </script>
 
@@ -299,7 +312,7 @@ function confirmPendingAction() {
                 </Alert>
 
                 <DialogFooter class="gap-2 sm:justify-end">
-                    <Button type="button" variant="outline" @click="cancelPendingConfirmation"> Cancel </Button>
+                    <Button type="button" variant="outline" @click="cancelPendingConfirmation">Cancel</Button>
                     <Button
                         v-if="pendingConfirmation"
                         type="button"
@@ -311,11 +324,11 @@ function confirmPendingAction() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        
+
         <ResourceTablePanel
             eyebrow="Admin panel"
             title="User Management"
-            description="Create accounts here only. User, coach, parent, and athlete pages edit profile data after the account exists."
+            description="Create accounts here and set every non-invited account to Active or Not active. Profile pages remain responsible for role-specific details."
             create-label="Create user"
             table-title="Account roster"
             table-description="A role-based management table for admins, coaches, parents, and athletes."
@@ -335,12 +348,27 @@ function confirmPendingAction() {
             </template>
 
             <template #row-actions="{ row }">
-                <div class="flex justify-end gap-2">
+                <div class="flex flex-wrap justify-end gap-2">
                     <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
-                    <Button v-if="row.deletedAt === '-' && isInvitedRow(row)" variant="outline" @click="resendInvitation(row)">
+                    <Button
+                        v-if="canToggleActiveState(row)"
+                        variant="outline"
+                        class="gap-2"
+                        :title="row.statusValue === 'active' ? 'Mark account as not active' : 'Activate account'"
+                        @click="toggleAccountStatus(row)"
+                    >
+                        <PowerOff v-if="row.statusValue === 'active'" class="size-4" />
+                        <Power v-else class="size-4" />
+                        {{ row.statusValue === 'active' ? 'Not active' : 'Activate' }}
+                    </Button>
+                    <Button
+                        v-if="row.deletedAt === '-' && isInvitedRow(row)"
+                        variant="outline"
+                        @click="resendInvitation(row)"
+                    >
                         Resend invite
                     </Button>
                     <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)"
@@ -363,7 +391,8 @@ function confirmPendingAction() {
                     {{ editingId !== null ? 'Edit account' : 'Create user account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent, athlete, or admin.
+                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent,
+                    athlete, or admin.
                 </DialogDescription>
             </DialogHeader>
 
@@ -371,16 +400,12 @@ function confirmPendingAction() {
                 <div class="grid gap-2">
                     <Label for="admin-name">Full name</Label>
                     <Input id="admin-name" v-model="form.name" placeholder="Enter full name" />
-                    <p v-if="form.errors.name" class="text-sm text-destructive">
-                        {{ form.errors.name }}
-                    </p>
+                    <p v-if="form.errors.name" class="text-sm text-destructive">{{ form.errors.name }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-email">Email</Label>
                     <Input id="admin-email" v-model="form.email" placeholder="name@example.com" />
-                    <p v-if="form.errors.email" class="text-sm text-destructive">
-                        {{ form.errors.email }}
-                    </p>
+                    <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
                 </div>
                 <FormSelectField
                     id="admin-roles"
@@ -396,14 +421,15 @@ function confirmPendingAction() {
                 <FormSelectField
                     id="admin-status"
                     v-model="form.status"
-                    label="Status"
+                    label="Account state"
                     :options="statusOptions"
+                    help="Active accounts can sign in. Not active accounts are blocked immediately."
                     :error="form.errors.status"
                 />
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between gap-3">
                         <Label for="admin-password">Password</Label>
-                        <Button type="button" variant="outline" size="sm" @click="generatePassword"> Generate </Button>
+                        <Button type="button" variant="outline" size="sm" @click="generatePassword">Generate</Button>
                     </div>
                     <Input
                         id="admin-password"
@@ -417,9 +443,7 @@ function confirmPendingAction() {
                                   : 'Set initial password'
                         "
                     />
-                    <p v-if="form.errors.password" class="text-sm text-destructive">
-                        {{ form.errors.password }}
-                    </p>
+                    <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-password-confirmation">Confirm password</Label>

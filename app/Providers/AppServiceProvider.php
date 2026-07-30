@@ -4,10 +4,14 @@ namespace App\Providers;
 
 use App\Models\TrainingSession;
 use App\Policies\SessionPolicy;
+use App\Services\PublicContactSettings;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -19,7 +23,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PublicContactSettings::class);
     }
 
     /**
@@ -28,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
 
         Gate::policy(TrainingSession::class, SessionPolicy::class);
         Route::model('session', TrainingSession::class);
@@ -53,5 +58,17 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null
         );
+    }
+
+    /**
+     * Configure application rate limiters.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('qr-scan', function (Request $request): Limit {
+            $actor = $request->user()?->getAuthIdentifier() ?: $request->ip();
+
+            return Limit::perMinute(30)->by('qr-scan:'.$actor);
+        });
     }
 }

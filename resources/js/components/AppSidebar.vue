@@ -1,39 +1,42 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    CalendarCheck2,
-    CalendarDays,
-    CreditCard,
-    FileClock,
-    LayoutGrid,
-    MapPin,
+    Award,
+    BadgeCheck,
+    CalendarClock,
+    CalendarRange,
+    ClipboardCheck,
+    Contact,
+    Dumbbell,
+    FileSpreadsheet,
+    History,
+    LayoutDashboard,
+    MapPinned,
+    Megaphone,
+    MessageCircleMore,
+    Network,
+    ReceiptText,
+    ScanLine,
+    ScrollText,
     Trophy,
-    Users,
+    UserCog,
+    UsersRound,
+    WalletCards,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-} from '@/components/ui/sidebar';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as achievementsIndex } from '@/routes/achievements';
 import {
-    dashboard as adminDashboard,
     attendance as adminAttendance,
-    instructorAttendance as adminInstructorAttendance,
-    payments as adminPayments,
-    events as adminEvents,
-    locations as adminLocations,
     classes as adminClasses,
     index as adminIndex,
+    instructorAttendance as adminInstructorAttendance,
+    locations as adminLocations,
 } from '@/routes/admin';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { history as adminEventHistory } from '@/routes/admin/events';
@@ -45,114 +48,113 @@ import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import { index as usersIndex } from '@/routes/users';
-import { type NavItem } from '@/types';
+import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
-import AppLogo from './AppLogo.vue';
 
 const page = usePage<{ auth: Auth }>();
-
-const roles = computed<AppRole[]>(() => {
-    const assignedRoles = page.props.auth?.user?.roles ?? [];
-    const validRoles = assignedRoles.filter((item): item is AppRole =>
-        ['admin', 'coach', 'parent', 'athlete'].includes(item),
-    );
-
-    if (validRoles.length > 0) {
-        return validRoles;
-    }
-
-    const userRole = page.props.auth?.user?.role;
-    return userRole === 'admin' || userRole === 'coach' || userRole === 'parent' || userRole === 'athlete'
-        ? [userRole]
-        : ['athlete'];
+const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
+const assignedRoles = computed<AppRole[]>(() => {
+    const roles = page.props.auth.user?.roles ?? [];
+    return roles.length > 0 ? roles : [activeRole.value];
 });
+const allRoles: AppRole[] = ['admin', 'coach', 'parent', 'athlete'];
 
-const adminNavItems: NavItem[] = [
-    { title: 'Dashboard', href: adminDashboard.url(), icon: LayoutGrid },
-    { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
-    { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPin },
-    { title: 'Kelas Latihan', href: adminClasses.url(), icon: Users },
-    { title: 'Manajemen Sesi', href: sessionsIndex.url(), icon: CalendarCheck2 },
-    { title: 'Presensi Atlet', href: adminAttendance.url(), icon: CalendarCheck2 },
-    { title: 'Presensi Coach', href: adminInstructorAttendance.url(), icon: CalendarCheck2 },
-    { title: 'Keuangan', href: adminPayments.url(), icon: CreditCard },
-    { title: 'Manajemen User', href: adminIndex.url(), icon: Users },
-    { title: 'Manajemen Athlete', href: usersIndex.url(),icon: Users},
-    { title: 'Event Internal / UKT', href: adminEvents.url(), icon: Trophy },
-    { title: 'Riwayat Event & UKT', href: adminEventHistory.url(), icon: FileClock },
-    { title: 'Pengumuman', href: announcementsIndex.url(), icon: FileClock },
-    { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: FileClock },
+const navigation: NavSection[] = [
+    {
+        label: 'Utama',
+        items: [{ title: 'Beranda', href: dashboard.url(), icon: LayoutDashboard, roles: allRoles }],
+    },
+    {
+        label: 'Latihan',
+        items: [
+            { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarRange, roles: allRoles },
+            { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPinned, roles: ['admin'] },
+            { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
+            { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
+            { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock, roles: ['admin', 'coach'] },
+            {
+                title: 'Absensi & Check-in',
+                href: attendanceIndex.url(),
+                icon: ScanLine,
+                roles: ['coach', 'parent', 'athlete'],
+            },
+            { title: 'Laporan Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck, roles: ['admin'] },
+            { title: 'Kehadiran Pelatih', href: adminInstructorAttendance.url(), icon: BadgeCheck, roles: ['admin'] },
+        ],
+    },
+    {
+        label: 'Akun & Keluarga',
+        items: [
+            { title: 'Profil Anak', href: parentChildrenIndex.url(), icon: UsersRound, roles: ['parent'] },
+            { title: 'Akun Pengguna', href: adminIndex.url(), icon: UserCog, roles: ['admin'] },
+            { title: 'Data Atlet', href: usersIndex.url(), icon: Contact, roles: ['admin'] },
+        ],
+    },
+    {
+        label: 'Keuangan',
+        items: [
+            { title: 'Keuangan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards, roles: allRoles },
+            { title: 'Payroll Pelatih', href: '/admin/payroll', icon: ReceiptText, roles: ['admin'] },
+            { title: 'Aturan Tagihan', href: '/admin/billing-settings', icon: ReceiptText, roles: ['admin'] },
+            {
+                title: 'Template & Kontak WhatsApp',
+                href: '/admin/whatsapp-template',
+                icon: MessageCircleMore,
+                roles: ['admin'],
+            },
+        ],
+    },
+    {
+        label: 'Kompetisi',
+        items: [
+            { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy, roles: allRoles },
+            {
+                title: 'Prestasi & Sertifikat',
+                href: achievementsIndex.url(),
+                icon: Award,
+                roles: ['coach', 'parent', 'athlete'],
+            },
+            { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History, roles: ['admin'] },
+        ],
+    },
+    {
+        label: 'Informasi & Sistem',
+        items: [
+            { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone, roles: allRoles },
+            { title: 'Export Data Excel', href: '/admin/data-export', icon: FileSpreadsheet, roles: ['admin'] },
+            { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: ScrollText, roles: ['admin'] },
+        ],
+    },
 ];
 
-const navByRole: Record<AppRole, NavItem[]> = {
-    admin: adminNavItems,
-    coach: [
-        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
-        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
-        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
-        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
-        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
-    ],
-    parent: [
-        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
-        { title: 'Child Profiles', href: parentChildrenIndex.url(), icon: Users },
-        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
-        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
-        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
-        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
-    ],
-    athlete: [
-        { title: 'Dashboard', href: dashboard.url(), icon: LayoutGrid },
-        { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarDays },
-        { title: 'Payments', href: paymentsIndex.url(), icon: CreditCard },
-        { title: 'Attendance', href: attendanceIndex.url(), icon: CalendarCheck2 },
-        { title: 'Championships', href: championshipsIndex.url(), icon: Trophy },
-        { title: 'Achievements', href: achievementsIndex.url(), icon: Trophy },
-        { title: 'Announcements', href: announcementsIndex.url(), icon: FileClock },
-    ],
-};
+function canSee(item: NavItem): boolean {
+    return !item.roles?.length || item.roles.some((role) => assignedRoles.value.includes(role));
+}
 
-const mainNavItems = computed(() => {
-    const seen = new Set<string>();
-
-    return roles.value
-        .flatMap((entry) => navByRole[entry])
-        .filter((item) => {
-            const href = String(item.href);
-            if (seen.has(href)) {
-                return false;
-            }
-            seen.add(href);
-            return true;
-        });
-});
-
+const mainNavSections = computed<NavSection[]>(() =>
+    navigation
+        .map((section) => ({ ...section, items: section.items.filter(canSee) }))
+        .filter((section) => section.items.length > 0),
+);
 const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="dashboard.url()">
-                            <AppLogo />
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
+        <SidebarHeader class="min-w-0 overflow-hidden p-2">
+            <Link
+                :href="dashboard.url()"
+                class="flex h-20 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
+            >
+                <AppLogoIcon
+                    class-name="block h-auto w-40 max-h-16 max-w-full shrink-0 object-contain group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
+                />
+                <span class="sr-only">RF IS dashboard</span>
+            </Link>
         </SidebarHeader>
 
-        <SidebarContent>
-            <NavMain :items="mainNavItems" />
-        </SidebarContent>
-
+        <SidebarContent><NavMain :sections="mainNavSections" /></SidebarContent>
         <SidebarFooter>
             <NavFooter :items="footerNavItems" />
             <NavUser />

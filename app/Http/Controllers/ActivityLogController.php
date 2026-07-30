@@ -24,7 +24,7 @@ class ActivityLogController extends Controller
             'per_page' => ['nullable', 'integer', 'min:10', 'max:200'],
         ]);
 
-        $perPage = (int) ($validated['per_page'] ?? 50);
+        $perPage = (int) ($validated['per_page'] ?? 10);
         $query = ActivityLog::query()
             ->with('actor:id,name,email')
             ->when(! empty($validated['q']), function ($builder) use ($validated) {
@@ -76,4 +76,3 @@ class ActivityLogController extends Controller
         ]);
     }
 }
-

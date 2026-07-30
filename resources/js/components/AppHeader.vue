@@ -21,15 +21,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
+import { routeId } from '@/lib/routeIds';
 import { toUrl } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { show as userShow } from '@/routes/users';
-import type { BreadcrumbItem, NavItem } from '@/types';
-
-type Props = {
-    breadcrumbs?: BreadcrumbItem[];
-};
+import type { NavItem } from '@/types';
+import type { Props } from './AppHeader.types';
 
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
@@ -105,8 +103,10 @@ function clearChildContext() {
     router.delete(clearChildRoute.url(), { preserveScroll: true });
 }
 
-function profileUrl(userId: number | string) {
-    return userShow.url(userId);
+function profileUrl(userId: unknown): string {
+    const normalizedUserId = routeId(userId);
+
+    return normalizedUserId === null ? '#' : userShow.url(normalizedUserId);
 }
 
 function showMoreChildren() {

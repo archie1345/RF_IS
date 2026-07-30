@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -7,15 +7,34 @@ import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
+import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
 import { index as championshipsIndex, show as championshipShow } from '@/routes/championships';
-import { store as championshipEventStore } from '@/routes/championships/events';
-import { store as championshipRegistrationStore } from '@/routes/championships/registrations';
+import {
+    destroy as championshipEventDestroy,
+    store as championshipEventStore,
+    update as championshipEventUpdate,
+} from '@/routes/championships/events';
+import {
+    store as championshipRegistrationStore,
+    update as championshipRegistrationUpdate,
+} from '@/routes/championships/registrations';
 import { index as paymentsIndex } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+
+type ExistingRegistration = {
+    registration_id: number;
+    category: string;
+    classification: string;
+    class_name: string;
+    division: string;
+    team_contingent: string;
+};
 
 const props = withDefaults(
     defineProps<{
@@ -32,272 +51,467 @@ const props = withDefaults(
         isAthlete: false,
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Championships', href: championshipsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
-    { key: 'event', label: 'Championship' },
-    { key: 'date', label: 'Date' },
-    { key: 'location', label: 'Location' },
-    { key: 'slots', label: 'Slots', align: 'right' },
+    { key: 'event', label: 'Kejuaraan' },
+    { key: 'date', label: 'Tanggal' },
+    { key: 'registration_deadline', label: 'Batas pendaftaran' },
+    { key: 'location', label: 'Lokasi' },
+    { key: 'status', label: 'Status' },
+    { key: 'slots', label: 'Peserta', align: 'right' },
 ];
 
 const categoryOptions = [
     { value: 'KYORUGI', label: 'Kyorugi' },
     { value: 'POOMSAE', label: 'Poomsae' },
     { value: 'FREESTYLE', label: 'Freestyle' },
-    { value: 'UNKNOWN', label: 'Unknown' },
+    { value: 'UNKNOWN', label: 'Belum ditentukan' },
 ];
 
-const form = useForm({
+const levelOptions = [
+    { value: 'LOCAL', label: 'Lokal' },
+    { value: 'REGIONAL', label: 'Regional' },
+    { value: 'NATIONAL', label: 'Nasional' },
+    { value: 'INTERNATIONAL', label: 'Internasional' },
+];
+
+const statusOptions = [
+    { value: 'SCHEDULED', label: 'Pendaftaran dibuka' },
+    { value: 'ONGOING', label: 'Sedang berlangsung' },
+    { value: 'COMPLETED', label: 'Selesai' },
+    { value: 'CANCELED', label: 'Dibatalkan' },
+];
+
+const registrationForm = useForm({
     athlete_id: '',
     event_id: '',
     category: 'KYORUGI',
     classification: '',
     class_name: '',
     division: '',
-    team_contingent: 'rhino fighter',
+    team_contingent: 'Rhino Fighter',
+    registration: '',
 });
-const showRegistrationForm = ref(false);
-const showEventForm = ref(false);
-const showPaymentPrompt = ref(false);
 
 const eventForm = useForm({
     name: '',
     date: '',
+    registration_deadline: '',
     location: '',
     gmaps_url: '',
     entry_fee: '',
     max_slots: '24',
     level: 'LOCAL',
+    status: 'SCHEDULED',
+    event: '',
 });
 
-function submit() {
-    form.post(championshipRegistrationStore.url(), {
-        onSuccess: () => {
-            form.reset();
-            form.category = 'KYORUGI';
-            form.team_contingent = 'rhino fighter';
-            showRegistrationForm.value = false;
-            if (props.pendingPayments.length > 0) showPaymentPrompt.value = true;
-        },
-    });
+const showRegistrationForm = ref(false);
+const showEventForm = ref(false);
+const showPaymentPrompt = ref(false);
+const editingEventId = ref<number | null>(null);
+const editingRegistrationId = ref<number | null>(null);
+const registrationEventLabel = ref('');
+
+function existingRegistration(row: TableRow): ExistingRegistration | null {
+    const value = row.my_registration;
+    if (!value || typeof value !== 'object') return null;
+    return value as ExistingRegistration;
 }
 
-function submitEvent() {
-    eventForm.post(championshipEventStore.url(), {
-        onSuccess: () => {
-            eventForm.reset();
-            showEventForm.value = false;
-        },
-    });
+function resetRegistrationForm(): void {
+    registrationForm.reset();
+    registrationForm.clearErrors();
+    registrationForm.category = 'KYORUGI';
+    registrationForm.team_contingent = 'Rhino Fighter';
+    editingRegistrationId.value = null;
+    registrationEventLabel.value = '';
+    if (props.isAthlete && props.athletes.length === 1) {
+        registrationForm.athlete_id = String(props.athletes[0].value);
+    }
 }
 
-function openPaymentPrompt() {
+function closeRegistrationForm(): void {
+    showRegistrationForm.value = false;
+    resetRegistrationForm();
+}
+
+function submitRegistration(): void {
+    const registrationId = editingRegistrationId.value;
+    const wasEditing = registrationId !== null;
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            closeRegistrationForm();
+            if (!wasEditing && props.pendingPayments.length > 0) showPaymentPrompt.value = true;
+        },
+    };
+
+    if (registrationId !== null) {
+        registrationForm.put(championshipRegistrationUpdate.url(registrationId), options);
+        return;
+    }
+
+    registrationForm.post(championshipRegistrationStore.url(), options);
+}
+
+function resetEventForm(): void {
+    eventForm.reset();
+    eventForm.clearErrors();
+    eventForm.max_slots = '24';
+    eventForm.level = 'LOCAL';
+    eventForm.status = 'SCHEDULED';
+    eventForm.event = '';
+    editingEventId.value = null;
+}
+
+function openCreateEvent(): void {
+    resetEventForm();
+    showEventForm.value = true;
+}
+
+function openEditEvent(row: TableRow): void {
+    const eventId = routeId(row.event_id ?? row.id);
+    if (eventId === null) return;
+
+    eventForm.clearErrors();
+    editingEventId.value = eventId;
+    eventForm.name = String(row.event ?? '');
+    eventForm.date = String(row.date_value ?? '');
+    eventForm.registration_deadline = String(row.registration_deadline_value ?? '');
+    eventForm.location = String(row.location ?? '');
+    eventForm.gmaps_url = String(row.gmaps_url ?? '');
+    eventForm.entry_fee = String(row.entry_fee ?? '0');
+    eventForm.max_slots = String(row.max_slots ?? '24');
+    eventForm.level = String(row.level ?? 'LOCAL');
+    eventForm.status = String(row.status_value ?? row.status ?? 'SCHEDULED');
+    eventForm.event = '';
+    showEventForm.value = true;
+}
+
+function closeEventForm(): void {
+    showEventForm.value = false;
+    resetEventForm();
+}
+
+function submitEvent(): void {
+    const options = {
+        preserveScroll: true,
+        onSuccess: closeEventForm,
+    };
+
+    if (editingEventId.value !== null) {
+        eventForm.put(championshipEventUpdate.url(editingEventId.value), options);
+        return;
+    }
+
+    eventForm.post(championshipEventStore.url(), options);
+}
+
+async function removeEvent(row: TableRow): Promise<void> {
+    const eventId = routeId(row.event_id ?? row.id);
+    if (eventId === null) return;
+
+    const registrationCount = Number(row.registrations_count ?? 0);
+    if (registrationCount > 0) {
+        await popup.warning(
+            'Kejuaraan tidak dapat dihapus',
+            'Event ini sudah memiliki riwayat peserta. Ubah status menjadi Dibatalkan agar data pendaftaran, pembayaran, dan hasil tetap dapat ditelusuri.',
+        );
+        openEditEvent(row);
+        return;
+    }
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus kejuaraan?',
+        message: `Kejuaraan “${String(row.event ?? '')}” akan dihapus. Tindakan ini hanya tersedia untuk event tanpa peserta.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus kejuaraan',
+    });
+    if (!confirmed) return;
+
+    router.delete(championshipEventDestroy.url(eventId), { preserveScroll: true });
+}
+
+function openPaymentPrompt(): void {
     if (props.pendingPayments.length === 0) return;
     showPaymentPrompt.value = true;
 }
 
-function openRegistrationForEvent(row: TableRow) {
-    form.event_id = String(row.event_id ?? '');
+function openRegistrationForEvent(row: TableRow): void {
+    if (row.registration_open !== true) return;
+
+    resetRegistrationForm();
+    registrationForm.event_id = String(row.event_id ?? '');
+    registrationEventLabel.value = String(row.event ?? '');
+
+    const registration = existingRegistration(row);
+    if (registration) {
+        const registrationId = routeId(registration.registration_id);
+        if (registrationId === null) return;
+
+        editingRegistrationId.value = registrationId;
+        registrationForm.category = registration.category || 'KYORUGI';
+        registrationForm.classification = registration.classification || '';
+        registrationForm.class_name = registration.class_name || '';
+        registrationForm.division = registration.division || '';
+        registrationForm.team_contingent = registration.team_contingent || 'Rhino Fighter';
+    }
+
     showRegistrationForm.value = true;
 }
 
+function championshipUrl(row: TableRow): string | null {
+    const eventId = routeId(row.event_id);
+    return eventId === null ? null : championshipShow.url(eventId);
+}
+
 onMounted(() => {
-    if (props.isAthlete && !form.athlete_id && props.athletes.length === 1)
-        form.athlete_id = String(props.athletes[0].value);
+    resetRegistrationForm();
     if (props.pendingPayments.length > 0) openPaymentPrompt();
 });
 </script>
 
 <template>
-    <Head title="Championships" />
+    <Head title="Kejuaraan & UKT" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
             <PageSection
-                eyebrow="Championship module"
-                title="Championships"
-                description="Register for open events. Any championship fee appears as a bill in the Payment Center for athletes and parents only."
+                eyebrow="Kompetisi"
+                title="Kejuaraan & UKT"
+                description="Lihat agenda kompetisi, daftar peserta, biaya pendaftaran, dan hasil pertandingan dalam satu tempat."
             >
                 <template #actions>
-                    <div class="flex flex-wrap gap-2">
-                        <Button
-                            v-if="props.pendingPayments.length > 0"
-                            type="button"
-                            variant="outline"
-                            @click="openPaymentPrompt"
-                            >Open unpaid bill</Button
-                        >
-                        <Button v-if="props.isAdmin" type="button" @click="showEventForm = true"
-                            >Add championship/event</Button
-                        >
-                    </div>
+                    <Button
+                        v-if="props.pendingPayments.length > 0"
+                        type="button"
+                        variant="outline"
+                        @click="openPaymentPrompt"
+                    >
+                        Lihat tagihan pendaftaran
+                    </Button>
+                    <Button v-if="props.isAdmin" type="button" @click="openCreateEvent">Tambah kejuaraan</Button>
                 </template>
+
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
+                </div>
             </PageSection>
 
             <DataTable
-                title="Championship list"
-                description="Open events with registration actions beside each row."
+                title="Daftar kejuaraan"
+                description="Atlet yang sudah terdaftar dapat mengubah data pertandingan sendiri sampai batas waktu yang ditetapkan admin."
                 :columns="columns"
                 :rows="props.rows"
-                action-label="Register / details"
-                empty-text="No championships are open yet."
+                action-label="Tindakan"
+                empty-text="Belum ada kejuaraan atau UKT."
                 searchable
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button
-                            v-if="props.canRegister"
+                            v-if="props.isAthlete && row.my_registration && row.can_edit_registration === true"
                             type="button"
                             size="sm"
                             variant="outline"
                             @click="openRegistrationForEvent(row)"
-                            >Register</Button
                         >
-                        <Button as-child type="button" size="sm" variant="outline"
-                            ><Link :href="championshipShow.url(row.event_id)">View participants</Link></Button
+                            Ubah pendaftaran
+                        </Button>
+                        <Button
+                            v-else-if="props.canRegister && !row.my_registration && row.registration_open === true"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="openRegistrationForEvent(row)"
                         >
+                            Daftar
+                        </Button>
+                        <Button v-if="championshipUrl(row)" as-child type="button" size="sm" variant="outline">
+                            <Link :href="championshipUrl(row) ?? '#'">Detail</Link>
+                        </Button>
+                        <Button
+                            v-if="props.isAdmin"
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            @click="openEditEvent(row)"
+                        >
+                            Ubah
+                        </Button>
+                        <Button
+                            v-if="props.isAdmin"
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            @click="removeEvent(row)"
+                        >
+                            Hapus
+                        </Button>
                     </ActionButtonsRow>
                 </template>
             </DataTable>
         </div>
 
-        <FormModal :open="showRegistrationForm" max-width-class="max-w-2xl" @close="showRegistrationForm = false">
+        <FormModal :open="showRegistrationForm" max-width-class="max-w-2xl" @close="closeRegistrationForm">
             <PageSection
-                title="Register for championship"
-                description="Choose athlete, classification, class, and division. Team defaults to rhino fighter but admin can change it."
+                :title="editingRegistrationId === null ? 'Daftar kejuaraan' : 'Ubah pendaftaran kejuaraan'"
+                :description="
+                    editingRegistrationId === null
+                        ? 'Pilih atlet dan isi klasifikasi pertandingan. Tagihan pendaftaran akan dibuat otomatis.'
+                        : `Perbarui data pertandingan untuk ${registrationEventLabel} sebelum batas pendaftaran.`
+                "
             >
-                <form class="grid gap-4" @submit.prevent="submit">
+                <form class="grid min-w-0 gap-4" @submit.prevent="submitRegistration">
                     <FormSelectField
                         v-if="props.athletes.length > 1"
                         id="event-athlete"
-                        v-model="form.athlete_id"
-                        label="Athlete"
+                        v-model="registrationForm.athlete_id"
+                        label="Atlet"
                         :options="props.athletes"
-                        placeholder="Select athlete"
+                        placeholder="Pilih atlet"
                         required
-                        :error="form.errors.athlete_id"
+                        :disabled="editingRegistrationId !== null"
+                        :error="registrationForm.errors.athlete_id"
                     />
-                    <div v-else-if="props.athletes.length === 1" class="grid gap-2">
-                        <label class="text-sm font-medium">Athlete</label>
+                    <div v-else-if="props.athletes.length === 1" class="grid min-w-0 gap-2">
+                        <label class="text-sm font-medium">Atlet</label>
                         <input
                             :value="props.athletes[0].label"
                             disabled
-                            class="h-10 rounded-md border border-input bg-muted px-3 py-2 text-sm"
+                            class="h-11 min-w-0 rounded-md border border-input bg-muted px-3 py-2 text-sm"
                         />
                     </div>
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <FormSelectField
                             id="event-name"
-                            v-model="form.event_id"
-                            label="Championship"
+                            v-model="registrationForm.event_id"
+                            label="Kejuaraan"
                             :options="props.events"
-                            placeholder="Select event"
+                            placeholder="Pilih kejuaraan"
                             required
-                            :error="form.errors.event_id"
+                            :disabled="editingRegistrationId !== null"
+                            :error="registrationForm.errors.event_id"
                         />
                         <FormSelectField
                             id="event-category"
-                            v-model="form.category"
-                            label="Class/Kategori"
+                            v-model="registrationForm.category"
+                            label="Kategori"
                             :options="categoryOptions"
                             required
-                            :error="form.errors.category"
+                            :error="registrationForm.errors.category"
                         />
                     </div>
-                    <div class="grid gap-4 md:grid-cols-3">
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <FormInputField
                             id="event-classification"
-                            v-model="form.classification"
+                            v-model="registrationForm.classification"
                             label="Klasifikasi"
                             placeholder="Cadet / Junior / Senior"
-                            :error="form.errors.classification"
+                            :error="registrationForm.errors.classification"
                         />
                         <FormInputField
                             id="event-class-name"
-                            v-model="form.class_name"
-                            label="Class"
+                            v-model="registrationForm.class_name"
+                            label="Kelas"
                             placeholder="Under 45 kg / Individual"
-                            :error="form.errors.class_name"
+                            :error="registrationForm.errors.class_name"
                         />
                         <FormInputField
                             id="event-division"
-                            v-model="form.division"
+                            v-model="registrationForm.division"
                             label="Divisi"
-                            placeholder="Putra / Putri / Weight division"
-                            :error="form.errors.division"
+                            placeholder="Putra / Putri"
+                            :error="registrationForm.errors.division"
                         />
                     </div>
                     <FormInputField
                         id="event-team"
-                        v-model="form.team_contingent"
-                        label="Tim/Kontingen"
-                        placeholder="rhino fighter"
-                        help="Default: rhino fighter"
-                        :error="form.errors.team_contingent"
+                        v-model="registrationForm.team_contingent"
+                        label="Tim atau kontingen"
+                        placeholder="Rhino Fighter"
+                        :error="registrationForm.errors.team_contingent"
                     />
-                    <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing"
-                            >Submit registration</Button
-                        >
-                        <Button
-                            type="button"
-                            class="w-full sm:w-auto"
-                            variant="outline"
-                            @click="showRegistrationForm = false"
-                            >Cancel</Button
-                        >
+                    <p v-if="registrationForm.errors.registration" class="text-sm text-destructive">
+                        {{ registrationForm.errors.registration }}
+                    </p>
+                    <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="closeRegistrationForm">Batal</Button>
+                        <Button type="submit" :disabled="registrationForm.processing">
+                            {{ editingRegistrationId === null ? 'Kirim pendaftaran' : 'Simpan perubahan' }}
+                        </Button>
                     </div>
                 </form>
             </PageSection>
         </FormModal>
 
-        <FormModal :open="showEventForm" max-width-class="max-w-xl" @close="showEventForm = false">
+        <FormModal :open="showEventForm && props.isAdmin" max-width-class="max-w-2xl" @close="closeEventForm">
             <PageSection
-                title="Add championship"
-                description="Create a public event. Max slots already has a safe default and can be changed if needed."
+                :title="editingEventId === null ? 'Tambah kejuaraan' : 'Ubah kejuaraan'"
+                description="Atur tanggal, batas pendaftaran, lokasi, biaya, kapasitas, tingkat, dan status agenda."
             >
-                <form class="grid gap-4" @submit.prevent="submitEvent">
+                <form class="grid min-w-0 gap-4" @submit.prevent="submitEvent">
                     <FormInputField
                         id="event-new-name"
                         v-model="eventForm.name"
-                        label="Championship name"
+                        label="Nama kejuaraan"
                         required
                         :error="eventForm.errors.name"
                     />
-                    <FormInputField
-                        id="event-new-date"
-                        v-model="eventForm.date"
-                        label="Event date"
-                        type="date"
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <FormInputField
+                            id="event-new-date"
+                            v-model="eventForm.date"
+                            label="Tanggal"
+                            type="date"
+                            required
+                            :error="eventForm.errors.date"
+                        />
+                        <FormInputField
+                            id="event-registration-deadline"
+                            v-model="eventForm.registration_deadline"
+                            label="Batas pendaftaran"
+                            type="datetime-local"
+                            :error="eventForm.errors.registration_deadline"
+                            help="Jika dikosongkan, batas otomatis menjadi akhir hari pada tanggal kejuaraan."
+                        />
+                    </div>
+                    <FormSelectField
+                        id="event-new-status"
+                        v-model="eventForm.status"
+                        label="Status"
+                        :options="statusOptions"
                         required
-                        :error="eventForm.errors.date"
+                        :error="eventForm.errors.status"
                     />
                     <FormInputField
                         id="event-new-location"
                         v-model="eventForm.location"
-                        label="Place"
-                        placeholder="Example: GOR Jakarta Selatan"
+                        label="Lokasi"
+                        placeholder="Contoh: GOR Ken Arok"
                         required
                         :error="eventForm.errors.location"
                     />
                     <FormInputField
                         id="event-new-gmaps"
                         v-model="eventForm.gmaps_url"
-                        label="Google Maps link"
+                        label="Tautan Google Maps"
                         type="url"
                         placeholder="https://maps.google.com/..."
                         :error="eventForm.errors.gmaps_url"
                     />
-                    <div class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <FormInputField
                             id="event-new-price"
                             v-model="eventForm.entry_fee"
-                            label="Entry fee"
+                            label="Biaya pendaftaran"
                             type="number"
                             inputmode="decimal"
                             min="0"
@@ -308,34 +522,26 @@ onMounted(() => {
                         <FormInputField
                             id="event-new-slots"
                             v-model="eventForm.max_slots"
-                            label="Maximum athletes"
+                            label="Kapasitas atlet"
                             type="number"
                             inputmode="numeric"
                             min="1"
                             step="1"
-                            help="Default is 24."
+                            required
                             :error="eventForm.errors.max_slots"
                         />
                     </div>
                     <FormSelectField
                         id="event-new-level"
                         v-model="eventForm.level"
-                        label="Level"
-                        :options="[
-                            { value: 'LOCAL', label: 'Local' },
-                            { value: 'REGIONAL', label: 'Regional' },
-                            { value: 'NATIONAL', label: 'National' },
-                            { value: 'INTERNATIONAL', label: 'International' },
-                        ]"
+                        label="Tingkat kompetisi"
+                        :options="levelOptions"
                         :error="eventForm.errors.level"
                     />
-                    <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="eventForm.processing"
-                            >Save event</Button
-                        >
-                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showEventForm = false"
-                            >Cancel</Button
-                        >
+                    <p v-if="eventForm.errors.event" class="text-sm text-destructive">{{ eventForm.errors.event }}</p>
+                    <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                        <Button type="button" variant="outline" @click="closeEventForm">Batal</Button>
+                        <Button type="submit" :disabled="eventForm.processing">Simpan kejuaraan</Button>
                     </div>
                 </form>
             </PageSection>
@@ -343,27 +549,26 @@ onMounted(() => {
 
         <FormModal :open="showPaymentPrompt" max-width-class="max-w-xl" @close="showPaymentPrompt = false">
             <PageSection
-                title="Championship bill ready"
-                description="The bill is now in the Payment Center. Pay using the admin instructions, then upload the receipt there for review."
+                title="Tagihan pendaftaran tersedia"
+                description="Buka halaman pembayaran untuk melihat petunjuk dan mengunggah bukti pembayaran."
             >
-                <div class="grid gap-2 text-sm" v-if="props.pendingPayments.length > 0">
-                    <p><span class="font-medium">Athlete:</span> {{ props.pendingPayments[0].athlete }}</p>
+                <div
+                    v-if="props.pendingPayments.length > 0"
+                    class="grid gap-2 rounded-xl border bg-muted/30 p-4 text-sm"
+                >
+                    <p><span class="font-medium">Atlet:</span> {{ props.pendingPayments[0].athlete }}</p>
                     <p>
-                        <span class="font-medium">Amount:</span> Rp
-                        {{ props.pendingPayments[0].amount.toLocaleString() }}
+                        <span class="font-medium">Jumlah:</span>
+                        Rp {{ props.pendingPayments[0].amount.toLocaleString('id-ID') }}
                     </p>
                     <p>
-                        <span class="font-medium">Remaining:</span> Rp
-                        {{ props.pendingPayments[0].remaining.toLocaleString() }}
+                        <span class="font-medium">Sisa:</span>
+                        Rp {{ props.pendingPayments[0].remaining.toLocaleString('id-ID') }}
                     </p>
                 </div>
-                <div class="mt-4 flex flex-wrap gap-3">
-                    <Button as-child class="w-full sm:w-auto"
-                        ><Link :href="paymentsIndex.url()">Open Payment Center</Link></Button
-                    >
-                    <Button type="button" class="w-full sm:w-auto" variant="outline" @click="showPaymentPrompt = false"
-                        >Later</Button
-                    >
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="showPaymentPrompt = false">Nanti</Button>
+                    <Button as-child><Link :href="paymentsIndex.url()">Buka pembayaran</Link></Button>
                 </div>
             </PageSection>
         </FormModal>

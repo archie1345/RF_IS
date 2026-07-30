@@ -43,13 +43,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return $this->renderAttendanceReport(
             'Rekap Presensi Atlet',
             'Rekap presensi atlet berbasis bulan. Gunakan Bulan untuk laporan utama',
-            [
-                ['label' => 'Total Atlet', 'value' => (string) $athletes->count(), 'tone' => 'info'],
-                ['label' => 'Total Catatan', 'value' => (string) $attendances->count(), 'tone' => 'neutral'],
-                ['label' => 'Hadir', 'value' => (string) $attendances->where('status', 'PRESENT')->count(), 'tone' => 'success'],
-                ['label' => 'Tidak Hadir', 'value' => (string) $attendances->whereIn('status', ['ABSENT', 'SICK', 'EXCUSED'])->count(), 'tone' => 'warning'],
-            ],
-            ['No', 'Atlet', 'Kelas', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
+            ['Atlet', 'Kelas', 'Total', 'Hadir', 'Izin', 'Sakit', 'Alpha', 'Terlambat', 'Persentase', 'Status'],
             'Belum ada data presensi atlet.',
             'attendance',
             $athletes->values()->map(function (Athlete $athlete, int $index) use ($attendanceByAthlete): array {
@@ -63,8 +57,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
                 $rate = $total > 0 ? round((($present + $late) / $total) * 100) : 0;
 
                 return [
-                    'No' => (string) ($index + 1),
-                    'Atlet' => ($athlete->user?->name ?? 'Unknown athlete').'\n'.$athlete->athlete_id,
+                    'Atlet' => ($athlete->user?->name ?? 'Unknown athlete'),
                     'Kelas' => $athlete->group?->group_name ?? '-',
                     'Total' => (string) $total,
                     'Hadir' => (string) $present,
@@ -111,13 +104,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return $this->renderAttendanceReport(
             'Rekap Presensi Coach',
             'Rekap presensi coach hanya menghitung catatan sampai hari ini. Data masa depan tidak dimasukkan.',
-            [
-                ['label' => 'Total Coach', 'value' => (string) $coaches->count(), 'tone' => 'info'],
-                ['label' => 'Total Catatan', 'value' => (string) $coachAttendance->count(), 'tone' => 'neutral'],
-                ['label' => 'Mengajar', 'value' => (string) $coachAttendance->where('status', 'TEACH')->count(), 'tone' => 'success'],
-                ['label' => 'Tidak Mengajar', 'value' => (string) $coachAttendance->where('status', 'NOT_TEACH')->count(), 'tone' => 'warning'],
-            ],
-            ['No', 'Coach', 'Total Catatan', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status'],
+            ['Coach', 'Total Catatan', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status'],
             'Belum ada data presensi coach sampai periode ini.',
             'instructor-attendance',
             $coaches->values()->map(function (Coach $coach, int $index) use ($coachAttendanceByCoach): array {
@@ -128,8 +115,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
                 $rate = $total > 0 ? round(($teach / $total) * 100) : 0;
 
                 return [
-                    'No' => (string) ($index + 1),
-                    'Coach' => ($coach->user?->name ?? 'Unknown coach').'\n'.$coach->coach_id,
+                    'Coach' => ($coach->user?->name ?? 'Unknown coach'),
                     'Total Catatan' => (string) $total,
                     'Mengajar' => (string) $teach,
                     'Tidak Mengajar' => (string) $notTeach,
@@ -241,13 +227,12 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         return $this->downloadAttendanceWorkbook('LAPORAN ABSENSI PELATIH', $from, $to, $records, $this->exportFilename('presensi-pelatih', $from, $to), ['No', 'Coach', 'Total Catatan', 'Mengajar', 'Tidak Mengajar', 'Persentase', 'Status']);
     }
 
-    private function renderAttendanceReport(string $title, string $subtitle, array $metrics, array $columns, string $emptyText, string $mode, array $rows, CarbonInterface $from, CarbonInterface $to, string $month, string $exportUrl, array $extra = []): Response
+    private function renderAttendanceReport(string $title, string $subtitle, array $columns, string $emptyText, string $mode, array $rows, CarbonInterface $from, CarbonInterface $to, string $month, string $exportUrl, array $extra = []): Response
     {
         return Inertia::render('AdminAttendanceReportPage', array_merge([
             'mode' => $mode,
             'title' => $title,
             'subtitle' => $subtitle,
-            'metrics' => $metrics,
             'columns' => $columns,
             'rows' => $rows,
             'emptyText' => $emptyText,
@@ -268,6 +253,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
         if (preg_match('/^\d{4}-\d{2}$/', $month) === 1) {
             $from = Carbon::createFromFormat('Y-m-d', $month.'-01')->startOfDay();
             $to = $from->copy()->endOfMonth()->endOfDay();
+
             return [$from, $to, $from->format('Y-m')];
         }
 
@@ -300,7 +286,7 @@ class AdminAttendanceReportController extends BaseAdminFeatureController
 
     private function downloadAttendanceWorkbook(string $title, CarbonInterface $from, CarbonInterface $to, array $records, string $filename, array $headings = ['No', 'Tanggal', 'Nama', 'Kelas', 'Check In', 'Check Out', 'Status']): BinaryFileResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Absensi');
 

@@ -2,21 +2,9 @@
 import { Check, ChevronsUpDown, Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-
-type SelectValue = string | number;
-
-type SelectOption = {
-    value: SelectValue;
-    label: string;
-};
+import type { SelectValue, SelectOption } from './SearchableSelect.types';
 
 const props = defineProps<{
     modelValue: SelectValue | '' | null;
@@ -83,7 +71,9 @@ function clearSelection() {
         </Button>
 
         <Dialog v-model:open="isOpen">
-            <DialogContent class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border-border/70 p-4 sm:max-w-2xl sm:p-6">
+            <DialogContent
+                class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border-border/70 p-4 sm:max-w-2xl sm:p-6"
+            >
                 <DialogHeader>
                     <DialogTitle>{{ title ?? 'Select option' }}</DialogTitle>
                     <DialogDescription>
@@ -93,16 +83,17 @@ function clearSelection() {
 
                 <div class="space-y-4">
                     <div class="relative">
-                        <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            v-model="search"
-                            class="pl-9"
-                            :placeholder="searchPlaceholder ?? 'Search options'"
+                        <Search
+                            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
+                        <Input v-model="search" class="pl-9" :placeholder="searchPlaceholder ?? 'Search options'" />
                     </div>
 
                     <div class="rounded-xl border border-border/70 bg-card">
-                        <div v-if="filteredOptions.length > 0" class="max-h-72 space-y-1 overflow-y-auto p-2 sm:max-h-80">
+                        <div
+                            v-if="filteredOptions.length > 0"
+                            class="max-h-72 space-y-1 overflow-y-auto p-2 sm:max-h-80"
+                        >
                             <button
                                 v-for="option in filteredOptions"
                                 :key="String(option.value)"

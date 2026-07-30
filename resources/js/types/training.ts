@@ -22,6 +22,19 @@ export type ClassAthleteRecord = {
     name: string;
     geup?: string | null;
     branch?: string | null;
+    training_group?: string | null;
+};
+
+export type ClassSessionRecord = {
+    id: number;
+    title: string;
+    date: string;
+    time: string;
+    branch?: string | null;
+    coach?: string | null;
+    status: string;
+    is_archived: boolean;
+    attendance_url?: string | null;
 };
 
 export type ClassScheduleMode = 'weekly' | 'one_day';
@@ -29,13 +42,19 @@ export type ClassScheduleMode = 'weekly' | 'one_day';
 export type ClassRecord = {
     id: number;
     name: string;
+    training_group_id?: number | string | null;
+    training_group?: string | null;
     class_type: string;
     schedule_mode?: ClassScheduleMode;
     single_session_date?: string | null;
     branch_id?: number | null;
     branch: string;
     coach_id?: string | null;
+    coach_ids?: Array<string | number>;
     coach: string;
+    coaches?: string[];
+    dedicated_athlete_ids?: Array<string | number>;
+    dedicated_athlete?: string | null;
     day_of_week?: number | null;
     day_label: string;
     start_time: string;
@@ -45,7 +64,12 @@ export type ClassRecord = {
     description?: string | null;
     athletes_count: number;
     athletes?: ClassAthleteRecord[];
+    sessions?: ClassSessionRecord[];
+    sessions_count?: number;
+    active_sessions_count?: number;
+    archived_sessions_count?: number;
     is_active: boolean;
+    is_archived?: boolean;
     weekly_schedule_id?: number | null;
     weekly_schedule_status: string;
 };
@@ -57,11 +81,19 @@ export type WeeklySchedule = {
     branch?: string | null;
     group_id?: number | null;
     group?: string | null;
+    training_group_id?: number | string | null;
+    training_group?: string | null;
     dedicated_athlete_id?: number | string | null;
     dedicated_athlete?: string | null;
+    /** Athlete names shown for private or dedicated schedules. */
+    athletes?: string | null;
+    /** Linked child names whose parent can view this schedule. */
+    child?: string | null;
     session_type?: string | null;
     coach_id?: string | null;
+    coach_ids?: Array<string | number>;
     coach?: string | null;
+    coaches?: string[];
     day_of_week: number;
     day_label?: string | null;
     start_time?: string | null;
