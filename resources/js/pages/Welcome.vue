@@ -1,28 +1,33 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { MessageCircle } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { dashboard, login } from '@/routes';
 
-withDefaults(
-    defineProps<{
-        canRegister: boolean;
-    }>(),
-    {
-        canRegister: false,
-    },
+const page = usePage<{
+    publicAdminWhatsapp?: string;
+    publicWhatsappBubbleEnabled?: boolean;
+    auth: { user?: unknown };
+}>();
+
+const whatsappUrl = computed(() =>
+    buildWhatsAppUrl(
+        page.props.publicAdminWhatsapp,
+        'Halo Admin Rhino Fighter, saya ingin mendaftar sebagai anggota baru. Mohon informasi proses pendaftarannya.',
+    ),
+);
+
+const showWhatsappBubble = computed(
+    () => Boolean(whatsappUrl.value) && page.props.publicWhatsappBubbleEnabled !== false,
 );
 
 const highlights = [
+    { title: 'Profil & peran', detail: 'Admin, pelatih, orang tua, dan atlet terhubung dalam satu sistem.' },
+    { title: 'Latihan', detail: 'Jadwal, kelas, kehadiran, dan sesi privat tetap mudah ditelusuri.' },
     {
-        title: 'Account roster',
-        detail: 'Admins, coaches, parents, and athletes stay connected from one role-aware workspace.',
-    },
-    {
-        title: 'Payments',
-        detail: 'Issue bills, track balances, collect receipts, and approve partial payments without a spreadsheet.',
-    },
-    {
-        title: 'Training rhythm',
-        detail: 'Sessions, attendance, announcements, and championship activity stay visible to the right people.',
+        title: 'Keuangan & kompetisi',
+        detail: 'Tagihan, payroll, kejuaraan, UKT, serta bukti pembayaran tersimpan rapi.',
     },
 ];
 </script>
@@ -31,125 +36,99 @@ const highlights = [
     <Head title="Rhino Fighter IS" />
 
     <main class="min-h-screen bg-neutral-950 text-white">
-        <section class="relative isolate flex min-h-[82svh] overflow-hidden border-b border-white/10">
-            <div class="relative z-10 flex w-full flex-col">
-                <header class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-                    <Link :href="dashboard()" class="text-sm font-semibold uppercase tracking-[0.24em] text-white">
-                        RF IS
+        <section class="flex min-h-[78svh] flex-col border-b border-white/10">
+            <header class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+                <Link :href="dashboard()" class="text-sm font-semibold tracking-[0.24em] uppercase">RF IS</Link>
+                <nav class="flex items-center gap-2">
+                    <Link
+                        v-if="page.props.auth.user"
+                        :href="dashboard()"
+                        class="inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950"
+                    >
+                        Buka dashboard
                     </Link>
-
-                    <nav class="flex items-center gap-2">
-                        <Link
-                            v-if="$page.props.auth.user"
-                            :href="dashboard()"
-                            class="inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-cyan-100"
+                    <template v-else>
+                        <a
+                            v-if="whatsappUrl"
+                            :href="whatsappUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex h-10 items-center rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-400"
                         >
-                            Dashboard
+                            Hubungi admin
+                        </a>
+                        <Link
+                            :href="login()"
+                            class="inline-flex h-10 items-center rounded-lg border border-white/30 px-4 text-sm font-semibold hover:bg-white/10"
+                        >
+                            Masuk
                         </Link>
-                        <template v-else>
-                            <Link
-                                :href="login()"
-                                class="inline-flex h-10 items-center rounded-lg border border-white/30 px-4 text-sm font-semibold text-white transition hover:border-white hover:bg-white/10"
-                            >
-                                Log in
-                            </Link>
-                            <!-- <Link
-                                v-if="canRegister"
-                                :href="register()"
-                                class="hidden h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-cyan-100 sm:inline-flex"
-                            >
-                                Register
-                            </Link> -->
-                        </template>
-                    </nav>
-                </header>
+                    </template>
+                </nav>
+            </header>
 
-                <div class="mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_0.52fr]">
-                    <div>
-                        <div class="mb-5 inline-flex rounded-full border border-white/20 px-3 py-1 text-sm text-cyan-100">
-                            Taekwondo club operations
-                        </div>
-
-                        <p class="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-red-300">
-                            RF IS
-                        </p>
-
-                        <h1 class="max-w-5xl text-5xl font-semibold leading-none text-white sm:text-7xl lg:text-8xl">
-                            Rhino Fighter Information System
-                        </h1>
-
-                        <p class="mt-5 max-w-2xl text-base leading-7 text-neutral-200 sm:text-lg">
-                            A focused workspace for athlete profiles, attendance, payments, announcements, and championship preparation.
-                        </p>
-
-                        <div class="mt-8 flex flex-wrap gap-3">
-                            <Link
-                                :href="$page.props.auth.user ? dashboard() : login()"
-                                class="inline-flex h-11 items-center rounded-lg bg-red-500 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-400"
-                            >
-                                {{ $page.props.auth.user ? 'Open dashboard' : 'Log in to dashboard' }}
-                            </Link>
-                            <Link
-                                :href="dashboard()"
-                                class="inline-flex h-11 items-center rounded-lg border border-white/25 px-5 text-sm font-semibold text-white transition hover:border-white hover:bg-white/10"
-                            >
-                                View workspace
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div class="grid gap-4 border-l border-white/15 pl-6 text-sm text-neutral-300 lg:pl-8">
-                        <div>
-                            <p class="text-4xl font-semibold text-white">4</p>
-                            <p class="mt-1">Role-aware portals for admins, coaches, parents, and athletes.</p>
-                        </div>
-                        <div class="h-px bg-white/15" />
-                        <div>
-                            <p class="text-4xl font-semibold text-white">1</p>
-                            <p class="mt-1">Shared operating system for training, billing, and championship readiness.</p>
-                        </div>
+            <div
+                class="mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[1fr_0.56fr]"
+            >
+                <div>
+                    <p class="mb-4 text-sm font-semibold tracking-[0.28em] text-red-300 uppercase">Rhino Fighter</p>
+                    <h1 class="max-w-5xl text-5xl leading-none font-semibold sm:text-7xl lg:text-8xl">
+                        Information System
+                    </h1>
+                    <p class="mt-5 max-w-2xl text-base leading-7 text-neutral-300 sm:text-lg">
+                        Satu tempat untuk profil atlet, jadwal latihan, presensi, pembayaran, payroll, pengumuman, UKT,
+                        dan kejuaraan.
+                    </p>
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        <Link
+                            :href="page.props.auth.user ? dashboard() : login()"
+                            class="inline-flex h-11 items-center rounded-lg bg-red-500 px-5 text-sm font-semibold hover:bg-red-400"
+                        >
+                            {{ page.props.auth.user ? 'Buka dashboard' : 'Masuk ke sistem' }}
+                        </Link>
+                        <a
+                            v-if="!page.props.auth.user && whatsappUrl"
+                            :href="whatsappUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex h-11 items-center rounded-lg border border-white/25 px-5 text-sm font-semibold hover:bg-white/10"
+                        >
+                            Hubungi admin untuk membuat akun
+                        </a>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <section class="border-t border-white/10 bg-neutral-950 px-5 py-10 sm:px-8 lg:py-14">
-            <div class="mx-auto grid max-w-7xl gap-4 md:grid-cols-[1.1fr_2fr]">
-                <div class="max-w-xl">
-                    <p class="text-sm font-semibold uppercase text-red-300">Club command center</p>
-                    <h2 class="mt-3 text-2xl font-semibold text-white sm:text-3xl">
-                        Built around the daily work of running a team.
-                    </h2>
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-3">
+                <div class="grid gap-4 border-l border-white/15 pl-6 lg:pl-8">
                     <article
                         v-for="(item, index) in highlights"
                         :key="item.title"
-                        class="rounded-lg border border-white/10 bg-white/[0.04] p-5 shadow-sm"
+                        class="border-b border-white/15 pb-4 last:border-0 last:pb-0"
                     >
-                        <p class="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-red-300">
-                            0{{ index + 1 }}
-                        </p>
-                        <h3 class="text-base font-semibold text-white">{{ item.title }}</h3>
-                        <p class="mt-2 text-sm leading-6 text-neutral-300">{{ item.detail }}</p>
+                        <p class="text-xs font-semibold tracking-[0.2em] text-red-300 uppercase">0{{ index + 1 }}</p>
+                        <h2 class="mt-2 text-lg font-semibold">{{ item.title }}</h2>
+                        <p class="mt-1 text-sm leading-6 text-neutral-300">{{ item.detail }}</p>
                     </article>
                 </div>
             </div>
         </section>
 
-        <section class="border-t border-white/10 bg-white px-5 py-8 text-neutral-950 sm:px-8">
-            <div class="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-sm font-medium">
-                    Ready for attendance, billing, profiles, and championships.
-                </p>
-                <Link
-                    :href="$page.props.auth.user ? dashboard() : login()"
-                    class="inline-flex h-10 items-center justify-center rounded-lg bg-neutral-950 px-4 text-sm font-semibold text-white transition hover:bg-red-600"
-                >
-                    Continue
-                </Link>
-            </div>
-        </section>
+        <footer
+            class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-5 py-8 text-sm text-neutral-400 sm:flex-row sm:items-center sm:justify-between sm:px-8"
+        >
+            <span>Rhino Fighter Information System</span>
+            <span>Pendaftaran akun baru diproses oleh admin.</span>
+        </footer>
+
+        <a
+            v-if="showWhatsappBubble"
+            :href="whatsappUrl ?? '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hubungi admin melalui WhatsApp"
+            title="Hubungi admin melalui WhatsApp"
+            class="fixed right-5 bottom-5 z-50 inline-flex size-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl ring-1 ring-white/20 transition hover:scale-105 hover:bg-emerald-400 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none sm:right-7 sm:bottom-7"
+        >
+            <MessageCircle class="size-7" aria-hidden="true" />
+        </a>
     </main>
 </template>

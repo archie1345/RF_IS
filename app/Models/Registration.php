@@ -5,14 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-
 class Registration extends Model
 {
     use SoftDeletes;
+
     protected $table = 'event_registrations';
+
     protected $primaryKey = 'evrid';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = true;
 
     protected $fillable = [
@@ -22,7 +26,7 @@ class Registration extends Model
         'status',
     ];
 
-    protected $dates = ['deleted_at','registered_at'];
+    protected $dates = ['deleted_at', 'registered_at'];
 
     public function event()
     {

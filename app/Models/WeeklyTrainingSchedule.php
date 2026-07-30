@@ -19,7 +19,9 @@ class WeeklyTrainingSchedule extends Model
         'title',
         'branch_id',
         'group_id',
+        'dedicated_athlete_id',
         'coach_id',
+        'session_type',
         'day_of_week',
         'start_time',
         'end_time',
@@ -40,6 +42,11 @@ class WeeklyTrainingSchedule extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
+    }
+
+    public function dedicatedAthlete(): BelongsTo
+    {
+        return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
     }
 
     public function coach(): BelongsTo

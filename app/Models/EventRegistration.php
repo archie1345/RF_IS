@@ -10,9 +10,13 @@ class EventRegistration extends Model
     use SoftDeletes;
 
     protected $table = 'event_registrations';
+
     protected $primaryKey = 'evrid';
+
     public $incrementing = true;
+
     public $timestamps = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [

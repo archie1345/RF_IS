@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 
 class SwitchActiveChild
 {
-    public function __construct(private readonly ParentChildContextService $childContext)
-    {
-    }
+    public function __construct(private readonly ParentChildContextService $childContext) {}
 
     public function handle(Request $request, string $athleteId): Athlete
     {

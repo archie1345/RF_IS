@@ -3,14 +3,11 @@ import AppLogoIcon from '@/components/AppLogoIcon.vue';
 </script>
 
 <template>
-    <div
-        class="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"
-    >
-        <AppLogoIcon class="size-5 fill-current text-white dark:text-black" />
-    </div>
-    <div class="ml-1 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-semibold"
-            >Rhino Fighter</span
+    <span class="flex w-full min-w-0 items-center justify-center overflow-hidden">
+        <span
+            class="flex h-8 w-full max-w-32 items-center justify-center overflow-hidden group-data-[collapsible=icon]:h-4 group-data-[collapsible=icon]:w-8"
         >
-    </div>
+            <AppLogoIcon class-name="block h-full w-full min-w-0 object-contain object-center" />
+        </span>
+    </span>
 </template>

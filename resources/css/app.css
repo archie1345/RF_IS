@@ -8,16 +8,14 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-
-    --color-brand-coral: #E85649;
-    --color-brand-blue: #4892E8;
-    --color-brand-lime: #D0E848;
-    --color-brand-terracotta: #93635F;
-    --color-brand-slate: #555E69;
+    --color-brand-coral: #e85649;
+    --color-brand-blue: #4892e8;
+    --color-brand-lime: #d0e848;
+    --color-brand-terracotta: #93635f;
+    --color-brand-slate: #555e69;
 
     --font-sans:
-        Instrument Sans, ui-sans-serif, system-ui, sans-serif,
-        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        Instrument Sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
     --radius-lg: var(--radius);
@@ -89,42 +87,41 @@
     body,
     html {
         --font-sans:
-            'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
-            'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-            'Noto Color Emoji';
+            'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+            'Segoe UI Symbol', 'Noto Color Emoji';
     }
 }
 
 :root {
     --background: hsl(210 20% 98%);
     --foreground: hsl(215 15% 15%);
-    
+
     --card: hsl(0 0% 100%);
     --card-foreground: hsl(215 15% 15%);
     --popover: hsl(0 0% 100%);
     --popover-foreground: hsl(215 15% 15%);
-    
+
     --primary: hsl(4 78% 60%);
     --primary-foreground: hsl(0 0% 100%);
-    
+
     --secondary: hsl(212 76% 60%);
     --secondary-foreground: hsl(0 0% 100%);
-    
+
     --muted: hsl(214 12% 92%);
     --muted-foreground: hsl(4 15% 45%);
-    
+
     --accent: hsl(68 77% 60%);
     --accent-foreground: hsl(215 15% 15%);
-    
+
     --destructive: hsl(0 84.2% 60.2%);
     --destructive-foreground: hsl(0 0% 98%);
-    
+
     --border: hsl(214 12% 88%);
     --input: hsl(214 12% 84%);
     --ring: hsl(4 78% 60%);
-    
+
     --radius: 0.5rem;
-    
+
     --sidebar-background: hsl(0 0% 100%);
     --sidebar-foreground: hsl(215 15% 25%);
     --sidebar-primary: hsl(4 78% 60%);
@@ -139,31 +136,31 @@
 .dark {
     --background: hsl(215 12% 15%);
     --foreground: hsl(210 20% 98%);
-    
+
     --card: hsl(215 12% 11%);
     --card-foreground: hsl(210 20% 98%);
     --popover: hsl(215 12% 11%);
     --popover-foreground: hsl(210 20% 98%);
-    
+
     --primary: hsl(4 78% 60%);
     --primary-foreground: hsl(0 0% 100%);
-    
+
     --secondary: hsl(4 15% 45%);
     --secondary-foreground: hsl(210 20% 98%);
-    
+
     --muted: hsl(215 12% 20%);
     --muted-foreground: hsl(214 10% 70%);
-    
+
     --accent: hsl(68 77% 60%);
     --accent-foreground: hsl(215 15% 10%);
-    
+
     --destructive: hsl(0 84% 60%);
     --destructive-foreground: hsl(0 0% 98%);
-    
+
     --border: hsl(215 12% 22%);
     --input: hsl(215 12% 24%);
     --ring: hsl(4 78% 60%);
-    
+
     --sidebar-background: hsl(215 12% 12%);
     --sidebar-foreground: hsl(210 20% 95%);
     --sidebar-primary: hsl(4 78% 60%);
@@ -193,13 +190,22 @@
         border: 1px solid hsl(var(--border));
         background:
             linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 96%, white 4%), hsl(var(--card))) padding-box,
-            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 65%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
+            linear-gradient(
+                    135deg,
+                    color-mix(in oklab, hsl(var(--primary)) 65%, transparent),
+                    color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)
+                )
+                border-box;
         box-shadow: 0 1px 2px color-mix(in oklab, hsl(var(--foreground)) 10%, transparent);
         color: hsl(var(--foreground));
         font-weight: 650;
         letter-spacing: 0.01em;
         cursor: pointer;
-        transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease, background 150ms ease;
+        transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease,
+            transform 150ms ease,
+            background 150ms ease;
     }
 
     input[type='date']:hover,
@@ -239,7 +245,12 @@
         color-scheme: dark;
         background:
             linear-gradient(180deg, color-mix(in oklab, hsl(var(--card)) 88%, white 3%), hsl(var(--card))) padding-box,
-            linear-gradient(135deg, color-mix(in oklab, hsl(var(--primary)) 70%, transparent), color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)) border-box;
+            linear-gradient(
+                    135deg,
+                    color-mix(in oklab, hsl(var(--primary)) 70%, transparent),
+                    color-mix(in oklab, hsl(var(--secondary)) 55%, transparent)
+                )
+                border-box;
     }
 }
 

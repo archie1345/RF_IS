@@ -110,9 +110,7 @@ function submit() {
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
-                    <Button variant="destructive" @click="emit('delete', row.id)">
-                        Remove
-                    </Button>
+                    <Button variant="destructive" @click="emit('delete', row.id)"> Remove </Button>
                 </ActionButtonsRow>
             </template>
         </ResourceTablePanel>
@@ -125,7 +123,8 @@ function submit() {
                         {{ editingId ? 'Edit group' : 'Create group' }}
                     </DialogTitle>
                     <DialogDescription>
-                        This matches the branch administration flow so future admin modules can stay visually and structurally consistent.
+                        This matches the branch administration flow so future admin modules can stay visually and
+                        structurally consistent.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -133,13 +132,19 @@ function submit() {
                     <div class="grid gap-2">
                         <Label for="group-name">Group name</Label>
                         <div class="relative">
-                            <ClipboardList class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <ClipboardList
+                                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            />
                             <Input id="group-name" v-model="form.name" class="pl-9" placeholder="Junior Sparring" />
                         </div>
                     </div>
                     <div class="grid gap-2">
                         <Label for="group-description">Description</Label>
-                        <Input id="group-description" v-model="form.description" placeholder="Fundamental technique and sparring preparation." />
+                        <Input
+                            id="group-description"
+                            v-model="form.description"
+                            placeholder="Fundamental technique and sparring preparation."
+                        />
                     </div>
                 </div>
 
@@ -153,5 +158,3 @@ function submit() {
         </Dialog>
     </div>
 </template>
-
-

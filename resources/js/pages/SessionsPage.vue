@@ -1,30 +1,38 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import FormInputField from '@/components/forms/FormInputField.vue';
-import FormSelectField from '@/components/forms/FormSelectField.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import AppAlert from '@/components/shared/AppAlert.vue';
 import DataTable from '@/components/shared/DataTable.vue';
-import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { routeId } from '@/lib/routeIds';
+import { dashboard } from '@/routes';
+import {
+    attendance as sessionAttendance,
+    destroy as sessionDestroy,
+    index as sessionsIndex,
+    join as sessionJoin,
+} from '@/routes/sessions';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { SessionFilters, SessionVisibility } from './SessionsPage.types';
 
 const props = defineProps<{
+    isAdmin: boolean;
     metrics: Metric[];
+    filters?: SessionFilters;
     rows: TableRow[];
     branches: SelectOption[];
     groups: SelectOption[];
 }>();
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Sessions', href: appRoutes.sessions },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Sessions', href: sessionsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -36,62 +44,104 @@ const columns: TableColumn[] = [
     { key: 'status', label: 'Status' },
 ];
 
-const form = useForm({
-    title: '',
-    branch_id: '',
-    group_id: '',
-    location: '',
-    session_date: '',
-    start_time: '',
-    end_time: '',
-    status: 'DRAFT',
+const sessionTableFilters: TableFilter[] = [
+    {
+        key: 'branch',
+        label: 'Branch',
+        type: 'select',
+        columnKey: 'branch',
+        placeholder: 'All branches',
+        searchPlaceholder: 'Search branch...',
+    },
+    {
+        key: 'group',
+        label: 'Group',
+        type: 'select',
+        columnKey: 'group',
+        placeholder: 'All groups',
+        searchPlaceholder: 'Search group...',
+    },
+    {
+        key: 'coach',
+        label: 'Coach',
+        type: 'select',
+        columnKey: 'coach',
+        placeholder: 'All coaches',
+        searchPlaceholder: 'Search coach...',
+    },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        columnKey: 'status',
+        placeholder: 'All statuses',
+        searchPlaceholder: 'Search status...',
+    },
+];
+
+const effectiveFilters = computed<{
+    visibility: SessionVisibility;
+    archived_count: number;
+    upcoming_count: number;
+    all_count: number;
+}>(() => {
+    const fallbackCount = props.rows.length;
+    const visibility = props.filters?.visibility === 'past' ? 'archived' : (props.filters?.visibility ?? 'upcoming');
+
+    return {
+        visibility,
+        archived_count: props.filters?.archived_count ?? props.filters?.past_count ?? 0,
+        upcoming_count: props.filters?.upcoming_count ?? fallbackCount,
+        all_count: props.filters?.all_count ?? fallbackCount,
+    };
 });
 
-const showSessionForm = ref(false);
-const pendingDeleteSessionId = ref<number | null>(null);
+const visibilityOptions: Array<{
+    value: SessionVisibility;
+    label: string;
+    countKey: 'upcoming_count' | 'archived_count' | 'all_count';
+}> = [
+    { value: 'upcoming', label: 'Upcoming', countKey: 'upcoming_count' },
+    { value: 'archived', label: 'Archived', countKey: 'archived_count' },
+    { value: 'all', label: 'All', countKey: 'all_count' },
+];
 
-function submit() {
-    form.post('/sessions', {
-        onSuccess: () => {
-            form.reset();
-            showSessionForm.value = false;
+function sessionIdFromRow(row: TableRow): number | null {
+    return routeId(row.session_id ?? row.id);
+}
+
+function setVisibility(visibility: SessionVisibility): void {
+    router.get(
+        sessionsIndex.url(),
+        { visibility },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
         },
+    );
+}
+
+async function removeSession(row: TableRow): Promise<void> {
+    const id = sessionIdFromRow(row);
+    if (!id || row.can_manage !== true) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus sesi latihan?',
+        message:
+            'Sesi yang dihasilkan ini akan dihapus. Riwayat terkait dapat memblokir penghapusan dan harus ditangani melalui halaman attendance sesi.',
+        tone: 'danger',
+        confirmLabel: 'Hapus sesi',
     });
+    if (!confirmed) return;
+
+    router.delete(sessionDestroy.url(id), { preserveScroll: true });
 }
 
-function cancelForm() {
-    form.reset();
-    form.clearErrors();
-    showSessionForm.value = false;
-}
-
-function openCreateSessionForm() {
-    form.reset();
-    form.clearErrors();
-    showSessionForm.value = true;
-}
-
-function removeSession(row: TableRow) {
-    const id = Number(row.session_id);
-    if (!id) return;
-    pendingDeleteSessionId.value = id;
-}
-
-function cancelDeleteSession() {
-    pendingDeleteSessionId.value = null;
-}
-
-function confirmDeleteSession() {
-    if (!pendingDeleteSessionId.value) return;
-    const id = pendingDeleteSessionId.value;
-    pendingDeleteSessionId.value = null;
-    router.delete(`/sessions/${id}`, { preserveScroll: true });
-}
-
-function joinSession(row: TableRow) {
-    const id = Number(row.session_id);
-    if (!id) return;
-    router.post(`/sessions/${id}/join`);
+function joinSession(row: TableRow): void {
+    const id = sessionIdFromRow(row);
+    if (!id || row.can_join !== true) return;
+    router.post(sessionJoin.url(id), {}, { preserveScroll: true });
 }
 </script>
 
@@ -100,80 +150,82 @@ function joinSession(row: TableRow) {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <AppAlert
-                v-if="pendingDeleteSessionId"
-                tone="danger"
-                title="Delete this session?"
-                description="This session will be removed from the training schedule."
-                :primary-action="{ label: 'Delete session', variant: 'destructive' }"
-                :secondary-action="{ label: 'Cancel', variant: 'outline' }"
-                @primary="confirmDeleteSession"
-                @secondary="cancelDeleteSession"
-            />
-
-            <PageSection title="Session" description="Schedule training sessions and keep the live coaching calendar synced.">
-                <template #actions>
-                    <Button type="button" @click="openCreateSessionForm">Schedule session</Button>
-                </template>
-
+            <PageSection
+                title="Session"
+                description="Sessions are generated from Admin → Kelas Latihan. Coaches see sessions they manage and open sessions that need assistance."
+            >
                 <div class="grid gap-4 md:grid-cols-3">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
 
             <div class="grid gap-6">
+                <section class="rounded-2xl border bg-card p-4 shadow-sm">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-base font-black">Session visibility</h2>
+                            <p class="text-sm text-muted-foreground">
+                                Default view shows today and future sessions. Archived stores finished sessions and
+                                completed one-day classes.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                v-for="option in visibilityOptions"
+                                :key="option.value"
+                                type="button"
+                                size="sm"
+                                :variant="effectiveFilters.visibility === option.value ? 'default' : 'outline'"
+                                @click="setVisibility(option.value)"
+                            >
+                                {{ option.label }} ({{ effectiveFilters[option.countKey] }})
+                            </Button>
+                        </div>
+                    </div>
+                </section>
+
                 <DataTable
                     title="Session lineup"
-                    description="Use Edit to manage schedule details, QR attendance, athlete attendance, and coach attendance in one place."
+                    description="Manage assigned sessions or join sessions that need assistant-coach coverage."
                     :columns="columns"
                     :rows="props.rows"
+                    :filters="sessionTableFilters"
+                    filterable
+                    searchable
+                    search-placeholder="Search all session columns"
                     action-label="Actions"
                 >
                     <template #row-actions="{ row }">
                         <ActionButtonsRow>
-                            <Button as-child size="sm" variant="outline">
-                                <Link :href="`/sessions/${String(row.id).replace('SES-', '')}/attendance`">Edit</Link>
+                            <Button
+                                v-if="row.can_manage === true && sessionIdFromRow(row)"
+                                as-child
+                                size="sm"
+                                variant="outline"
+                            >
+                                <Link :href="sessionAttendance.url(sessionIdFromRow(row)!)">Edit</Link>
                             </Button>
-                            <Button v-if="row.can_join" size="sm" variant="outline" @click="joinSession(row)">Join</Button>
-                            <Button size="sm" variant="destructive" @click="removeSession(row)">Delete</Button>
+                            <Button v-if="row.can_join === true" size="sm" variant="outline" @click="joinSession(row)">
+                                Join
+                            </Button>
+                            <Button
+                                v-if="row.can_manage === true"
+                                size="sm"
+                                variant="destructive"
+                                @click="removeSession(row)"
+                            >
+                                Delete
+                            </Button>
+                            <span
+                                v-if="row.can_manage !== true && row.can_join !== true"
+                                class="px-2 py-1 text-xs text-muted-foreground"
+                            >
+                                View only
+                            </span>
                         </ActionButtonsRow>
                     </template>
                 </DataTable>
             </div>
         </div>
-
-        <FormModal :open="showSessionForm" max-width-class="max-w-2xl" @close="cancelForm">
-            <PageSection title="Session draft" description="Create a new training session. Existing sessions are edited from their session attendance page.">
-                <form class="grid gap-4" @submit.prevent="submit">
-                    <FormInputField id="session-name" v-model="form.title" label="Session name" placeholder="Junior sparring block" :error="form.errors.title" />
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <FormSelectField id="session-group" v-model="form.group_id" label="Group" :options="props.groups" placeholder="All groups in branch" :error="form.errors.group_id" />
-                        <FormSelectField id="session-branch" v-model="form.branch_id" label="Branch" :options="props.branches" :error="form.errors.branch_id" />
-                    </div>
-                    <FormInputField id="session-location" v-model="form.location" label="Location" placeholder="Hall A" :error="form.errors.location" />
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField id="session-date" v-model="form.session_date" label="Date" type="date" :error="form.errors.session_date" />
-                        <FormInputField id="session-start" v-model="form.start_time" label="Start time" type="time" :error="form.errors.start_time" />
-                        <FormInputField id="session-end" v-model="form.end_time" label="End time" type="time" :error="form.errors.end_time" />
-                    </div>
-                    <FormSelectField
-                        id="session-status"
-                        v-model="form.status"
-                        label="Status"
-                        :options="[
-                            { value: 'DRAFT', label: 'Draft' },
-                            { value: 'CONFIRMED', label: 'Confirmed' },
-                            { value: 'NEEDS_ASSISTANT', label: 'Needs assistant' },
-                            { value: 'CANCELED', label: 'Canceled' },
-                        ]"
-                        :error="form.errors.status"
-                    />
-                    <div class="flex flex-wrap gap-3">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">Save schedule</Button>
-                        <Button type="button" class="w-full sm:w-auto" variant="outline" @click="cancelForm">Cancel</Button>
-                    </div>
-                </form>
-            </PageSection>
-        </FormModal>
     </AppLayout>
 </template>

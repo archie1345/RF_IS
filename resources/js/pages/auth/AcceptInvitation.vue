@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useForm, Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { login } from '@/routes';
+import { accept as invitationAccept } from '@/routes/invitations';
 
 const props = defineProps<{
     token: string;
@@ -20,9 +22,10 @@ const form = useForm({
     password: '',
     password_confirmation: '',
 });
+const invitationError = computed(() => (form.errors as Record<string, string | undefined>).invitation);
 
 function submit() {
-    form.post(`/invitations/${props.token}`, {
+    form.post(invitationAccept.url(props.token), {
         preserveScroll: true,
         onSuccess: () => form.reset('password', 'password_confirmation'),
     });
@@ -30,10 +33,7 @@ function submit() {
 </script>
 
 <template>
-    <AuthLayout
-        title="Accept invitation"
-        description="Set your password to activate your RF IS account."
-    >
+    <AuthLayout title="Accept invitation" description="Set your password to activate your RF IS account.">
         <Head title="Accept invitation" />
 
         <div class="rounded-lg border bg-muted/30 p-4 text-sm">
@@ -69,7 +69,7 @@ function submit() {
                 <InputError :message="form.errors.password_confirmation" />
             </div>
 
-            <InputError :message="form.errors.invitation" />
+            <InputError :message="invitationError" />
 
             <Button type="submit" class="w-full" :disabled="form.processing">
                 <Spinner v-if="form.processing" />

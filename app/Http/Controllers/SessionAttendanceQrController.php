@@ -22,24 +22,26 @@ class SessionAttendanceQrController extends Controller
     {
         $this->initializeAttendance->handle($session);
 
-        [$session, $token] = $this->generateQr->handle($session, $request->validated());
+        [$session, $token] = $this->generateQr->handle($session);
 
         ActivityLogger::log(
             $request,
-            'attendance_qr.generated',
+            'attendance_qr.opened',
             'attendance',
-            'Generated session attendance QR code',
+            'Opened session attendance QR until manually closed',
             $session,
             ['session_id' => $session->training_session_id],
         );
 
-        return back()->with('attendanceQr', [
-            'token' => $token,
-            'scan_url' => $this->scanUrl($token),
-            'opens_at' => $session->attendance_opens_at?->toIso8601String(),
-            'closes_at' => $session->attendance_closes_at?->toIso8601String(),
-            'generated_at' => $session->attendance_qr_generated_at?->toIso8601String(),
-        ]);
+        return back()
+            ->with('attendanceQr', [
+                'token' => $token,
+                'scan_url' => $this->scanUrl($token),
+                'opens_at' => $session->attendance_opens_at?->toIso8601String(),
+                'closes_at' => null,
+                'generated_at' => $session->attendance_qr_generated_at?->toIso8601String(),
+            ])
+            ->with('attendanceQrStatus', 'QR attendance dibuka dan akan tetap aktif sampai ditutup oleh admin atau pelatih.');
     }
 
     public function destroy(TrainingSession $session): RedirectResponse
@@ -50,14 +52,14 @@ class SessionAttendanceQrController extends Controller
 
         ActivityLogger::log(
             request(),
-            'attendance_qr.revoked',
+            'attendance_qr.closed',
             'attendance',
-            'Revoked session attendance QR code',
+            'Closed session attendance QR manually',
             $session,
             ['session_id' => $session->training_session_id],
         );
 
-        return back()->with('attendanceQrStatus', 'Attendance QR code closed.');
+        return back()->with('attendanceQrStatus', 'QR attendance telah ditutup. Kode sebelumnya tidak dapat digunakan lagi.');
     }
 
     private function scanUrl(string $token): string

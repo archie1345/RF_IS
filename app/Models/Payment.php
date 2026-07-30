@@ -3,25 +3,25 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class Payment extends Model
 {
     use SoftDeletes;
 
-    protected $table = 'payments';
+    public const PROOF_DISK_PRIVATE = 'local';
 
-    public $timestamps = true;
+    public const PROOF_DISK_PUBLIC = 'public';
+
+    protected $table = 'payments';
 
     protected $primaryKey = 'payment_id';
 
-    public $incrementing = true;
-
-    protected $keyType = 'int';
-
     protected $fillable = [
+        'invoice_number',
         'athlete_id',
         'billable_user_id',
         'payee_user_id',
@@ -30,18 +30,84 @@ class Payment extends Model
         'payment_type',
         'amount',
         'reference_id',
+        'billing_rule_id',
+        'billing_run_key',
+        'payroll_period',
+        'payroll_basis_type',
+        'payroll_units',
+        'payroll_rate',
+        'payroll_base_amount',
+        'payroll_bonus_amount',
         'total_amount',
         'paid_amount',
         'remaining_amount',
         'payment_date',
+        'due_date',
+        'collection_method',
         'status',
         'notes',
         'proof_path',
+        'proof_disk',
         'proof_status',
         'proof_notes',
     ];
 
-    protected $dates = ['deleted_at', 'payment_date'];
+    protected $hidden = [
+        'proof_path',
+        'billing_run_key',
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Payment $payment): void {
+            $issuedOn = Carbon::parse($payment->payment_date ?? today());
+            $payment->payment_date ??= $issuedOn->toDateString();
+            $payment->due_date ??= strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'PAYROLL'
+                ? $issuedOn->toDateString()
+                : $issuedOn->copy()->addDays(14)->toDateString();
+            $payment->collection_method ??= 'TRANSFER';
+        });
+
+        static::created(function (Payment $payment): void {
+            if (blank($payment->invoice_number)) {
+                $issuedOn = Carbon::parse($payment->payment_date ?? $payment->created_at ?? today());
+                $prefix = strtoupper((string) ($payment->bill_kind ?? 'INVOICE')) === 'PAYROLL' ? 'PAY' : 'INV';
+                $payment->forceFill([
+                    'invoice_number' => $prefix.'-'.$issuedOn->format('Ym').'-'.str_pad((string) $payment->payment_id, 6, '0', STR_PAD_LEFT),
+                ])->saveQuietly();
+            }
+        });
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'decimal:2',
+            'payroll_period' => 'date',
+            'payroll_units' => 'decimal:2',
+            'payroll_rate' => 'decimal:2',
+            'payroll_base_amount' => 'decimal:2',
+            'payroll_bonus_amount' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
+            'remaining_amount' => 'decimal:2',
+            'payment_date' => 'date',
+            'due_date' => 'date',
+        ];
+    }
+
+    public function proofStorageDisk(): string
+    {
+        return $this->proof_disk ?: self::PROOF_DISK_PUBLIC;
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->status === 'PENDING'
+            && (float) ($this->remaining_amount ?? 0) > 0
+            && $this->due_date !== null
+            && $this->due_date->isBefore(today());
+    }
 
     public function athlete(): BelongsTo
     {
@@ -61,6 +127,11 @@ class Payment extends Model
     public function payer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payer_user_id', 'id');
+    }
+
+    public function billingRule(): BelongsTo
+    {
+        return $this->belongsTo(BillingRule::class, 'billing_rule_id');
     }
 
     public function transactions(): HasMany

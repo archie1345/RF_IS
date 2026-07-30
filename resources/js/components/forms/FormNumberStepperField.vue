@@ -4,18 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const props = withDefaults(defineProps<{
-    id: string;
-    label: string;
-    modelValue: string;
-    min?: number;
-    step?: number;
-    placeholder?: string;
-    error?: string;
-}>(), {
-    min: 0,
-    step: 0.1,
-});
+const props = withDefaults(
+    defineProps<{
+        id: string;
+        label: string;
+        modelValue: string;
+        min?: number;
+        step?: number;
+        placeholder?: string;
+        error?: string;
+    }>(),
+    {
+        min: 0,
+        step: 0.1,
+    },
+);
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
@@ -54,7 +57,7 @@ function increment() {
                 :min="min"
                 :step="step"
                 :placeholder="placeholder"
-                class="h-10 rounded-lg border-input bg-background text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="h-10 [appearance:textfield] rounded-lg border-input bg-background text-foreground [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 @update:model-value="emit('update:modelValue', String($event))"
             />
             <Button type="button" variant="outline" class="h-10 w-10 p-0 text-base" @click="increment">+</Button>

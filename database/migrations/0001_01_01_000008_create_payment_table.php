@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id('payment_id');
             $table->foreignId('athlete_id')->constrained('athletes', 'athlete_id')->cascadeOnDelete();
-            $table->enum('payment_type', ['TUITION', 'UNIFORM', 'LICENSE','CHAMPIONSHIP','OTHER','UNKNOWN'])->default('UNKNOWN')->index();
+            $table->enum('payment_type', ['TUITION', 'UNIFORM', 'LICENSE', 'CHAMPIONSHIP', 'OTHER', 'UNKNOWN'])->default('UNKNOWN')->index();
             $table->decimal('amount', 10, 2);
             $table->bigInteger('reference_id')->nullable()->unique();
             $table->decimal('total_amount', 10, 2)->nullable();

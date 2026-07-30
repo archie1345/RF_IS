@@ -28,6 +28,8 @@ export type TableCell = string | number | boolean | null | TableBadgeCell | Reco
 export type TableRow = {
     id: string;
     [key: string]: TableCell;
+} & {
+    status?: string | TableBadgeCell;
 };
 
 export type TableColumn = {
@@ -39,6 +41,27 @@ export type TableColumn = {
 export type SelectOption = {
     value: number | string;
     label: string;
+};
+
+export type TableFilterType = 'text' | 'select';
+
+export type TableFilterValue = string | string[];
+
+export type TableFilterColumns = 1 | 2 | 3 | 4 | 5 | 6 | 'auto';
+export type TableFilterSpan = 1 | 2 | 3 | 4 | 5 | 6 | 'full';
+
+export type TableFilter = {
+    key: string;
+    label: string;
+    type?: TableFilterType;
+    columnKey?: string;
+    placeholder?: string;
+    searchPlaceholder?: string;
+    options?: SelectOption[];
+    multiple?: boolean;
+    span?: TableFilterSpan;
+    accessor?: (row: TableRow) => TableCell | string | number | boolean | null | undefined;
+    match?: (row: TableRow, value: TableFilterValue) => boolean;
 };
 
 export type RoleDashboardContent = {
