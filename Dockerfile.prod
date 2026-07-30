@@ -1,0 +1,258 @@
+# syntax=docker/dockerfile:1.5
+
+
+####################################
+# Composer binary
+####################################
+
+FROM composer:2 AS composer-bin
+
+
+
+####################################
+# PHP dependencies + Node build
+####################################
+
+FROM php:8.4-cli AS build
+
+WORKDIR /var/www/html
+
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+    curl \
+    nodejs \
+    npm \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        mbstring \
+        gd \
+        zip \
+        pdo \
+        pdo_mysql \
+        bcmath \
+    && rm -rf /var/lib/apt/lists/*
+
+
+COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
+
+
+####################################
+# Install PHP dependencies
+####################################
+
+COPY composer.json composer.lock ./
+
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --optimize-autoloader \
+    --no-scripts
+
+
+
+####################################
+# Install frontend dependencies
+####################################
+
+COPY package.json package-lock.json ./
+
+
+RUN npm ci \
+    --no-audit \
+    --no-fund
+
+
+
+####################################
+# Copy application
+####################################
+
+COPY . .
+
+
+
+####################################
+# Laravel + Vite production build
+####################################
+
+RUN rm -f public/hot public/build/hot
+
+
+# Wayfinder needs PHP + vendor
+RUN php artisan wayfinder:generate --with-form
+
+
+RUN npm run build
+
+
+RUN rm -f public/hot public/build/hot
+
+
+
+
+
+####################################
+# Production runtime
+####################################
+
+FROM php:8.4-apache AS final
+
+
+WORKDIR /var/www/html
+
+
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr
+
+
+####################################
+# PHP extensions
+####################################
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        mbstring \
+        gd \
+        zip \
+        pdo \
+        pdo_mysql \
+        bcmath \
+        opcache \
+    && a2enmod \
+        rewrite \
+        headers \
+        expires \
+        deflate \
+    && apt-get purge -y \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libonig-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+
+
+####################################
+# PHP production settings
+####################################
+
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+
+RUN { \
+    echo "expose_php=Off"; \
+    echo "memory_limit=256M"; \
+    echo "upload_max_filesize=32M"; \
+    echo "post_max_size=32M"; \
+    echo "max_execution_time=120"; \
+} > /usr/local/etc/php/conf.d/production.ini
+
+
+
+RUN { \
+    echo "opcache.enable=1"; \
+    echo "opcache.memory_consumption=128"; \
+    echo "opcache.interned_strings_buffer=8"; \
+    echo "opcache.max_accelerated_files=20000"; \
+    echo "opcache.validate_timestamps=0"; \
+} > /usr/local/etc/php/conf.d/opcache.ini
+
+
+
+####################################
+# Apache configuration
+####################################
+
+RUN sed -ri \
+    -e 's!/var/www/html!/var/www/html/public!g' \
+    /etc/apache2/sites-available/*.conf
+
+
+RUN a2enmod rewrite
+
+
+
+####################################
+# Copy Laravel application
+####################################
+
+COPY . .
+
+
+COPY --from=build \
+    /var/www/html/vendor \
+    ./vendor
+
+
+COPY --from=build \
+    /var/www/html/public/build \
+    ./public/build
+
+
+
+####################################
+# Laravel permissions
+####################################
+
+RUN mkdir -p \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data \
+        storage \
+        bootstrap/cache \
+        public/build
+
+
+
+####################################
+# Remove development files
+####################################
+
+RUN rm -f public/hot public/build/hot
+
+
+
+####################################
+# Healthcheck
+####################################
+
+HEALTHCHECK \
+    --interval=30s \
+    --timeout=10s \
+    --start-period=60s \
+    --retries=5 \
+    CMD curl -fsS http://127.0.0.1/up >/dev/null || exit 1
+
+
+
+EXPOSE 80
+
+
+CMD ["apache2-foreground"]

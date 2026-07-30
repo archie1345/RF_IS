@@ -27,12 +27,19 @@ storage/framework/testing/*
 bootstrap/cache/*
 !bootstrap/cache/.gitignore
 public/storage
+public/hot
+public/build/hot
 
 .idea
 .vscode
 .vs
 .cache
 coverage
+
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
 
 compose*.yaml
 compose*.yml
