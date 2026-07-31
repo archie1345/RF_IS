@@ -500,42 +500,10 @@ function submitManualPayment() {
                     </div>
                 </template>
 
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
-
-            <section
-                v-if="props.isAdmin && props.financeAttention"
-                class="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-4"
-            >
-                <div class="flex items-start gap-3">
-                    <WalletCards class="mt-0.5 size-5 text-muted-foreground" />
-                    <div>
-                        <p class="font-medium">{{ props.financeAttention.proof_review_count }} bukti perlu direview</p>
-                        <p class="text-xs text-muted-foreground">Baris ini ditempatkan paling atas.</p>
-                    </div>
-                </div>
-                <div class="flex items-start gap-3">
-                    <AlertTriangle class="mt-0.5 size-5 text-muted-foreground" />
-                    <div>
-                        <p class="font-medium">{{ props.financeAttention.overdue_count }} tagihan jatuh tempo</p>
-                        <p class="text-xs text-muted-foreground">Gunakan tombol WhatsApp untuk tindak lanjut.</p>
-                    </div>
-                </div>
-                <div>
-                    <p class="font-medium">{{ props.financeAttention.partial_count }} pembayaran sebagian</p>
-                    <p class="text-xs text-muted-foreground">Semua cicilan tetap berada pada tagihan yang sama.</p>
-                </div>
-                <div>
-                    <p class="font-medium">
-                        {{ props.financeAttention.ledger_mismatch_count }} ledger perlu rekonsiliasi
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                        Nilai di atas nol berarti saldo lama tidak memiliki transaksi lengkap.
-                    </p>
-                </div>
-            </section>
 
             <DataTable
                 title="Antrean administrasi keuangan"

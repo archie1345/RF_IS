@@ -142,10 +142,10 @@ const footerNavItems: NavItem[] = [];
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader class="min-w-0 overflow-hidden p-2">
+        <SidebarHeader class="min-w-0 overflow-hidden p-1">
             <Link
                 :href="dashboard.url()"
-                class="flex h-20 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
+                class="flex h-18 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
             >
                 <AppLogoIcon
                     class-name="block h-auto w-40 max-h-16 max-w-full shrink-0 object-contain group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:max-h-4 group-data-[collapsible=icon]:max-w-8"
@@ -154,7 +154,9 @@ const footerNavItems: NavItem[] = [];
             </Link>
         </SidebarHeader>
 
-        <SidebarContent><NavMain :sections="mainNavSections" /></SidebarContent>
+        <SidebarContent>
+            <NavMain :sections="mainNavSections" />
+        </SidebarContent>
         <SidebarFooter>
             <NavFooter :items="footerNavItems" />
             <NavUser />
