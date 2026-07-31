@@ -149,6 +149,7 @@ const coachForm = useForm({
     status: props.user.coachProfile?.status ?? 'active',
     specialization: props.user.coachProfile?.specialization ?? '',
     bio: props.user.coachProfile?.bio ?? '',
+    nik: props.user.coachProfile?.nik ?? '',
 });
 
 const parentForm = useForm({
@@ -756,6 +757,13 @@ function shortHash(value?: string | null) {
                                 label="Specialization"
                                 :disabled="!isEditingCoach"
                                 :error="coachForm.errors.specialization"
+                            />
+                            <FormInputField
+                                id="coach-nik"
+                                v-model="coachForm.nik"
+                                label="NIK (Nomor Induk Kependudukan)"
+                                placeholder="16-digit NIK"
+                                :error="coachForm.errors.nik"
                             />
                             <div class="grid gap-2">
                                 <label for="coach-bio" class="text-sm font-medium">Coach Bio</label>

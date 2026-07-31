@@ -44,6 +44,8 @@ class AdminDataExportService
                     'roleOptions' => $definition['role_options'] ?? [],
                     'supportsDateRange' => (bool) ($definition['date_column'] ?? false),
                     'supportsDeleted' => (bool) ($definition['supports_deleted'] ?? false),
+                    'supportsBranch' => (bool) ($definition['supports_branch'] ?? false),
+                    'supportsGroup' => (bool) ($definition['supports_group'] ?? false),
                 ];
             })
             ->values()
@@ -121,10 +123,11 @@ class AdminDataExportService
                 'query' => fn (array $filters): Builder => $this->accountsQuery($filters),
                 'fields' => [
                     'id' => ['label' => 'Account ID', 'value' => fn (User $user): int => $user->id],
+                    'nik' => ['label' => 'NIK', 'value' => fn (User $user): string => $user->displayNik()],
+                    'bpjs' => ['label' => 'BPJS', 'value' => fn (User $user): string => $user->displayBpjs()],
                     'name' => ['label' => 'Name', 'value' => fn (User $user): string => (string) $user->name],
                     'email' => ['label' => 'Email', 'value' => fn (User $user): string => (string) $user->email],
-                    'phone' => ['label' => 'Phone', 'value' => fn (User $user): string => (string) ($user->phone ?? '')],
-                    'gender' => ['label' => 'Gender', 'value' => fn (User $user): string => (string) ($user->gender ?? '')],
+                    'phone' => ['label' => 'Phone', 'value' => fn (User $user): string => (string) ($user->phone ?? '')],'gender' => ['label' => 'Gender', 'value' => fn (User $user): string => (string) ($user->gender ?? '')],
                     'birthday' => ['label' => 'Birthday', 'value' => fn (User $user): mixed => $user->bday],
                     'roles' => ['label' => 'Roles', 'value' => fn (User $user): string => implode(', ', $user->assignedRoles())],
                     'status' => ['label' => 'Account Status', 'value' => fn (User $user): string => $this->accountStatusLabel($user->account_status)],
@@ -142,11 +145,15 @@ class AdminDataExportService
                 'status_options' => $accountStatuses,
                 'date_column' => 'joined_at',
                 'supports_deleted' => true,
+                'supports_branch' => true,
+                'supports_group' => true,
                 'query' => fn (array $filters): Builder => $this->athletesQuery($filters),
                 'fields' => [
                     'athlete_id' => ['label' => 'Athlete ID', 'value' => fn (Athlete $athlete): string => (string) $athlete->athlete_id],
                     'member_number' => ['label' => 'Member Number', 'value' => fn (Athlete $athlete): string => (string) ($athlete->member_number ?? '')],
                     'name' => ['label' => 'Athlete Name', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->name ?? '')],
+                    'nik' => ['label' => 'NIK', 'value' => fn (Athlete $athlete): string => $athlete->user?->displayNik() ?? ''],
+                    'bpjs' => ['label' => 'BPJS Number', 'value' => fn (Athlete $athlete): string => $athlete->user?->displayBpjs() ?? ''],
                     'email' => ['label' => 'Email', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->email ?? '')],
                     'phone' => ['label' => 'Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->phone ?? '')],
                     'gender' => ['label' => 'Gender', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->gender ?? '')],
@@ -154,15 +161,15 @@ class AdminDataExportService
                     'account_status' => ['label' => 'Account Status', 'value' => fn (Athlete $athlete): string => $this->accountStatusLabel($athlete->user?->account_status)],
                     'branch' => ['label' => 'Branch', 'value' => fn (Athlete $athlete): string => (string) ($athlete->branch?->branch_name ?? '')],
                     'group' => ['label' => 'Group', 'value' => fn (Athlete $athlete): string => (string) ($athlete->group?->group_name ?? '')],
-                    'parent' => ['label' => 'Parent / Guardian', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->name ?? '')],
+                    'parent' => ['label' => 'Parent Name', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->name ?? '')],
                     'parent_phone' => ['label' => 'Parent Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->phone ?? '')],
                     'geup' => ['label' => 'Belt / Geup', 'value' => fn (Athlete $athlete): string => (string) ($athlete->geup ?? '')],
                     'height_cm' => ['label' => 'Height (cm)', 'value' => fn (Athlete $athlete): float => (float) ($athlete->height_cm ?? 0)],
                     'weight_kg' => ['label' => 'Weight (kg)', 'value' => fn (Athlete $athlete): float => (float) ($athlete->weight_kg ?? 0)],
                     'school_origin' => ['label' => 'School Origin', 'value' => fn (Athlete $athlete): string => (string) ($athlete->school_origin ?? '')],
-                    'address' => ['label' => 'Address', 'value' => fn (Athlete $athlete): string => (string) ($athlete->alamat ?? '')],
-                    'joined_at' => ['label' => 'Joined At', 'value' => fn (Athlete $athlete): mixed => $athlete->joined_at],
+                    'geup' => ['label' => 'Geup / Belt Rank', 'value' => fn (Athlete $athlete): string => (string) ($athlete->geup ?? '')],
                     'deleted_at' => ['label' => 'Deleted At', 'value' => fn (Athlete $athlete): mixed => $athlete->deleted_at],
+                    'joined_at' => ['label' => 'Joined Date', 'value' => fn (Athlete $athlete): string => $this->formatDate($athlete->joined_at)],
                 ],
             ],
             'payments' => [
@@ -333,18 +340,44 @@ class AdminDataExportService
         ];
     }
 
+    private function applyBranchAndGroupFilter(
+        Builder $query,
+        array $filters,
+        string $branchCol = 'branch_id',
+        string $groupCol = 'group_id'
+    ): Builder {
+        if (filled($filters['branch'] ?? null)) {
+            $branch = $filters['branch'];
+            
+            if (is_numeric($branch) || str_starts_with($branch, '01') || strlen($branch) === 26) {
+                $query->where($branchCol, $branch);
+            } else {
+                $query->whereHas('branch', fn (Builder $q) => $q->where('branch_name', 'like', "%{$branch}%"));
+            }
+        }
+
+        if (filled($filters['group'] ?? null)) {
+            $group = $filters['group'];
+            
+            if (is_numeric($group) || str_starts_with($group, '01') || strlen($group) === 26) {
+                $query->where($groupCol, $group);
+            } else {
+                $query->whereHas('group', fn (Builder $q) => $q->where('group_name', 'like', "%{$group}%"));
+            }
+        }
+
+        return $query;
+    }
+
     /** @param array<string, mixed> $filters */
     private function accountsQuery(array $filters): Builder
     {
         $query = User::query()
             ->with([
+                'profile',
                 'roleAssignments:id,user_id,role',
-                'athleteProfile:athlete_id,id,branch_id',
                 'athleteProfile.branch:branch_id,branch_name',
-                'parentProfile:parent_id,id',
-                'parentProfile.athletes:athlete_id,parent_id,branch_id',
-                'parentProfile.athletes.branch:branch_id,branch_name',
-                'coachProfile:coach_id,id,status,specialization',
+                'coachProfile',
             ]);
 
         if ($this->includeDeleted($filters)) {
@@ -362,25 +395,30 @@ class AdminDataExportService
 
     /** @param array<string, mixed> $filters */
     private function athletesQuery(array $filters): Builder
-    {
-        $query = Athlete::query()->with([
-            'user:id,name,email,phone,gender,bday,account_status',
-            'branch:branch_id,branch_name',
-            'group:group_id,group_name',
-            'parent:parent_id,id',
-            'parent.user:id,name,email,phone',
-        ]);
+{
+    $query = Athlete::query()->with([
+        'user:id,name,email,phone,gender,bday,account_status',
+        'user.profile', // FK: user_profiles.user_id -> users.id (for NIK & BPJS)
+        'branch:branch_id,branch_name',
+        'group:group_id,group_name',
+        'parent:parent_id,id',
+        'parent.user:id,name,email,phone',
+    ]);
 
-        if ($this->includeDeleted($filters)) {
-            $query->withTrashed();
-        }
-        if (filled($filters['status'] ?? null)) {
-            $query->whereHas('user', fn (Builder $userQuery): Builder => $userQuery->where('account_status', $filters['status']));
-        }
-
-        return $this->applyDateRange($query, 'joined_at', $filters)->orderBy('joined_at')->orderBy('athlete_id');
+    if ($this->includeDeleted($filters)) {
+        $query->withTrashed();
     }
 
+    if (filled($filters['status'] ?? null)) {
+        $query->whereHas('user', fn (Builder $userQuery): Builder => $userQuery->where('account_status', $filters['status']));
+    }
+
+    $this->applyBranchAndGroupFilter($query, $filters, 'branch_id', 'group_id');
+
+    return $this->applyDateRange($query, 'joined_at', $filters)
+        ->orderBy('joined_at')
+        ->orderBy('athlete_id');
+}
     /** @param array<string, mixed> $filters */
     private function paymentsQuery(array $filters): Builder
     {
@@ -567,5 +605,25 @@ class AdminDataExportService
         }
 
         return $value ?? '';
+    }
+
+    public function getDatePeriodLabel(array $filters): string
+    {
+        $from = $filters['date_from'] ?? null;
+        $to = $filters['date_to'] ?? null;
+
+        if (blank($from) && blank($to)) {
+            return 'All Time';
+        }
+
+        if (filled($from) && filled($to)) {
+            return "{$from} to {$to}";
+        }
+
+        if (filled($from)) {
+            return "From {$from}";
+        }
+
+        return "Until {$to}";
     }
 }

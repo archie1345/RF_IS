@@ -18,6 +18,7 @@ class UpdateCoachProfileRequest extends FormRequest
             'status' => ['required', Rule::in(['active', 'inactive'])],
             'specialization' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string'],
+            'nik' => ['nullable', 'string', 'max:50']
         ];
     }
 }

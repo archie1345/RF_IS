@@ -28,10 +28,14 @@ interface ExportDataset {
     roleOptions: ExportOption[];
     supportsDateRange: boolean;
     supportsDeleted: boolean;
+    supportsBranch?: boolean;
+    supportsGroup?: boolean;
 }
 
 const props = defineProps<{
     datasets: ExportDataset[];
+    branches?: ExportOption[];
+    groups?: ExportOption[];
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -48,6 +52,8 @@ const dateFrom = ref('');
 const dateTo = ref('');
 const includeDeleted = ref(false);
 const validationMessage = ref('');
+const group = ref('');
+const branch = ref('');
 
 const activeDataset = computed(() => props.datasets.find((dataset) => dataset.key === datasetKey.value) ?? null);
 const datasetOptions = computed(() => props.datasets.map((dataset) => ({ value: dataset.key, label: dataset.label })));
@@ -81,6 +87,8 @@ function resetDatasetSelection(): void {
     dateTo.value = '';
     includeDeleted.value = false;
     validationMessage.value = '';
+    branch.value = '';
+    group.value = '';
 }
 
 function toggleField(field: string): void {
@@ -109,6 +117,8 @@ function downloadExport(): void {
     selectedFields.value.forEach((field) => params.append('fields[]', field));
 
     if (status.value) params.set('status', status.value);
+    if (branch.value) params.set('branch', branch.value);
+    if (group.value) params.set('group', group.value);
     if (role.value) params.set('role', role.value);
     if (dateFrom.value) params.set('date_from', dateFrom.value);
     if (dateTo.value) params.set('date_to', dateTo.value);
@@ -171,6 +181,7 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                         label="Status filter"
                         :options="activeStatusOptions"
                         placeholder="All statuses"
+                        multiple
                     />
 
                     <FormSelectField
@@ -180,6 +191,27 @@ watch(datasetKey, resetDatasetSelection, { immediate: true });
                         label="Role filter"
                         :options="activeDataset.roleOptions"
                         placeholder="All roles"
+                        multiple
+                    />
+
+                    <FormSelectField
+                        v-if="activeDataset?.supportsBranch && props.branches?.length"
+                        id="export-branch"
+                        v-model="branch"
+                        label="Branch filter"
+                        :options="props.branches"
+                        placeholder="All branches"
+                        multiple
+                    />
+
+                    <FormSelectField
+                        v-if="activeDataset?.supportsGroup && props.groups?.length"
+                        id="export-group"
+                        v-model="group"
+                        label="Group filter"
+                        :options="props.groups"
+                        placeholder="All groups"
+                        multiple
                     />
 
                     <div v-if="activeDataset?.supportsDateRange" class="grid gap-4 sm:grid-cols-2">
