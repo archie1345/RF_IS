@@ -26,7 +26,7 @@ class AdminPageController extends Controller
                 'parentProfile' => fn ($query) => $query
                     ->select(['parent_id', 'id'])
                     ->with([
-                        'athletes' => fn (Builder $athletes): Builder => $athletes
+                        'athletes' => fn ($athletes) => $athletes
                             ->select(['athlete_id', 'parent_id', 'branch_id'])
                             ->with('branch:branch_id,branch_name'),
                     ]),

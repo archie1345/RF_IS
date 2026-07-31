@@ -11,12 +11,12 @@ const page = usePage<{
     auth: { user?: unknown };
 }>();
 
-const whatsappUrl = computed(() =>
-    buildWhatsAppUrl(
-        page.props.publicAdminWhatsapp,
-        'Halo Admin Rhino Fighter, saya ingin mendaftar sebagai anggota baru. Mohon informasi proses pendaftarannya.',
-    ),
-);
+const defaultPhone = '6281234567890';
+
+const whatsappUrl = computed(() => {
+    const phone = page.props.publicAdminWhatsapp || defaultPhone;
+    return buildWhatsAppUrl(phone, 'Halo, saya ingin bertanya mengenai Rhino Fighter Taekwondo.');
+});
 
 const showWhatsappBubble = computed(
     () => Boolean(whatsappUrl.value) && page.props.publicWhatsappBubbleEnabled !== false,
@@ -48,15 +48,6 @@ const highlights = [
                         Buka dashboard
                     </Link>
                     <template v-else>
-                        <a
-                            v-if="whatsappUrl"
-                            :href="whatsappUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex h-10 items-center rounded-lg bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-400"
-                        >
-                            Hubungi admin
-                        </a>
                         <Link
                             :href="login()"
                             class="inline-flex h-10 items-center rounded-lg border border-white/30 px-4 text-sm font-semibold hover:bg-white/10"
@@ -86,15 +77,6 @@ const highlights = [
                         >
                             {{ page.props.auth.user ? 'Buka dashboard' : 'Masuk ke sistem' }}
                         </Link>
-                        <a
-                            v-if="!page.props.auth.user && whatsappUrl"
-                            :href="whatsappUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="inline-flex h-11 items-center rounded-lg border border-white/25 px-5 text-sm font-semibold hover:bg-white/10"
-                        >
-                            Hubungi admin untuk membuat akun
-                        </a>
                     </div>
                 </div>
 

@@ -46,8 +46,15 @@ use App\Http\Controllers\UserDirectoryController;
 use App\Http\Controllers\UserFileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Services\PublicContactSettings;
 
 Route::get('/', fn () => Inertia::render('Welcome'))->name('home');
+Route::get('/', function () {
+    return Inertia::render('Welcome', [
+        'publicAdminWhatsapp' => app(PublicContactSettings::class)->getAdminPhoneNumber() 
+            ?? config('services.whatsapp.admin_phone', '628813323088'),
+    ]);
+});
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
