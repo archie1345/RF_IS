@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\MessageTemplate;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
-use App\Models\User;
 
 final class PublicContactSettings
 {
@@ -54,7 +53,7 @@ final class PublicContactSettings
 
     public function bubbleEnabled(): bool
     {
-        return (bool) config('services.whatsapp.bubble_enabled', true);
+        return $this->all()['bubble_enabled'];
     }
 
     public function clearCache(): void
@@ -74,11 +73,6 @@ final class PublicContactSettings
 
     public function getAdminPhoneNumber(): ?string
     {
-        $adminPhone = User::query()
-            ->withRole('admin')
-            ->whereNotNull('phone')
-            ->value('phone');
-
-        return $adminPhone ?: config('services.whatsapp.admin_phone');
+        return $this->contactNumber() ?: null;
     }
 }
