@@ -10,10 +10,10 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
-import { update as roleContextUpdate } from '@/routes/role-context';
 import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
+import { update as roleContextUpdate } from '@/routes/role-context';
 
 const props = withDefaults(
     defineProps<{
@@ -41,27 +41,28 @@ const visibleSections = computed<NavSection[]>(() => {
     return props.items.length > 0 ? [{ label: 'Menu', items: props.items }] : [];
 });
 
-function hrefText(item: NavItem): string {
-    return typeof item.href === 'string' ? item.href : String(item.href);
+function hrefText(href: unknown): string {
+    return typeof href === 'string' ? href : String(href ?? '');
 }
 
-function requiredRole(item: NavItem): AppRole | null {
-    if (!item.roles?.length || item.roles.includes(activeRole.value)) return null;
+function requiredRole(roles?: AppRole[]): AppRole | null {
+    if (!roles?.length || roles.includes(activeRole.value)) return null;
 
-    return item.roles.find((role) => assignedRoles.value.includes(role)) ?? null;
+    return roles.find((role) => assignedRoles.value.includes(role)) ?? null;
 }
 
-function openItem(event: MouseEvent, item: NavItem): void {
-    const role = requiredRole(item);
+function openDestination(event: MouseEvent, item: NavItem): void {
+    if (!item.href) return;
+    const role = requiredRole(item.roles);
     if (!role || switchingHref.value) return;
 
     event.preventDefault();
-    const destination = hrefText(item);
-    switchingHref.value = destination;
+    const dest = hrefText(item.href);
+    switchingHref.value = dest;
 
     router.put(
         roleContextUpdate.url(),
-        { role, redirect_to: destination },
+        { role, redirect_to: dest },
         {
             preserveScroll: false,
             preserveState: false,
@@ -77,15 +78,22 @@ function openItem(event: MouseEvent, item: NavItem): void {
     <SidebarGroup v-for="section in visibleSections" :key="section.label" class="px-2 py-1">
         <SidebarGroupLabel>{{ section.label }}</SidebarGroupLabel>
         <SidebarMenu>
-            <SidebarMenuItem v-for="item in section.items" :key="`${section.label}-${item.title}-${hrefText(item)}`">
+            <SidebarMenuItem
+                v-for="item in section.items"
+                :key="`${section.label}-${item.title}-${hrefText(item.href)}`"
+            >
                 <SidebarMenuButton
+                    v-if="item.href"
                     as-child
                     :is-active="isCurrentUrl(item.href)"
                     :tooltip="item.title"
-                    :aria-busy="switchingHref === hrefText(item)"
+                    :aria-busy="switchingHref === hrefText(item.href)"
                 >
-                    <Link :href="item.href" @click="openItem($event, item)">
-                        <LoaderCircle v-if="switchingHref === hrefText(item)" class="animate-spin" />
+                    <Link :href="item.href" @click="openDestination($event, item)">
+                        <LoaderCircle
+                            v-if="switchingHref === hrefText(item.href)"
+                            class="animate-spin"
+                        />
                         <component :is="item.icon" v-else-if="item.icon" />
                         <span>{{ item.title }}</span>
                     </Link>

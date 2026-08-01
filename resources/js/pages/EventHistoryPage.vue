@@ -246,8 +246,6 @@ function saveResult(): void {
                             </Button>
                             <Button type="button" size="sm" @click="toggleEvent(event.id)">
                                 {{ isExpanded(event.id) ? 'Tutup hasil' : 'Lihat & edit hasil' }}
-                                <ChevronUp v-if="isExpanded(event.id)" class="ml-2 size-4" />
-                                <ChevronDown v-else class="ml-2 size-4" />
                             </Button>
                         </ActionButtonsRow>
                     </div>

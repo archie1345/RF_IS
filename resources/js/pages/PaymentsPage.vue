@@ -669,9 +669,9 @@ function submitManualPayment() {
                             v-model="form.total_amount"
                             label="Total tagihan"
                             type="number"
-                            inputmode="decimal"
-                            min="0.01"
-                            step="1000"
+                            inputmode="numeric"
+                            min="1"
+                            step="1"
                             required
                             :error="form.errors.total_amount"
                         />
@@ -923,9 +923,9 @@ function submitManualPayment() {
                         v-model="reviewForm.approved_amount"
                         label="Nominal yang disetujui"
                         type="number"
-                        inputmode="decimal"
-                        min="0.01"
-                        step="0.01"
+                        inputmode="numeric"
+                        min="1"
+                        step="1"
                         required
                         :error="reviewForm.errors.approved_amount"
                     />
@@ -976,9 +976,9 @@ function submitManualPayment() {
                         v-model="manualPaymentForm.amount"
                         label="Nominal diterima"
                         type="number"
-                        inputmode="decimal"
-                        min="0.01"
-                        step="0.01"
+                        inputmode="numeric"
+                        min="1"
+                        step="1"
                         required
                         :error="manualPaymentForm.errors.amount"
                     />

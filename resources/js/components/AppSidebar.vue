@@ -30,6 +30,9 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import type { NavItem, NavSection } from '@/types';
+import type { Auth } from '@/types/auth';
+import type { AppRole } from '@/types/resource-table';
 import { index as achievementsIndex } from '@/routes/achievements';
 import {
     attendance as adminAttendance,
@@ -48,9 +51,6 @@ import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import { index as usersIndex } from '@/routes/users';
-import type { NavItem, NavSection } from '@/types';
-import type { Auth } from '@/types/auth';
-import type { AppRole } from '@/types/resource-table';
 
 const page = usePage<{ auth: Auth }>();
 const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
@@ -66,62 +66,37 @@ const navigation: NavSection[] = [
         items: [{ title: 'Beranda', href: dashboard.url(), icon: LayoutDashboard, roles: allRoles }],
     },
     {
-        label: 'Latihan',
+        label: 'Latihan & Absensi',
         items: [
             { title: 'Jadwal Latihan', href: trainingScheduleIndex.url(), icon: CalendarRange, roles: allRoles },
-            { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPinned, roles: ['admin'] },
-            { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
-            { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
             { title: 'Sesi Latihan', href: sessionsIndex.url(), icon: CalendarClock, roles: ['admin', 'coach'] },
-            {
-                title: 'Absensi & Check-in',
-                href: attendanceIndex.url(),
-                icon: ScanLine,
-                roles: ['coach', 'parent', 'athlete'],
-            },
+            { title: 'Absensi & Check-in', href: attendanceIndex.url(), icon: ScanLine, roles: ['coach', 'parent', 'athlete'] },
             { title: 'Laporan Absensi Atlet', href: adminAttendance.url(), icon: ClipboardCheck, roles: ['admin'] },
             { title: 'Kehadiran Pelatih', href: adminInstructorAttendance.url(), icon: BadgeCheck, roles: ['admin'] },
+            { title: 'Kelas Latihan', href: adminClasses.url(), icon: Dumbbell, roles: ['admin', 'coach'] },
+            { title: 'Kelompok Atlet', href: '/admin/groups', icon: Network, roles: ['admin'] },
+            { title: 'Lokasi Latihan', href: adminLocations.url(), icon: MapPinned, roles: ['admin'] },
         ],
     },
     {
-        label: 'Akun & Keluarga',
+        label: 'Keuangan & Pengguna',
         items: [
+            { title: 'Keuangan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards, roles: allRoles },
+            { title: 'Payroll Pelatih', href: '/admin/payroll', icon: ReceiptText, roles: ['admin'] },
+            { title: 'Aturan Tagihan', href: '/admin/billing-settings', icon: ReceiptText, roles: ['admin'] },
             { title: 'Profil Anak', href: parentChildrenIndex.url(), icon: UsersRound, roles: ['parent'] },
             { title: 'Akun Pengguna', href: adminIndex.url(), icon: UserCog, roles: ['admin'] },
             { title: 'Data Atlet', href: usersIndex.url(), icon: Contact, roles: ['admin'] },
         ],
     },
     {
-        label: 'Keuangan',
-        items: [
-            { title: 'Keuangan & Pembayaran', href: paymentsIndex.url(), icon: WalletCards, roles: allRoles },
-            { title: 'Payroll Pelatih', href: '/admin/payroll', icon: ReceiptText, roles: ['admin'] },
-            { title: 'Aturan Tagihan', href: '/admin/billing-settings', icon: ReceiptText, roles: ['admin'] },
-            {
-                title: 'Template & Kontak WhatsApp',
-                href: '/admin/whatsapp-template',
-                icon: MessageCircleMore,
-                roles: ['admin'],
-            },
-        ],
-    },
-    {
-        label: 'Kompetisi',
+        label: 'Kompetisi & Informasi',
         items: [
             { title: 'Kejuaraan & UKT', href: championshipsIndex.url(), icon: Trophy, roles: allRoles },
-            {
-                title: 'Prestasi & Sertifikat',
-                href: achievementsIndex.url(),
-                icon: Award,
-                roles: ['coach', 'parent', 'athlete'],
-            },
+            { title: 'Prestasi & Sertifikat', href: achievementsIndex.url(), icon: Award, roles: ['coach', 'parent', 'athlete'] },
             { title: 'Riwayat Kejuaraan', href: adminEventHistory.url(), icon: History, roles: ['admin'] },
-        ],
-    },
-    {
-        label: 'Informasi & Sistem',
-        items: [
             { title: 'Pengumuman', href: announcementsIndex.url(), icon: Megaphone, roles: allRoles },
+            { title: 'Template WA & Kontak', href: '/admin/whatsapp-template', icon: MessageCircleMore, roles: ['admin'] },
             { title: 'Export Data Excel', href: '/admin/data-export', icon: FileSpreadsheet, roles: ['admin'] },
             { title: 'Log Aktivitas', href: activityLogsIndex.url(), icon: ScrollText, roles: ['admin'] },
         ],
@@ -142,7 +117,7 @@ const footerNavItems: NavItem[] = [];
 
 <template>
     <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader class="min-w-0 overflow-hidden p-1">
+        <SidebarHeader class="min-w-0 p-2 border-b border-sidebar-border/40 shrink-0">
             <Link
                 :href="dashboard.url()"
                 class="flex h-18 w-full min-w-0 items-center justify-center overflow-hidden rounded-md px-2 transition group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:px-0 hover:bg-sidebar-accent"
@@ -154,9 +129,7 @@ const footerNavItems: NavItem[] = [];
             </Link>
         </SidebarHeader>
 
-        <SidebarContent>
-            <NavMain :sections="mainNavSections" />
-        </SidebarContent>
+        <SidebarContent class="py-2"><NavMain :sections="mainNavSections" /></SidebarContent>
         <SidebarFooter>
             <NavFooter :items="footerNavItems" />
             <NavUser />
