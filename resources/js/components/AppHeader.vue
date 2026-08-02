@@ -39,7 +39,6 @@ import type { Props } from './AppHeader.types';
 import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { show as userShow } from '@/routes/users';
 
-
 const props = withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
