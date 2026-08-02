@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\MultiSheetExport;
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\Group;
 use App\Services\AdminDataExportService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\Request;
@@ -21,34 +20,16 @@ class AdminDataExportController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Fetch dynamic Branch options from database
-        $branches = Branch::query()
-            ->where('is_active', true)
-            ->orderBy('branch_name')
-            ->get(['branch_id', 'branch_name'])
-            ->map(fn (Branch $b) => [
-                'value' => (string) $b->branch_id,
-                'label' => $b->branch_name,
-            ])
-            ->values()
-            ->all();
-
-        // Fetch dynamic Group options from database
-        $groups = Group::query()
-            ->where('is_active', true)
-            ->orderBy('group_name')
-            ->get(['group_id', 'group_name'])
-            ->map(fn (Group $g) => [
-                'value' => (string) $g->group_id,
-                'label' => $g->group_name,
-            ])
-            ->values()
-            ->all();
-
         return Inertia::render('admin/AdminDataExportPage', [
             'datasets' => $this->exports->catalog(),
-            'branches' => $branches,
-            'groups' => $groups,
+            'branches' => \App\Models\Branch::query()
+                ->orderBy('branch_name')
+                ->get(['branch_id', 'branch_name'])
+                ->map(fn ($b) => ['value' => (string) $b->branch_id, 'label' => $b->branch_name]),
+            'groups' => \App\Models\Group::query()
+                ->orderBy('group_name')
+                ->get(['group_id', 'group_name'])
+                ->map(fn ($g) => ['value' => (string) $g->group_id, 'label' => $g->group_name]),
         ]);
     }
 
@@ -57,46 +38,64 @@ class AdminDataExportController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
-            'dataset' => ['required', Rule::in($this->exports->datasetKeys())],
-            'fields' => ['required', 'array', 'min:1', 'max:40'],
-            'fields.*' => ['required', 'string', 'max:80'],
-            'status' => ['nullable', 'string', 'max:80'],
-            'role' => ['nullable', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
-            'group' => ['nullable', 'string', 'max:255'],
-            'branch' => ['nullable', 'string', 'max:255'],
+            'datasets' => ['required', 'array', 'min:1'],
+            'datasets.*' => ['required', 'string', Rule::in($this->exports->datasetKeys())],
+            'fields' => ['required', 'array'],
+            'fields.*' => ['required', 'array', 'min:1', 'max:40'],
+            'fields.*.*' => ['required', 'string', 'max:80'],
+            'status' => ['nullable', 'array'],
+            'status.*' => ['required', 'string', 'max:80'],
+            'role' => ['nullable', 'array'],
+            'role.*' => ['required', 'string', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
+            'branch' => ['nullable', 'array'],
+            'branch.*' => ['required', 'integer'],
+            'group' => ['nullable', 'array'],
+            'group.*' => ['required', 'integer'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'include_deleted' => ['nullable', 'boolean'],
+            'single_sheet' => ['nullable', 'boolean'],
         ]);
 
         $filters = [
             'status' => $validated['status'] ?? null,
             'role' => $validated['role'] ?? null,
-            'group' => $validated['group'] ?? null,
             'branch' => $validated['branch'] ?? null,
+            'group' => $validated['group'] ?? null,
             'date_from' => $validated['date_from'] ?? null,
             'date_to' => $validated['date_to'] ?? null,
-            'include_deleted' => (bool) ($validated['include_deleted'] ?? false),
+            'include_deleted' => $validated['include_deleted'] ?? false,
         ];
 
-        $from = $filters['date_from'];
-        $to = $filters['date_to'];
+        $isSingleSheet = $validated['single_sheet'] ?? false;
 
-        $periodLabel = match (true) {
-            blank($from) && blank($to) => 'All Time',
-            filled($from) && filled($to) => "{$from} to {$to}",
-            filled($from) => "From {$from}",
-            default => "Until {$to}",
-        };
+        if ($isSingleSheet) {
+            $export = $this->exports->makeCombinedExport($validated['datasets'], $validated['fields'], $filters);
+        } else {
+            $sheets = [];
+            foreach ($validated['datasets'] as $datasetKey) {
+                $datasetFields = $validated['fields'][$datasetKey] ?? [];
+                if (empty($datasetFields)) {
+                    continue;
+                }
+                
+                $sheets[] = $this->exports->makeExport($datasetKey, $datasetFields, $filters);
+            }
 
-        $export = $this->exports->makeExport($validated['dataset'], $validated['fields'], $filters);
-        $filename = $this->exports->filename($validated['dataset']);
+            $export = new MultiSheetExport($sheets);
+        }
+        $filename = 'System_Data_Export_' . now()->format('Y-m-d_Hi') . '.xlsx';
 
         ActivityLogger::log(
             $request,
-            'download',
-            'data_export',
-            "Downloaded {$validated['dataset']} export excel (Period: {$periodLabel})."
+            'admin.data_export.downloaded',
+            'admin',
+            'Exported selected system data to Excel',
+            null,
+            [
+                'datasets' => $validated['datasets'],
+                'filters' => array_filter($filters, fn (mixed $value): bool => $value !== null && $value !== '' && $value !== false),
+            ],
         );
 
         return Excel::download($export, $filename);

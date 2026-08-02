@@ -71,8 +71,8 @@ const props = withDefaults(
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Keuangan', href: paymentsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Keuangan & Bayar', href: paymentsIndex.url() },
 ];
 
 const invoiceTemplateModalOpen = ref(false);

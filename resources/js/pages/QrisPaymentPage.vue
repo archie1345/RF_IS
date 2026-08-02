@@ -36,8 +36,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Keuangan', href: paymentsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Keuangan & Bayar', href: paymentsIndex.url() },
     { title: 'Pembayaran QRIS', href: '/payments/qris' },
 ];
 

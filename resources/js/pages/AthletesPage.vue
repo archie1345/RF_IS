@@ -73,8 +73,8 @@ const athleteGroupFilter = ref('');
 const athleteStatusFilter = ref('');
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Users', href: usersIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Data Atlet', href: usersIndex.url() },
 ];
 
 const athleteColumns: TableColumn[] = [...athleteRosterBaseColumns, ...athleteRosterTrailingColumns];
@@ -296,7 +296,7 @@ function saveParentChildren() {
 </script>
 
 <template>
-    <Head title="Athletes" />
+    <Head title="Data Atlet" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">

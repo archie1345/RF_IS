@@ -70,8 +70,8 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() =>
     isSettingsContext.value
         ? [{ title: 'Profile settings', href: profileEdit.url() }]
         : [
-              { title: 'Dashboard', href: dashboard.url() },
-              { title: 'Users', href: usersIndex.url() },
+              { title: 'Beranda', href: dashboard.url() },
+              { title: 'Data Atlet', href: usersIndex.url() },
               { title: props.user.name, href: userShow.url(props.user.id) },
           ],
 );

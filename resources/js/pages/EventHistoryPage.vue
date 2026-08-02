@@ -50,9 +50,9 @@ type HistoricalEvent = {
 const props = defineProps<{ events: HistoricalEvent[] }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
-    { title: 'Riwayat Event & UKT', href: '/admin/events/history' },
+    { title: 'Riwayat Kejuaraan', href: '/admin/events/history' },
 ];
 
 const search = ref('');
@@ -184,7 +184,7 @@ function saveResult(): void {
 </script>
 
 <template>
-    <Head title="Riwayat Event & UKT" />
+    <Head title="Riwayat Kejuaraan" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">

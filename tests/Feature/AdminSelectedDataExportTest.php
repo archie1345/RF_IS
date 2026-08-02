@@ -54,8 +54,8 @@ test('admin can choose the exact Excel columns to export', function () {
 
     $this->actingAs($admin)
         ->get(route('admin.data-export.download', [
-            'dataset' => 'accounts',
-            'fields' => ['name', 'email', 'status'],
+            'datasets' => ['accounts'],
+            'fields' => ['accounts' => ['name', 'email', 'status']],
             'status' => User::ACCOUNT_STATUS_SUSPENDED,
         ]))
         ->assertOk();
@@ -111,15 +111,15 @@ test('selected data export rejects unknown columns and non-admin downloads', fun
 
     $this->actingAs($admin)
         ->get(route('admin.data-export.download', [
-            'dataset' => 'accounts',
-            'fields' => ['password', 'two_factor_secret'],
+            'datasets' => ['accounts'],
+            'fields' => ['accounts' => ['password', 'two_factor_secret']],
         ]))
-        ->assertSessionHasErrors('fields');
+        ->assertSessionHasErrors('fields.accounts.0');
 
     $this->actingAs($athlete)
         ->get(route('admin.data-export.download', [
-            'dataset' => 'accounts',
-            'fields' => ['name'],
+            'datasets' => ['accounts'],
+            'fields' => ['accounts' => ['name']],
         ]))
         ->assertForbidden();
 });

@@ -31,8 +31,8 @@ const props = defineProps<{
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Sessions', href: sessionsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Sesi Latihan', href: sessionsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -146,7 +146,7 @@ function joinSession(row: TableRow): void {
 </script>
 
 <template>
-    <Head title="Sessions" />
+    <Head title="Sesi Latihan" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
