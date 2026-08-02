@@ -303,7 +303,7 @@ function issueOneTimeCharge(): void {
                 </template>
             </PageSection>
 
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
             </div>
 

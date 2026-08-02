@@ -62,9 +62,9 @@ const props = defineProps<{
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Sesi latihan', href: sessionsIndex.url() },
-    { title: 'Attendance sesi', href: sessionAttendance.url(props.session.id) },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Sesi Latihan', href: sessionsIndex.url() },
+    { title: 'Detail Sesi', href: sessionAttendance.url(props.session.id) },
 ];
 
 const athleteColumns: TableColumn[] = [

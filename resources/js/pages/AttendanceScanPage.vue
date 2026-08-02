@@ -46,7 +46,7 @@ const submitError = ref<string | null>(null);
 const selectedAthleteId = ref(String(props.athlete?.athlete_id ?? props.children?.[0]?.value ?? ''));
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     { title: 'QR Attendance', href: attendanceScanShow.url(props.token) },
 ];
 

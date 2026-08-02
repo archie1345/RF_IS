@@ -19,14 +19,14 @@ class AdminPageController extends Controller
             ->withTrashed()
             ->with([
                 'roleAssignments:id,user_id,role',
-                'athleteProfile' => fn (Builder $query): Builder => $query
+                'athleteProfile' => fn ($query) => $query
                     ->select(['athlete_id', 'id', 'branch_id'])
                     ->with('branch:branch_id,branch_name'),
                 'coachProfile:coach_id,id',
-                'parentProfile' => fn (Builder $query): Builder => $query
+                'parentProfile' => fn ($query) => $query
                     ->select(['parent_id', 'id'])
                     ->with([
-                        'athletes' => fn (Builder $athletes): Builder => $athletes
+                        'athletes' => fn ($athletes) => $athletes
                             ->select(['athlete_id', 'parent_id', 'branch_id'])
                             ->with('branch:branch_id,branch_name'),
                     ]),

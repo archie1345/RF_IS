@@ -21,13 +21,13 @@ const { users } = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Admin Panel', href: adminIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Akun Pengguna', href: adminIndex.url() },
 ];
 </script>
 
 <template>
-    <Head title="Admin Panel" />
+    <Head title="Akun Pengguna" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">

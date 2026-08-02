@@ -39,7 +39,7 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     { title: props.title, href: trainingScheduleIndex.url() },
 ];
 const scheduleView = ref<'cards' | 'table'>('cards');

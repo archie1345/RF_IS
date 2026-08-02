@@ -282,6 +282,33 @@ const profileRows = computed(() => {
                 </section>
             </div>
 
+            <div class="grid col-1">
+                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
+                    <div class="mb-5 flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda klub</p>
+                            <h2 class="mt-1 text-lg font-bold">Kejuaraan & UKT</h2>
+                        </div>
+                        <Button as-child variant="ghost" size="sm"
+                            ><Link :href="championshipsIndex.url()">Semua</Link></Button
+                        >
+                    </div>
+                    <div v-if="nextEvents.length" class="space-y-4">
+                        <div v-for="row in nextEvents" :key="String(row.id)" class="flex gap-3">
+                            <div
+                                class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            >
+                                <Trophy class="size-4" />
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-semibold">{{ row.event }}</p>
+                                <p class="mt-1 text-sm text-muted-foreground">{{ row.date }} · {{ row.location }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-muted-foreground">Belum ada event mendatang.</p>
+                </section>
+            </div>
             <div class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
@@ -679,62 +706,5 @@ const profileRows = computed(() => {
                 </section>
             </div>
         </template>
-
-        <div class="grid gap-6 xl:grid-cols-2">
-            <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                <div class="mb-5 flex items-center justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            Informasi terbaru
-                        </p>
-                        <h2 class="mt-1 text-lg font-bold">Pengumuman</h2>
-                    </div>
-                    <Button as-child variant="ghost" size="sm"
-                        ><Link :href="announcementsIndex.url()">Semua</Link></Button
-                    >
-                </div>
-                <div v-if="latestAnnouncements.length" class="space-y-4">
-                    <div v-for="row in latestAnnouncements" :key="String(row.id)" class="flex gap-3">
-                        <div
-                            class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
-                        >
-                            <Megaphone class="size-4" />
-                        </div>
-                        <div class="min-w-0">
-                            <p class="font-semibold">{{ row.title }}</p>
-                            <p class="mt-1 line-clamp-2 text-sm text-muted-foreground">{{ row.message }}</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ row.published }}</p>
-                        </div>
-                    </div>
-                </div>
-                <p v-else class="text-sm text-muted-foreground">Belum ada pengumuman aktif.</p>
-            </section>
-
-            <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                <div class="mb-5 flex items-center justify-between gap-3">
-                    <div>
-                        <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda klub</p>
-                        <h2 class="mt-1 text-lg font-bold">Kejuaraan & UKT</h2>
-                    </div>
-                    <Button as-child variant="ghost" size="sm"
-                        ><Link :href="championshipsIndex.url()">Semua</Link></Button
-                    >
-                </div>
-                <div v-if="nextEvents.length" class="space-y-4">
-                    <div v-for="row in nextEvents" :key="String(row.id)" class="flex gap-3">
-                        <div
-                            class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                        >
-                            <Trophy class="size-4" />
-                        </div>
-                        <div class="min-w-0">
-                            <p class="font-semibold">{{ row.event }}</p>
-                            <p class="mt-1 text-sm text-muted-foreground">{{ row.date }} · {{ row.location }}</p>
-                        </div>
-                    </div>
-                </div>
-                <p v-else class="text-sm text-muted-foreground">Belum ada event mendatang.</p>
-            </section>
-        </div>
     </div>
 </template>

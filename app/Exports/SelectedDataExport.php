@@ -75,6 +75,28 @@ class SelectedDataExport implements FromQuery, WithColumnWidths, WithHeadings, W
 
     public function title(): string
     {
-        return mb_substr(preg_replace('/[\\\/?*\[\]:]/', '-', $this->sheetTitle) ?: 'Export', 0, 31);
+        $cleanTitle = str_replace([':', '*', '?', '/', '\\', '[', ']'], '', $this->sheetTitle);
+
+        return substr(trim($cleanTitle), 0, 31) ?: 'Export';
+    }
+
+    public function getPeriodLabel(): string
+    {
+        $from = $this->filters['date_from'] ?? null;
+        $to = $this->filters['date_to'] ?? null;
+
+        if (blank($from) && blank($to)) {
+            return 'All Time';
+        }
+
+        if (filled($from) && filled($to)) {
+            return "{$from} to {$to}";
+        }
+
+        if (filled($from)) {
+            return "From {$from}";
+        }
+
+        return "Until {$to}";
     }
 }

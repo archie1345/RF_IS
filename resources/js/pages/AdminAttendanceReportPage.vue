@@ -46,7 +46,7 @@ const props = withDefaults(
 );
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     { title: props.title, href: window.location.pathname },
 ];
 const attendanceMonth = ref(props.period.month);

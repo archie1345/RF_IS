@@ -26,6 +26,10 @@ export type CoachProfile = {
     status?: string;
     specialization?: string;
     bio?: string;
+    nik?: string;
+    bpjs?: string;
+    nikHash?: string | null;
+    bpjsHash?: string | null;
 };
 
 export type ParentProfile = {

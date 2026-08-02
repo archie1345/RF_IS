@@ -120,7 +120,6 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->accountsQuery($filters),
                 'fields' => [
-                    'id' => ['label' => 'Account ID', 'value' => fn (User $user): int => $user->id],
                     'name' => ['label' => 'Name', 'value' => fn (User $user): string => (string) $user->name],
                     'email' => ['label' => 'Email', 'value' => fn (User $user): string => (string) $user->email],
                     'phone' => ['label' => 'Phone', 'value' => fn (User $user): string => (string) ($user->phone ?? '')],
@@ -128,7 +127,7 @@ class AdminDataExportService
                     'birthday' => ['label' => 'Birthday', 'value' => fn (User $user): mixed => $user->bday],
                     'roles' => ['label' => 'Roles', 'value' => fn (User $user): string => implode(', ', $user->assignedRoles())],
                     'status' => ['label' => 'Account Status', 'value' => fn (User $user): string => $this->accountStatusLabel($user->account_status)],
-                    'branch' => ['label' => 'Branch', 'value' => fn (User $user): string => $this->accountBranch($user)],
+                    'branch_name' => ['label' => 'Branch', 'value' => fn (User $user): string => $this->accountBranch($user)],
                     'deleted_at' => ['label' => 'Deleted At', 'value' => fn (User $user): mixed => $user->deleted_at],
                     'created_at' => ['label' => 'Created At', 'value' => fn (User $user): mixed => $user->created_at],
                     'updated_at' => ['label' => 'Updated At', 'value' => fn (User $user): mixed => $user->updated_at],
@@ -144,16 +143,15 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->athletesQuery($filters),
                 'fields' => [
-                    'athlete_id' => ['label' => 'Athlete ID', 'value' => fn (Athlete $athlete): string => (string) $athlete->athlete_id],
                     'member_number' => ['label' => 'Member Number', 'value' => fn (Athlete $athlete): string => (string) ($athlete->member_number ?? '')],
-                    'name' => ['label' => 'Athlete Name', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->name ?? '')],
+                    'athlete_name' => ['label' => 'Athlete Name', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->name ?? '')],
                     'email' => ['label' => 'Email', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->email ?? '')],
                     'phone' => ['label' => 'Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->phone ?? '')],
                     'gender' => ['label' => 'Gender', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->gender ?? '')],
                     'birthday' => ['label' => 'Birthday', 'value' => fn (Athlete $athlete): mixed => $athlete->user?->bday],
                     'account_status' => ['label' => 'Account Status', 'value' => fn (Athlete $athlete): string => $this->accountStatusLabel($athlete->user?->account_status)],
-                    'branch' => ['label' => 'Branch', 'value' => fn (Athlete $athlete): string => (string) ($athlete->branch?->branch_name ?? '')],
-                    'group' => ['label' => 'Group', 'value' => fn (Athlete $athlete): string => (string) ($athlete->group?->group_name ?? '')],
+                    'branch_name' => ['label' => 'Branch', 'value' => fn (Athlete $athlete): string => (string) ($athlete->branch?->branch_name ?? '')],
+                    'group_name' => ['label' => 'Group', 'value' => fn (Athlete $athlete): string => (string) ($athlete->group?->group_name ?? '')],
                     'parent' => ['label' => 'Parent / Guardian', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->name ?? '')],
                     'parent_phone' => ['label' => 'Parent Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->phone ?? '')],
                     'geup' => ['label' => 'Belt / Geup', 'value' => fn (Athlete $athlete): string => (string) ($athlete->geup ?? '')],
@@ -180,6 +178,8 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->paymentsQuery($filters),
                 'fields' => [
+                    'member_number' => ['label' => 'Member Number', 'value' => fn (Payment $payment): string => (string) ($payment->athlete?->member_number ?? '')],
+                    'athlete_name' => ['label' => 'Athlete Name', 'value' => fn (Payment $payment): string => (string) ($payment->athlete?->user?->name ?? '')],
                     'invoice_number' => ['label' => 'Invoice Number', 'value' => fn (Payment $payment): string => (string) $payment->invoice_number],
                     'bill_kind' => ['label' => 'Record Type', 'value' => fn (Payment $payment): string => (string) $payment->bill_kind],
                     'recipient' => ['label' => 'Recipient', 'value' => fn (Payment $payment): string => $this->paymentRecipient($payment)],
@@ -217,7 +217,8 @@ class AdminDataExportService
                 'query' => fn (array $filters): Builder => $this->athleteAttendanceQuery($filters),
                 'fields' => [
                     'date' => ['label' => 'Date', 'value' => fn (Attendance $attendance): mixed => $attendance->date],
-                    'athlete' => ['label' => 'Athlete', 'value' => fn (Attendance $attendance): string => (string) ($attendance->athlete?->user?->name ?? '')],
+                    'athlete_name' => ['label' => 'Athlete Name', 'value' => fn (Attendance $attendance): string => (string) ($attendance->athlete?->user?->name ?? '')],
+                    'member_number' => ['label' => 'Member Number', 'value' => fn (Attendance $attendance): string => (string) ($attendance->athlete?->member_number ?? '')],
                     'session' => ['label' => 'Session', 'value' => fn (Attendance $attendance): string => (string) ($attendance->trainingSession?->title ?? '')],
                     'session_type' => ['label' => 'Session Type', 'value' => fn (Attendance $attendance): string => (string) ($attendance->trainingSession?->session_type ?? '')],
                     'status' => ['label' => 'Attendance Status', 'value' => fn (Attendance $attendance): string => (string) $attendance->status],
@@ -261,14 +262,14 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->trainingSessionsQuery($filters),
                 'fields' => [
-                    'session_id' => ['label' => 'Session ID', 'value' => fn (TrainingSession $session): int => $session->training_session_id],
                     'date' => ['label' => 'Date', 'value' => fn (TrainingSession $session): mixed => $session->session_date],
                     'title' => ['label' => 'Title', 'value' => fn (TrainingSession $session): string => (string) $session->title],
                     'session_type' => ['label' => 'Session Type', 'value' => fn (TrainingSession $session): string => (string) $session->session_type],
-                    'branch' => ['label' => 'Branch', 'value' => fn (TrainingSession $session): string => (string) ($session->branch?->branch_name ?? '')],
-                    'group' => ['label' => 'Group', 'value' => fn (TrainingSession $session): string => (string) ($session->group?->group_name ?? '')],
+                    'branch_name' => ['label' => 'Branch', 'value' => fn (TrainingSession $session): string => (string) ($session->branch?->branch_name ?? '')],
+                    'group_name' => ['label' => 'Group', 'value' => fn (TrainingSession $session): string => (string) ($session->group?->group_name ?? '')],
                     'coach' => ['label' => 'Primary Coach', 'value' => fn (TrainingSession $session): string => (string) ($session->primaryCoach?->user?->name ?? '')],
-                    'private_athlete' => ['label' => 'Private Athlete', 'value' => fn (TrainingSession $session): string => (string) ($session->dedicatedAthlete?->user?->name ?? '')],
+                    'athlete_name' => ['label' => 'Athlete Name (Private)', 'value' => fn (TrainingSession $session): string => (string) ($session->dedicatedAthlete?->user?->name ?? '')],
+                    'member_number' => ['label' => 'Member Number (Private)', 'value' => fn (TrainingSession $session): string => (string) ($session->dedicatedAthlete?->member_number ?? '')],
                     'location' => ['label' => 'Location', 'value' => fn (TrainingSession $session): string => (string) ($session->location ?? '')],
                     'start_time' => ['label' => 'Start Time', 'value' => fn (TrainingSession $session): string => (string) ($session->start_time ?? '')],
                     'end_time' => ['label' => 'End Time', 'value' => fn (TrainingSession $session): string => (string) ($session->end_time ?? '')],
@@ -290,7 +291,6 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->eventsQuery($filters),
                 'fields' => [
-                    'event_id' => ['label' => 'Event ID', 'value' => fn (Event $event): int => $event->event_id],
                     'name' => ['label' => 'Event Name', 'value' => fn (Event $event): string => (string) $event->e_name],
                     'date' => ['label' => 'Event Date', 'value' => fn (Event $event): mixed => $event->e_date],
                     'deadline' => ['label' => 'Registration Deadline', 'value' => fn (Event $event): mixed => $event->registration_deadline],
@@ -314,10 +314,10 @@ class AdminDataExportService
                 'supports_deleted' => true,
                 'query' => fn (array $filters): Builder => $this->eventRegistrationsQuery($filters),
                 'fields' => [
-                    'registration_id' => ['label' => 'Registration ID', 'value' => fn (EventRegistration $registration): int => $registration->evrid],
                     'event' => ['label' => 'Event', 'value' => fn (EventRegistration $registration): string => (string) ($registration->event?->e_name ?? '')],
                     'event_date' => ['label' => 'Event Date', 'value' => fn (EventRegistration $registration): mixed => $registration->event?->e_date],
-                    'athlete' => ['label' => 'Athlete', 'value' => fn (EventRegistration $registration): string => (string) ($registration->athlete?->user?->name ?? '')],
+                    'athlete_name' => ['label' => 'Athlete Name', 'value' => fn (EventRegistration $registration): string => (string) ($registration->athlete?->user?->name ?? '')],
+                    'member_number' => ['label' => 'Member Number', 'value' => fn (EventRegistration $registration): string => (string) ($registration->athlete?->member_number ?? '')],
                     'category' => ['label' => 'Category', 'value' => fn (EventRegistration $registration): string => (string) ($registration->category ?? '')],
                     'classification' => ['label' => 'Classification', 'value' => fn (EventRegistration $registration): string => (string) ($registration->classification ?? '')],
                     'class_name' => ['label' => 'Class', 'value' => fn (EventRegistration $registration): string => (string) ($registration->class_name ?? '')],
@@ -334,6 +334,77 @@ class AdminDataExportService
     }
 
     /** @param array<string, mixed> $filters */
+
+    public function makeCombinedExport(array $datasets, array $selectedFields, array $filters): \App\Exports\CombinedDataExport
+    {
+        $allFields = [];
+        $headings = ['Record Source']; // Add Source column
+        
+        $fieldMap = []; // To map fields across datasets uniquely
+        $definitions = $this->definitions();
+
+        // Pass 1: Collect unique headings across all selected datasets
+        foreach ($datasets as $dataset) {
+            $definition = $definitions[$dataset] ?? null;
+            if (!$definition) continue;
+            
+            $fields = $definition['fields'];
+            $selected = collect($selectedFields[$dataset] ?? [])
+                ->map(fn ($field) => trim((string) $field))
+                ->filter(fn ($field) => array_key_exists($field, $fields))
+                ->unique()
+                ->values();
+                
+            foreach ($selected as $fieldKey) {
+                if (!isset($fieldMap[$fieldKey])) {
+                    $fieldMap[$fieldKey] = $fields[$fieldKey]['label'];
+                    $headings[] = $fields[$fieldKey]['label'];
+                }
+            }
+        }
+
+        // Mapping from fieldKey to column index in array
+        $fieldIndexMap = array_flip(array_keys($fieldMap));
+
+        $data = [];
+
+        // Pass 2: Fetch and map data
+        foreach ($datasets as $dataset) {
+            $definition = $definitions[$dataset] ?? null;
+            if (!$definition) continue;
+            
+            $fields = $definition['fields'];
+            $selected = collect($selectedFields[$dataset] ?? [])
+                ->map(fn ($field) => trim((string) $field))
+                ->filter(fn ($field) => array_key_exists($field, $fields))
+                ->unique()
+                ->values();
+
+            if ($selected->isEmpty()) continue;
+
+            $query = ($definition['query'])($filters);
+            
+            // Chunking to prevent memory exhaustion
+            $query->chunk(500, function ($records) use ($dataset, $definition, $selected, $fields, $fieldIndexMap, &$data) {
+                foreach ($records as $record) {
+                    // Initialize array with empty strings, +1 for Source column
+                    $row = array_fill(0, count($fieldIndexMap) + 1, '');
+                    $row[0] = $definition['label'] ?? $dataset; // Source
+
+                    foreach ($selected as $fieldKey) {
+                        $value = ($fields[$fieldKey]['value'])($record);
+                        // Field index + 1 because index 0 is Source
+                        $idx = $fieldIndexMap[$fieldKey] + 1;
+                        $row[$idx] = is_bool($value) ? ($value ? 'Yes' : 'No') : (string) $value;
+                    }
+                    $data[] = $row;
+                }
+            });
+        }
+
+        return new \App\Exports\CombinedDataExport($data, $headings, 'Combined Data');
+    }
+
     private function accountsQuery(array $filters): Builder
     {
         $query = User::query()
@@ -351,10 +422,12 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('account_status', $filters['status']);
+            $query->whereIn('account_status', \Illuminate\Support\Arr::wrap($filters['status']));
         }
         if (filled($filters['role'] ?? null)) {
-            $query->withRole((string) $filters['role']);
+            $query->whereHas('roleAssignments', function (\Illuminate\Database\Eloquent\Builder $q) use ($filters) {
+                $q->whereIn('role', \Illuminate\Support\Arr::wrap($filters['role']));
+            });
         }
 
         return $this->applyDateRange($query, 'created_at', $filters)->orderBy('name')->orderBy('id');
@@ -375,7 +448,13 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->whereHas('user', fn (Builder $userQuery): Builder => $userQuery->where('account_status', $filters['status']));
+            $query->whereHas('user', fn (\Illuminate\Database\Eloquent\Builder $userQuery): \Illuminate\Database\Eloquent\Builder => $userQuery->whereIn('account_status', \Illuminate\Support\Arr::wrap($filters['status'])));
+        }
+        if (filled($filters['branch'] ?? null)) {
+            $query->whereIn('branch_id', \Illuminate\Support\Arr::wrap($filters['branch']));
+        }
+        if (filled($filters['group'] ?? null)) {
+            $query->whereIn('group_id', \Illuminate\Support\Arr::wrap($filters['group']));
         }
 
         return $this->applyDateRange($query, 'joined_at', $filters)->orderBy('joined_at')->orderBy('athlete_id');
@@ -394,7 +473,7 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('status', $filters['status']);
+            $query->whereIn('status', \Illuminate\Support\Arr::wrap($filters['status']));
         }
 
         return $this->applyDateRange($query, 'payment_date', $filters)->orderBy('payment_date')->orderBy('payment_id');
@@ -412,7 +491,7 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('status', $filters['status']);
+            $query->whereIn('status', \Illuminate\Support\Arr::wrap($filters['status']));
         }
 
         return $this->applyDateRange($query, 'date', $filters)->orderBy('date')->orderBy('athlete_attendance_id');
@@ -430,7 +509,7 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('status', $filters['status']);
+            $query->whereIn('status', \Illuminate\Support\Arr::wrap($filters['status']));
         }
 
         return $this->applyDateRange($query, 'checked_at', $filters)->orderBy('checked_at')->orderBy('coach_attendance_id');
@@ -444,7 +523,7 @@ class AdminDataExportService
             'group:group_id,group_name',
             'primaryCoach:coach_id,id',
             'primaryCoach.user:id,name',
-            'dedicatedAthlete:athlete_id,id',
+            'dedicatedAthlete:athlete_id,id,member_number',
             'dedicatedAthlete.user:id,name',
         ]);
 
@@ -452,7 +531,13 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('status', $filters['status']);
+            $query->whereIn('status', \Illuminate\Support\Arr::wrap($filters['status']));
+        }
+        if (filled($filters['branch'] ?? null)) {
+            $query->whereIn('branch_id', \Illuminate\Support\Arr::wrap($filters['branch']));
+        }
+        if (filled($filters['group'] ?? null)) {
+            $query->whereIn('group_id', \Illuminate\Support\Arr::wrap($filters['group']));
         }
 
         return $this->applyDateRange($query, 'session_date', $filters)->orderBy('session_date')->orderBy('start_time');
@@ -467,7 +552,7 @@ class AdminDataExportService
             $query->withTrashed();
         }
         if (filled($filters['status'] ?? null)) {
-            $query->where('status', $filters['status']);
+            $query->whereIn('status', \Illuminate\Support\Arr::wrap($filters['status']));
         }
 
         return $this->applyDateRange($query, 'e_date', $filters)->orderBy('e_date')->orderBy('event_id');
