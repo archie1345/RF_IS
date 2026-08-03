@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 class TrainingSession extends Model
 {
@@ -14,40 +16,54 @@ class TrainingSession extends Model
 
     protected $table = 'training_sessions';
 
-    public $timestamps = true;
-
     protected $primaryKey = 'training_session_id';
-
-    public $incrementing = true;
-
-    protected $keyType = 'int';
 
     protected $fillable = [
         'weekly_training_schedule_id',
         'coach_id',
         'branch_id',
         'group_id',
+        'session_type',
+        'dedicated_athlete_id',
         'title',
         'location',
         'session_date',
         'start_time',
         'end_time',
         'status',
+        'metadata',
         'attendance_token_hash',
+        'attendance_qr_token',
         'attendance_opens_at',
         'attendance_closes_at',
         'attendance_qr_generated_at',
         'attendance_qr_revoked_at',
     ];
 
-    protected $dates = ['deleted_at', 'session_date', 'start_time', 'end_time'];
-
-    protected $casts = [
-        'attendance_opens_at' => 'datetime',
-        'attendance_closes_at' => 'datetime',
-        'attendance_qr_generated_at' => 'datetime',
-        'attendance_qr_revoked_at' => 'datetime',
+    protected $hidden = [
+        'attendance_token_hash',
+        'attendance_qr_token',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'metadata' => 'array',
+            'attendance_qr_token' => 'encrypted',
+            'attendance_opens_at' => 'datetime',
+            'attendance_closes_at' => 'datetime',
+            'attendance_qr_generated_at' => 'datetime',
+            'attendance_qr_revoked_at' => 'datetime',
+        ];
+    }
+
+    protected function sessionDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn (mixed $value): ?Carbon => filled($value) ? Carbon::parse($value)->startOfDay() : null,
+            set: fn (mixed $value): ?string => filled($value) ? Carbon::parse($value)->toDateString() : null,
+        );
+    }
 
     public function weeklyTrainingSchedule(): BelongsTo
     {
@@ -67,6 +83,11 @@ class TrainingSession extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class, 'group_id', 'group_id');
+    }
+
+    public function dedicatedAthlete(): BelongsTo
+    {
+        return $this->belongsTo(Athlete::class, 'dedicated_athlete_id', 'athlete_id');
     }
 
     public function assignedCoaches(): BelongsToMany

@@ -109,9 +109,7 @@ function submit() {
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
-                    <Button variant="destructive" @click="emit('delete', row.id)">
-                        Remove
-                    </Button>
+                    <Button variant="destructive" @click="emit('delete', row.id)"> Remove </Button>
                 </ActionButtonsRow>
             </template>
         </ResourceTablePanel>
@@ -124,7 +122,8 @@ function submit() {
                         {{ editingId ? 'Edit branch' : 'Create branch' }}
                     </DialogTitle>
                     <DialogDescription>
-                        This dialog is intentionally parallel to the account flow so branch and group management can expand without duplicating table markup.
+                        This dialog is intentionally parallel to the account flow so branch and group management can
+                        expand without duplicating table markup.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -136,8 +135,15 @@ function submit() {
                     <div class="grid gap-2">
                         <Label for="branch-location">Location</Label>
                         <div class="relative">
-                            <MapPin class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                            <Input id="branch-location" v-model="form.location" class="pl-9" placeholder="Jakarta Selatan" />
+                            <MapPin
+                                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                id="branch-location"
+                                v-model="form.location"
+                                class="pl-9"
+                                placeholder="Jakarta Selatan"
+                            />
                         </div>
                     </div>
                 </div>
@@ -152,5 +158,3 @@ function submit() {
         </Dialog>
     </div>
 </template>
-
-

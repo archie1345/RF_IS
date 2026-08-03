@@ -1,24 +1,45 @@
 <?php
 
+use App\Http\Controllers\ActiveRoleContextController;
+use App\Http\Controllers\Admin\AdminPayrollController;
+use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\Settings\SettingsOverviewController;
 use App\Http\Controllers\Settings\TwoFactorAuthenticationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware(['auth', 'account.active'])->group(function () {
-    Route::redirect('settings', '/settings/profile');
+Route::middleware(['auth', 'account.active'])->group(function (): void {
+    Route::get('settings', SettingsOverviewController::class)->name('settings.index');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
+    Route::put('settings/profile/athlete', [ProfileController::class, 'updateAthleteProfile'])->name('profile.athlete.update');
+    Route::put('settings/profile/coach', [ProfileController::class, 'updateCoachProfile'])->name('profile.coach.update');
+    Route::put('settings/profile/parent', [ProfileController::class, 'updateParentProfile'])->name('profile.parent.update');
     Route::post('settings/profile/certifications', [ProfileController::class, 'storeCertification'])->name('profile.certifications.store');
     Route::put('settings/profile/certifications/{certification}', [ProfileController::class, 'updateCertification'])->name('profile.certifications.update');
+    Route::delete('settings/profile/certifications/{certification}', [ProfileController::class, 'destroyCertification'])->name('profile.certifications.destroy');
     Route::post('settings/profile/achievements', [ProfileController::class, 'storeAchievement'])->name('profile.achievements.store');
     Route::put('settings/profile/achievements/{achievement}', [ProfileController::class, 'updateAchievement'])->name('profile.achievements.update');
+    Route::delete('settings/profile/achievements/{achievement}', [ProfileController::class, 'destroyAchievement'])->name('profile.achievements.destroy');
 });
 
-Route::middleware(['auth', 'account.active', 'verified'])->group(function () {
+Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
+    Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
+
+    Route::middleware('role:admin')->group(function (): void {
+        Route::get('admin/payroll', [AdminPayrollController::class, 'index'])->name('admin.payroll.index');
+        Route::get('admin/payroll/estimate', [AdminPayrollController::class, 'estimate'])->name('admin.payroll.estimate');
+        Route::post('admin/payroll', [AdminPayrollController::class, 'store'])->name('admin.payroll.store');
+    });
+
+    Route::post('championships/{event}/participants', [ChampionshipController::class, 'storeManagedRegistration'])
+        ->middleware('role:admin,coach')
+        ->name('championships.participants.store');
+
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('user-password.edit');

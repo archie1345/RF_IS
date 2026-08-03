@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, Power, PowerOff, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
-import StatCard from '@/components/shared/StatCard.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +16,16 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    destroy as adminAccountDestroy,
+    forceDelete as adminAccountForceDelete,
+    restore as adminAccountRestore,
+    store as adminAccountStore,
+    update as adminAccountUpdate,
+} from '@/routes/admin/accounts';
+import { resend as adminAccountInvitationResend } from '@/routes/admin/accounts/invitation';
 import type { AdminAccountRole, AdminAccountRow } from '@/types/admin';
-import type { Metric, TableColumn, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 
 const props = defineProps<{
     initialUsers: AdminAccountRow[];
@@ -48,43 +55,6 @@ const form = useForm({
 
 const rolesError = computed(() => (form.errors as Record<string, string>).roles);
 
-// const profileForm = useForm({
-//     bio: '',
-//     profile_picture: null as File | null,
-// });
-
-const stats = computed<Metric[]>(() => [
-    {
-        label: 'Total accounts',
-        value: String(users.value.length),
-        detail: 'Managed from one admin workspace',
-        tone: 'info',
-    },
-    {
-        label: 'Admins and coaches',
-        value: String(
-            users.value.filter((user) => {
-                const roles = user.roles && user.roles.length > 0 ? user.roles : [user.role];
-                return roles.includes('admin') || roles.includes('coach');
-            }).length,
-        ),
-        detail: 'Core operating team',
-        tone: 'success',
-    },
-    {
-        label: 'Invites pending',
-        value: String(users.value.filter((user) => user.status === 'invited').length),
-        detail: 'Accounts waiting to complete setup',
-        tone: 'warning',
-    },
-    {
-        label: 'Suspended accounts',
-        value: String(users.value.filter((user) => user.status === 'suspended').length),
-        detail: 'Needs admin review',
-        tone: 'danger',
-    },
-]);
-
 const roleLabel: Record<AdminAccountRole, string> = {
     admin: 'Admin',
     coach: 'Coach',
@@ -99,7 +69,7 @@ const roleTone: Record<AdminAccountRole, 'danger' | 'info' | 'warning' | 'succes
     athlete: 'success',
 };
 
-const roleOptions = [
+const roleOptions: Array<{ value: AdminAccountRole; label: string }> = [
     { value: 'admin', label: 'Admin' },
     { value: 'coach', label: 'Coach' },
     { value: 'parent', label: 'Parent' },
@@ -108,14 +78,20 @@ const roleOptions = [
 
 const statusOptions = [
     { value: 'active', label: 'Active' },
+    { value: 'suspended', label: 'Not active' },
     { value: 'invited', label: 'Invited' },
-    { value: 'suspended', label: 'Suspended' },
 ];
 
 const statusTone: Record<AdminAccountRow['status'], 'success' | 'warning' | 'danger'> = {
     active: 'success',
     invited: 'warning',
     suspended: 'danger',
+};
+
+const statusLabel: Record<AdminAccountRow['status'], string> = {
+    active: 'Active',
+    invited: 'Invited',
+    suspended: 'Not active',
 };
 
 const columns: TableColumn[] = [
@@ -143,7 +119,7 @@ const rows = computed<TableRow[]>(() =>
         branch: user.branch,
         statusLabel: {
             kind: 'badge',
-            text: user.status.charAt(0).toUpperCase() + user.status.slice(1),
+            text: statusLabel[user.status],
             tone: statusTone[user.status],
         },
         createdAt: user.createdAt,
@@ -152,22 +128,16 @@ const rows = computed<TableRow[]>(() =>
     })),
 );
 
-function openEditByRow(row: TableRow) {
-    const user = users.value.find((entry) => String(entry.id) === row.id);
-
-    if (!user) {
-        return;
-    }
-
-    openEdit(user);
+function accountForRow(row: TableRow): AdminAccountRow | undefined {
+    return users.value.find((entry) => String(entry.id) === row.id);
 }
 
-// function viewProfile(row: TableRow) {
-//     const userId = row.id;
-//     router.visit(`/admin/accounts/${userId}`);
-// }
+function openEditByRow(row: TableRow): void {
+    const user = accountForRow(row);
+    if (user) openEdit(user);
+}
 
-const resetForm = () => {
+function resetForm(): void {
     editingId.value = null;
     form.reset();
     form.clearErrors();
@@ -178,17 +148,14 @@ const resetForm = () => {
     form.status = 'active';
     form.password = '';
     form.password_confirmation = '';
-    // profileForm.reset();
-    // profileForm.bio = '';
-    // profileForm.profile_picture = null;
-};
+}
 
-const openCreate = () => {
+function openCreate(): void {
     resetForm();
     isFormOpen.value = true;
-};
+}
 
-const openEdit = (user: AdminAccountRow) => {
+function openEdit(user: AdminAccountRow): void {
     editingId.value = user.id;
     form.name = user.name;
     form.email = user.email;
@@ -197,23 +164,34 @@ const openEdit = (user: AdminAccountRow) => {
     form.status = user.status;
     form.password = '';
     form.password_confirmation = '';
-    // profileForm.bio = user.bio ?? '';
-    // profileForm.profile_picture = null;
     isFormOpen.value = true;
-};
+}
 
-// function onProfilePictureChange(event: Event) {
-//     const target = event.target as HTMLInputElement;
-//     profileForm.profile_picture = target.files?.[0] ?? null;
-// }
+function generatePassword(): void {
+    const lowerChars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 
-function generatePassword() {
-    const generated = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4).toUpperCase() + '!';
+    const secureRandomString = (length: number, charset: string): string => {
+        const result: string[] = [];
+        const maxValid = Math.floor(0x100000000 / charset.length) * charset.length;
+
+        while (result.length < length) {
+            const randomValues = new Uint32Array(1);
+            window.crypto.getRandomValues(randomValues);
+            const value = randomValues[0];
+
+            if (value < maxValid) result.push(charset[value % charset.length]);
+        }
+
+        return result.join('');
+    };
+
+    const generated = `${secureRandomString(8, lowerChars)}${secureRandomString(4, upperChars)}!`;
     form.password = generated;
     form.password_confirmation = generated;
 }
 
-const submit = () => {
+function submit(): void {
     const payload = {
         name: form.name,
         email: form.email,
@@ -222,7 +200,6 @@ const submit = () => {
         password: form.password,
         password_confirmation: form.password_confirmation,
     };
-
     const options = {
         preserveScroll: true,
         onSuccess: () => {
@@ -232,33 +209,36 @@ const submit = () => {
     };
 
     if (editingId.value !== null) {
-        form.transform(() => payload).put(`/admin/accounts/${editingId.value}`, options);
-
+        form.transform(() => payload).put(adminAccountUpdate.url(editingId.value), options);
         return;
     }
 
-    form.transform(() => payload).post('/admin/accounts', options);
-};
+    form.transform(() => payload).post(adminAccountStore.url(), options);
+}
 
-// function saveRosterProfile() {
-//     if (editingId.value === null) return;
-//     profileForm.post(`/admin/accounts/${editingId.value}/profile`, {
-//         forceFormData: true,
-//         preserveScroll: true,
-//     });
-// }
-
-function isInvitedRow(row: TableRow) {
+function isInvitedRow(row: TableRow): boolean {
     return row.statusValue === 'invited';
 }
 
-function resendInvitation(row: TableRow) {
-    const id = Number(row.id);
-    if (!id) return;
-    router.post(`/admin/accounts/${id}/invitation`, {}, { preserveScroll: true });
+function canToggleActiveState(row: TableRow): boolean {
+    return row.deletedAt === '-' && !isInvitedRow(row);
 }
 
-function deleteAccount(row: TableRow) {
+function toggleAccountStatus(row: TableRow): void {
+    const id = Number(row.id);
+    if (!id || !canToggleActiveState(row)) return;
+
+    const nextStatus = row.statusValue === 'active' ? 'suspended' : 'active';
+    router.put(`/admin/accounts/${id}/status`, { status: nextStatus }, { preserveScroll: true });
+}
+
+function resendInvitation(row: TableRow): void {
+    const id = Number(row.id);
+    if (!id) return;
+    router.post(adminAccountInvitationResend.url(id), {}, { preserveScroll: true });
+}
+
+function deleteAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     pendingConfirmation.value = {
@@ -270,13 +250,13 @@ function deleteAccount(row: TableRow) {
     };
 }
 
-function restoreAccount(row: TableRow) {
+function restoreAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
-    router.put(`/admin/accounts/${id}/restore`, {}, { preserveScroll: true });
+    router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
 }
 
-function hardDeleteAccount(row: TableRow) {
+function hardDeleteAccount(row: TableRow): void {
     const id = Number(row.id);
     if (!id) return;
     pendingConfirmation.value = {
@@ -288,32 +268,26 @@ function hardDeleteAccount(row: TableRow) {
     };
 }
 
-function cancelPendingConfirmation() {
+function cancelPendingConfirmation(): void {
     pendingConfirmation.value = null;
 }
 
-function handleConfirmationOpenChange(open: boolean) {
-    if (!open) {
-        cancelPendingConfirmation();
-    }
+function handleConfirmationOpenChange(open: boolean): void {
+    if (!open) cancelPendingConfirmation();
 }
 
-function confirmPendingAction() {
+function confirmPendingAction(): void {
     const confirmation = pendingConfirmation.value;
     if (!confirmation) return;
 
     pendingConfirmation.value = null;
 
     if (confirmation.kind === 'hard-delete') {
-        router.delete(`/admin/accounts/${confirmation.id}/hard-delete`, {
-            preserveScroll: true,
-        });
+        router.delete(adminAccountForceDelete.url(confirmation.id), { preserveScroll: true });
         return;
     }
 
-    router.delete(`/admin/accounts/${confirmation.id}`, {
-        preserveScroll: true,
-    });
+    router.delete(adminAccountDestroy.url(confirmation.id), { preserveScroll: true });
 }
 </script>
 
@@ -338,7 +312,7 @@ function confirmPendingAction() {
                 </Alert>
 
                 <DialogFooter class="gap-2 sm:justify-end">
-                    <Button type="button" variant="outline" @click="cancelPendingConfirmation"> Cancel </Button>
+                    <Button type="button" variant="outline" @click="cancelPendingConfirmation">Cancel</Button>
                     <Button
                         v-if="pendingConfirmation"
                         type="button"
@@ -350,35 +324,51 @@ function confirmPendingAction() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard v-for="metric in stats" :key="metric.label" v-bind="metric" />
-        </div>
-        
+
         <ResourceTablePanel
             eyebrow="Admin panel"
-            title="User Account Directory"
-            description="Modeled after the JTE admin workspace: one place to review account types, manage access, and prepare new users for onboarding."
-            create-label="New account"
+            title="User Management"
+            description="Create accounts here and set every non-invited account to Active or Not active. Profile pages remain responsible for role-specific details."
+            create-label="Create user"
             table-title="Account roster"
-            table-description="A role-based management table for admins, coaches, parents, and athletes. This is the same operating shape as your JTE panel, adapted to RF IS roles."
+            table-description="A role-based management table for admins, coaches, parents, and athletes."
             :columns="columns"
             :rows="rows"
             empty-text="No accounts available yet."
             action-label="Action"
+            searchable
+            search-placeholder="Search users by name, email, role, branch, or status"
             @create="openCreate"
         >
+            <template #actions>
+                <Button type="button" class="gap-2" @click="openCreate">
+                    <Plus class="size-4" />
+                    Add new user
+                </Button>
+            </template>
 
             <template #row-actions="{ row }">
-                <div class="flex justify-end gap-2">
-                    <!-- <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="viewProfile(row)">
-                        <UserRoundCog class="size-4" />
-                        View Profile -->
+                <div class="flex flex-wrap justify-end gap-2">
                     <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
                         <PencilLine class="size-4" />
                         Edit
                     </Button>
-                    <Button v-if="row.deletedAt === '-' && isInvitedRow(row)" variant="outline" @click="resendInvitation(row)">
+                    <Button
+                        v-if="canToggleActiveState(row)"
+                        variant="outline"
+                        class="gap-2"
+                        :title="row.statusValue === 'active' ? 'Mark account as not active' : 'Activate account'"
+                        @click="toggleAccountStatus(row)"
+                    >
+                        <PowerOff v-if="row.statusValue === 'active'" class="size-4" />
+                        <Power v-else class="size-4" />
+                        {{ row.statusValue === 'active' ? 'Not active' : 'Activate' }}
+                    </Button>
+                    <Button
+                        v-if="row.deletedAt === '-' && isInvitedRow(row)"
+                        variant="outline"
+                        @click="resendInvitation(row)"
+                    >
                         Resend invite
                     </Button>
                     <Button v-if="row.deletedAt === '-'" variant="destructive" @click="deleteAccount(row)"
@@ -398,11 +388,11 @@ function confirmPendingAction() {
             <DialogHeader>
                 <DialogTitle class="flex items-center gap-2">
                     <UserRoundCog class="size-5" />
-                    {{ editingId !== null ? 'Edit account' : 'Create account' }}
+                    {{ editingId !== null ? 'Edit account' : 'Create user account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    The form layout follows your JTE admin panel pattern and is ready to connect to Laravel actions
-                    later.
+                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent,
+                    athlete, or admin.
                 </DialogDescription>
             </DialogHeader>
 
@@ -410,57 +400,36 @@ function confirmPendingAction() {
                 <div class="grid gap-2">
                     <Label for="admin-name">Full name</Label>
                     <Input id="admin-name" v-model="form.name" placeholder="Enter full name" />
-                    <p v-if="form.errors.name" class="text-sm text-destructive">
-                        {{ form.errors.name }}
-                    </p>
+                    <p v-if="form.errors.name" class="text-sm text-destructive">{{ form.errors.name }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-email">Email</Label>
                     <Input id="admin-email" v-model="form.email" placeholder="name@example.com" />
-                    <p v-if="form.errors.email" class="text-sm text-destructive">
-                        {{ form.errors.email }}
-                    </p>
+                    <p v-if="form.errors.email" class="text-sm text-destructive">{{ form.errors.email }}</p>
                 </div>
-                <div class="grid gap-2 md:col-span-2">
-                    <Label>Roles</Label>
-                    <div class="grid gap-2 rounded-md border border-input p-3">
-                        <label
-                            v-for="option in roleOptions"
-                            :key="option.value"
-                            class="flex items-center gap-2 text-sm"
-                        >
-                            <input
-                                type="checkbox"
-                                :checked="form.roles.includes(option.value as AdminAccountRole)"
-                                @change="
-                                    ($event) => {
-                                        const role = option.value as AdminAccountRole;
-                                        if (($event.target as HTMLInputElement).checked) {
-                                            if (!form.roles.includes(role)) form.roles.push(role);
-                                        } else {
-                                            form.roles = form.roles.filter((entry) => entry !== role);
-                                        }
-                                    }
-                                "
-                            />
-                            <span>{{ option.label }}</span>
-                        </label>
-                    </div>
-                    <p v-if="rolesError" class="text-sm text-destructive">
-                        {{ rolesError }}
-                    </p>
-                </div>
+                <FormSelectField
+                    id="admin-roles"
+                    v-model="form.roles"
+                    class="md:col-span-2"
+                    label="Roles"
+                    :options="roleOptions"
+                    placeholder="Select one or more roles"
+                    help="Select multiple roles when one account needs more than one permission/profile."
+                    multiple
+                    :error="rolesError"
+                />
                 <FormSelectField
                     id="admin-status"
                     v-model="form.status"
-                    label="Status"
+                    label="Account state"
                     :options="statusOptions"
+                    help="Active accounts can sign in. Not active accounts are blocked immediately."
                     :error="form.errors.status"
                 />
                 <div class="grid gap-2">
                     <div class="flex items-center justify-between gap-3">
                         <Label for="admin-password">Password</Label>
-                        <Button type="button" variant="outline" size="sm" @click="generatePassword"> Generate </Button>
+                        <Button type="button" variant="outline" size="sm" @click="generatePassword">Generate</Button>
                     </div>
                     <Input
                         id="admin-password"
@@ -474,9 +443,7 @@ function confirmPendingAction() {
                                   : 'Set initial password'
                         "
                     />
-                    <p v-if="form.errors.password" class="text-sm text-destructive">
-                        {{ form.errors.password }}
-                    </p>
+                    <p v-if="form.errors.password" class="text-sm text-destructive">{{ form.errors.password }}</p>
                 </div>
                 <div class="grid gap-2">
                     <Label for="admin-password-confirmation">Confirm password</Label>
@@ -487,30 +454,10 @@ function confirmPendingAction() {
                         placeholder="Repeat password"
                     />
                 </div>
-                <!-- <div class="grid gap-2 md:col-span-2">
-                    <Label for="admin-branch">Branch</Label>
-                    <Input id="admin-branch" v-model="form.branch" placeholder="Branch is derived from linked role records" disabled />
-                    <p class="text-sm text-muted-foreground">
-                        Branch is currently read-only here and comes from the linked athlete, coach, or child records in the database.
-                    </p>
-                </div> -->
-                <!-- <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
-                    <Label for="admin-bio">Bio</Label>
-                    <textarea id="admin-bio" v-model="profileForm.bio" rows="3" class="rounded-md border border-input bg-background px-3 py-2 text-sm" />
-                    <p v-if="profileForm.errors.bio" class="text-sm text-destructive">{{ profileForm.errors.bio }}</p>
-                </div>
-                <div v-if="editingId !== null" class="grid gap-2 md:col-span-2">
-                    <Label for="admin-profile-picture">Profile picture</Label>
-                    <Input id="admin-profile-picture" type="file" accept="image/*" @change="onProfilePictureChange" />
-                    <p v-if="profileForm.errors.profile_picture" class="text-sm text-destructive">{{ profileForm.errors.profile_picture }}</p>
-                </div> -->
             </div>
 
             <DialogFooter class="gap-2">
                 <Button variant="outline" @click="isFormOpen = false">Cancel</Button>
-                <!-- <Button v-if="editingId !== null" variant="outline" :disabled="profileForm.processing" @click="saveRosterProfile">
-                    Save profile
-                </Button> -->
                 <Button :disabled="form.processing" @click="submit">
                     {{ editingId !== null ? 'Save changes' : 'Create account' }}
                 </Button>

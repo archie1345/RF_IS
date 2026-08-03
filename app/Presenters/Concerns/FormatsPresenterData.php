@@ -15,6 +15,6 @@ trait FormatsPresenterData
 
     protected function rupiah(float $amount): string
     {
-        return 'Rp'.number_format($amount, 0, ',', '.');
+        return 'Rp '.number_format($amount, 0, ',', '.');
     }
 }

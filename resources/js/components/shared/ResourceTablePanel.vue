@@ -4,7 +4,7 @@ import { useSlots } from 'vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import type { TableColumn, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
     defineProps<{
@@ -21,9 +21,20 @@ const props = withDefaults(
         showCreate?: boolean;
         searchable?: boolean;
         searchPlaceholder?: string;
+        paginate?: boolean;
+        initialLimit?: number;
+        pageSize?: number;
+        filters?: TableFilter[];
+        filterable?: boolean;
     }>(),
     {
         showCreate: true,
+        searchable: false,
+        paginate: true,
+        initialLimit: 10,
+        pageSize: 10,
+        filters: () => [],
+        filterable: false,
     },
 );
 
@@ -43,11 +54,12 @@ const slots = useSlots();
             :description="props.description ?? ''"
         >
             <template #actions>
-                <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
-                    <Plus class="size-4" />
-                    {{ props.createLabel ?? 'Create' }}
-                </Button>
-                <slot v-else name="actions" />
+                <slot name="actions">
+                    <Button v-if="props.showCreate" class="gap-2" @click="$emit('create')">
+                        <Plus class="size-4" />
+                        {{ props.createLabel ?? 'Create' }}
+                    </Button>
+                </slot>
             </template>
 
             <slot name="stats" />
@@ -62,6 +74,12 @@ const slots = useSlots();
             :action-label="props.actionLabel"
             :searchable="props.searchable"
             :search-placeholder="props.searchPlaceholder"
+            :paginate="props.paginate"
+            :show-rows-per-page="props.paginate"
+            :initial-limit="props.initialLimit"
+            :page-size="props.pageSize"
+            :filters="props.filters"
+            :filterable="props.filterable"
         >
             <template #row-actions="{ row }">
                 <slot name="row-actions" :row="row" />

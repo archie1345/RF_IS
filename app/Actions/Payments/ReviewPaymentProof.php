@@ -12,31 +12,50 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewPaymentProof
 {
-    public function __construct(private readonly PaymentRowPresenter $paymentRows)
-    {
-    }
+    public function __construct(private readonly PaymentRowPresenter $paymentRows) {}
 
     public function handle(Payment $payment, User $reviewer, array $validated): Payment
     {
-        if (($payment->proof_status ?? PaymentStatus::PROOF_NONE) !== PaymentStatus::PROOF_SUBMITTED) {
-            throw ValidationException::withMessages([
-                'proof_review' => 'A user must upload payment proof before it can be approved or rejected.',
-            ]);
-        }
+        return DB::transaction(function () use ($payment, $reviewer, $validated): Payment {
+            $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->payment_id);
 
-        if ($validated['decision'] === PaymentStatus::PROOF_APPROVED) {
-            return $this->approve($payment, $reviewer, $validated);
-        }
+            if (($lockedPayment->proof_status ?? PaymentStatus::PROOF_NONE) !== PaymentStatus::PROOF_SUBMITTED) {
+                throw ValidationException::withMessages([
+                    'proof_review' => 'A user must upload payment proof before it can be approved or rejected.',
+                ]);
+            }
 
-        return DB::transaction(function () use ($payment, $validated): Payment {
-            $payment->update([
-                'proof_status' => PaymentStatus::PROOF_REJECTED,
-                'proof_notes' => $validated['notes'] ?? null,
-                'proof_path' => $payment->proof_path,
-            ]);
+            if ($validated['decision'] === PaymentStatus::PROOF_REJECTED) {
+                return $this->reject($lockedPayment, $reviewer, $validated);
+            }
 
-            return $payment->refresh();
+            return $this->approve($lockedPayment, $reviewer, $validated);
         });
+    }
+
+    private function reject(Payment $payment, User $reviewer, array $validated): Payment
+    {
+        PaymentTransaction::query()->create([
+            'payment_id' => $payment->payment_id,
+            'verified_by' => $reviewer->id,
+            'amount' => 0,
+            'transaction_date' => now(),
+            'transaction_type' => PaymentTransaction::TYPE_PROOF_REJECTED,
+            'payment_method' => $this->paymentRows->extractCollectionMethod($payment),
+            'notes' => filled($validated['notes'] ?? null)
+                ? 'Payment proof rejected: '.trim((string) $validated['notes'])
+                : 'Payment proof rejected.',
+            'proof_path' => $payment->proof_path,
+            'proof_disk' => $payment->proofStorageDisk(),
+            'proof_notes' => $payment->proof_notes,
+        ]);
+
+        $payment->update([
+            'proof_status' => PaymentStatus::PROOF_REJECTED,
+            'proof_notes' => $validated['notes'] ?? null,
+        ]);
+
+        return $payment->refresh();
     }
 
     private function approve(Payment $payment, User $reviewer, array $validated): Payment
@@ -59,44 +78,50 @@ class ReviewPaymentProof
         $newPaid = min($currentPaid + $amountToApprove, $total);
         $newRemaining = max($total - $newPaid, 0);
         $reviewedProofPath = $payment->proof_path;
+        $reviewedProofDisk = $payment->proofStorageDisk();
         $submittedProofNotes = $payment->proof_notes;
         $previousPaymentStatus = $payment->status ?? PaymentStatus::PENDING;
         $previousProofStatus = $payment->proof_status ?? PaymentStatus::PROOF_NONE;
 
-        return DB::transaction(function () use ($payment, $reviewer, $validated, $amountToApprove, $newPaid, $newRemaining, $reviewedProofPath, $submittedProofNotes, $previousPaymentStatus, $previousProofStatus): Payment {
-            PaymentTransaction::query()->create([
-                'payment_id' => $payment->payment_id,
-                'verified_by' => $reviewer->id,
-                'amount' => $amountToApprove,
-                'transaction_date' => now(),
-                'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
-                'payment_method' => $this->paymentRows->extractCollectionMethod($payment->notes),
-                'notes' => $this->proofReviewTransactionNotes($validated['notes'] ?? null, $submittedProofNotes, $previousPaymentStatus, $previousProofStatus, $newRemaining),
-                'proof_path' => $reviewedProofPath,
-                'proof_notes' => $submittedProofNotes,
-            ]);
+        PaymentTransaction::query()->create([
+            'payment_id' => $payment->payment_id,
+            'verified_by' => $reviewer->id,
+            'amount' => $amountToApprove,
+            'transaction_date' => now(),
+            'transaction_type' => PaymentTransaction::TYPE_PAYMENT,
+            'payment_method' => $this->paymentRows->extractCollectionMethod($payment),
+            'notes' => $this->proofReviewTransactionNotes(
+                $validated['notes'] ?? null,
+                $submittedProofNotes,
+                $previousPaymentStatus,
+                $previousProofStatus,
+                $newRemaining,
+            ),
+            'proof_path' => $reviewedProofPath,
+            'proof_disk' => $reviewedProofDisk,
+            'proof_notes' => $submittedProofNotes,
+        ]);
 
-            $payment->update([
-                'paid_amount' => $newPaid,
-                'remaining_amount' => $newRemaining,
-                'status' => $newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING,
-                'proof_status' => $newRemaining <= 0 ? PaymentStatus::PROOF_APPROVED : PaymentStatus::PROOF_NONE,
-                'proof_path' => $newRemaining <= 0 ? $reviewedProofPath : null,
-                'proof_notes' => $validated['notes'] ?? null,
-            ]);
+        $payment->update([
+            'paid_amount' => $newPaid,
+            'remaining_amount' => $newRemaining,
+            'status' => $newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING,
+            'proof_status' => $newRemaining <= 0 ? PaymentStatus::PROOF_APPROVED : PaymentStatus::PROOF_NONE,
+            'proof_path' => $newRemaining <= 0 ? $reviewedProofPath : null,
+            'proof_disk' => $reviewedProofDisk,
+            'proof_notes' => $newRemaining <= 0 ? ($validated['notes'] ?? null) : null,
+        ]);
 
-            return $payment->refresh();
-        });
+        return $payment->refresh();
     }
 
     private function proofReviewTransactionNotes(?string $adminNotes, ?string $submittedNotes, string $previousPaymentStatus, string $previousProofStatus, float $newRemaining): string
     {
         return collect([
-            'Proof approved.',
+            filled($adminNotes) ? 'Proof approved: '.$adminNotes : 'Proof approved.',
             'Previous payment status: '.$previousPaymentStatus.'.',
             'Previous proof status: '.$previousProofStatus.'.',
             'New payment state: '.($newRemaining <= 0 ? PaymentStatus::COMPLETED : PaymentStatus::PENDING).'.',
-            filled($adminNotes) ? 'Proof approved: '.$adminNotes : null,
             filled($submittedNotes) ? 'Submitted note: '.$submittedNotes : null,
         ])->filter()->implode("\n");
     }

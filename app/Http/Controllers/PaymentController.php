@@ -2,117 +2,61 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Actions\Payments\CreatePayment;
+use App\Actions\Payments\RecordManualPayment;
 use App\Actions\Payments\ReviewPaymentProof;
 use App\Actions\Payments\SubmitPaymentProof;
 use App\Actions\Payments\UpdatePayment;
 use App\Actions\Payments\UpdatePaymentStatus;
+use App\Http\Requests\Payments\RecordManualPaymentRequest;
 use App\Http\Requests\Payments\ReviewPaymentProofRequest;
 use App\Http\Requests\Payments\StorePaymentRequest;
 use App\Http\Requests\Payments\SubmitPaymentProofRequest;
 use App\Http\Requests\Payments\UpdatePaymentRequest;
 use App\Http\Requests\Payments\UpdatePaymentStatusRequest;
-use App\Models\Athlete;
 use App\Models\InvoiceTemplate;
 use App\Models\Payment;
-use App\Models\User;
-use App\Support\ActivityLogger;
-use App\Services\PaymentVisibilityService;
 use App\Presenters\PaymentRowPresenter;
+use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class PaymentController extends Controller
 {
-    use FormatsPresentationData;
-
     public function __construct(
-        private readonly PaymentVisibilityService $paymentVisibility,
         private readonly PaymentRowPresenter $paymentRows,
         private readonly CreatePayment $createPayment,
         private readonly UpdatePayment $updatePayment,
+        private readonly RecordManualPayment $recordManualPayment,
         private readonly SubmitPaymentProof $submitPaymentProof,
         private readonly ReviewPaymentProof $reviewPaymentProof,
         private readonly UpdatePaymentStatus $updatePaymentStatus,
-    ) {
-    }
-
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-        $invoiceTemplate = Schema::hasTable('invoice_templates')
-            ? InvoiceTemplate::query()->firstOrCreate(
-                ['name' => 'default'],
-                [
-                    'company_name' => 'RF IS',
-                    'payment_notes' => 'Please pay using the method agreed with the admin, then upload a clear receipt or transfer screenshot here.',
-                ],
-            )
-            : null;
-
-        $payments = $this->paymentVisibility->visiblePaymentsQuery($request)
-            ->with([
-                'athlete.user:id,name,phone',
-                'billableUser:id,name,phone',
-                'payeeUser:id,name,phone',
-                'transactions.verifier:id,name',
-            ])
-            ->latest('payment_date')
-            ->get();
-
-        return Inertia::render('PaymentsPage', [
-            'isAdmin' => (bool) $user?->isAdmin(),
-            'canSubmitPaymentProof' => (bool) ($user?->isAthlete() || $user?->isParent()),
-            'coachPaymentLimitation' => $user?->isCoach() ? 'Coach payment uploads are hidden. This installation only safely supports coach salary/payment history records, not coach proof uploads.' : null,
-            'metrics' => [
-                ['label' => 'Approved payments', 'value' => $this->rupiah((float) $payments->sum('paid_amount')), 'detail' => 'Receipts approved or marked paid', 'tone' => 'success'],
-                ['label' => 'Outstanding balance', 'value' => $this->rupiah((float) $payments->sum('remaining_amount')), 'detail' => 'Still open across all active invoices', 'tone' => 'warning'],
-                ['label' => 'Open payment items', 'value' => (string) $payments->where('remaining_amount', '>', 0)->count(), 'detail' => 'Invoices still waiting for completion', 'tone' => 'info'],
-            ],
-            'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
-            'athletes' => Athlete::query()
-                ->with('user:id,name')
-                ->get()
-                ->map(fn (Athlete $athlete) => ['value' => $athlete->athlete_id, 'label' => $athlete->user?->name ?? 'Unknown athlete'])
-                ->sortBy('label')
-                ->values(),
-            'users' => User::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user) => ['value' => $user->id, 'label' => trim($user->name.' - '.$user->email)])
-                ->values(),
-            'coaches' => User::query()
-                ->whereHas('roleAssignments', fn ($query) => $query->where('role', 'coach'))
-                ->orWhere('role', 'coach')
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user) => ['value' => $user->id, 'label' => trim($user->name.' - '.$user->email)])
-                ->values(),
-            'invoiceTemplate' => $invoiceTemplate,
-            'paymentInstructions' => $invoiceTemplate?->payment_notes
-                ?: 'Please pay using the method agreed with the admin, then upload a clear receipt or transfer screenshot here.',
-        ]);
-    }
+    ) {}
 
     public function submitProof(SubmitPaymentProofRequest $request, Payment $payment): RedirectResponse
     {
         $validated = $request->validated();
-
-        $user = $request->user();
         $payment->loadMissing(['athlete.user', 'billableUser', 'payeeUser']);
         $this->authorize('submitProof', $payment);
 
-        if ((float) ($payment->remaining_amount ?? 0) <= 0.0) {
-            return back()->withErrors(['proof_file' => 'This bill is already marked as paid.']);
-        }
+        $payment = $this->submitPaymentProof->handle(
+            $payment,
+            $request->user(),
+            $request->file('proof_file'),
+            $validated['notes'] ?? null,
+        );
 
-        $payment = $this->submitPaymentProof->handle($payment, $user, $request->file('proof_file'), $validated['notes'] ?? null);
+        ActivityLogger::log(
+            $request,
+            'payment.proof.submitted',
+            'payment',
+            'Submitted payment proof for review',
+            $payment,
+            ['invoice_number' => $payment->invoice_number, 'remaining_amount' => $payment->remaining_amount],
+        );
 
         return redirect()->route('payments.index');
     }
@@ -121,8 +65,41 @@ class PaymentController extends Controller
     {
         $this->authorize('reviewProof', $payment);
         $validated = $request->validated();
-
         $payment = $this->reviewPaymentProof->handle($payment, $request->user(), $validated);
+
+        ActivityLogger::log(
+            $request,
+            'payment.proof.reviewed',
+            'payment',
+            'Reviewed payment proof',
+            $payment,
+            [
+                'decision' => $validated['decision'],
+                'approved_amount' => $validated['approved_amount'] ?? null,
+                'remaining_amount' => $payment->remaining_amount,
+            ],
+        );
+
+        return redirect()->route('payments.index');
+    }
+
+    public function recordPayment(RecordManualPaymentRequest $request, Payment $payment): RedirectResponse
+    {
+        $this->authorize('recordPayment', $payment);
+        $payment = $this->recordManualPayment->handle($payment, $request->user(), $request->validated());
+
+        ActivityLogger::log(
+            $request,
+            'payment.transaction.recorded',
+            'payment',
+            'Recorded a manual payment transaction',
+            $payment,
+            [
+                'amount' => $request->validated('amount'),
+                'payment_method' => $request->validated('payment_method'),
+                'remaining_amount' => $payment->remaining_amount,
+            ],
+        );
 
         return redirect()->route('payments.index');
     }
@@ -138,7 +115,12 @@ class PaymentController extends Controller
             'payment',
             'Created payment record',
             $payment,
-            ['athlete_id' => $payment->athlete_id, 'remaining_amount' => $payment->remaining_amount],
+            [
+                'invoice_number' => $payment->invoice_number,
+                'athlete_id' => $payment->athlete_id,
+                'total_amount' => $payment->total_amount,
+                'due_date' => optional($payment->due_date)->toDateString(),
+            ],
         );
 
         return redirect()->route('payments.index');
@@ -155,7 +137,12 @@ class PaymentController extends Controller
             'payment',
             'Updated payment record',
             $payment,
-            ['athlete_id' => $payment->athlete_id, 'remaining_amount' => $payment->remaining_amount],
+            [
+                'invoice_number' => $payment->invoice_number,
+                'total_amount' => $payment->total_amount,
+                'remaining_amount' => $payment->remaining_amount,
+                'due_date' => optional($payment->due_date)->toDateString(),
+            ],
         );
 
         return redirect()->route('payments.index');
@@ -164,14 +151,21 @@ class PaymentController extends Controller
     public function destroy(Request $request, Payment $payment): RedirectResponse
     {
         $this->authorize('delete', $payment);
+        $payment->loadCount('transactions');
+
+        if ($payment->transactions_count > 0 || filled($payment->proof_path) || (float) ($payment->paid_amount ?? 0) > 0) {
+            return back()->withErrors([
+                'payment' => 'This bill has financial history and cannot be deleted. Keep it for audit purposes or change its status instead.',
+            ]);
+        }
 
         ActivityLogger::log(
             $request,
             'payment.deleted',
             'payment',
-            'Deleted payment record',
+            'Deleted unused payment record',
             $payment,
-            ['athlete_id' => $payment->athlete_id],
+            ['invoice_number' => $payment->invoice_number, 'athlete_id' => $payment->athlete_id],
         );
 
         $payment->delete();
@@ -179,39 +173,42 @@ class PaymentController extends Controller
         return redirect()->route('payments.index');
     }
 
-
     public function exportInvoice(Request $request, Payment $payment)
     {
         $this->authorize('exportInvoice', $payment);
         $payment->loadMissing(['athlete.user:id,name,email', 'billableUser:id,name,email', 'payeeUser:id,name,email']);
 
         $template = Schema::hasTable('invoice_templates')
-            ? InvoiceTemplate::query()->firstOrCreate(
-                ['name' => 'default'],
-                ['company_name' => 'RF IS'],
-            )
-            : (object) [
-                'company_name' => 'RF IS',
-                'company_address' => null,
-                'company_phone' => null,
-                'company_email' => null,
-                'logo_url' => null,
-                'header_text' => null,
-                'footer_text' => null,
-                'payment_notes' => null,
-            ];
+            ? InvoiceTemplate::query()->first()
+            : null;
+        $template ??= new InvoiceTemplate([
+            'name' => 'default',
+            'company_name' => 'RF IS',
+        ]);
 
+        $isPayroll = strtoupper((string) $payment->bill_kind) === 'PAYROLL';
         $invoiceData = [
-            'invoice_number' => 'INV-'.$payment->payment_id,
+            'is_payroll' => $isPayroll,
+            'document_title' => $isPayroll ? 'SLIP PEMBAYARAN PAYROLL' : 'INVOICE',
+            'recipient_label' => $isPayroll ? 'Dibayarkan kepada' : 'Ditagihkan kepada',
+            'invoice_number' => $payment->invoice_number ?: ($isPayroll ? 'PAY-' : 'INV-').$payment->payment_id,
             'invoice_date' => optional($payment->payment_date)->format('d M Y') ?? now()->format('d M Y'),
+            'due_date' => optional($payment->due_date)->format('d M Y') ?? '-',
+            'collection_method' => $payment->collection_method ?? 'TRANSFER',
             'athlete_name' => $this->paymentRows->subject($payment),
             'athlete_email' => $payment->athlete?->user?->email ?? $payment->billableUser?->email ?? $payment->payeeUser?->email ?? '-',
-            'payment_type' => Str::headline(strtolower((string) $payment->payment_type)),
-            'status' => $payment->status,
+            'payment_type' => $isPayroll ? 'Honor pelatih' : Str::headline(strtolower((string) $payment->payment_type)),
+            'status' => $isPayroll && (float) $payment->remaining_amount <= 0 ? 'PAID' : $payment->status,
             'total_amount' => (float) ($payment->total_amount ?? $payment->amount),
             'paid_amount' => (float) ($payment->paid_amount ?? 0),
             'remaining_amount' => (float) ($payment->remaining_amount ?? 0),
             'notes' => $payment->notes,
+            'payroll_period' => $payment->payroll_period?->translatedFormat('F Y'),
+            'payroll_basis' => $this->payrollBasisLabel((string) $payment->payroll_basis_type),
+            'payroll_units' => $payment->payroll_units,
+            'payroll_rate' => (float) ($payment->payroll_rate ?? 0),
+            'payroll_base_amount' => (float) ($payment->payroll_base_amount ?? 0),
+            'payroll_bonus_amount' => (float) ($payment->payroll_bonus_amount ?? 0),
         ];
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
@@ -220,9 +217,9 @@ class PaymentController extends Controller
                 'invoice' => $invoiceData,
             ])->setPaper('a4');
 
-            ActivityLogger::log($request, 'payment.invoice.exported', 'payment', 'Exported invoice PDF', $payment);
+            ActivityLogger::log($request, 'payment.invoice.exported', 'payment', 'Exported invoice or payroll receipt PDF', $payment);
 
-            return $pdf->download('invoice_'.$payment->payment_id.'.pdf');
+            return $pdf->download(strtolower($invoiceData['invoice_number']).'.pdf');
         }
 
         $html = view('pdf.invoice', [
@@ -237,7 +234,8 @@ class PaymentController extends Controller
             200,
             [
                 'Content-Type' => 'text/html; charset=UTF-8',
-                'Content-Disposition' => 'attachment; filename="invoice_'.$payment->payment_id.'.html"',
+                'Content-Disposition' => 'attachment; filename="'.strtolower($invoiceData['invoice_number']).'.html"',
+                'X-Content-Type-Options' => 'nosniff',
             ],
         );
     }
@@ -246,13 +244,25 @@ class PaymentController extends Controller
     {
         $this->authorize('updateStatus', $payment);
         $validated = $request->validated();
-        $payment = $this->updatePaymentStatus->handle($payment, $validated['status']);
+        $payment = $this->updatePaymentStatus->handle($payment, $request->user(), $validated['status']);
 
         ActivityLogger::log($request, 'payment.status.updated', 'payment', 'Updated payment status manually', $payment, [
             'new_status' => $payment->status,
+            'remaining_amount' => $payment->remaining_amount,
         ]);
 
         return redirect()->route('payments.index');
     }
 
+    private function payrollBasisLabel(string $basis): string
+    {
+        return match ($basis) {
+            'SESSION' => 'Jumlah sesi × tarif per sesi',
+            'HOUR' => 'Jumlah jam × tarif per jam',
+            'MONTH' => 'Jumlah bulan × tarif bulanan',
+            'FIXED' => 'Nominal tetap',
+            'CUSTOM' => 'Nominal kustom',
+            default => '-',
+        };
+    }
 }

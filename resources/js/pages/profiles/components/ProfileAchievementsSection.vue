@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
-import { FileText, PencilLine } from 'lucide-vue-next';
+import { router, useForm } from '@inertiajs/vue3';
+import { FileText, PencilLine, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import { documentFileAccept, medalOptions } from '@/pages/profiles/profileOptions';
 import { achievementColumns, achievementRows } from '@/pages/profiles/profileTables';
 import type { ProfileAchievement } from '@/pages/profiles/types';
@@ -19,8 +21,19 @@ const props = defineProps<{
     storeUrl: string;
     updateUrl: (id: number | string) => string;
 }>();
+const popup = useAppPopup();
 
-const rows = computed(() => achievementRows(props.achievements));
+const rows = computed(() =>
+    achievementRows(props.achievements).map((row) => {
+        const achievement = props.achievements.find((item) => String(item.id) === String(row.id));
+
+        return {
+            ...row,
+            is_auto_recorded: achievement?.is_auto_recorded ?? false,
+        };
+    }),
+);
+const creatingAchievement = ref(false);
 const editingAchievement = ref<ProfileAchievement | null>(null);
 
 const achievementForm = useForm({
@@ -47,22 +60,35 @@ const achievementEditForm = useForm({
     file: null as File | null,
 });
 
-function addAchievement() {
+function openAchievementCreate(): void {
+    achievementForm.reset();
+    achievementForm.medal = 'NONE';
+    achievementForm.clearErrors();
+    creatingAchievement.value = true;
+}
+
+function closeAchievementCreate(): void {
+    creatingAchievement.value = false;
+    achievementForm.reset();
+    achievementForm.medal = 'NONE';
+    achievementForm.clearErrors();
+}
+
+function addAchievement(): void {
     achievementForm.post(props.storeUrl, {
         forceFormData: true,
         preserveScroll: true,
-        onSuccess: () => {
-            achievementForm.reset();
-            achievementForm.medal = 'NONE';
-        },
-        onError: (errors) => console.error('Achievement Errors:', errors),
+        onSuccess: closeAchievementCreate,
     });
 }
 
-function openAchievementEdit(row: TableRow) {
-    const achievement = props.achievements.find((item) => String(item.id) === String(row.id));
+function findAchievement(row: TableRow): ProfileAchievement | undefined {
+    return props.achievements.find((item) => String(item.id) === String(row.id));
+}
 
-    if (!achievement) return;
+function openAchievementEdit(row: TableRow): void {
+    const achievement = findAchievement(row);
+    if (!achievement || achievement.is_auto_recorded) return;
 
     editingAchievement.value = achievement;
     achievementEditForm.championship_name = achievement.championship_name ?? '';
@@ -77,43 +103,72 @@ function openAchievementEdit(row: TableRow) {
     achievementEditForm.clearErrors();
 }
 
-function closeAchievementEdit() {
+function closeAchievementEdit(): void {
     editingAchievement.value = null;
     achievementEditForm.reset();
     achievementEditForm.clearErrors();
 }
 
-function saveAchievementEdit() {
-    if (!editingAchievement.value) return;
+function saveAchievementEdit(): void {
+    if (!editingAchievement.value || editingAchievement.value.is_auto_recorded) return;
 
     achievementEditForm
         .transform((data) => ({ ...data, _method: 'put' }))
         .post(props.updateUrl(editingAchievement.value.id), {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => {
-                closeAchievementEdit();
-            },
-            onFinish: () => {
-                achievementEditForm.transform((data) => data);
-            },
+            onSuccess: closeAchievementEdit,
+            onFinish: () => achievementEditForm.transform((data) => data),
         });
+}
+
+async function removeAchievement(row: TableRow): Promise<void> {
+    const achievement = findAchievement(row);
+    if (!achievement || achievement.is_auto_recorded) return;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus prestasi?',
+        message: `Prestasi “${achievement.championship_name}” dan berkas pendukungnya akan dihapus dari profil.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus prestasi',
+    });
+    if (!confirmed) return;
+
+    router.delete(props.updateUrl(achievement.id), { preserveScroll: true });
 }
 </script>
 
 <template>
-    <div class="rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
-        <h4 class="mb-3 flex items-center gap-2 font-semibold">
-            <FileText class="h-4 w-4 text-muted-foreground" />
-            Achievements
-        </h4>
+    <div class="min-w-0 rounded-xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h4 class="flex items-center gap-2 font-semibold">
+                    <FileText class="h-4 w-4 text-muted-foreground" />
+                    Prestasi
+                </h4>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Prestasi manual dapat ditambahkan di sini; hasil kejuaraan resmi dicatat otomatis.
+                </p>
+            </div>
+            <Button
+                v-if="props.canManage"
+                type="button"
+                size="sm"
+                class="w-full gap-2 sm:w-auto"
+                @click="openAchievementCreate"
+            >
+                <Plus class="h-4 w-4" />
+                Tambah prestasi
+            </Button>
+        </div>
+
         <DataTable
-            title="Achievements"
-            description="View all achievements for this user."
+            title="Daftar Prestasi"
+            description="Prestasi otomatis mengikuti hasil kejuaraan dan tidak dapat diubah dari profil."
             :columns="achievementColumns"
             :rows="rows"
-            action-label="Manage"
-            empty-text="No achievements found."
+            action-label="Tindakan"
+            empty-text="Belum ada prestasi."
         >
             <template #cell="{ row, column, value }">
                 <a
@@ -124,150 +179,185 @@ function saveAchievementEdit() {
                 >
                     {{ value }}
                 </a>
+                <span v-else-if="column.key === 'championship_name' && row.is_auto_recorded">
+                    {{ value }}
+                    <span class="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                        Otomatis
+                    </span>
+                </span>
                 <span v-else>{{ value ?? '-' }}</span>
             </template>
             <template v-if="props.canManage" #row-actions="{ row }">
-                <Button type="button" variant="outline" size="sm" class="gap-2" @click="openAchievementEdit(row)">
-                    <PencilLine class="h-3.5 w-3.5" />
-                    Edit
-                </Button>
+                <ActionButtonsRow v-if="row.is_auto_recorded !== true">
+                    <Button type="button" variant="outline" size="sm" class="gap-2" @click="openAchievementEdit(row)">
+                        <PencilLine class="h-3.5 w-3.5" />
+                        Ubah
+                    </Button>
+                    <Button type="button" variant="destructive" size="sm" class="gap-2" @click="removeAchievement(row)">
+                        <Trash2 class="h-3.5 w-3.5" />
+                        Hapus
+                    </Button>
+                </ActionButtonsRow>
+                <span v-else class="text-xs text-muted-foreground">Dikelola dari hasil kejuaraan</span>
             </template>
         </DataTable>
-        <div v-if="props.canManage" class="mt-6 border-t border-border pt-4">
-            <h5 class="mb-2 font-medium">Add Achievement</h5>
-            <form class="grid gap-3" @submit.prevent="addAchievement">
-                <div class="grid gap-2 md:grid-cols-2">
+
+        <FormModal :open="creatingAchievement" max-width-class="max-w-2xl" @close="closeAchievementCreate">
+            <form class="grid min-w-0 gap-4" @submit.prevent="addAchievement">
+                <div>
+                    <h3 class="text-lg font-semibold">Tambah prestasi manual</h3>
+                    <p class="text-sm text-muted-foreground">
+                        Gunakan form ini untuk prestasi yang tidak berasal dari hasil kejuaraan di sistem.
+                    </p>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="ach-name"
                         v-model="achievementForm.championship_name"
-                        label="Championship name"
+                        label="Nama kejuaraan atau prestasi"
                         required
                         :error="achievementForm.errors.championship_name"
                     />
                     <FormSelectField
                         id="ach-medal"
                         v-model="achievementForm.medal"
-                        label="Medal"
+                        label="Medali"
                         :options="medalOptions"
+                        :error="achievementForm.errors.medal"
                     />
                 </div>
-                <div class="grid gap-2 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="ach-location"
                         v-model="achievementForm.location"
-                        label="Location"
+                        label="Lokasi"
                         :error="achievementForm.errors.location"
                     />
                     <FormInputField
                         id="ach-date"
                         v-model="achievementForm.event_date"
-                        label="Date"
+                        label="Tanggal"
                         type="date"
                         :error="achievementForm.errors.event_date"
                     />
                 </div>
-                <div class="grid gap-2 md:grid-cols-3">
-                    <FormInputField id="ach-class" v-model="achievementForm.class_name" label="Class name" />
-                    <FormInputField id="ach-division" v-model="achievementForm.division" label="Division" />
-                    <FormInputField id="ach-category" v-model="achievementForm.category" label="Category" />
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <FormInputField
+                        id="ach-class"
+                        v-model="achievementForm.class_name"
+                        label="Kelas"
+                        :error="achievementForm.errors.class_name"
+                    />
+                    <FormInputField
+                        id="ach-division"
+                        v-model="achievementForm.division"
+                        label="Divisi"
+                        :error="achievementForm.errors.division"
+                    />
+                    <FormInputField
+                        id="ach-category"
+                        v-model="achievementForm.category"
+                        label="Kategori"
+                        :error="achievementForm.errors.category"
+                    />
                 </div>
-                <FormInputField id="ach-notes" v-model="achievementForm.notes" label="Notes" />
+                <FormInputField
+                    id="ach-notes"
+                    v-model="achievementForm.notes"
+                    label="Catatan"
+                    :error="achievementForm.errors.notes"
+                />
                 <FormFileField
                     id="achievement-file"
                     v-model="achievementForm.file"
-                    label="Supporting File"
+                    label="Berkas pendukung"
                     :accept="documentFileAccept"
                     :error="achievementForm.errors.file"
                 />
-                <div>
-                    <Button type="submit" :disabled="achievementForm.processing">Add Achievement</Button>
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="closeAchievementCreate">Batal</Button>
+                    <Button type="submit" :disabled="achievementForm.processing">
+                        {{ achievementForm.processing ? 'Menyimpan...' : 'Tambah prestasi' }}
+                    </Button>
                 </div>
             </form>
-        </div>
+        </FormModal>
 
-        <FormModal :open="Boolean(editingAchievement)" max-width-class="max-w-4xl" @close="closeAchievementEdit">
-            <form class="grid gap-4" @submit.prevent="saveAchievementEdit">
+        <FormModal :open="Boolean(editingAchievement)" max-width-class="max-w-2xl" @close="closeAchievementEdit">
+            <form class="grid min-w-0 gap-4" @submit.prevent="saveAchievementEdit">
                 <div>
-                    <h3 class="text-lg font-semibold">Edit Achievement</h3>
-                    <p class="text-sm text-muted-foreground">
-                        Update the achievement details or replace the supporting file.
-                    </p>
+                    <h3 class="text-lg font-semibold">Ubah prestasi</h3>
+                    <p class="text-sm text-muted-foreground">Perbarui detail atau ganti berkas pendukung.</p>
                 </div>
-
-                <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="ach-edit-name"
                         v-model="achievementEditForm.championship_name"
-                        label="Championship name"
+                        label="Nama kejuaraan atau prestasi"
                         required
                         :error="achievementEditForm.errors.championship_name"
                     />
                     <FormSelectField
                         id="ach-edit-medal"
                         v-model="achievementEditForm.medal"
-                        label="Medal"
+                        label="Medali"
                         :options="medalOptions"
                         :error="achievementEditForm.errors.medal"
                     />
                 </div>
-                <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-2">
                     <FormInputField
                         id="ach-edit-location"
                         v-model="achievementEditForm.location"
-                        label="Location"
+                        label="Lokasi"
                         :error="achievementEditForm.errors.location"
                     />
                     <FormInputField
                         id="ach-edit-date"
                         v-model="achievementEditForm.event_date"
-                        label="Date"
+                        label="Tanggal"
                         type="date"
                         :error="achievementEditForm.errors.event_date"
                     />
                 </div>
-                <div class="grid gap-3 md:grid-cols-3">
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <FormInputField
                         id="ach-edit-class"
                         v-model="achievementEditForm.class_name"
-                        label="Class name"
+                        label="Kelas"
                         :error="achievementEditForm.errors.class_name"
                     />
                     <FormInputField
                         id="ach-edit-division"
                         v-model="achievementEditForm.division"
-                        label="Division"
+                        label="Divisi"
                         :error="achievementEditForm.errors.division"
                     />
                     <FormInputField
                         id="ach-edit-category"
                         v-model="achievementEditForm.category"
-                        label="Category"
+                        label="Kategori"
                         :error="achievementEditForm.errors.category"
                     />
                 </div>
                 <FormInputField
                     id="ach-edit-notes"
                     v-model="achievementEditForm.notes"
-                    label="Notes"
+                    label="Catatan"
                     :error="achievementEditForm.errors.notes"
                 />
                 <FormFileField
                     id="achievement-edit-file"
                     v-model="achievementEditForm.file"
-                    label="Replace Supporting File"
+                    label="Ganti berkas pendukung"
                     :accept="documentFileAccept"
                     :error="achievementEditForm.errors.file"
                     :current-file-name="editingAchievement?.fileName"
                     :current-file-url="editingAchievement?.fileUrl"
                 />
-
-                <div class="flex flex-col justify-end gap-2 sm:flex-row">
-                    <Button type="button" variant="outline" class="w-full sm:w-auto" @click="closeAchievementEdit"
-                        >Cancel</Button
-                    >
-                    <Button type="submit" class="w-full sm:w-auto" :disabled="achievementEditForm.processing"
-                        >Save Achievement</Button
-                    >
+                <div class="grid grid-cols-1 gap-2 sm:flex sm:justify-end">
+                    <Button type="button" variant="outline" @click="closeAchievementEdit">Batal</Button>
+                    <Button type="submit" :disabled="achievementEditForm.processing">Simpan prestasi</Button>
                 </div>
             </form>
         </FormModal>

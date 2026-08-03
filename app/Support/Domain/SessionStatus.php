@@ -5,8 +5,11 @@ namespace App\Support\Domain;
 final class SessionStatus
 {
     public const DRAFT = 'DRAFT';
+
     public const CONFIRMED = 'CONFIRMED';
+
     public const NEEDS_ASSISTANT = 'NEEDS_ASSISTANT';
+
     public const CANCELED = 'CANCELED';
 
     public const ALL = [self::DRAFT, self::CONFIRMED, self::NEEDS_ASSISTANT, self::CANCELED];

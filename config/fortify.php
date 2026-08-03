@@ -48,7 +48,6 @@ return [
     'username' => 'email',
 
     'email' => 'email',
-
     /*
     |--------------------------------------------------------------------------
     | Lowercase Usernames
@@ -137,14 +136,12 @@ return [
     | Features
     |--------------------------------------------------------------------------
     |
-    | Some of the Fortify features are optional. You may disable the features
-    | by removing them from this array. You're free to only remove some of
-    | these features, or you can even remove all of these if you need to.
+    | Public self-registration is intentionally disabled. New accounts are
+    | created by an administrator after the visitor contacts the club.
     |
     */
 
     'features' => [
-        Features::registration(),
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

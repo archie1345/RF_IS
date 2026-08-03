@@ -1,6 +1,6 @@
 export type AthleteProfile = {
-    height_cm?: number;
-    weight_kg?: number;
+    height_cm?: string;
+    weight_kg?: string;
     geup?: string;
     nik?: string;
     bpjs?: string;
@@ -10,8 +10,8 @@ export type AthleteProfile = {
     bday?: string;
     gender?: string;
     alamat?: string;
-    branch_id?: string | number | null;
-    group_id?: string | number | null;
+    branch_id?: string | null;
+    group_id?: string | null;
     branch?: { branch_name: string };
     group?: { group_name: string };
 };
@@ -19,6 +19,7 @@ export type AthleteProfile = {
 export type ProfileSelectOption = {
     value: string | number;
     label: string;
+    branch_id?: string | number | null;
 };
 
 export type CoachProfile = {
@@ -33,7 +34,7 @@ export type ParentProfile = {
     occupation?: string;
     notes?: string;
     athletes?: Array<{
-        id: number;
+        id: number | string;
         name: string;
         branch?: { branch_name: string };
         group?: { group_name: string };
@@ -62,6 +63,7 @@ export type ProfileAchievement = {
     division?: string;
     category?: string;
     notes?: string;
+    is_auto_recorded?: boolean;
     fileName?: string | null;
     fileUrl?: string | null;
 };

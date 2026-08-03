@@ -2,67 +2,117 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Profiles\SaveUserAchievement;
 use App\Models\UserAchievement;
-use App\Models\UserFile;
+use App\Services\ActiveRoleContextService;
 use App\Support\Profile\ProfileFormRules;
+use App\Support\Profile\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UserAchievementController extends Controller
 {
+    public function __construct(
+        private readonly ActiveRoleContextService $activeRoleContext,
+        private readonly SaveUserAchievement $saveUserAchievement,
+        private readonly ProfileMedia $profileMedia,
+    ) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $user->load(['certifications', 'achievements.file']);
+        $role = $this->activeRoleContext->activeRole($request, $user);
+        $isParent = $role === 'parent';
+        $childUserIds = $isParent
+            ? $user->children()->pluck('athletes.id')->map(fn ($id) => (int) $id)->all()
+            : [];
+
+        $achievements = UserAchievement::query()
+            ->with(['user:id,name', 'file'])
+            ->when(
+                $isParent,
+                fn ($query) => $query->whereIn('user_id', $childUserIds),
+                fn ($query) => $query->where('user_id', $user->id),
+            )
+            ->latest('event_date')
+            ->latest('id')
+            ->get();
 
         return Inertia::render('AchievementsPage', [
-            'achievements' => $user->achievements->map(fn (UserAchievement $ach) => [
-                'id' => $ach->id,
-                'championship_name' => $ach->championship_name,
-                'medal' => $ach->medal,
-                'location' => $ach->location ?? '-',
-                'event_date' => $ach->event_date?->format('Y-m-d') ?? '-',
-                'class_name' => $ach->class_name ?? '-',
-                'division' => $ach->division ?? '-',
-                'category' => $ach->category ?? '-',
-                'is_auto_recorded' => $ach->is_auto_recorded,
-                'file_name' => $ach->file?->original_name ?? '-',
-                'file_url' => $ach->file?->file_path ? Storage::url($ach->file->file_path) : '',
+            'canCreate' => ! $isParent,
+            'pageTitle' => $isParent ? 'Prestasi anak' : 'Prestasi saya',
+            'pageDescription' => $isParent
+                ? 'Lihat prestasi dari semua anak yang terhubung. Mode orang tua bersifat hanya-baca.'
+                : 'Kelola prestasi yang dicatat secara manual. Hasil otomatis dikelola dari halaman kejuaraan.',
+            'achievements' => $achievements->map(fn (UserAchievement $achievement) => [
+                'id' => $achievement->id,
+                'achievement_id' => $achievement->id,
+                'subject' => $achievement->user?->name ?? 'Unknown user',
+                'championship_name' => $achievement->championship_name,
+                'medal' => $achievement->medal,
+                'location' => $achievement->location ?? '-',
+                'event_date' => $achievement->event_date?->format('Y-m-d') ?? '-',
+                'class_name' => $achievement->class_name ?? '-',
+                'division' => $achievement->division ?? '-',
+                'category' => $achievement->category ?? '-',
+                'notes' => $achievement->notes ?? '',
+                'is_auto_recorded' => $achievement->is_auto_recorded,
+                'can_manage' => ! $isParent
+                    && (int) $achievement->user_id === (int) $user->id
+                    && ! $achievement->is_auto_recorded,
+                'file_name' => $achievement->file?->original_name ?? '-',
+                'file_url' => $achievement->file
+                    ? route('user-files.download', $achievement->file)
+                    : '',
             ])->values(),
         ]);
     }
 
     public function storeAchievement(Request $request, ProfileFormRules $profileFormRules): RedirectResponse
     {
-        $validated = $request->validate($profileFormRules->achievement());
+        abort_if($this->activeRoleContext->isActive($request, 'parent'), 403);
 
-        $user = $request->user();
-        $userFile = null;
-
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $path = $file->store('user-files', 'public');
-
-            $userFile = UserFile::query()->create([
-                'user_id' => $user->id,
-                'file_type' => 'EVENT_DOCUMENT',
-                'original_name' => $file->getClientOriginalName(),
-                'file_path' => $path,
-                'mime_type' => $file->getMimeType(),
-                'size_bytes' => $file->getSize(),
-            ]);
-        }
-
-        $user->achievements()->create(
-            collect($validated)->except('file')->all() + [
-                'is_auto_recorded' => false,
-                'user_file_id' => $userFile?->id,
-            ],
+        $this->saveUserAchievement->store(
+            $request->user(),
+            $request->validate($profileFormRules->achievement()),
+            $request,
         );
 
-        return redirect()->route('achievements.index');
+        return redirect()->route('achievements.index')->with('status', 'Prestasi berhasil ditambahkan.');
+    }
+
+    public function updateAchievement(
+        Request $request,
+        UserAchievement $achievement,
+        ProfileFormRules $profileFormRules,
+    ): RedirectResponse {
+        $this->authorizeManualAchievement($request, $achievement);
+        $this->saveUserAchievement->update(
+            $request->user(),
+            $achievement,
+            $request->validate($profileFormRules->achievement()),
+            $request,
+        );
+
+        return back()->with('status', 'Prestasi berhasil diperbarui.');
+    }
+
+    public function destroyAchievement(Request $request, UserAchievement $achievement): RedirectResponse
+    {
+        $this->authorizeManualAchievement($request, $achievement);
+        $file = $achievement->file;
+        $achievement->delete();
+        $this->profileMedia->deleteUserFile($file);
+
+        return back()->with('status', 'Prestasi berhasil dihapus.');
+    }
+
+    private function authorizeManualAchievement(Request $request, UserAchievement $achievement): void
+    {
+        abort_if($this->activeRoleContext->isActive($request, 'parent'), 403);
+        abort_unless((int) $achievement->user_id === (int) $request->user()?->id, 403);
+        abort_if($achievement->is_auto_recorded, 403, 'Automatic achievements must be managed from championship results.');
     }
 }

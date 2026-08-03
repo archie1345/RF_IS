@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('gender',['MALE','FEMALE'])->index();
-            $table->enum('role', ['admin', 'coach', 'parent','athlete'])->default('athlete');
+            $table->enum('gender', ['MALE', 'FEMALE'])->index();
+            $table->enum('role', ['admin', 'coach', 'parent', 'athlete'])->default('athlete');
             $table->date('bday')->nullable();
             $table->string('phone', 20)->nullable();
             $table->string('name', 100)->nullable();

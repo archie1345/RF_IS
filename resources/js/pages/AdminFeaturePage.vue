@@ -6,17 +6,29 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    classes as adminClasses,
+    locations as adminLocations,
+    payments as adminPayments,
+    monthlyDues as adminMonthlyDues,
+} from '@/routes/admin';
+import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
+import { destroy as groupDestroy, store as groupStore, update as groupUpdate } from '@/routes/admin/groups';
+import { generate as generateMonthlyDuesRoute, settings as monthlyDuesSettings } from '@/routes/admin/monthly-dues';
+import { generateWeek as generateWeekRoute, store as scheduleStore } from '@/routes/admin/schedules';
+import { index as paymentsIndex } from '@/routes/payments';
 import type { BreadcrumbItem } from '@/types';
+import type {
+    AdminFeatureSelectOption,
+    AdminFeatureWeeklySchedule,
+    BillingSettings,
+    ManagedClass,
+    ManagedLocation,
+} from '@/types/admin-feature';
 import type { Metric } from '@/types/resource-table';
-
-type WeeklySession = { title: string; time: string; location: string; date?: string };
-type WeeklySchedule = { id: number; title: string; branch: string; group: string; coach: string; day_of_week: number; time: string; location: string; is_active: boolean };
-type SelectOption = { value: string | number; label: string };
-type BillingSettings = { invoice_day: number; invoice_time: string; default_amount: string; is_active: boolean };
-type ManagedLocation = { id: number; name: string; location?: string | null; address?: string | null; city?: string | null; province?: string | null; latitude?: string | number | null; longitude?: string | number | null; attendance_radius_meters: number; timezone?: string | null; is_active: boolean; groups_count?: number };
-type ManagedClass = { id: number; name: string; class_type: string; coach_id?: string | null; coach: string; branch_id?: number | string | null; branch: string; day_of_week: number; schedule: string; time: string; start_time: string; end_time: string; athletes_count: number; min_belt?: string | null; description?: string | null; is_active: boolean };
-type CalendarCell = { key: string; date: Date; dateString: string; day: number; isCurrentMonth: boolean; isToday: boolean; isSelectedStart: boolean; isSelectedEnd: boolean; isInRange: boolean };
 
 const props = withDefaults(
     defineProps<{
@@ -28,13 +40,12 @@ const props = withDefaults(
         rows?: Record<string, string>[];
         emptyText?: string;
         roleAccess?: string;
-        todaySessions?: WeeklySession[];
         billingSettings?: BillingSettings | null;
-        weeklySchedules?: WeeklySchedule[];
-        branchOptions?: SelectOption[];
-        groupOptions?: SelectOption[];
-        coachOptions?: SelectOption[];
-        beltOptions?: SelectOption[];
+        weeklySchedules?: AdminFeatureWeeklySchedule[];
+        branchOptions?: AdminFeatureSelectOption[];
+        groupOptions?: AdminFeatureSelectOption[];
+        coachOptions?: AdminFeatureSelectOption[];
+        beltOptions?: AdminFeatureSelectOption[];
         locations?: ManagedLocation[];
         classes?: ManagedClass[];
     }>(),
@@ -43,8 +54,6 @@ const props = withDefaults(
         columns: () => [],
         rows: () => [],
         emptyText: 'Tidak ada data',
-        roleAccess: 'Admin only',
-        todaySessions: () => [],
         billingSettings: null,
         weeklySchedules: () => [],
         branchOptions: () => [],
@@ -55,10 +64,22 @@ const props = withDefaults(
         classes: () => [],
     },
 );
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: props.title, href: `/admin/${props.mode}` },
+    { title: 'Dashboard', href: dashboard.url() },
+    {
+        title: props.title,
+        href:
+            (
+                {
+                    locations: adminLocations.url(),
+                    classes: adminClasses.url(),
+                    payments: adminPayments.url(),
+                    'monthly-dues': adminMonthlyDues.url(),
+                } as Record<string, string>
+            )[props.mode] ?? dashboard.url(),
+    },
 ];
 
 const dayCards = [
@@ -83,9 +104,43 @@ const billingForm = useForm({
     is_active: props.billingSettings?.is_active ?? true,
 });
 
-const weeklyForm = useForm({ title: '', branch_id: '', group_id: '', coach_id: '', day_of_week: 1, start_time: '', end_time: '', location: '', is_active: true });
-const locationForm = useForm({ name: '', location: '', address: '', city: '', province: '', latitude: '-6.2088', longitude: '106.8456', attendance_radius_meters: 100, timezone: 'Asia/Jakarta', is_active: true });
-const classForm = useForm({ name: '', class_type: 'Beginner', coach_id: '', branch_id: '', day_of_week: 1, start_time: '16:00', end_time: '18:00', min_belt: props.beltOptions[0]?.value ?? '', description: '', is_active: true });
+const weeklyForm = useForm({
+    title: '',
+    branch_id: '',
+    group_id: '',
+    coach_id: '',
+    day_of_week: 1,
+    start_time: '',
+    end_time: '',
+    location: '',
+    is_active: true,
+});
+
+const locationForm = useForm({
+    name: '',
+    location: '',
+    address: '',
+    city: '',
+    province: '',
+    latitude: '-6.2088',
+    longitude: '106.8456',
+    attendance_radius_meters: 100,
+    timezone: 'Asia/Jakarta',
+    is_active: true,
+});
+
+const classForm = useForm({
+    name: '',
+    class_type: 'Beginner',
+    coach_id: '',
+    branch_id: '',
+    day_of_week: 1,
+    start_time: '16:00',
+    end_time: '18:00',
+    min_belt: props.beltOptions[0]?.value ?? '',
+    description: '',
+    is_active: true,
+});
 
 const today = new Date();
 const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -96,156 +151,94 @@ const formatDate = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-const initialFrom = queryParams.get('from') || formatDate(firstDayOfMonth);
-const initialTo = queryParams.get('to') || formatDate(today);
-
 const attendanceSearch = ref('');
 const attendanceClass = ref('');
-const attendanceClassType = ref('');
 const attendanceStatus = ref('');
-const attendanceRangeStart = ref(initialFrom);
-const attendanceRangeEnd = ref(initialTo);
-const attendanceCalendarOpen = ref(false);
-const attendanceCalendarMonth = ref(parseDate(initialFrom) ?? firstDayOfMonth);
-
+const attendanceRangeStart = ref(queryParams.get('from') || formatDate(firstDayOfMonth));
+const attendanceRangeEnd = ref(queryParams.get('to') || formatDate(today));
 const isAttendanceRecap = computed(() => ['attendance', 'instructor-attendance'].includes(props.mode));
-const attendanceDateRangeLabel = computed(() => `${attendanceRangeStart.value} – ${attendanceRangeEnd.value}`);
-const attendanceCalendarTitle = computed(() => attendanceCalendarMonth.value.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
 
 const weeklySchedulesByDay = computed(() => {
-    const grouped = new Map<number, WeeklySchedule[]>();
-    props.weeklySchedules.forEach((schedule) => grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]));
+    const grouped = new Map<number, AdminFeatureWeeklySchedule[]>();
+    props.weeklySchedules.forEach((schedule) =>
+        grouped.set(schedule.day_of_week, [...(grouped.get(schedule.day_of_week) ?? []), schedule]),
+    );
     return grouped;
 });
 
-const attendanceClassOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
-const attendanceClassTypeOptions = computed(() => uniqueValuesFromColumns(['Tipe Kelas', 'Tipe', 'Class Type']));
-const attendanceStatusOptions = computed(() => uniqueValuesFromColumns(['Status']));
-
-const attendanceCalendarDays = computed<CalendarCell[]>(() => {
-    const month = attendanceCalendarMonth.value.getMonth();
-    const year = attendanceCalendarMonth.value.getFullYear();
-    const monthStart = new Date(year, month, 1);
-    const mondayOffset = (monthStart.getDay() + 6) % 7;
-    const gridStart = new Date(year, month, 1 - mondayOffset);
-    const rangeStart = parseDate(attendanceRangeStart.value);
-    const rangeEnd = parseDate(attendanceRangeEnd.value);
-    const normalizedStart = rangeStart && rangeEnd && rangeStart > rangeEnd ? rangeEnd : rangeStart;
-    const normalizedEnd = rangeStart && rangeEnd && rangeStart > rangeEnd ? rangeStart : rangeEnd;
-    const todayString = formatDate(today);
-
-    return Array.from({ length: 42 }, (_, index) => {
-        const date = new Date(gridStart);
-        date.setDate(gridStart.getDate() + index);
-        const dateString = formatDate(date);
-        return {
-            key: dateString,
-            date,
-            dateString,
-            day: date.getDate(),
-            isCurrentMonth: date.getMonth() === month,
-            isToday: dateString === todayString,
-            isSelectedStart: dateString === attendanceRangeStart.value,
-            isSelectedEnd: dateString === attendanceRangeEnd.value,
-            isInRange: Boolean(normalizedStart && normalizedEnd && date >= normalizedStart && date <= normalizedEnd),
-        };
+function uniqueValuesFromColumns(columns: string[]) {
+    const seen = new Set<string>();
+    props.rows.forEach((row) => {
+        const value = columns
+            .map((column) => row[column])
+            .find(Boolean)
+            ?.trim();
+        if (value) seen.add(value);
     });
-});
+    return [...seen].sort((left, right) => left.localeCompare(right));
+}
 
+const attendanceClassOptions = computed(() => uniqueValuesFromColumns(['Kelas', 'Class']));
+const attendanceStatusOptions = computed(() => uniqueValuesFromColumns(['Status']));
 const displayedRows = computed(() => {
     if (!isAttendanceRecap.value) return props.rows;
 
     const keyword = attendanceSearch.value.trim().toLowerCase();
     const classValue = attendanceClass.value.trim().toLowerCase();
-    const classTypeValue = attendanceClassType.value.trim().toLowerCase();
     const statusValue = attendanceStatus.value.trim().toLowerCase();
 
     return props.rows.filter((row) => {
-        const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row['Nama'], row['No']].filter(Boolean).join(' ').toLowerCase();
+        const memberText = [row.Atlet, row.Coach, row.Member, row.Anggota, row.Nama, row.No]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
         const classText = String(row.Kelas ?? row.Class ?? '').toLowerCase();
-        const classTypeText = String(row['Tipe Kelas'] ?? row.Tipe ?? row['Class Type'] ?? '').toLowerCase();
         const statusText = String(row.Status ?? '').toLowerCase();
 
-        return (!keyword || memberText.includes(keyword))
-            && (!classValue || classText === classValue)
-            && (!classTypeValue || classTypeText === classTypeValue)
-            && (!statusValue || statusText === statusValue);
+        return (
+            (!keyword || memberText.includes(keyword)) &&
+            (!classValue || classText === classValue) &&
+            (!statusValue || statusText === statusValue)
+        );
     });
 });
 
 const mapUrl = computed(() => {
-    const lat = Number(locationForm.latitude || -6.2088);
-    const lng = Number(locationForm.longitude || 106.8456);
-    const bbox = `${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}`;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${lat},${lng}`)}`;
+    const latitude = Number(locationForm.latitude || -6.2088);
+    const longitude = Number(locationForm.longitude || 106.8456);
+    const bbox = `${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}`;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(`${latitude},${longitude}`)}`;
 });
 
-function parseDate(dateString: string) {
-    const [year, month, day] = dateString.split('-').map(Number);
-    if (!year || !month || !day) return null;
-    return new Date(year, month - 1, day);
-}
-
-function uniqueValuesFromColumns(columns: string[]) {
-    const seen = new Set<string>();
-
-    props.rows.forEach((row) => {
-        const value = columns.map((column) => row[column]).find(Boolean)?.trim();
-        if (value) seen.add(value);
-    });
-
-    return [...seen].sort((a, b) => a.localeCompare(b));
-}
-
 function applyAttendanceDateRange() {
-    router.get(window.location.pathname, { from: attendanceRangeStart.value, to: attendanceRangeEnd.value }, { preserveScroll: true, preserveState: true });
-}
-
-function changeAttendanceMonth(delta: number) {
-    attendanceCalendarMonth.value = new Date(attendanceCalendarMonth.value.getFullYear(), attendanceCalendarMonth.value.getMonth() + delta, 1);
-}
-
-function selectAttendanceDate(dateString: string) {
-    const selected = parseDate(dateString);
-    const start = parseDate(attendanceRangeStart.value);
-    const end = parseDate(attendanceRangeEnd.value);
-    if (!selected) return;
-
-    if (!start || (start && end && attendanceRangeStart.value !== attendanceRangeEnd.value)) {
-        attendanceRangeStart.value = dateString;
-        attendanceRangeEnd.value = dateString;
-        return;
-    }
-
-    if (selected < start) {
-        attendanceRangeStart.value = dateString;
-        attendanceRangeEnd.value = formatDate(start);
-    } else {
-        attendanceRangeEnd.value = dateString;
-    }
-
-    attendanceCalendarOpen.value = false;
-    applyAttendanceDateRange();
-}
-
-function clearAttendanceDateRange() {
-    attendanceRangeStart.value = formatDate(firstDayOfMonth);
-    attendanceRangeEnd.value = formatDate(today);
-    attendanceCalendarMonth.value = firstDayOfMonth;
-    applyAttendanceDateRange();
+    router.get(
+        window.location.pathname,
+        { from: attendanceRangeStart.value, to: attendanceRangeEnd.value },
+        { preserveScroll: true, preserveState: true },
+    );
 }
 
 function clearAttendanceFilters() {
     attendanceSearch.value = '';
     attendanceClass.value = '';
-    attendanceClassType.value = '';
     attendanceStatus.value = '';
 }
 
-function generateMonthlyDues() { router.post('/admin/monthly-dues/generate', {}, { preserveScroll: true }); }
-function saveBillingSettings() { billingForm.post('/admin/monthly-dues/settings', { preserveScroll: true }); }
-function generateWeeklySessions() { router.post('/admin/schedules/generate-week', {}, { preserveScroll: true }); }
-function saveWeeklySchedule() { weeklyForm.post('/admin/schedules', { preserveScroll: true, onSuccess: () => weeklyForm.reset() }); }
+function generateMonthlyDues() {
+    router.post(generateMonthlyDuesRoute.url(), {}, { preserveScroll: true });
+}
+
+function saveBillingSettings() {
+    billingForm.post(monthlyDuesSettings.url(), { preserveScroll: true });
+}
+
+function generateWeeklySessions() {
+    router.post(generateWeekRoute.url(), {}, { preserveScroll: true });
+}
+
+function saveWeeklySchedule() {
+    weeklyForm.post(scheduleStore.url(), { preserveScroll: true, onSuccess: () => weeklyForm.reset() });
+}
 
 function openLocationForm(location?: ManagedLocation) {
     locationForm.clearErrors();
@@ -264,13 +257,27 @@ function openLocationForm(location?: ManagedLocation) {
 }
 
 function saveLocation() {
-    const options = { preserveScroll: true, onSuccess: () => { showLocationForm.value = false; locationForm.reset(); editingLocationId.value = null; } };
-    if (editingLocationId.value) locationForm.put(`/admin/branches/${editingLocationId.value}`, options);
-    else locationForm.post('/admin/branches', options);
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            showLocationForm.value = false;
+            locationForm.reset();
+            editingLocationId.value = null;
+        },
+    };
+    if (editingLocationId.value) locationForm.put(branchUpdate.url(editingLocationId.value), options);
+    else locationForm.post(branchStore.url(), options);
 }
 
-function deleteLocation(location: ManagedLocation) {
-    if (window.confirm(`Delete location ${location.name}?`)) router.delete(`/admin/branches/${location.id}`, { preserveScroll: true });
+async function deleteLocation(location: ManagedLocation): Promise<void> {
+    const confirmed = await popup.confirm({
+        title: 'Hapus atau nonaktifkan lokasi?',
+        message: `Lokasi “${location.name}” akan dihapus bila belum digunakan. Riwayat yang sudah ada akan tetap dipertahankan melalui penonaktifan.`,
+        tone: 'danger',
+        confirmLabel: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+    router.delete(branchDestroy.url(location.id), { preserveScroll: true });
 }
 
 function useCurrentLocation() {
@@ -297,17 +304,36 @@ function openClassForm(item?: ManagedClass) {
 }
 
 function saveClass() {
-    const options = { preserveScroll: true, onSuccess: () => { showClassForm.value = false; classForm.reset(); editingClassId.value = null; } };
-    if (editingClassId.value) classForm.put(`/admin/groups/${editingClassId.value}`, options);
-    else classForm.post('/admin/groups', options);
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            showClassForm.value = false;
+            classForm.reset();
+            editingClassId.value = null;
+        },
+    };
+    if (editingClassId.value) classForm.put(groupUpdate.url(editingClassId.value), options);
+    else classForm.post(groupStore.url(), options);
 }
 
-function deleteClass(item: ManagedClass) {
-    if (window.confirm(`Delete class ${item.name}?`)) router.delete(`/admin/groups/${item.id}`, { preserveScroll: true });
+async function deleteClass(item: ManagedClass): Promise<void> {
+    const confirmed = await popup.confirm({
+        title: 'Hapus atau nonaktifkan kelas?',
+        message: `Kelas “${item.name}” akan dihapus bila belum memiliki riwayat. Kelas yang sudah dipakai akan dinonaktifkan.`,
+        tone: 'danger',
+        confirmLabel: 'Lanjutkan',
+    });
+    if (!confirmed) return;
+    router.delete(groupDestroy.url(item.id), { preserveScroll: true });
 }
 
-function isExternalUrl(value: unknown): value is string { return typeof value === 'string' && /^https?:\/\//i.test(value); }
-function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' : 'Open'; }
+function isExternalUrl(value: unknown): value is string {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function linkLabel(value: string) {
+    return value.includes('wa.me') ? 'Open WA' : 'Open';
+}
 </script>
 
 <template>
@@ -318,34 +344,98 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             <PageSection :title="props.title" :description="props.subtitle">
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
-                        <Button v-if="props.mode === 'monthly-dues'" type="button" size="sm" @click="generateMonthlyDues"><Plus class="mr-2 size-4" /> Generate bulan ini</Button>
-                        <Button v-if="props.mode === 'weekly-schedule'" type="button" size="sm" @click="generateWeeklySessions"><Plus class="mr-2 size-4" /> Generate sesi minggu ini</Button>
-                        <Button v-if="props.mode === 'locations'" type="button" size="sm" @click="openLocationForm()"><Plus class="mr-2 size-4" /> Tambah Lokasi</Button>
-                        <Button v-if="props.mode === 'classes'" type="button" size="sm" @click="openClassForm()"><Plus class="mr-2 size-4" /> Tambah Kelas</Button>
-                        <Button v-if="['payments', 'monthly-dues'].includes(props.mode)" as-child variant="outline" size="sm"><Link href="/payments">Payment Center</Link></Button>
-                        <Button variant="secondary" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" /> Refresh</Button>
+                        <Button
+                            v-if="props.mode === 'monthly-dues'"
+                            type="button"
+                            size="sm"
+                            @click="generateMonthlyDues"
+                        >
+                            <Plus class="mr-2 size-4" /> Generate bulan ini
+                        </Button>
+                        <Button
+                            v-if="props.mode === 'weekly-schedule'"
+                            type="button"
+                            size="sm"
+                            @click="generateWeeklySessions"
+                        >
+                            <Plus class="mr-2 size-4" /> Generate sesi minggu ini
+                        </Button>
+                        <Button v-if="props.mode === 'locations'" type="button" size="sm" @click="openLocationForm()">
+                            <Plus class="mr-2 size-4" /> Tambah Lokasi
+                        </Button>
+                        <Button v-if="props.mode === 'classes'" type="button" size="sm" @click="openClassForm()">
+                            <Plus class="mr-2 size-4" /> Tambah Kelas
+                        </Button>
+                        <Button
+                            v-if="['payments', 'monthly-dues'].includes(props.mode)"
+                            as-child
+                            variant="outline"
+                            size="sm"
+                        >
+                            <Link :href="paymentsIndex.url()">Payment Center</Link>
+                        </Button>
+                        <Button variant="secondary" size="sm" @click="router.reload({})">
+                            <RefreshCcw class="mr-2 size-4" /> Refresh
+                        </Button>
                     </div>
                 </template>
 
-                <p class="mt-1 text-xs font-semibold uppercase tracking-wide text-red-500">{{ props.roleAccess }}</p>
-                <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4"><StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" /></div>
+                <p class="mt-1 text-xs font-semibold tracking-wide text-red-500 uppercase">{{ props.roleAccess }}</p>
+                <div v-if="props.metrics.length" class="mt-4 grid gap-4 md:grid-cols-4">
+                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
+                </div>
             </PageSection>
 
             <section v-if="props.mode === 'locations'" class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-                    <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari nama lokasi..." /></div>
-                    <Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })">Refresh</Button>
-                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[760px] text-sm">
-                        <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Nama Lokasi & Kelas</th><th class="px-3 py-3 font-black">Alamat</th><th class="px-3 py-3 font-black">Status</th><th class="px-3 py-3 font-black">Aksi</th></tr></thead>
+                        <thead>
+                            <tr class="border-b text-left">
+                                <th class="px-3 py-3 font-black">Nama Lokasi & Kelas</th>
+                                <th class="px-3 py-3 font-black">Alamat</th>
+                                <th class="px-3 py-3 font-black">Status</th>
+                                <th class="px-3 py-3 font-black">Aksi</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <tr v-if="props.locations.length === 0"><td colspan="4" class="h-36 px-3 text-center text-muted-foreground">Tidak ada data lokasi</td></tr>
-                            <tr v-for="location in props.locations" :key="location.id" class="border-b hover:bg-muted/40">
-                                <td class="px-3 py-4"><p class="font-black">{{ location.name }}</p><p class="text-xs text-muted-foreground">{{ location.groups_count ?? 0 }} kelas · radius {{ location.attendance_radius_meters }}m</p></td>
-                                <td class="px-3 py-4"><p>{{ location.address ?? '-' }}</p><p class="text-xs text-muted-foreground">{{ location.city }} {{ location.province }}</p></td>
-                                <td class="px-3 py-4"><span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{{ location.is_active ? 'AKTIF' : 'NONAKTIF' }}</span></td>
-                                <td class="px-3 py-4"><div class="flex gap-2"><Button size="sm" variant="ghost" @click="openLocationForm(location)"><Pencil class="size-4" /></Button><Button size="sm" variant="ghost" @click="deleteLocation(location)"><Trash2 class="size-4 text-red-500" /></Button></div></td>
+                            <tr v-if="props.locations.length === 0">
+                                <td colspan="4" class="h-36 px-3 text-center text-muted-foreground">
+                                    Tidak ada data lokasi
+                                </td>
+                            </tr>
+                            <tr
+                                v-for="location in props.locations"
+                                :key="location.id"
+                                class="border-b hover:bg-muted/40"
+                            >
+                                <td class="px-3 py-4">
+                                    <p class="font-black">{{ location.name }}</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ location.groups_count ?? 0 }} kelas · radius
+                                        {{ location.attendance_radius_meters }}m
+                                    </p>
+                                </td>
+                                <td class="px-3 py-4">
+                                    <p>{{ location.address ?? '-' }}</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ location.city }} {{ location.province }}
+                                    </p>
+                                </td>
+                                <td class="px-3 py-4">
+                                    <span
+                                        class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700"
+                                        >{{ location.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
+                                    >
+                                </td>
+                                <td class="px-3 py-4">
+                                    <div class="flex gap-2">
+                                        <Button size="sm" variant="ghost" @click="openLocationForm(location)"
+                                            ><Pencil class="size-4" /></Button
+                                        ><Button size="sm" variant="ghost" @click="deleteLocation(location)"
+                                            ><Trash2 class="size-4 text-red-500"
+                                        /></Button>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -353,150 +443,466 @@ function linkLabel(value: string) { return value.includes('wa.me') ? 'Open WA' :
             </section>
 
             <section v-else-if="props.mode === 'classes'" class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-                    <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari nama kelas..." /></div>
-                    <Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })">Refresh</Button>
-                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[920px] text-sm">
-                        <thead><tr class="border-b text-left"><th class="px-3 py-3 font-black">Kelas</th><th class="px-3 py-3 font-black">Instruktur</th><th class="px-3 py-3 font-black">Jadwal</th><th class="px-3 py-3 font-black">Peserta</th><th class="px-3 py-3 font-black">Minimal Sabuk</th><th class="px-3 py-3 font-black">Status</th><th class="px-3 py-3 font-black">Aksi</th></tr></thead>
+                        <thead>
+                            <tr class="border-b text-left">
+                                <th class="px-3 py-3 font-black">Kelas</th>
+                                <th class="px-3 py-3 font-black">Instruktur</th>
+                                <th class="px-3 py-3 font-black">Jadwal</th>
+                                <th class="px-3 py-3 font-black">Peserta</th>
+                                <th class="px-3 py-3 font-black">Minimal Sabuk</th>
+                                <th class="px-3 py-3 font-black">Status</th>
+                                <th class="px-3 py-3 font-black">Aksi</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            <tr v-if="props.classes.length === 0"><td colspan="7" class="h-36 px-3 text-center text-muted-foreground">Tidak ada data kelas</td></tr>
+                            <tr v-if="props.classes.length === 0">
+                                <td colspan="7" class="h-36 px-3 text-center text-muted-foreground">
+                                    Tidak ada data kelas
+                                </td>
+                            </tr>
                             <tr v-for="item in props.classes" :key="item.id" class="border-b hover:bg-muted/40">
-                                <td class="px-3 py-4"><p class="font-black">{{ item.name }}</p><span class="rounded-full border border-blue-400 px-2 py-0.5 text-xs font-bold text-blue-600">{{ item.class_type }}</span><p class="mt-1 text-xs text-muted-foreground"><MapPin class="mr-1 inline size-3" />{{ item.branch }}</p></td>
+                                <td class="px-3 py-4">
+                                    <p class="font-black">{{ item.name }}</p>
+                                    <span
+                                        class="rounded-full border border-blue-400 px-2 py-0.5 text-xs font-bold text-blue-600"
+                                        >{{ item.class_type }}</span
+                                    >
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        <MapPin class="mr-1 inline size-3" />{{ item.branch }}
+                                    </p>
+                                </td>
                                 <td class="px-3 py-4 text-muted-foreground">{{ item.coach }}</td>
-                                <td class="px-3 py-4"><p class="font-bold">{{ item.schedule }}</p><p class="text-xs text-muted-foreground">{{ item.time }}</p></td>
+                                <td class="px-3 py-4">
+                                    <p class="font-bold">{{ item.schedule }}</p>
+                                    <p class="text-xs text-muted-foreground">{{ item.time }}</p>
+                                </td>
                                 <td class="px-3 py-4">{{ item.athletes_count }} terdaftar</td>
                                 <td class="px-3 py-4">{{ item.min_belt ?? '-' }}</td>
-                                <td class="px-3 py-4"><span class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span></td>
-                                <td class="px-3 py-4"><div class="flex gap-2"><Button size="sm" variant="ghost" @click="openClassForm(item)"><Pencil class="size-4 text-blue-500" /></Button><Button size="sm" variant="ghost" @click="deleteClass(item)"><Trash2 class="size-4 text-red-500" /></Button></div></td>
+                                <td class="px-3 py-4">
+                                    <span
+                                        class="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700"
+                                        >{{ item.is_active ? 'AKTIF' : 'NONAKTIF' }}</span
+                                    >
+                                </td>
+                                <td class="px-3 py-4">
+                                    <div class="flex gap-2">
+                                        <Button size="sm" variant="ghost" @click="openClassForm(item)"
+                                            ><Pencil class="size-4 text-blue-500" /></Button
+                                        ><Button size="sm" variant="ghost" @click="deleteClass(item)"
+                                            ><Trash2 class="size-4 text-red-500"
+                                        /></Button>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </section>
 
-            <section v-else-if="props.mode === 'monthly-dues' && props.billingSettings" class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-4"><h3 class="text-xl font-black">Pengaturan tagihan otomatis</h3><p class="text-sm text-muted-foreground">Atur kapan iuran bulanan dibuat, nominal default, dan apakah generator otomatis aktif.</p></div>
+            <section
+                v-else-if="props.mode === 'monthly-dues' && props.billingSettings"
+                class="rounded-xl border bg-card p-5 shadow-sm"
+            >
+                <div class="mb-4">
+                    <h3 class="text-xl font-black">Pengaturan tagihan otomatis</h3>
+                    <p class="text-sm text-muted-foreground">
+                        Atur kapan iuran bulanan dibuat, nominal default, dan apakah generator otomatis aktif.
+                    </p>
+                </div>
                 <form class="grid gap-4 md:grid-cols-5 md:items-end" @submit.prevent="saveBillingSettings">
-                    <label class="grid gap-2 text-sm font-semibold">Tanggal tagihan<input v-model="billingForm.invoice_day" type="number" min="1" max="28" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-2 text-sm font-semibold">Jam pengecekan<input v-model="billingForm.invoice_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-2 text-sm font-semibold">Nominal default<input v-model="billingForm.default_amount" type="number" min="0" step="1000" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold"><input v-model="billingForm.is_active" type="checkbox" /> Aktif</label>
-                    <Button type="submit" :disabled="billingForm.processing">{{ billingForm.processing ? 'Menyimpan...' : 'Simpan jadwal' }}</Button>
+                    <label class="grid gap-2 text-sm font-semibold"
+                        >Tanggal tagihan<input
+                            v-model="billingForm.invoice_day"
+                            type="number"
+                            min="1"
+                            max="28"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-2 text-sm font-semibold"
+                        >Jam pengecekan<input
+                            v-model="billingForm.invoice_time"
+                            type="time"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-2 text-sm font-semibold"
+                        >Nominal default<input
+                            v-model="billingForm.default_amount"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label
+                        class="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-sm font-semibold"
+                        ><input v-model="billingForm.is_active" type="checkbox" /> Aktif</label
+                    >
+                    <Button type="submit" :disabled="billingForm.processing">{{
+                        billingForm.processing ? 'Menyimpan...' : 'Simpan jadwal'
+                    }}</Button>
                 </form>
             </section>
 
             <section v-else-if="props.mode === 'weekly-schedule'" class="rounded-xl border bg-card p-5 shadow-sm">
-                <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div class="rounded-full border px-4 py-2 text-sm font-black">Today: {{ new Date().toLocaleDateString() }}</div><p class="text-sm text-muted-foreground">Weekly training templates generate real training sessions automatically.</p></div>
-                <form class="mb-6 grid gap-3 rounded-xl border bg-background p-4 md:grid-cols-4 md:items-end" @submit.prevent="saveWeeklySchedule">
-                    <label class="grid gap-1 text-sm font-semibold">Title<input v-model="weeklyForm.title" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-1 text-sm font-semibold">Branch<select v-model="weeklyForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Select branch</option><option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Group<select v-model="weeklyForm.group_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">All groups</option><option v-for="option in props.groupOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Coach<select v-model="weeklyForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">No coach</option><option v-for="option in props.coachOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Day<select v-model="weeklyForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Start<input v-model="weeklyForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-1 text-sm font-semibold">End<input v-model="weeklyForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-1 text-sm font-semibold">Location<input v-model="weeklyForm.location" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <Button type="submit" class="md:col-span-4" :disabled="weeklyForm.processing">{{ weeklyForm.processing ? 'Saving...' : 'Save weekly training' }}</Button>
+                <form
+                    class="mb-6 grid gap-3 rounded-xl border bg-background p-4 md:grid-cols-4 md:items-end"
+                    @submit.prevent="saveWeeklySchedule"
+                >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Title<input
+                            v-model="weeklyForm.title"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Branch<select
+                            v-model="weeklyForm.branch_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="">Select branch</option>
+                            <option
+                                v-for="option in props.branchOptions"
+                                :key="String(option.value)"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Group<select
+                            v-model="weeklyForm.group_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="">All groups</option>
+                            <option
+                                v-for="option in props.groupOptions"
+                                :key="String(option.value)"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Coach<select
+                            v-model="weeklyForm.coach_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="">No coach</option>
+                            <option
+                                v-for="option in props.coachOptions"
+                                :key="String(option.value)"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Day<select
+                            v-model="weeklyForm.day_of_week"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Start<input
+                            v-model="weeklyForm.start_time"
+                            type="time"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >End<input
+                            v-model="weeklyForm.end_time"
+                            type="time"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Location<input
+                            v-model="weeklyForm.location"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <Button type="submit" class="md:col-span-4" :disabled="weeklyForm.processing">{{
+                        weeklyForm.processing ? 'Saving...' : 'Save weekly training'
+                    }}</Button>
                 </form>
-                <div class="grid gap-3 md:grid-cols-7"><div v-for="day in dayCards" :key="`body-${day.id}`" class="min-h-56 rounded-xl border bg-background p-4"><p class="font-black">{{ day.name }}</p><template v-if="(weeklySchedulesByDay.get(day.id) ?? []).length"><div v-for="schedule in weeklySchedulesByDay.get(day.id)" :key="schedule.id" class="mt-3 rounded-xl border-l-4 border-red-500 bg-card p-3 shadow-sm"><p class="font-black">{{ schedule.title }}</p><p class="mt-2 text-sm">{{ schedule.time }}</p><p class="text-xs text-muted-foreground">{{ schedule.coach }} · {{ schedule.location }}</p><span class="mt-2 inline-flex rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase text-green-700">{{ schedule.is_active ? 'Aktif' : 'Nonaktif' }}</span></div></template><div v-else class="flex h-full flex-col items-center justify-center text-xs font-bold uppercase text-muted-foreground"><CalendarDays class="mb-2 size-8 opacity-40" /> Libur</div></div></div>
+                <div class="grid gap-3 md:grid-cols-7">
+                    <div v-for="day in dayCards" :key="day.id" class="min-h-56 rounded-xl border bg-background p-4">
+                        <p class="font-black">{{ day.name }}</p>
+                        <div
+                            v-for="schedule in weeklySchedulesByDay.get(day.id)"
+                            :key="schedule.id"
+                            class="mt-3 rounded-xl border-l-4 border-red-500 bg-card p-3 shadow-sm"
+                        >
+                            <p class="font-black">{{ schedule.title }}</p>
+                            <p class="mt-2 text-sm">{{ schedule.time }}</p>
+                            <p class="text-xs text-muted-foreground">{{ schedule.coach }} · {{ schedule.location }}</p>
+                        </div>
+                        <div
+                            v-if="!(weeklySchedulesByDay.get(day.id) ?? []).length"
+                            class="flex h-full flex-col items-center justify-center text-xs font-bold text-muted-foreground uppercase"
+                        >
+                            <CalendarDays class="mb-2 size-8 opacity-40" /> Libur
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section v-else class="rounded-xl border bg-card p-5 shadow-sm">
                 <div v-if="isAttendanceRecap" class="mb-5 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto]">
-                    <div class="relative grid gap-1 text-sm font-semibold">
-                        Rentang Tanggal
-                        <button type="button" class="flex h-10 items-center justify-between rounded-lg border bg-background px-3 text-left text-sm font-normal" @click="attendanceCalendarOpen = !attendanceCalendarOpen">
-                            <span>{{ attendanceDateRangeLabel }}</span>
-                            <X class="size-4 text-muted-foreground" @click.stop="clearAttendanceDateRange" />
-                        </button>
-                        <div v-if="attendanceCalendarOpen" class="absolute left-0 top-[4.75rem] z-30 w-[330px] rounded-xl border bg-background p-4 shadow-xl">
-                            <div class="mb-4 flex items-center justify-between">
-                                <button type="button" class="flex size-9 items-center justify-center rounded-lg bg-muted text-xl" @click="changeAttendanceMonth(-1)">‹</button>
-                                <p class="font-black">{{ attendanceCalendarTitle }}</p>
-                                <button type="button" class="flex size-9 items-center justify-center rounded-lg text-xl text-muted-foreground hover:bg-muted" @click="changeAttendanceMonth(1)">›</button>
-                            </div>
-                            <div class="grid grid-cols-7 text-center text-sm text-muted-foreground">
-                                <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-                            </div>
-                            <div class="mt-2 grid grid-cols-7 overflow-hidden rounded-lg text-center text-sm">
-                                <button
-                                    v-for="day in attendanceCalendarDays"
-                                    :key="day.key"
-                                    type="button"
-                                    class="h-10 border border-background transition"
-                                    :class="[
-                                        day.isInRange ? 'bg-sky-100 text-sky-950' : 'bg-background',
-                                        !day.isCurrentMonth ? 'text-muted-foreground/40' : '',
-                                        (day.isSelectedStart || day.isSelectedEnd) ? 'rounded-lg bg-blue-600 font-black text-white' : '',
-                                        day.isToday && !day.isSelectedStart && !day.isSelectedEnd ? 'font-black text-red-500' : '',
-                                    ]"
-                                    @click="selectAttendanceDate(day.dateString)"
-                                >{{ day.day }}</button>
-                            </div>
-                        </div>
-                    </div>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Cari Member
-                        <div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input v-model="attendanceSearch" class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Nama atau Kode Member..." /></div>
-                    </label>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Kelas
-                        <select v-model="attendanceClass" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Dari<input
+                            v-model="attendanceRangeStart"
+                            type="date"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            @change="applyAttendanceDateRange"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Sampai<input
+                            v-model="attendanceRangeEnd"
+                            type="date"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            @change="applyAttendanceDateRange"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Cari Member
+                        <div class="relative">
+                            <Search
+                                class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            /><input
+                                v-model="attendanceSearch"
+                                class="h-10 w-full rounded-lg border bg-background pr-3 pl-10 text-sm"
+                                placeholder="Nama atau Kode Member..."
+                            /></div
+                    ></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Kelas<select
+                            v-model="attendanceClass"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground"
+                        >
                             <option value="">Filter per Kelas</option>
-                            <option v-for="option in attendanceClassOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Tipe Kelas
-                        <select v-model="attendanceClassType" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
-                            <option value="">Filter per Tipe Kelas</option>
-                            <option v-for="option in attendanceClassTypeOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
-                    <label class="grid gap-1 text-sm font-semibold">
-                        Status
-                        <select v-model="attendanceStatus" class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground">
+                            <option v-for="option in attendanceClassOptions" :key="option" :value="option">
+                                {{ option }}
+                            </option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Status<select
+                            v-model="attendanceStatus"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm text-muted-foreground"
+                        >
                             <option value="">Filter per Status</option>
-                            <option v-for="option in attendanceStatusOptions" :key="option" :value="option">{{ option }}</option>
-                        </select>
-                    </label>
-                    <div class="flex items-end gap-2">
-                        <Button type="button" variant="outline" size="sm" class="h-10" @click="clearAttendanceFilters">Reset</Button>
-                        <Button type="button" variant="secondary" size="sm" class="h-10" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat</Button>
-                    </div>
+                            <option v-for="option in attendanceStatusOptions" :key="option" :value="option">
+                                {{ option }}
+                            </option>
+                        </select></label
+                    >
+                    <Button type="button" variant="outline" size="sm" class="self-end" @click="clearAttendanceFilters"
+                        >Reset</Button
+                    >
                 </div>
-                <div v-else class="mb-5 grid gap-3 md:grid-cols-[1fr_auto] md:items-center"><div class="relative"><Search class="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input class="h-10 w-full rounded-lg border bg-background pl-10 pr-3 text-sm" placeholder="Cari data..." /></div><Button variant="outline" size="sm" @click="router.reload({ preserveScroll: true })"><RefreshCcw class="mr-2 size-4" />Muat Ulang</Button></div>
-                <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm"><thead><tr class="border-b text-left"><th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">{{ column }}</th></tr></thead><tbody><tr v-if="displayedRows.length === 0"><td :colspan="Math.max(props.columns.length, 1)" class="h-40 px-3 text-center text-muted-foreground">{{ props.emptyText }}</td></tr><tr v-for="(row, index) in displayedRows" :key="index" class="border-b hover:bg-muted/40"><td v-for="column in props.columns" :key="column" class="whitespace-pre-line px-3 py-3"><a v-if="isExternalUrl(row[column])" :href="row[column]" target="_blank" rel="noreferrer" class="font-semibold text-primary underline-offset-4 hover:underline">{{ linkLabel(row[column]) }}</a><span v-else>{{ row[column] ?? '-' }}</span></td></tr></tbody></table></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[720px] text-sm">
+                        <thead>
+                            <tr class="border-b text-left">
+                                <th v-for="column in props.columns" :key="column" class="px-3 py-3 font-black">
+                                    {{ column }}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="displayedRows.length === 0">
+                                <td
+                                    :colspan="Math.max(props.columns.length, 1)"
+                                    class="h-40 px-3 text-center text-muted-foreground"
+                                >
+                                    {{ props.emptyText }}
+                                </td>
+                            </tr>
+                            <tr v-for="(row, index) in displayedRows" :key="index" class="border-b hover:bg-muted/40">
+                                <td v-for="column in props.columns" :key="column" class="px-3 py-3 whitespace-pre-line">
+                                    <a
+                                        v-if="isExternalUrl(row[column])"
+                                        :href="row[column]"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="font-semibold text-primary hover:underline"
+                                        >{{ linkLabel(row[column]) }}</a
+                                    ><span v-else>{{ row[column] ?? '-' }}</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <FormModal :open="showLocationForm" max-width-class="max-w-3xl" @close="showLocationForm = false">
                 <form class="grid gap-4" @submit.prevent="saveLocation">
-                    <div class="flex items-start justify-between"><div><h3 class="text-xl font-black">{{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}</h3><p class="text-sm text-muted-foreground">Silakan lengkapi informasi lokasi latihan di bawah ini</p></div><Button type="button" variant="ghost" size="sm" @click="showLocationForm = false"><X class="size-4" /> Kembali</Button></div>
-                    <label class="grid gap-1 text-sm font-semibold">Nama Lokasi *<input v-model="locationForm.name" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: GOR Pajajaran Hall A" /><span v-if="locationForm.errors.name" class="text-xs text-destructive">{{ locationForm.errors.name }}</span></label>
-                    <label class="grid gap-1 text-sm font-semibold">Alamat Lengkap *<textarea v-model="locationForm.address" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Alamat lengkap lokasi latihan"></textarea><span v-if="locationForm.errors.address" class="text-xs text-destructive">{{ locationForm.errors.address }}</span></label>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Kota *<input v-model="locationForm.city" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Bogor" /></label><label class="grid gap-1 text-sm font-semibold">Provinsi *<input v-model="locationForm.province" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Contoh: Jawa Barat" /></label></div>
-                    <div class="grid gap-2 text-sm font-semibold">Pilih Titik Lokasi (Map)<div class="overflow-hidden rounded-lg border"><iframe :src="mapUrl" class="h-64 w-full" loading="lazy" /></div><div class="flex flex-wrap gap-2 text-xs text-muted-foreground"><span><MapPin class="mr-1 inline size-3 text-red-500" />{{ locationForm.latitude }}, {{ locationForm.longitude }}</span><Button type="button" size="sm" variant="outline" @click="useCurrentLocation">Lokasi Saya</Button></div></div>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Latitude<input v-model="locationForm.latitude" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Longitude<input v-model="locationForm.longitude" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
-                    <label class="grid gap-1 text-sm font-semibold">Radius Absensi (meter)<input v-model="locationForm.attendance_radius_meters" type="number" min="10" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <label class="grid gap-1 text-sm font-semibold">Zona Waktu<input v-model="locationForm.timezone" class="h-10 rounded-lg border bg-background px-3 text-sm" placeholder="Asia/Jakarta" /></label>
-                    <label class="grid gap-1 text-sm font-semibold">Status<select v-model="locationForm.is_active" class="h-10 rounded-lg border bg-background px-3 text-sm"><option :value="true">Aktif</option><option :value="false">Nonaktif</option></select></label>
-                    <div class="grid gap-3 md:grid-cols-2"><Button type="button" variant="ghost" @click="showLocationForm = false">Batal</Button><Button type="submit" :disabled="locationForm.processing">{{ locationForm.processing ? 'Menyimpan...' : 'Simpan Lokasi' }}</Button></div>
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-xl font-black">
+                                {{ editingLocationId ? 'Edit Lokasi' : 'Tambah Lokasi' }}
+                            </h3>
+                            <p class="text-sm text-muted-foreground">Silakan lengkapi informasi lokasi latihan.</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" @click="showLocationForm = false"
+                            ><X class="size-4"
+                        /></Button>
+                    </div>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Nama Lokasi *<input
+                            v-model="locationForm.name"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Alamat Lengkap *<textarea
+                            v-model="locationForm.address"
+                            class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm"
+                        ></textarea>
+                    </label>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <label class="grid gap-1 text-sm font-semibold"
+                            >Kota *<input
+                                v-model="locationForm.city"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm" /></label
+                        ><label class="grid gap-1 text-sm font-semibold"
+                            >Provinsi *<input
+                                v-model="locationForm.province"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        /></label>
+                    </div>
+                    <div class="overflow-hidden rounded-lg border">
+                        <iframe :src="mapUrl" class="h-64 w-full" loading="lazy" />
+                    </div>
+                    <Button type="button" size="sm" variant="outline" class="w-fit" @click="useCurrentLocation"
+                        >Lokasi Saya</Button
+                    >
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <label class="grid gap-1 text-sm font-semibold"
+                            >Latitude<input
+                                v-model="locationForm.latitude"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm" /></label
+                        ><label class="grid gap-1 text-sm font-semibold"
+                            >Longitude<input
+                                v-model="locationForm.longitude"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        /></label>
+                    </div>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Radius Absensi (meter)<input
+                            v-model="locationForm.attendance_radius_meters"
+                            type="number"
+                            min="10"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Zona Waktu<input
+                            v-model="locationForm.timezone"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Status<select
+                            v-model="locationForm.is_active"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option :value="true">Aktif</option>
+                            <option :value="false">Nonaktif</option>
+                        </select></label
+                    >
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <Button type="button" variant="ghost" @click="showLocationForm = false">Batal</Button
+                        ><Button type="submit" :disabled="locationForm.processing">{{
+                            locationForm.processing ? 'Menyimpan...' : 'Simpan Lokasi'
+                        }}</Button>
+                    </div>
                 </form>
             </FormModal>
 
             <FormModal :open="showClassForm" max-width-class="max-w-2xl" @close="showClassForm = false">
                 <form class="grid gap-4" @submit.prevent="saveClass">
-                    <div class="flex items-start justify-between"><h3 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas Baru' }}</h3><Button type="button" variant="ghost" size="sm" @click="showClassForm = false"><X class="size-4" /></Button></div>
-                    <label class="grid gap-1 text-sm font-semibold">Nama Kelas *<input v-model="classForm.name" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Tipe Kelas<select v-model="classForm.class_type" class="h-10 rounded-lg border bg-background px-3 text-sm"><option>Beginner</option><option>Intermediate</option><option>Advanced</option></select></label><label class="grid gap-1 text-sm font-semibold">Instruktur<select v-model="classForm.coach_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih instruktur</option><option v-for="option in props.coachOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Hari<select v-model="classForm.day_of_week" class="h-10 rounded-lg border bg-background px-3 text-sm"><option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option></select></label><label class="grid gap-1 text-sm font-semibold">Minimal Sabuk<select v-model="classForm.min_belt" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Tanpa minimal</option><option v-for="option in props.beltOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label></div>
-                    <div class="grid gap-3 md:grid-cols-2"><label class="grid gap-1 text-sm font-semibold">Jam Mulai *<input v-model="classForm.start_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label><label class="grid gap-1 text-sm font-semibold">Jam Selesai *<input v-model="classForm.end_time" type="time" class="h-10 rounded-lg border bg-background px-3 text-sm" /></label></div>
-                    <label class="grid gap-1 text-sm font-semibold">Lokasi Latihan<select v-model="classForm.branch_id" class="h-10 rounded-lg border bg-background px-3 text-sm"><option value="">Pilih lokasi latihan</option><option v-for="option in props.branchOptions" :key="String(option.value)" :value="option.value">{{ option.label }}</option></select></label>
-                    <label class="grid gap-1 text-sm font-semibold">Deskripsi<textarea v-model="classForm.description" class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm"></textarea></label>
-                    <label class="grid gap-1 text-sm font-semibold">Status<select v-model="classForm.is_active" class="h-10 rounded-lg border bg-background px-3 text-sm"><option :value="true">Aktif</option><option :value="false">Nonaktif</option></select></label>
-                    <Button type="submit" :disabled="classForm.processing">{{ classForm.processing ? 'Menyimpan...' : 'Simpan Kelas' }}</Button>
+                    <div class="flex items-start justify-between">
+                        <h3 class="text-xl font-black">{{ editingClassId ? 'Edit Kelas' : 'Tambah Kelas Baru' }}</h3>
+                        <Button type="button" variant="ghost" size="sm" @click="showClassForm = false"
+                            ><X class="size-4"
+                        /></Button>
+                    </div>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Nama Kelas *<input
+                            v-model="classForm.name"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                    /></label>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <label class="grid gap-1 text-sm font-semibold"
+                            >Hari<select
+                                v-model="classForm.day_of_week"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            >
+                                <option v-for="day in dayCards" :key="day.id" :value="day.id">{{ day.name }}</option>
+                            </select></label
+                        ><label class="grid gap-1 text-sm font-semibold"
+                            >Minimal Sabuk<select
+                                v-model="classForm.min_belt"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                            >
+                                <option value="">Tanpa minimal</option>
+                                <option
+                                    v-for="option in props.beltOptions"
+                                    :key="String(option.value)"
+                                    :value="option.value"
+                                >
+                                    {{ option.label }}
+                                </option>
+                            </select></label
+                        >
+                    </div>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <label class="grid gap-1 text-sm font-semibold"
+                            >Jam Mulai *<input
+                                v-model="classForm.start_time"
+                                type="time"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm" /></label
+                        ><label class="grid gap-1 text-sm font-semibold"
+                            >Jam Selesai *<input
+                                v-model="classForm.end_time"
+                                type="time"
+                                class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        /></label>
+                    </div>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Lokasi Latihan<select
+                            v-model="classForm.branch_id"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option value="">Pilih lokasi latihan</option>
+                            <option
+                                v-for="option in props.branchOptions"
+                                :key="String(option.value)"
+                                :value="option.value"
+                            >
+                                {{ option.label }}
+                            </option>
+                        </select></label
+                    >
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Deskripsi<textarea
+                            v-model="classForm.description"
+                            class="min-h-16 rounded-lg border bg-background px-3 py-2 text-sm"
+                        ></textarea>
+                    </label>
+                    <label class="grid gap-1 text-sm font-semibold"
+                        >Status<select
+                            v-model="classForm.is_active"
+                            class="h-10 rounded-lg border bg-background px-3 text-sm"
+                        >
+                            <option :value="true">Aktif</option>
+                            <option :value="false">Nonaktif</option>
+                        </select></label
+                    >
+                    <Button type="submit" :disabled="classForm.processing">{{
+                        classForm.processing ? 'Menyimpan...' : 'Simpan Kelas'
+                    }}</Button>
                 </form>
             </FormModal>
         </div>

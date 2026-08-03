@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
+import { UserRound } from 'lucide-vue-next';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import { index as parentChildrenIndex } from '@/routes/parent/children';
+import { show as userShow } from '@/routes/users';
 import type { BreadcrumbItem } from '@/types';
 
 const props = defineProps<{
@@ -14,68 +17,66 @@ const props = defineProps<{
         email: string;
         branch: string;
         group: string;
-        is_active: boolean;
+        is_active?: boolean;
     }>;
-    activeChildId: string | null;
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Child Switcher', href: appRoutes.parentChildSwitcher },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Profil Anak', href: parentChildrenIndex.url() },
 ];
-
-const switchChild = (athleteId: string) => {
-    if (!athleteId) {
-        router.delete('/parent/children/switch', { preserveState: true });
-        return;
-    }
-
-    router.post('/parent/children/switch', { athlete_id: athleteId }, { preserveState: true });
-};
-
-const clearChild = () => {
-    router.delete('/parent/children/switch', { preserveState: true });
-};
-
-function profileUrl(userId: number) {
-    return `/users/${userId}`;
-}
 </script>
 
 <template>
-    <Head title="Child Switcher" />
+    <Head title="Profil Anak" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
-            <PageSection title="Choose Child Context" description="Select which child account data to view across attendance, payments, and championships.">
+        <div class="flex flex-1 flex-col gap-5 p-4 md:p-6">
+            <PageSection
+                eyebrow="Keluarga"
+                title="Pilih profil anak"
+                description="Halaman lain menampilkan data semua anak secara bersamaan dan menyediakan filter anak. Pilihan di sini hanya membuka profil anak yang ingin Anda lihat."
+            >
                 <template #actions>
-                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="router.visit(appRoutes.dashboard)">Back to dashboard</Button>
-                        <Button v-if="props.activeChildId" type="button" variant="outline" class="w-full sm:w-auto" @click="clearChild">Exit child view</Button>
-                    </div>
+                    <Button as-child type="button" variant="outline">
+                        <Link :href="dashboard.url()">Kembali ke beranda</Link>
+                    </Button>
                 </template>
             </PageSection>
 
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div v-for="child in props.children" :key="child.athlete_id" class="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between gap-2">
-                            <h3 class="text-lg font-semibold">{{ child.name }}</h3>
-                            <span v-if="child.is_active" class="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">Active</span>
+            <div v-if="props.children.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <article
+                    v-for="child in props.children"
+                    :key="child.athlete_id"
+                    class="rounded-xl border border-border/70 bg-card p-5 shadow-sm"
+                >
+                    <div class="flex items-start gap-3">
+                        <span class="rounded-xl bg-primary/10 p-2 text-primary"><UserRound class="size-5" /></span>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="truncate text-lg font-bold">{{ child.name }}</h2>
+                            <p class="truncate text-sm text-muted-foreground">{{ child.email }}</p>
                         </div>
-                        <p class="text-sm text-muted-foreground">{{ child.email }}</p>
-                        <p class="text-sm text-muted-foreground">Branch: {{ child.branch }}</p>
-                        <p class="text-sm text-muted-foreground">Group: {{ child.group }}</p>
                     </div>
-                    <div class="mt-4 grid gap-2 sm:grid-cols-2">
-                        <Button type="button" class="w-full" :variant="child.is_active ? 'outline' : 'default'" @click="switchChild(child.athlete_id)">
-                            {{ child.is_active ? 'Currently active' : 'Switch to this child' }}
-                        </Button>
-                        <Button as-child variant="outline" class="w-full">
-                            <Link :href="profileUrl(child.user_id)">View Profile</Link>
-                        </Button>
-                    </div>
-                </div>
+
+                    <dl class="mt-4 grid gap-2 text-sm">
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-muted-foreground">Cabang</dt>
+                            <dd class="text-right font-medium">{{ child.branch }}</dd>
+                        </div>
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-muted-foreground">Kelas</dt>
+                            <dd class="text-right font-medium">{{ child.group }}</dd>
+                        </div>
+                    </dl>
+
+                    <Button as-child class="mt-5 w-full">
+                        <Link :href="userShow.url(child.user_id)">Buka profil {{ child.name }}</Link>
+                    </Button>
+                </article>
+            </div>
+
+            <div v-else class="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Belum ada profil anak yang terhubung ke akun ini.
             </div>
         </div>
     </AppLayout>

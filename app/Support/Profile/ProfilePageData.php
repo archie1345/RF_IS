@@ -5,6 +5,7 @@ namespace App\Support\Profile;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\User;
+use App\Models\UserFile;
 use Illuminate\Support\Facades\Storage;
 
 class ProfilePageData
@@ -33,6 +34,7 @@ class ProfilePageData
     public function branchOptions()
     {
         return Branch::query()
+            ->where('is_active', true)
             ->orderBy('branch_name')
             ->get(['branch_id as value', 'branch_name as label']);
     }
@@ -40,12 +42,17 @@ class ProfilePageData
     public function groupOptions()
     {
         return Group::query()
+            ->where('is_active', true)
             ->orderBy('group_name')
-            ->get(['group_id as value', 'group_name as label']);
+            ->get(['group_id as value', 'group_name as label', 'branch_id']);
     }
 
     public function user(User $user): array
     {
+        $athlete = $user->athleteProfile;
+        $coach = $user->coachProfile;
+        $parent = $user->parentProfile;
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -55,40 +62,52 @@ class ProfilePageData
             'phone' => $user->phone,
             'roles' => $user->assignedRoles(),
             'bio' => $user->profile?->bio,
-            'profilePictureUrl' => $user->profile?->profile_picture_path ? Storage::url($user->profile->profile_picture_path) : null,
-            'athleteProfile' => $user->athleteProfile ? [
-                'height_cm' => $user->athleteProfile->height_cm,
-                'weight_kg' => $user->athleteProfile->weight_kg,
-                'geup' => $user->athleteProfile->geup,
-                'nik' => $user->athleteProfile->displayValue('nik'),
-                'bpjs' => $user->athleteProfile->displayValue('bpjs'),
-                'nikHash' => $user->athleteProfile->nik_hash,
-                'bpjsHash' => $user->athleteProfile->bpjs_hash,
+            'profilePictureUrl' => $user->profile?->profile_picture_path
+                ? Storage::url($user->profile->profile_picture_path)
+                : null,
+            'athleteProfile' => $athlete ? [
+                'height_cm' => $athlete->height_cm !== null ? (string) $athlete->height_cm : null,
+                'weight_kg' => $athlete->weight_kg !== null ? (string) $athlete->weight_kg : null,
+                'geup' => $athlete->geup,
+                'nik' => $this->editableSensitiveValue($athlete->displayValue('nik')),
+                'bpjs' => $this->editableSensitiveValue($athlete->displayValue('bpjs')),
                 'phone' => $user->phone,
                 'bday' => $user->bday?->format('Y-m-d'),
                 'gender' => $user->gender,
-                'alamat' => $user->athleteProfile->alamat,
-                'branch_id' => $user->athleteProfile->branch_id,
-                'group_id' => $user->athleteProfile->group_id,
-                'branch' => $user->athleteProfile->branch,
-                'group' => $user->athleteProfile->group,
+                'alamat' => $athlete->alamat,
+                'branch_id' => $athlete->branch_id !== null ? (string) $athlete->branch_id : null,
+                'group_id' => $athlete->group_id !== null ? (string) $athlete->group_id : null,
+                'branch' => $athlete->branch ? [
+                    'branch_id' => $athlete->branch->branch_id,
+                    'branch_name' => $athlete->branch->branch_name,
+                ] : null,
+                'group' => $athlete->group ? [
+                    'group_id' => $athlete->group->group_id,
+                    'group_name' => $athlete->group->group_name,
+                ] : null,
             ] : null,
-            'coachProfile' => $user->coachProfile ? [
-                'status' => $user->coachProfile->status,
-                'specialization' => $user->coachProfile->specialization,
-                'bio' => $user->coachProfile->bio,
+            'coachProfile' => $coach ? [
+                'status' => $coach->status,
+                'specialization' => $coach->specialization,
+                'bio' => $coach->bio,
             ] : null,
-            'parentProfile' => $user->parentProfile ? [
+            'parentProfile' => $parent ? [
                 'phone' => $user->phone,
-                'relation' => $user->parentProfile->relation,
-                'occupation' => $user->parentProfile->occupation,
-                'notes' => $user->parentProfile->notes,
-                'athletes' => $user->parentProfile->athletes->map(fn ($athlete) => [
-                    'id' => $athlete->athlete_id,
-                    'name' => $athlete->user?->name ?? 'Unknown athlete',
-                    'branch' => $athlete->branch,
-                    'group' => $athlete->group,
-                ]),
+                'relation' => $parent->relation,
+                'occupation' => $parent->occupation,
+                'notes' => $parent->notes,
+                'athletes' => $parent->athletes->map(fn ($child) => [
+                    'id' => $child->athlete_id,
+                    'name' => $child->user?->name ?? 'Unknown athlete',
+                    'branch' => $child->branch ? [
+                        'branch_id' => $child->branch->branch_id,
+                        'branch_name' => $child->branch->branch_name,
+                    ] : null,
+                    'group' => $child->group ? [
+                        'group_id' => $child->group->group_id,
+                        'group_name' => $child->group->group_name,
+                    ] : null,
+                ])->values(),
             ] : null,
             'achievements' => $user->achievements->map(fn ($achievement) => [
                 'id' => $achievement->id,
@@ -100,20 +119,33 @@ class ProfilePageData
                 'division' => $achievement->division,
                 'category' => $achievement->category,
                 'notes' => $achievement->notes,
+                'is_auto_recorded' => (bool) $achievement->is_auto_recorded,
                 'fileName' => $achievement->file?->original_name,
-                'fileUrl' => $achievement->file?->file_path ? Storage::url($achievement->file->file_path) : null,
-            ]),
-            'certifications' => $user->certifications->map(fn ($cert) => [
-                'id' => $cert->id,
-                'cert_type' => $cert->cert_type,
-                'title' => $cert->title,
-                'issuer' => $cert->issuer,
-                'certified_at' => $cert->certified_at?->format('Y-m-d'),
-                'expires_at' => $cert->expires_at?->format('Y-m-d'),
-                'notes' => $cert->notes,
-                'fileName' => $cert->file?->original_name,
-                'fileUrl' => $cert->file?->file_path ? Storage::url($cert->file->file_path) : null,
-            ]),
+                'fileUrl' => $this->fileUrl($achievement->file),
+            ])->values(),
+            'certifications' => $user->certifications->map(fn ($certification) => [
+                'id' => $certification->id,
+                'cert_type' => $certification->cert_type,
+                'title' => $certification->title,
+                'issuer' => $certification->issuer,
+                'certified_at' => $certification->certified_at?->format('Y-m-d'),
+                'expires_at' => $certification->expires_at?->format('Y-m-d'),
+                'notes' => $certification->notes,
+                'fileName' => $certification->file?->original_name,
+                'fileUrl' => $this->fileUrl($certification->file),
+            ])->values(),
         ];
+    }
+
+    private function editableSensitiveValue(string $value): string
+    {
+        return in_array($value, ['Not stored', 'Stored as hash only', 'Stored, cannot decrypt'], true)
+            ? ''
+            : $value;
+    }
+
+    private function fileUrl(?UserFile $file): ?string
+    {
+        return $file ? route('user-files.download', $file) : null;
     }
 }

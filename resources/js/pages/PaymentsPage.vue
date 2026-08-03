@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Download, ImagePlus, PencilLine, Trash2 } from 'lucide-vue-next';
+import { AlertTriangle, Download, MessageCircle, PencilLine, Trash2, WalletCards } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
@@ -11,105 +11,191 @@ import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
-import { appRoutes } from '@/data/routes';
+import { useAppPopup } from '@/composables/useAppPopup';
 import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { dashboard } from '@/routes';
+import {
+    destroy as paymentDestroy,
+    index as paymentsIndex,
+    store as paymentStore,
+    update as paymentUpdate,
+} from '@/routes/payments';
+import { review as paymentProofReview, submit as paymentProofSubmit } from '@/routes/payments/proof';
 import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { PaymentHistoryEntry } from './PaymentsPage.types';
 
-const props = defineProps<{
-    isAdmin: boolean;
-    canSubmitPaymentProof?: boolean;
-    coachPaymentLimitation?: string | null;
-    metrics: Metric[];
-    rows: TableRow[];
-    athletes: SelectOption[];
-    users: SelectOption[];
-    coaches: SelectOption[];
-    invoiceTemplate?: {
-        company_name: string;
-        company_address: string | null;
-        company_phone: string | null;
-        company_email: string | null;
-        logo_url: string | null;
-        header_text: string | null;
-        footer_text: string | null;
-        payment_notes: string | null;
-    } | null;
-    paymentInstructions: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        isAdmin: boolean;
+        canSubmitPaymentProof?: boolean;
+        metrics: Metric[];
+        rows: TableRow[];
+        athletes: SelectOption[];
+        users: SelectOption[];
+        coaches: SelectOption[];
+        financeAttention?: {
+            proof_review_count: number;
+            overdue_count: number;
+            partial_count: number;
+            ledger_mismatch_count: number;
+        } | null;
+        invoiceTemplate?: {
+            company_name: string;
+            company_address: string | null;
+            company_phone: string | null;
+            company_email: string | null;
+            logo_url: string | null;
+            logo_image_url: string | null;
+            header_text: string | null;
+            footer_text: string | null;
+            payment_notes: string | null;
+        } | null;
+        paymentInstructions: string;
+        paginate?: boolean;
+        initialLimit?: number;
+        pageSize?: number;
+        filters?: TableFilter[];
+        filterable?: boolean;
+    }>(),
+    {
+        paginate: true,
+        pageSize: 10,
+        initialLimit: 10,
+        filters: () => [],
+        filterable: false,
+        financeAttention: null,
+    },
+);
+const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: appRoutes.dashboard },
-    { title: 'Payments', href: appRoutes.payments },
+    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Keuangan', href: paymentsIndex.url() },
 ];
 
 const invoiceTemplateModalOpen = ref(false);
-const billStatusFilter = ref('');
-const proofQueueFilter = ref('');
-const billKindFilter = ref('');
-const billTypeFilter = ref('');
-
+const showPaymentForm = ref(false);
+const editingPaymentId = ref<number | null>(null);
+const editingPaymentRow = ref<TableRow | null>(null);
+const showProofForm = ref(false);
+const proofPaymentId = ref<number | null>(null);
 const showReviewForm = ref(false);
 const reviewPaymentRow = ref<TableRow | null>(null);
-
-type PaymentHistoryEntry = {
-    id: number | string;
-    amount: string;
-    date: string;
-    method: string;
-    type: string;
-    verified_by: string;
-    notes?: string;
-    proof_notes?: string;
-    proof_url?: string | null;
-};
-
-const filteredRows = computed(() =>
-    props.rows.filter((row) => {
-        const paid = Number(row.paid_amount_raw ?? 0);
-        const remaining = Number(row.remaining_amount_raw ?? 0);
-        const billStatusMatches =
-            !billStatusFilter.value ||
-            (billStatusFilter.value === 'pending' && paid <= 0 && remaining > 0) ||
-            (billStatusFilter.value === 'partial' && paid > 0 && remaining > 0) ||
-            (billStatusFilter.value === 'paid' && remaining <= 0);
-        const proofMatches = !proofQueueFilter.value || String(row.proof_status ?? '') === proofQueueFilter.value;
-        const kindMatches = !billKindFilter.value || String(row.bill_kind ?? '') === billKindFilter.value;
-        const typeMatches = !billTypeFilter.value || String(row.payment_type_raw ?? '') === billTypeFilter.value;
-
-        return billStatusMatches && proofMatches && kindMatches && typeMatches;
-    }),
-);
+const showManualPaymentForm = ref(false);
+const manualPaymentRow = ref<TableRow | null>(null);
 
 const columns: TableColumn[] = [
-    { key: 'athlete', label: 'Person' },
-    { key: 'bill_kind', label: 'Kind' },
-    { key: 'type', label: 'Bill type' },
-    { key: 'amount', label: 'Amount', align: 'right' },
-    { key: 'balance', label: 'Balance', align: 'right' },
+    { key: 'invoice_number', label: 'No. tagihan' },
+    { key: 'athlete', label: 'Penerima' },
+    { key: 'type', label: 'Kategori' },
+    { key: 'amount', label: 'Total', align: 'right' },
+    { key: 'paid', label: 'Terbayar', align: 'right' },
+    { key: 'balance', label: 'Sisa', align: 'right' },
+    { key: 'due', label: 'Jatuh tempo' },
     { key: 'status', label: 'Status' },
-    { key: 'proof_status_label', label: 'Proof' },
+    { key: 'proof_status_label', label: 'Bukti' },
+    { key: 'next_action', label: 'Tindakan berikutnya' },
 ];
 
 const paymentTypeOptions = [
-    { value: 'TUITION', label: 'Tuition' },
-    { value: 'UNIFORM', label: 'Uniform' },
-    { value: 'LICENSE', label: 'License' },
-    { value: 'CHAMPIONSHIP', label: 'Championship' },
-    { value: 'OTHER', label: 'Other' },
+    { value: 'TUITION', label: 'Iuran / SPP' },
+    { value: 'UNIFORM', label: 'Seragam' },
+    { value: 'LICENSE', label: 'Lisensi / UKT' },
+    { value: 'CHAMPIONSHIP', label: 'Kejuaraan' },
+    { value: 'OTHER', label: 'Lainnya' },
 ];
 
 const collectionMethodOptions = [
-    { value: 'CASH', label: 'Cash' },
+    { value: 'CASH', label: 'Tunai' },
+    { value: 'CARD', label: 'Kartu' },
     { value: 'TRANSFER', label: 'Transfer' },
-    { value: 'OTHER', label: 'Other' },
+    { value: 'OTHER', label: 'Lainnya' },
 ];
+
+const paymentTableFilters = computed<TableFilter[]>(() => [
+    {
+        key: 'finance_focus',
+        label: 'Prioritas admin',
+        type: 'select',
+        placeholder: 'Semua prioritas',
+        options: [
+            { value: 'review', label: 'Bukti perlu direview' },
+            { value: 'overdue', label: 'Sudah jatuh tempo' },
+            { value: 'partial', label: 'Pembayaran sebagian' },
+            { value: 'unpaid', label: 'Belum dibayar' },
+            { value: 'paid', label: 'Sudah lunas' },
+            { value: 'ledger_mismatch', label: 'Ledger tidak sesuai' },
+            { value: 'failed', label: 'Tagihan gagal' },
+            { value: 'refunded', label: 'Sudah direfund' },
+        ],
+        match: (row, value) => {
+            const paid = Number(row.paid_amount_raw ?? 0);
+            const remaining = Number(row.remaining_amount_raw ?? 0);
+
+            return (
+                (value === 'review' && row.proof_status === 'SUBMITTED') ||
+                (value === 'overdue' && row.is_overdue === true) ||
+                (value === 'partial' && paid > 0 && remaining > 0) ||
+                (value === 'unpaid' && paid <= 0 && remaining > 0) ||
+                (value === 'paid' && remaining <= 0) ||
+                (value === 'ledger_mismatch' && row.ledger_consistent === false) ||
+                (value === 'failed' && row.status_value === 'FAILED') ||
+                (value === 'refunded' && row.status_value === 'REFUNDED')
+            );
+        },
+    },
+    {
+        key: 'proof_status',
+        label: 'Status bukti',
+        type: 'select',
+        columnKey: 'proof_status',
+        placeholder: 'Semua status bukti',
+        options: [
+            { value: 'SUBMITTED', label: 'Menunggu review' },
+            { value: 'NONE', label: 'Belum ada bukti aktif' },
+            { value: 'APPROVED', label: 'Disetujui' },
+            { value: 'REJECTED', label: 'Ditolak' },
+        ],
+    },
+    {
+        key: 'bill_kind',
+        label: 'Jenis pencatatan',
+        type: 'select',
+        columnKey: 'bill_kind',
+        placeholder: 'Semua jenis',
+        options: [
+            { value: 'INVOICE', label: 'Tagihan anggota' },
+            { value: 'PAYROLL', label: 'Pembayaran pelatih' },
+        ],
+    },
+    {
+        key: 'payment_type_raw',
+        label: 'Kategori tagihan',
+        type: 'select',
+        columnKey: 'payment_type_raw',
+        placeholder: 'Semua kategori',
+        options: paymentTypeOptions,
+    },
+]);
 
 function todayDate() {
     const date = new Date();
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     return date.toISOString().slice(0, 10);
+}
+
+function defaultDueDate() {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+    return date.toISOString().slice(0, 10);
+}
+
+function paymentRouteId(value: unknown): number | null {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 const form = useForm({
@@ -118,24 +204,30 @@ const form = useForm({
     payee_user_id: '',
     bill_kind: 'INVOICE',
     payment_type: 'TUITION',
-    collection_method: 'CASH',
+    collection_method: 'TRANSFER',
     total_amount: '',
     paid_amount: '0',
     payment_date: todayDate(),
+    due_date: defaultDueDate(),
     notes: '',
 });
-const showPaymentForm = ref(false);
-const editingPaymentId = ref<number | null>(null);
-const editingPaymentRow = ref<TableRow | null>(null);
-const showProofForm = ref(false);
-const proofPaymentId = ref<number | null>(null);
+
 const proofForm = useForm({
     notes: '',
     proof_file: null as File | null,
 });
+
 const reviewForm = useForm({
     decision: 'APPROVED',
     approved_amount: '',
+    notes: '',
+    proof_review: '',
+});
+
+const manualPaymentForm = useForm({
+    amount: '',
+    transaction_date: todayDate(),
+    payment_method: 'TRANSFER',
     notes: '',
 });
 
@@ -144,7 +236,8 @@ const invoiceTemplateForm = useForm({
     company_address: props.invoiceTemplate?.company_address ?? '',
     company_phone: props.invoiceTemplate?.company_phone ?? '',
     company_email: props.invoiceTemplate?.company_email ?? '',
-    logo_url: props.invoiceTemplate?.logo_url ?? '',
+    logo_file: null as File | null,
+    remove_logo_file: false,
     header_text: props.invoiceTemplate?.header_text ?? '',
     footer_text: props.invoiceTemplate?.footer_text ?? '',
     payment_notes: props.invoiceTemplate?.payment_notes ?? '',
@@ -153,6 +246,7 @@ const invoiceTemplateForm = useForm({
 const activeProofRow = computed(
     () => props.rows.find((row) => Number(row.payment_id) === proofPaymentId.value) ?? null,
 );
+const identityLocked = computed(() => Number(editingPaymentRow.value?.transaction_count ?? 0) > 0);
 
 function remainingAmount(row: TableRow) {
     return Number(row.remaining_amount_raw ?? 0);
@@ -162,6 +256,8 @@ function canUploadProof(row: TableRow) {
     return (
         Boolean(props.canSubmitPaymentProof) &&
         remainingAmount(row) > 0 &&
+        row.status_value !== 'FAILED' &&
+        row.status_value !== 'REFUNDED' &&
         row.proof_status !== 'SUBMITTED' &&
         row.proof_status !== 'APPROVED'
     );
@@ -171,9 +267,12 @@ function canReviewProof(row: TableRow) {
     return props.isAdmin && row.proof_status === 'SUBMITTED';
 }
 
+function canRecordPayment(row: TableRow) {
+    return props.isAdmin && row.can_record_payment === true;
+}
+
 function paymentHistory(row: TableRow | null | undefined): PaymentHistoryEntry[] {
     const history = row?.transaction_history;
-
     return Array.isArray(history) ? (history as PaymentHistoryEntry[]) : [];
 }
 
@@ -182,106 +281,130 @@ function submit() {
         form.payment_type = 'OTHER';
         form.athlete_id = '';
         form.billable_user_id = '';
+        form.due_date = form.payment_date;
     } else {
         form.payee_user_id = '';
         form.athlete_id = '';
     }
 
-    if (!form.payment_date) {
-        form.payment_date = todayDate();
-    }
-
-    if (!form.paid_amount) {
-        form.paid_amount = '0';
-    }
+    if (!form.payment_date) form.payment_date = todayDate();
+    if (!form.due_date) form.due_date = form.bill_kind === 'PAYROLL' ? form.payment_date : defaultDueDate();
+    form.paid_amount = '0';
 
     const options = {
+        preserveScroll: true,
         onSuccess: () => {
             form.reset();
             form.paid_amount = '0';
             form.payment_date = todayDate();
+            form.due_date = defaultDueDate();
             showPaymentForm.value = false;
             editingPaymentId.value = null;
+            editingPaymentRow.value = null;
         },
     };
 
     if (editingPaymentId.value) {
-        form.put(`/payments/${editingPaymentId.value}`, options);
+        form.put(paymentUpdate.url(editingPaymentId.value), options);
         return;
     }
 
-    form.post('/payments', options);
+    form.post(paymentStore.url(), options);
 }
 
-function exportInvoice(paymentId: number | string) {
-    // Triggers the browser to download the file by hitting the Laravel endpoint
-    window.open(`/payments/${paymentId}/export`, '_blank');
+function exportInvoice(paymentId: unknown) {
+    const id = paymentRouteId(paymentId);
+    if (!id) return;
+    window.open(`/payments/${id}/export`, '_blank');
 }
 
 function exportPaymentCsv() {
-    window.location.href = '/admin/data-transfer/export?entity=payments';
+    window.location.href = '/payments/export';
 }
 
 function openCreate() {
     editingPaymentId.value = null;
+    editingPaymentRow.value = null;
     form.reset();
     form.bill_kind = 'INVOICE';
     form.payment_type = 'TUITION';
     form.collection_method = 'TRANSFER';
     form.paid_amount = '0';
     form.payment_date = todayDate();
+    form.due_date = defaultDueDate();
     form.clearErrors();
     showPaymentForm.value = true;
 }
 
 function editPayment(row: TableRow) {
-    editingPaymentId.value = Number(row.payment_id);
+    const id = paymentRouteId(row.payment_id);
+    if (!id) return;
+
+    editingPaymentId.value = id;
     editingPaymentRow.value = row;
     form.athlete_id = String(row.athlete_id ?? '');
     form.billable_user_id = String(row.billable_user_id ?? row.athlete_user_id ?? '');
     form.payee_user_id = String(row.payee_user_id ?? '');
     form.bill_kind = String(row.bill_kind ?? 'INVOICE');
     form.payment_type = String(row.payment_type_raw ?? 'TUITION');
-    form.collection_method = String(row.collection_method_raw ?? 'CASH');
+    form.collection_method = String(row.collection_method_raw ?? 'TRANSFER');
     form.total_amount = String(row.total_amount_raw ?? '0');
-    form.paid_amount = String(row.paid_amount_raw ?? '0');
+    form.paid_amount = '0';
     form.payment_date = String(row.payment_date_raw ?? '');
+    form.due_date = String(row.due_date_raw ?? '');
     form.notes = String(row.notes_raw ?? '');
+    form.clearErrors();
     showPaymentForm.value = true;
 }
 
-function deleteFromEdit() {
-    if (editingPaymentRow.value) {
-        deletePayment(editingPaymentRow.value);
-        showPaymentForm.value = false;
-    }
+async function deletePayment(row: TableRow): Promise<boolean> {
+    const id = paymentRouteId(row.payment_id);
+    if (!id || row.can_delete !== true) return false;
+
+    const confirmed = await popup.confirm({
+        title: 'Hapus tagihan kosong?',
+        message: `Tagihan ${String(row.invoice_number ?? '')} akan dihapus. Hanya tagihan tanpa transaksi, bukti, atau aktivitas keuangan yang dapat dihapus.`,
+        tone: 'danger',
+        confirmLabel: 'Hapus tagihan',
+    });
+    if (!confirmed) return false;
+
+    router.delete(paymentDestroy.url(id), { preserveScroll: true });
+    return true;
 }
-function deletePayment(row: TableRow) {
-    const id = Number(row.payment_id);
-    if (!id) return;
-    if (!confirm('Delete this invoice?')) return;
-    router.delete(`/payments/${id}`, { preserveScroll: true });
+
+async function deleteFromEdit(): Promise<void> {
+    if (!editingPaymentRow.value) return;
+    const deleted = await deletePayment(editingPaymentRow.value);
+    if (deleted) showPaymentForm.value = false;
 }
 
 function saveInvoiceTemplate() {
     invoiceTemplateForm.post('/admin/invoice-template', {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            invoiceTemplateForm.logo_file = null;
+            invoiceTemplateForm.remove_logo_file = false;
             invoiceTemplateModalOpen.value = false;
         },
     });
 }
 
 function openProofForm(row: TableRow) {
-    proofPaymentId.value = Number(row.payment_id);
+    const id = paymentRouteId(row.payment_id);
+    if (!id) return;
+
+    proofPaymentId.value = id;
     proofForm.reset();
     showProofForm.value = true;
 }
 
 function submitProof() {
     if (!proofPaymentId.value) return;
-    proofForm.post(`/payments/${proofPaymentId.value}/proof`, {
+    proofForm.post(paymentProofSubmit.url(proofPaymentId.value), {
         forceFormData: true,
+        preserveScroll: true,
         onSuccess: () => {
             showProofForm.value = false;
         },
@@ -291,37 +414,74 @@ function submitProof() {
 function openReviewModal(row: TableRow) {
     reviewPaymentRow.value = row;
     reviewForm.decision = 'APPROVED';
-    const balance = Number(row.remaining_amount_raw ?? 0);
-    reviewForm.approved_amount = String(Math.max(balance, 0));
-    reviewForm.notes = String(row.proof_notes ?? '');
+    reviewForm.approved_amount = String(Math.max(remainingAmount(row), 0));
+    reviewForm.notes = '';
+    reviewForm.proof_review = '';
+    reviewForm.clearErrors();
     showReviewForm.value = true;
 }
 
-function submitReview(decision: 'APPROVED' | 'REJECTED') {
+async function submitReview(decision: 'APPROVED' | 'REJECTED'): Promise<void> {
     if (!reviewPaymentRow.value) return;
-    const id = Number(reviewPaymentRow.value.payment_id);
+    const id = paymentRouteId(reviewPaymentRow.value.payment_id);
+    if (!id) return;
+
     reviewForm.decision = decision;
+    if (decision === 'REJECTED') {
+        const confirmed = await popup.confirm({
+            title: 'Tolak bukti pembayaran?',
+            message:
+                'Bukti aktif akan ditandai ditolak tanpa mengubah saldo. Pengguna dapat mengunggah bukti baru setelah membaca catatan admin.',
+            tone: 'danger',
+            confirmLabel: 'Tolak bukti',
+        });
+        if (!confirmed) return;
+    }
 
-    if (decision === 'REJECTED' && !confirm('Are you sure you want to reject this receipt?')) return;
-
-    reviewForm.put(`/payments/${id}/proof-review`, {
+    reviewForm.put(paymentProofReview.url(id), {
         preserveScroll: true,
         onSuccess: () => {
             showReviewForm.value = false;
+            reviewPaymentRow.value = null;
+        },
+    });
+}
+
+function openManualPayment(row: TableRow) {
+    manualPaymentRow.value = row;
+    manualPaymentForm.reset();
+    manualPaymentForm.amount = String(Math.max(remainingAmount(row), 0));
+    manualPaymentForm.transaction_date = todayDate();
+    manualPaymentForm.payment_method = String(row.collection_method_raw ?? 'TRANSFER');
+    manualPaymentForm.notes = '';
+    manualPaymentForm.clearErrors();
+    showManualPaymentForm.value = true;
+}
+
+function submitManualPayment() {
+    if (!manualPaymentRow.value) return;
+    const id = paymentRouteId(manualPaymentRow.value.payment_id);
+    if (!id) return;
+
+    manualPaymentForm.post(`/payments/${id}/transactions`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showManualPaymentForm.value = false;
+            manualPaymentRow.value = null;
         },
     });
 }
 </script>
 
 <template>
-    <Head title="Payments" />
+    <Head title="Keuangan" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection
-                eyebrow="Payment center"
-                title="Bills and payment proof"
-                description="Admins issue bills first. Members pay outside the system, upload a receipt here, and admins approve it."
+                eyebrow="Pusat keuangan"
+                title="Tagihan, pembayaran, dan payroll"
+                description="Setiap perubahan saldo harus berasal dari transaksi yang tercatat. Bukti pembayaran, pembayaran tunai, cicilan, dan refund tetap dapat ditelusuri dari riwayat tagihan."
             >
                 <template #actions>
                     <div class="flex flex-wrap gap-2">
@@ -330,73 +490,62 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                             type="button"
                             variant="outline"
                             @click="invoiceTemplateModalOpen = true"
-                            >Invoice settings</Button
                         >
-                        <Button v-if="props.isAdmin" type="button" variant="outline" @click="exportPaymentCsv"
-                            >Export CSV</Button
-                        >
-                        <Button v-if="props.isAdmin" type="button" @click="openCreate">Issue bill</Button>
+                            Pengaturan invoice
+                        </Button>
+                        <Button v-if="props.isAdmin" type="button" variant="outline" @click="exportPaymentCsv">
+                            Export CSV
+                        </Button>
+                        <Button v-if="props.isAdmin" type="button" @click="openCreate">Buat tagihan</Button>
                     </div>
                 </template>
 
-                <div v-if="props.coachPaymentLimitation" class="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                    {{ props.coachPaymentLimitation }}
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-3">
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
 
-            <div class="grid gap-3 rounded-xl border border-border/70 bg-card p-4 md:grid-cols-4">
-                <FormSelectField
-                    id="bill-status-filter"
-                    v-model="billStatusFilter"
-                    label="Bill status"
-                    :options="[
-                        { value: '', label: 'All statuses' },
-                        { value: 'pending', label: 'Pending bills' },
-                        { value: 'partial', label: 'Partial bills' },
-                        { value: 'paid', label: 'Paid bills' },
-                    ]"
-                />
-                <FormSelectField
-                    id="proof-queue-filter"
-                    v-model="proofQueueFilter"
-                    label="Proof queue"
-                    :options="[
-                        { value: '', label: 'All proof states' },
-                        { value: 'SUBMITTED', label: 'Submitted proofs' },
-                        { value: 'NONE', label: 'No active proof' },
-                        { value: 'APPROVED', label: 'Approved proof' },
-                        { value: 'REJECTED', label: 'Rejected proof' },
-                    ]"
-                />
-                <FormSelectField
-                    id="bill-kind-filter"
-                    v-model="billKindFilter"
-                    label="Bill kind"
-                    :options="[
-                        { value: '', label: 'All kinds' },
-                        { value: 'INVOICE', label: 'Invoice / member bill' },
-                        { value: 'PAYROLL', label: 'Coach payout' },
-                    ]"
-                />
-                <FormSelectField
-                    id="bill-type-filter"
-                    v-model="billTypeFilter"
-                    label="Bill category"
-                    :options="[{ value: '', label: 'All categories' }, ...paymentTypeOptions]"
-                />
-            </div>
+            <section
+                v-if="props.isAdmin && props.financeAttention"
+                class="grid gap-3 rounded-xl border border-border bg-card p-4 md:grid-cols-4"
+            >
+                <div class="flex items-start gap-3">
+                    <WalletCards class="mt-0.5 size-5 text-muted-foreground" />
+                    <div>
+                        <p class="font-medium">{{ props.financeAttention.proof_review_count }} bukti perlu direview</p>
+                        <p class="text-xs text-muted-foreground">Baris ini ditempatkan paling atas.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <AlertTriangle class="mt-0.5 size-5 text-muted-foreground" />
+                    <div>
+                        <p class="font-medium">{{ props.financeAttention.overdue_count }} tagihan jatuh tempo</p>
+                        <p class="text-xs text-muted-foreground">Gunakan tombol WhatsApp untuk tindak lanjut.</p>
+                    </div>
+                </div>
+                <div>
+                    <p class="font-medium">{{ props.financeAttention.partial_count }} pembayaran sebagian</p>
+                    <p class="text-xs text-muted-foreground">Semua cicilan tetap berada pada tagihan yang sama.</p>
+                </div>
+                <div>
+                    <p class="font-medium">
+                        {{ props.financeAttention.ledger_mismatch_count }} ledger perlu rekonsiliasi
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                        Nilai di atas nol berarti saldo lama tidak memiliki transaksi lengkap.
+                    </p>
+                </div>
+            </section>
 
             <DataTable
-                title="Bills and receipts"
-                description="Open a bill to download the invoice or upload payment proof. The balance changes only after admin approval."
+                title="Antrean administrasi keuangan"
+                description="Urutan otomatis: bukti menunggu review, tagihan jatuh tempo, tagihan aktif, lalu tagihan selesai."
                 :columns="columns"
-                :rows="filteredRows"
+                :rows="props.rows"
+                :filters="paymentTableFilters"
+                filterable
                 searchable
-                search-placeholder="Search by person, bill type, or status"
+                search-placeholder="Cari nomor tagihan, penerima, kategori, atau status"
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
@@ -404,50 +553,58 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                             type="button"
                             size="sm"
                             variant="outline"
-                            title="Download Invoice"
-                            @click="exportInvoice(row.payment_id as string | number)"
+                            title="Download invoice"
+                            @click="exportInvoice(row.payment_id)"
                         >
                             <Download class="size-4" />
                         </Button>
-
+                        <a
+                            v-if="row.whatsapp_url && remainingAmount(row) > 0"
+                            :href="String(row.whatsapp_url)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium"
+                        >
+                            <MessageCircle class="size-4" /> WhatsApp
+                        </a>
                         <Button
                             v-if="canUploadProof(row)"
                             type="button"
                             size="sm"
                             variant="outline"
-                            class="gap-2"
                             @click="openProofForm(row)"
                         >
-                            Pay / Upload
+                            Upload bukti
                         </Button>
-
                         <a
                             v-if="row.proof_url && !canReviewProof(row)"
                             :href="String(row.proof_url)"
                             target="_blank"
-                            class="inline-flex h-8 items-center rounded-md border px-3 text-xs"
-                            >Receipt</a
+                            rel="noopener noreferrer"
+                            class="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium"
                         >
-
+                            Lihat bukti
+                        </a>
+                        <Button v-if="canReviewProof(row)" type="button" size="sm" @click="openReviewModal(row)">
+                            Review bukti
+                        </Button>
                         <Button
-                            v-if="canReviewProof(row)"
+                            v-if="canRecordPayment(row)"
                             type="button"
                             size="sm"
-                            class="gap-2"
-                            @click="openReviewModal(row)"
+                            variant="outline"
+                            @click="openManualPayment(row)"
                         >
-                            Review Receipt
+                            Catat pembayaran
                         </Button>
-
                         <Button
                             v-if="props.isAdmin"
                             type="button"
                             size="sm"
                             variant="outline"
-                            class="gap-2"
                             @click="editPayment(row)"
                         >
-                            <PencilLine class="size-4" /> Edit / Manage
+                            <PencilLine class="size-4" /> Kelola
                         </Button>
                     </ActionButtonsRow>
                 </template>
@@ -456,139 +613,165 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
 
         <FormModal
             :open="showPaymentForm && props.isAdmin"
-            max-width-class="max-w-xl"
+            max-width-class="max-w-2xl"
             @close="
                 showPaymentForm = false;
                 editingPaymentId = null;
+                editingPaymentRow = null;
             "
         >
             <PageSection
-                :title="editingPaymentId ? 'Edit bill' : 'Issue a bill'"
-                description="Choose the person, enter the amount, and the system will keep the unpaid balance until a receipt is approved."
+                :title="
+                    editingPaymentId
+                        ? `Kelola ${String(editingPaymentRow?.invoice_number ?? 'tagihan')}`
+                        : 'Buat tagihan baru'
+                "
+                description="Saldo terbayar tidak dapat diubah dari form ini. Gunakan Catat pembayaran atau Review bukti agar ledger tetap lengkap."
             >
                 <form class="grid gap-4" @submit.prevent="submit">
+                    <div
+                        v-if="editingPaymentRow"
+                        class="grid gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm md:grid-cols-3"
+                    >
+                        <div>
+                            <span class="text-muted-foreground">Total</span>
+                            <p class="font-medium">{{ editingPaymentRow.amount }}</p>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Terbayar</span>
+                            <p class="font-medium">{{ editingPaymentRow.paid }}</p>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Sisa</span>
+                            <p class="font-medium">{{ editingPaymentRow.balance }}</p>
+                        </div>
+                        <div class="md:col-span-3">
+                            <span class="text-muted-foreground">Kesehatan ledger</span>
+                            <p class="font-medium">
+                                {{ editingPaymentRow.ledger_consistent ? 'Sesuai' : 'Perlu rekonsiliasi' }}
+                            </p>
+                        </div>
+                    </div>
+
                     <FormSelectField
                         id="payment-kind"
                         v-model="form.bill_kind"
-                        label="What are you issuing?"
+                        label="Jenis pencatatan"
                         :options="[
-                            { value: 'INVOICE', label: 'Bill for a member' },
-                            { value: 'PAYROLL', label: 'Coach payout record' },
+                            { value: 'INVOICE', label: 'Tagihan untuk anggota' },
+                            { value: 'PAYROLL', label: 'Pembayaran untuk pelatih' },
                         ]"
-                        help="Most payments should stay as Bill for a member."
+                        :disabled="identityLocked"
                         :error="form.errors.bill_kind"
                     />
                     <FormSelectField
                         v-if="form.bill_kind === 'INVOICE'"
                         id="payment-recipient"
                         v-model="form.billable_user_id"
-                        label="Person receiving this bill"
+                        label="Penerima tagihan"
                         :options="props.users"
-                        placeholder="Select athlete, coach, parent, or member"
-                        help="Admins can change this when editing. If the person has an athlete profile, the bill is linked to that athlete automatically."
+                        placeholder="Pilih atlet, orang tua, pelatih, atau anggota"
+                        :disabled="identityLocked"
                         :error="form.errors.billable_user_id || form.errors.athlete_id"
                     />
                     <FormSelectField
                         v-if="form.bill_kind === 'PAYROLL'"
                         id="payment-coach"
                         v-model="form.payee_user_id"
-                        label="Coach receiving payout"
+                        label="Pelatih penerima pembayaran"
                         :options="props.coaches"
-                        placeholder="Select coach"
+                        placeholder="Pilih pelatih"
                         required
+                        :disabled="identityLocked"
                         :error="form.errors.payee_user_id"
                     />
                     <FormSelectField
                         v-if="form.bill_kind === 'INVOICE'"
                         id="payment-type"
                         v-model="form.payment_type"
-                        label="Bill category"
+                        label="Kategori tagihan"
                         :options="paymentTypeOptions"
                         required
+                        :disabled="identityLocked"
                         :error="form.errors.payment_type"
                     />
-                    <FormInputField
-                        id="payment-total"
-                        v-model="form.total_amount"
-                        label="Amount to pay"
-                        type="number"
-                        inputmode="decimal"
-                        min="0"
-                        step="1000"
-                        placeholder="Example: 250000"
-                        required
-                        :error="form.errors.total_amount"
-                    />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormInputField
+                            id="payment-total"
+                            v-model="form.total_amount"
+                            label="Total tagihan"
+                            type="number"
+                            inputmode="decimal"
+                            min="0.01"
+                            step="1000"
+                            required
+                            :error="form.errors.total_amount"
+                        />
+                        <FormSelectField
+                            id="payment-method"
+                            v-model="form.collection_method"
+                            label="Metode pembayaran yang diharapkan"
+                            :options="collectionMethodOptions"
+                            :error="form.errors.collection_method"
+                        />
+                        <FormInputField
+                            id="payment-date"
+                            v-model="form.payment_date"
+                            label="Tanggal diterbitkan"
+                            type="date"
+                            required
+                            :error="form.errors.payment_date"
+                        />
+                        <FormInputField
+                            id="payment-due-date"
+                            v-model="form.due_date"
+                            label="Tanggal jatuh tempo"
+                            type="date"
+                            required
+                            :error="form.errors.due_date"
+                        />
+                    </div>
                     <FormInputField
                         id="payment-notes"
                         v-model="form.notes"
-                        label="Note for this bill"
-                        placeholder="Example: May tuition"
-                        help="Optional. Keep it short and clear for the member."
+                        label="Keterangan tagihan"
+                        placeholder="Contoh: Iuran bulan Juli 2026"
                         :error="form.errors.notes"
                     />
-                    <input v-model="form.payment_date" type="hidden" />
-                    <input v-if="!editingPaymentId" v-model="form.paid_amount" type="hidden" />
-                    <details class="rounded-lg border border-border p-3">
-                        <summary class="cursor-pointer text-sm font-medium">Admin details</summary>
-                        <div class="mt-4 grid gap-4">
-                            <FormSelectField
-                                id="payment-method"
-                                v-model="form.collection_method"
-                                label="Expected payment method"
-                                :options="collectionMethodOptions"
-                                help="Used as a note on the bill."
-                                :error="form.errors.collection_method"
-                            />
-                            <div v-if="editingPaymentId" class="grid gap-4 md:grid-cols-2">
-                                <FormInputField
-                                    id="payment-paid"
-                                    v-model="form.paid_amount"
-                                    label="Amount already approved"
-                                    type="number"
-                                    inputmode="decimal"
-                                    min="0"
-                                    step="1000"
-                                    :error="form.errors.paid_amount"
-                                />
-                                <FormInputField
-                                    id="payment-date"
-                                    v-model="form.payment_date"
-                                    label="Issue date"
-                                    type="date"
-                                    :error="form.errors.payment_date"
-                                />
-                            </div>
-                        </div>
-                    </details>
 
                     <PaymentTransactionHistory
                         v-if="editingPaymentId"
                         :entries="paymentHistory(editingPaymentRow)"
-                        empty-text="No approved installments have been recorded for this bill yet."
+                        title="Riwayat ledger"
+                        empty-text="Belum ada aktivitas finansial pada tagihan ini."
                     />
 
                     <div class="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-4">
                         <div class="flex flex-wrap gap-3">
-                            <Button type="submit" :disabled="form.processing">{{
-                                editingPaymentId ? 'Save changes' : 'Issue bill'
-                            }}</Button>
+                            <Button type="submit" :disabled="form.processing">
+                                {{ editingPaymentId ? 'Simpan metadata' : 'Terbitkan tagihan' }}
+                            </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 @click="
                                     showPaymentForm = false;
                                     editingPaymentId = null;
+                                    editingPaymentRow = null;
                                 "
-                                >Cancel</Button
                             >
-                        </div>
-
-                        <div v-if="editingPaymentId" class="flex flex-wrap gap-2">
-                            <Button type="button" variant="destructive" size="sm" @click="deleteFromEdit">
-                                <Trash2 class="mr-2 size-4" /> Delete Bill
+                                Batal
                             </Button>
                         </div>
+                        <Button
+                            v-if="editingPaymentId && editingPaymentRow?.can_delete === true"
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            @click="deleteFromEdit"
+                        >
+                            <Trash2 class="mr-2 size-4" /> Hapus tagihan kosong
+                        </Button>
                     </div>
                 </form>
             </PageSection>
@@ -600,96 +783,96 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
             @close="invoiceTemplateModalOpen = false"
         >
             <PageSection
-                title="Invoice settings"
-                description="These details appear on downloaded invoices and in the payment instructions members see before uploading a receipt."
+                title="Pengaturan invoice"
+                description="Atur identitas klub dan upload logo yang akan ditanam langsung ke invoice PDF."
             >
                 <form class="grid gap-6" @submit.prevent="saveInvoiceTemplate">
-                    <div class="grid gap-2">
-                        <label class="text-sm font-medium">Logo</label>
-                        <div class="flex items-center gap-4">
-                            <div
-                                class="flex h-24 w-24 items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/50"
-                            >
-                                <ImagePlus class="size-8 text-muted-foreground" />
-                            </div>
-                            <div class="flex-1">
-                                <FormInputField
-                                    id="invoice-logo-url"
-                                    v-model="invoiceTemplateForm.logo_url"
-                                    type="url"
-                                    label="Logo URL"
-                                    placeholder="https://example.com/logo.png"
-                                    help="Optional. Leave empty if you do not have a public logo link."
-                                    :error="invoiceTemplateForm.errors.logo_url"
-                                />
-                            </div>
-                        </div>
+                    <div class="grid gap-3 rounded-xl border border-border bg-muted/20 p-4">
+                        <FormFileField
+                            id="invoice-logo-file"
+                            v-model="invoiceTemplateForm.logo_file"
+                            label="File logo invoice"
+                            accept="image/png,image/jpeg,image/webp"
+                            current-file-name="Logo invoice saat ini"
+                            :current-file-url="props.invoiceTemplate?.logo_image_url ?? props.invoiceTemplate?.logo_url"
+                            :error="invoiceTemplateForm.errors.logo_file"
+                        />
+                        <p v-if="!invoiceTemplateForm.errors.logo_file" class="text-xs leading-5 text-muted-foreground">
+                            Gunakan PNG, JPG, atau WebP maksimal 5 MB. Logo berbentuk persegi atau horizontal dengan
+                            latar transparan memberikan hasil terbaik pada PDF.
+                        </p>
+                        <label
+                            v-if="props.invoiceTemplate?.logo_image_url || props.invoiceTemplate?.logo_url"
+                            class="flex items-center gap-2 text-sm"
+                        >
+                            <input
+                                v-model="invoiceTemplateForm.remove_logo_file"
+                                type="checkbox"
+                                class="size-4 rounded border-input"
+                            />
+                            Hapus logo dari invoice
+                        </label>
+                        <p v-if="invoiceTemplateForm.errors.remove_logo_file" class="text-sm text-destructive">
+                            {{ invoiceTemplateForm.errors.remove_logo_file }}
+                        </p>
                     </div>
-
                     <div class="grid gap-4 md:grid-cols-2">
                         <FormInputField
                             id="invoice-company-name"
                             v-model="invoiceTemplateForm.company_name"
-                            label="Club name"
+                            label="Nama klub"
                             required
                             :error="invoiceTemplateForm.errors.company_name"
                         />
                         <FormInputField
                             id="invoice-company-email"
                             v-model="invoiceTemplateForm.company_email"
-                            label="Finance email"
+                            label="Email keuangan"
                             type="email"
-                            autocomplete="email"
                             :error="invoiceTemplateForm.errors.company_email"
                         />
                         <FormInputField
                             id="invoice-company-phone"
                             v-model="invoiceTemplateForm.company_phone"
-                            label="Finance phone"
-                            autocomplete="tel"
+                            label="Nomor keuangan"
                             :error="invoiceTemplateForm.errors.company_phone"
                         />
                     </div>
-                    <div class="grid gap-2">
-                        <label for="invoice-company-address" class="text-sm font-medium">Company address</label>
+                    <label class="grid gap-2 text-sm font-medium">
+                        Alamat
                         <textarea
-                            id="invoice-company-address"
                             v-model="invoiceTemplateForm.company_address"
                             rows="2"
                             class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
                         ></textarea>
-                    </div>
+                    </label>
                     <FormInputField
                         id="invoice-header-text"
                         v-model="invoiceTemplateForm.header_text"
-                        label="Invoice heading"
-                        placeholder="Example: Official payment invoice"
+                        label="Tagline atau subjudul"
                         :error="invoiceTemplateForm.errors.header_text"
                     />
-                    <div class="grid gap-2">
-                        <label for="invoice-footer-text" class="text-sm font-medium">Footer note</label>
+                    <label class="grid gap-2 text-sm font-medium">
+                        Catatan footer
                         <textarea
-                            id="invoice-footer-text"
                             v-model="invoiceTemplateForm.footer_text"
                             rows="3"
                             class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
                         ></textarea>
-                    </div>
-                    <div class="grid gap-2">
-                        <label for="invoice-payment-notes" class="text-sm font-medium">Payment instructions</label>
+                    </label>
+                    <label class="grid gap-2 text-sm font-medium">
+                        Instruksi pembayaran
                         <textarea
-                            id="invoice-payment-notes"
                             v-model="invoiceTemplateForm.payment_notes"
                             rows="3"
-                            placeholder="Example: Transfer to BCA 123456789 a.n. RF IS, then upload the receipt here."
                             class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
                         ></textarea>
-                    </div>
+                    </label>
                     <div class="flex flex-wrap gap-3">
-                        <Button type="submit" :disabled="invoiceTemplateForm.processing">Save invoice settings</Button>
-                        <Button type="button" variant="outline" @click="invoiceTemplateModalOpen = false"
-                            >Cancel</Button
-                        >
+                        <Button type="submit" :disabled="invoiceTemplateForm.processing">
+                            {{ invoiceTemplateForm.processing ? 'Menyimpan...' : 'Simpan pengaturan' }}
+                        </Button>
+                        <Button type="button" variant="outline" @click="invoiceTemplateModalOpen = false">Batal</Button>
                     </div>
                 </form>
             </PageSection>
@@ -697,21 +880,21 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
 
         <FormModal :open="showProofForm" max-width-class="max-w-xl" @close="showProofForm = false">
             <PageSection
-                title="Pay this bill"
-                description="Pay using the admin instructions, then upload a receipt so finance can approve it."
+                title="Upload bukti pembayaran"
+                description="Bukti akan masuk ke antrean review admin dan tidak langsung mengubah saldo."
             >
                 <div v-if="activeProofRow" class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm">
                     <p>
-                        <span class="font-medium">Bill:</span> {{ activeProofRow.type }} for
-                        {{ activeProofRow.athlete }}
+                        <span class="font-medium">Tagihan:</span> {{ activeProofRow.invoice_number }} —
+                        {{ activeProofRow.type }}
                     </p>
-                    <p><span class="font-medium">Balance:</span> {{ activeProofRow.balance }}</p>
+                    <p><span class="font-medium">Sisa:</span> {{ activeProofRow.balance }}</p>
                     <p class="leading-6 text-muted-foreground">{{ props.paymentInstructions }}</p>
                 </div>
                 <PaymentTransactionHistory
                     :entries="paymentHistory(activeProofRow)"
-                    title="Approved installments"
-                    empty-text="No approved installments yet. Upload proof for the remaining amount when ready."
+                    title="Riwayat pembayaran"
+                    empty-text="Belum ada pembayaran yang disetujui."
                     :show-verifier="false"
                     :bordered="true"
                 />
@@ -719,84 +902,151 @@ function submitReview(decision: 'APPROVED' | 'REJECTED') {
                     <FormInputField
                         id="proof-notes"
                         v-model="proofForm.notes"
-                        label="Receipt note"
-                        placeholder="Example: Paid by bank transfer today"
-                        help="Optional, but useful if the receipt is hard to read."
+                        label="Catatan bukti"
+                        placeholder="Contoh: Transfer cicilan pertama"
                         :error="proofForm.errors.notes"
                     />
                     <FormFileField
                         id="proof-file"
                         v-model="proofForm.proof_file"
-                        label="Payment proof file"
+                        label="File bukti"
                         accept="image/*,.pdf"
                         :error="proofForm.errors.proof_file"
                     />
-                    <p v-if="!proofForm.errors.proof_file" class="text-xs leading-5 text-muted-foreground">
-                        Accepted: image or PDF, up to 10 MB.
+                    <p v-if="!proofForm.errors.proof_file" class="text-xs text-muted-foreground">
+                        Gambar atau PDF, maksimal 10 MB.
                     </p>
-                    <div class="flex gap-3">
+                    <div class="flex flex-wrap gap-3">
                         <Button type="submit" :disabled="proofForm.processing || !proofForm.proof_file"
-                            >Send receipt for review</Button
+                            >Kirim untuk review</Button
                         >
-                        <Button type="button" variant="outline" @click="showProofForm = false">Cancel</Button>
+                        <Button type="button" variant="outline" @click="showProofForm = false">Batal</Button>
                     </div>
                 </form>
             </PageSection>
         </FormModal>
 
-        <FormModal :open="showReviewForm" max-width-class="max-w-md" @close="showReviewForm = false">
+        <FormModal :open="showReviewForm" max-width-class="max-w-lg" @close="showReviewForm = false">
             <PageSection
-                title="Review Payment Proof"
-                description="Review the receipt and confirm the amount paid in this specific transaction."
+                title="Review bukti pembayaran"
+                description="Masukkan nilai yang benar-benar terlihat pada bukti. Nilai ini akan menjadi transaksi ledger."
             >
                 <form class="grid gap-4">
-                    <div v-if="reviewPaymentRow" class="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                        <p><span class="font-medium">Member:</span> {{ reviewPaymentRow.athlete }}</p>
-                        <p><span class="font-medium">Total Bill:</span> {{ reviewPaymentRow.amount }}</p>
-                        <p><span class="font-medium">Current Balance:</span> {{ reviewPaymentRow.balance }}</p>
-                        <div class="mt-2" v-if="reviewPaymentRow.proof_url">
-                            <a
-                                :href="String(reviewPaymentRow.proof_url)"
-                                target="_blank"
-                                class="inline-flex h-8 items-center rounded-md border bg-background px-3 text-xs"
-                                >View Receipt Document</a
-                            >
-                        </div>
+                    <div
+                        v-if="reviewPaymentRow"
+                        class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm"
+                    >
+                        <p><span class="font-medium">Tagihan:</span> {{ reviewPaymentRow.invoice_number }}</p>
+                        <p><span class="font-medium">Penerima:</span> {{ reviewPaymentRow.athlete }}</p>
+                        <p><span class="font-medium">Total:</span> {{ reviewPaymentRow.amount }}</p>
+                        <p><span class="font-medium">Sisa saat ini:</span> {{ reviewPaymentRow.balance }}</p>
+                        <a
+                            v-if="reviewPaymentRow.proof_url"
+                            :href="String(reviewPaymentRow.proof_url)"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="mt-1 inline-flex h-8 w-fit items-center rounded-md border bg-background px-3 text-xs font-medium"
+                        >
+                            Buka dokumen bukti
+                        </a>
                     </div>
-
                     <FormInputField
                         id="review-approved-amount"
                         v-model="reviewForm.approved_amount"
-                        label="Approved amount for this proof"
+                        label="Nominal yang disetujui"
                         type="number"
                         inputmode="decimal"
                         min="0.01"
                         step="0.01"
                         required
-                        help="If this is a partial payment, change this number. The system will calculate the remaining balance."
                         :error="reviewForm.errors.approved_amount"
                     />
-
                     <FormInputField
                         id="review-notes"
                         v-model="reviewForm.notes"
-                        label="Admin notes (optional)"
-                        placeholder="Example: First installment received"
-                        :error="reviewForm.errors.notes"
+                        label="Catatan admin"
+                        placeholder="Contoh: Nominal sesuai mutasi bank"
+                        :error="reviewForm.errors.notes || reviewForm.errors.proof_review"
                     />
-
-                    <div class="mt-4 flex gap-3">
+                    <div class="mt-4 flex flex-wrap gap-3">
                         <Button type="button" :disabled="reviewForm.processing" @click="submitReview('APPROVED')"
-                            >Approve approved amount</Button
+                            >Setujui nominal</Button
                         >
                         <Button
                             type="button"
                             variant="destructive"
                             :disabled="reviewForm.processing"
                             @click="submitReview('REJECTED')"
-                            >Reject Proof</Button
+                            >Tolak bukti</Button
                         >
-                        <Button type="button" variant="outline" @click="showReviewForm = false">Cancel</Button>
+                        <Button type="button" variant="outline" @click="showReviewForm = false">Batal</Button>
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal
+            :open="showManualPaymentForm && props.isAdmin"
+            max-width-class="max-w-lg"
+            @close="showManualPaymentForm = false"
+        >
+            <PageSection
+                title="Catat pembayaran"
+                description="Gunakan untuk pembayaran tunai atau transfer yang diverifikasi langsung oleh admin tanpa upload bukti dari anggota."
+            >
+                <form class="grid gap-4" @submit.prevent="submitManualPayment">
+                    <div
+                        v-if="manualPaymentRow"
+                        class="grid gap-2 rounded-lg border border-border bg-muted/30 p-3 text-sm"
+                    >
+                        <p><span class="font-medium">Tagihan:</span> {{ manualPaymentRow.invoice_number }}</p>
+                        <p><span class="font-medium">Penerima:</span> {{ manualPaymentRow.athlete }}</p>
+                        <p><span class="font-medium">Sisa sebelum transaksi:</span> {{ manualPaymentRow.balance }}</p>
+                    </div>
+                    <FormInputField
+                        id="manual-payment-amount"
+                        v-model="manualPaymentForm.amount"
+                        label="Nominal diterima"
+                        type="number"
+                        inputmode="decimal"
+                        min="0.01"
+                        step="0.01"
+                        required
+                        :error="manualPaymentForm.errors.amount"
+                    />
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <FormInputField
+                            id="manual-payment-date"
+                            v-model="manualPaymentForm.transaction_date"
+                            label="Tanggal transaksi"
+                            type="date"
+                            required
+                            :error="manualPaymentForm.errors.transaction_date"
+                        />
+                        <FormSelectField
+                            id="manual-payment-method"
+                            v-model="manualPaymentForm.payment_method"
+                            label="Metode"
+                            :options="collectionMethodOptions"
+                            required
+                            :error="manualPaymentForm.errors.payment_method"
+                        />
+                    </div>
+                    <FormInputField
+                        id="manual-payment-notes"
+                        v-model="manualPaymentForm.notes"
+                        label="Catatan transaksi"
+                        placeholder="Contoh: Diterima tunai oleh admin"
+                        :error="manualPaymentForm.errors.notes"
+                    />
+                    <PaymentTransactionHistory
+                        :entries="paymentHistory(manualPaymentRow)"
+                        title="Riwayat ledger"
+                        empty-text="Belum ada transaksi pada tagihan ini."
+                    />
+                    <div class="flex flex-wrap gap-3">
+                        <Button type="submit" :disabled="manualPaymentForm.processing">Simpan transaksi</Button>
+                        <Button type="button" variant="outline" @click="showManualPaymentForm = false">Batal</Button>
                     </div>
                 </form>
             </PageSection>

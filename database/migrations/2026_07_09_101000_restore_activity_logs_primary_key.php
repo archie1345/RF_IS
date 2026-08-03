@@ -16,6 +16,7 @@ return new class extends Migration
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
             DB::statement('alter table `activity_logs` add column `id` bigint unsigned not null auto_increment primary key first');
+
             return;
         }
 

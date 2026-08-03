@@ -12,7 +12,7 @@ class StoreAttendanceRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && ! $user->isAthlete();
+        return $user !== null && ($user->isAdmin() || $user->isCoach());
     }
 
     public function rules(): array

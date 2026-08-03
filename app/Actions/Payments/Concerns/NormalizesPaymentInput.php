@@ -3,19 +3,26 @@
 namespace App\Actions\Payments\Concerns;
 
 use App\Models\Athlete;
+use Illuminate\Support\Carbon;
 
 trait NormalizesPaymentInput
 {
     protected function normalizePaymentData(array $validated): array
     {
-        $validated['bill_kind'] = $validated['bill_kind'] ?? 'INVOICE';
+        $validated['bill_kind'] = strtoupper((string) ($validated['bill_kind'] ?? 'INVOICE'));
         $validated['athlete_id'] = $validated['athlete_id'] ?? null;
         $validated['paid_amount'] = $validated['paid_amount'] ?? 0;
         $validated['payment_date'] = $validated['payment_date'] ?? now()->toDateString();
+        $validated['collection_method'] = strtoupper((string) ($validated['collection_method'] ?? 'TRANSFER'));
+        $validated['due_date'] = $validated['due_date'] ?? $this->defaultDueDate(
+            $validated['payment_date'],
+            $validated['bill_kind'],
+        );
 
         if ($validated['bill_kind'] === 'PAYROLL') {
             $validated['athlete_id'] = null;
             $validated['billable_user_id'] = null;
+            $validated['payment_type'] = 'OTHER';
 
             return $validated;
         }
@@ -45,27 +52,19 @@ trait NormalizesPaymentInput
         return $validated;
     }
 
-    protected function notesFrom(array $validated): string
+    protected function notesFrom(array $validated): ?string
     {
-        return trim(collect([
-            $validated['collection_method'] ?? null,
-            $validated['notes'] ?? null,
-        ])->filter()->implode(' | '));
+        $notes = trim((string) ($validated['notes'] ?? ''));
+
+        return $notes !== '' ? $notes : null;
     }
 
-    protected function appendNote(?string $existing, string $incoming): ?string
+    private function defaultDueDate(string $paymentDate, string $billKind): string
     {
-        $existing = trim((string) $existing);
-        $incoming = trim($incoming);
+        $issuedOn = Carbon::parse($paymentDate);
 
-        if ($incoming === '') {
-            return $existing !== '' ? $existing : null;
-        }
-
-        if ($existing === '') {
-            return $incoming;
-        }
-
-        return $existing.' | '.$incoming;
+        return $billKind === 'PAYROLL'
+            ? $issuedOn->toDateString()
+            : $issuedOn->copy()->addDays(14)->toDateString();
     }
 }

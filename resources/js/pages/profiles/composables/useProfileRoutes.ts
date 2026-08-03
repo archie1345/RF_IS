@@ -1,7 +1,39 @@
 import { computed } from 'vue';
 import type { ProfileUser } from '@/pages/profiles/types';
+import { update as profileUpdate } from '@/routes/profile';
+import {
+    destroy as profileAchievementDestroy,
+    store as profileAchievementStore,
+    update as profileAchievementUpdate,
+} from '@/routes/profile/achievements';
+import {
+    destroy as profileCertificationDestroy,
+    store as profileCertificationStore,
+    update as profileCertificationUpdate,
+} from '@/routes/profile/certifications';
+import { update as profileDetailsUpdate } from '@/routes/profile/details';
+import { update as userAccountUpdate } from '@/routes/users/account';
+import {
+    destroy as userAchievementDestroy,
+    store as userAchievementStore,
+    update as userAchievementUpdate,
+} from '@/routes/users/achievements';
+import { update as userAthleteProfileUpdate } from '@/routes/users/athlete-profile';
+import {
+    destroy as userCertificationDestroy,
+    store as userCertificationStore,
+    update as userCertificationUpdate,
+} from '@/routes/users/certifications';
+import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
+import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
+import { update as userProfileUpdate } from '@/routes/users/profile';
 
 type ProfileContext = 'admin' | 'settings';
+
+function routeId(value: string | number): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
 
 export function useProfileRoutes(options: {
     user: ProfileUser;
@@ -12,31 +44,60 @@ export function useProfileRoutes(options: {
     achievementStoreUrl?: string;
 }) {
     const isSettingsContext = computed(() => options.context === 'settings');
+    const userId = computed(() => routeId(options.user.id));
 
     const accountUpdateUrl = computed(
         () =>
             options.accountUpdateUrl ??
-            (isSettingsContext.value ? '/settings/profile' : `/users/${options.user.id}/account`),
+            (isSettingsContext.value ? profileUpdate.url() : userAccountUpdate.url(userId.value)),
     );
-    const profileUpdateUrl = computed(() => options.profileUpdateUrl ?? `/users/${options.user.id}/profile`);
+    const profileUpdateUrl = computed(
+        () =>
+            options.profileUpdateUrl ??
+            (isSettingsContext.value ? profileDetailsUpdate.url() : userProfileUpdate.url(userId.value)),
+    );
     const certificationStoreUrl = computed(
-        () => options.certificationStoreUrl ?? `/users/${options.user.id}/certifications`,
+        () =>
+            options.certificationStoreUrl ??
+            (isSettingsContext.value ? profileCertificationStore.url() : userCertificationStore.url(userId.value)),
     );
-    const achievementStoreUrl = computed(() => options.achievementStoreUrl ?? `/users/${options.user.id}/achievements`);
+    const achievementStoreUrl = computed(
+        () =>
+            options.achievementStoreUrl ??
+            (isSettingsContext.value ? profileAchievementStore.url() : userAchievementStore.url(userId.value)),
+    );
 
-    const certificationUpdateUrl = (id: number | string) =>
-        options.context === 'settings'
-            ? `/settings/profile/certifications/${id}`
-            : `/users/${options.user.id}/certifications/${id}`;
+    const certificationUpdateUrl = (id: number | string) => {
+        const certificationId = routeId(id);
+        return options.context === 'settings'
+            ? profileCertificationUpdate.url(certificationId)
+            : userCertificationUpdate.url({ user: userId.value, certification: certificationId });
+    };
 
-    const achievementUpdateUrl = (id: number | string) =>
-        options.context === 'settings'
-            ? `/settings/profile/achievements/${id}`
-            : `/users/${options.user.id}/achievements/${id}`;
+    const certificationDestroyUrl = (id: number | string) => {
+        const certificationId = routeId(id);
+        return options.context === 'settings'
+            ? profileCertificationDestroy.url(certificationId)
+            : userCertificationDestroy.url({ user: userId.value, certification: certificationId });
+    };
 
-    const athleteProfileUpdateUrl = computed(() => `/users/${options.user.id}/athlete-profile`);
-    const coachProfileUpdateUrl = computed(() => `/users/${options.user.id}/coach-profile`);
-    const parentProfileUpdateUrl = computed(() => `/users/${options.user.id}/parent-profile`);
+    const achievementUpdateUrl = (id: number | string) => {
+        const achievementId = routeId(id);
+        return options.context === 'settings'
+            ? profileAchievementUpdate.url(achievementId)
+            : userAchievementUpdate.url({ user: userId.value, achievement: achievementId });
+    };
+
+    const achievementDestroyUrl = (id: number | string) => {
+        const achievementId = routeId(id);
+        return options.context === 'settings'
+            ? profileAchievementDestroy.url(achievementId)
+            : userAchievementDestroy.url({ user: userId.value, achievement: achievementId });
+    };
+
+    const athleteProfileUpdateUrl = computed(() => userAthleteProfileUpdate.url(userId.value));
+    const coachProfileUpdateUrl = computed(() => userCoachProfileUpdate.url(userId.value));
+    const parentProfileUpdateUrl = computed(() => userParentProfileUpdate.url(userId.value));
 
     return {
         isSettingsContext,
@@ -45,7 +106,9 @@ export function useProfileRoutes(options: {
         certificationStoreUrl,
         achievementStoreUrl,
         certificationUpdateUrl,
+        certificationDestroyUrl,
         achievementUpdateUrl,
+        achievementDestroyUrl,
         athleteProfileUpdateUrl,
         coachProfileUpdateUrl,
         parentProfileUpdateUrl,

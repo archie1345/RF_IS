@@ -5,21 +5,29 @@ namespace App\Presenters;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Presenters\Concerns\FormatsPresenterData;
+use App\Services\PaymentReminderTemplate;
 use App\Support\Domain\PaymentStatus;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class PaymentRowPresenter
 {
     use FormatsPresenterData;
 
-    public function row(Payment $payment): array
+    public function __construct(private readonly PaymentReminderTemplate $reminderTemplate) {}
+
+    public function row(Payment $payment, bool $includeWhatsApp = false): array
     {
         $phone = $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '';
+        $paidAmount = (float) ($payment->paid_amount ?? 0);
+        $remainingAmount = (float) ($payment->remaining_amount ?? 0);
+        $ledgerPaidAmount = $this->ledgerPaidAmount($payment);
+        $ledgerConsistent = abs($ledgerPaidAmount - $paidAmount) < 0.01;
+        $collectionMethod = $this->extractCollectionMethod($payment);
 
         return [
             'id' => 'PAY-'.$payment->payment_id,
             'payment_id' => $payment->payment_id,
+            'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
             'athlete_id' => $payment->athlete_id,
             'athlete_user_id' => $payment->athlete?->id,
             'billable_user_id' => $payment->billable_user_id,
@@ -27,32 +35,57 @@ class PaymentRowPresenter
             'bill_kind' => $payment->bill_kind ?? 'INVOICE',
             'athlete' => $this->subject($payment),
             'athlete_phone' => $phone,
-            'whatsapp_url' => $this->whatsAppUrl($payment, $phone),
+            'whatsapp_url' => $includeWhatsApp ? $this->whatsAppUrl($payment, $phone) : null,
+            'receipt_url' => route('payments.export', $payment),
+            'payroll_period' => $payment->payroll_period?->format('F Y') ?? '-',
+            'payroll_basis_type' => $payment->payroll_basis_type,
+            'payroll_basis' => $this->payrollBasisLabel((string) $payment->payroll_basis_type),
+            'payroll_units' => $payment->payroll_units === null ? '-' : (string) $payment->payroll_units,
+            'payroll_rate' => $this->rupiah((float) ($payment->payroll_rate ?? 0)),
+            'payroll_base' => $this->rupiah((float) ($payment->payroll_base_amount ?? 0)),
+            'payroll_bonus' => $this->rupiah((float) ($payment->payroll_bonus_amount ?? 0)),
             'type' => Str::headline(strtolower((string) $payment->payment_type)),
             'payment_type_raw' => $payment->payment_type,
             'amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount)),
+            'paid' => $this->rupiah($paidAmount),
+            'balance' => $this->rupiah($remainingAmount),
             'total_amount_raw' => (string) ($payment->total_amount ?? $payment->amount ?? 0),
-            'paid_amount_raw' => (string) ($payment->paid_amount ?? 0),
-            'remaining_amount_raw' => (string) ($payment->remaining_amount ?? 0),
-            'balance' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
+            'paid_amount_raw' => (string) $paidAmount,
+            'remaining_amount_raw' => (string) $remainingAmount,
+            'ledger_paid_amount_raw' => (string) $ledgerPaidAmount,
+            'ledger_consistent' => $ledgerConsistent,
+            'ledger_status' => $ledgerConsistent
+                ? $this->badge('Ledger sesuai', 'success')
+                : $this->badge('Perlu rekonsiliasi', 'danger'),
+            'transaction_count' => $payment->transactions->count(),
             'payment_date_raw' => optional($payment->payment_date)->format('Y-m-d') ?? '',
+            'due_date_raw' => optional($payment->due_date)->format('Y-m-d') ?? '',
             'issued' => optional($payment->payment_date)->format('d M Y') ?? '-',
-            'notes_raw' => $payment->notes ?? '',
-            'collection_method_raw' => $this->extractCollectionMethod($payment->notes),
+            'due' => optional($payment->due_date)->format('d M Y') ?? '-',
+            'is_overdue' => $payment->isOverdue(),
+            'notes_raw' => $this->cleanNotes($payment->notes),
+            'collection_method_raw' => $collectionMethod,
             'status_value' => $payment->status,
             'proof_status' => $payment->proof_status ?? PaymentStatus::PROOF_NONE,
             'proof_status_label' => $this->proofBadge((string) ($payment->proof_status ?? PaymentStatus::PROOF_NONE)),
-            'proof_url' => $payment->proof_path ? Storage::url($payment->proof_path) : null,
+            'proof_url' => $payment->proof_path ? route('payments.proof.download', $payment) : null,
             'proof_notes' => $payment->proof_notes ?? '',
             'transaction_history' => $this->transactionHistory($payment),
             'status' => $this->paymentBadge($payment),
+            'next_action' => $this->nextAction($payment),
+            'can_record_payment' => $remainingAmount > 0
+                && ! in_array($payment->status, [PaymentStatus::FAILED, PaymentStatus::REFUNDED], true)
+                && $payment->proof_status !== PaymentStatus::PROOF_SUBMITTED,
+            'can_delete' => $payment->transactions->isEmpty()
+                && blank($payment->proof_path)
+                && $paidAmount <= 0,
         ];
     }
 
     public function subject(Payment $payment): string
     {
         if (($payment->bill_kind ?? 'INVOICE') === 'PAYROLL') {
-            return 'Payroll: '.($payment->payeeUser?->name ?? 'Unknown coach');
+            return $payment->payeeUser?->name ?? 'Unknown coach';
         }
 
         return $payment->athlete?->user?->name
@@ -82,25 +115,106 @@ class PaymentRowPresenter
         return $payment->transactions
             ->map(fn (PaymentTransaction $transaction) => [
                 'id' => $transaction->ptid,
-                'amount' => $this->rupiah((float) $transaction->amount),
+                'amount' => (float) $transaction->amount > 0
+                    ? $this->rupiah((float) $transaction->amount)
+                    : '-',
                 'amount_raw' => (string) $transaction->amount,
                 'date' => optional($transaction->transaction_date)->format('d M Y') ?? '-',
                 'method' => $transaction->payment_method,
-                'type' => Str::headline(strtolower((string) $transaction->transaction_type)),
+                'type' => $this->transactionTypeLabel((string) $transaction->transaction_type),
                 'verified_by' => $transaction->verifier?->name ?? 'System',
                 'notes' => $transaction->notes ?? '',
                 'proof_notes' => $transaction->proof_notes ?? '',
-                'proof_url' => $transaction->proof_path ? Storage::url($transaction->proof_path) : null,
+                'proof_url' => $transaction->proof_path
+                    ? route('payments.transactions.proof.download', $transaction)
+                    : null,
             ])
             ->values()
             ->all();
     }
 
-    public function extractCollectionMethod(?string $notes): string
+    public function extractCollectionMethod(Payment|string|null $source): string
     {
-        $first = trim(explode('|', (string) $notes)[0] ?? '');
+        if ($source instanceof Payment && filled($source->collection_method)) {
+            return strtoupper((string) $source->collection_method);
+        }
 
-        return in_array($first, ['CASH', 'TRANSFER', 'OTHER'], true) ? $first : 'TRANSFER';
+        $notes = $source instanceof Payment ? $source->notes : $source;
+        $first = strtoupper(trim(explode('|', (string) $notes)[0] ?? ''));
+
+        return in_array($first, ['CASH', 'CARD', 'TRANSFER', 'OTHER'], true) ? $first : 'TRANSFER';
+    }
+
+    private function ledgerPaidAmount(Payment $payment): float
+    {
+        $payments = (float) $payment->transactions
+            ->where('transaction_type', PaymentTransaction::TYPE_PAYMENT)
+            ->sum('amount');
+        $refunds = (float) $payment->transactions
+            ->where('transaction_type', PaymentTransaction::TYPE_REFUND)
+            ->sum('amount');
+
+        return max($payments - $refunds, 0);
+    }
+
+    private function nextAction(Payment $payment): array
+    {
+        if ($payment->proof_status === PaymentStatus::PROOF_SUBMITTED) {
+            return $this->badge('Tinjau bukti', 'warning');
+        }
+        if ($payment->status === PaymentStatus::REFUNDED) {
+            return $this->badge('Sudah direfund', 'info');
+        }
+        if ($payment->status === PaymentStatus::FAILED) {
+            return $this->badge('Periksa tagihan gagal', 'danger');
+        }
+        if ((float) ($payment->remaining_amount ?? 0) <= 0) {
+            return $this->badge('Selesai', 'success');
+        }
+        if ($payment->isOverdue()) {
+            return $this->badge('Tindak lanjut jatuh tempo', 'danger');
+        }
+        if ((float) ($payment->paid_amount ?? 0) > 0) {
+            return $this->badge('Menunggu cicilan berikutnya', 'warning');
+        }
+
+        return ($payment->bill_kind ?? 'INVOICE') === 'PAYROLL'
+            ? $this->badge('Catat pembayaran pelatih', 'info')
+            : $this->badge('Menunggu pembayaran', 'neutral');
+    }
+
+    private function cleanNotes(?string $notes): string
+    {
+        $parts = array_map('trim', explode('|', (string) $notes));
+        if (isset($parts[0]) && in_array(strtoupper($parts[0]), ['CASH', 'CARD', 'TRANSFER', 'OTHER'], true)) {
+            array_shift($parts);
+        }
+
+        return trim(implode(' | ', array_filter($parts)));
+    }
+
+    private function transactionTypeLabel(string $type): string
+    {
+        return match ($type) {
+            PaymentTransaction::TYPE_PAYMENT => 'Pembayaran disetujui',
+            PaymentTransaction::TYPE_PROOF_SUBMITTED => 'Bukti dikirim',
+            PaymentTransaction::TYPE_PROOF_REJECTED => 'Bukti ditolak',
+            PaymentTransaction::TYPE_STATUS_CHANGE => 'Perubahan status',
+            PaymentTransaction::TYPE_REFUND => 'Refund',
+            default => Str::headline(strtolower($type)),
+        };
+    }
+
+    private function payrollBasisLabel(string $basis): string
+    {
+        return match ($basis) {
+            'SESSION' => 'Per sesi',
+            'HOUR' => 'Per jam',
+            'MONTH' => 'Per bulan',
+            'FIXED' => 'Nominal tetap',
+            'CUSTOM' => 'Kustom',
+            default => '-',
+        };
     }
 
     private function whatsAppUrl(Payment $payment, string $phone): ?string
@@ -114,13 +228,15 @@ class PaymentRowPresenter
             $digits = '62'.substr($digits, 1);
         }
 
-        $message = sprintf(
-            "Halo %s, tagihan %s Anda sebesar %s masih memiliki sisa %s. Silakan lakukan pembayaran lalu upload bukti di sistem RF IS. Terima kasih.",
-            $this->subject($payment),
-            Str::headline(strtolower((string) $payment->payment_type)),
-            $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
-            $this->rupiah((float) ($payment->remaining_amount ?? 0)),
-        );
+        $message = $this->reminderTemplate->render([
+            'name' => $this->subject($payment),
+            'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
+            'payment_type' => Str::headline(strtolower((string) $payment->payment_type)),
+            'total_amount' => $this->rupiah((float) ($payment->total_amount ?? $payment->amount ?? 0)),
+            'remaining_amount' => $this->rupiah((float) ($payment->remaining_amount ?? 0)),
+            'due_date' => optional($payment->due_date)->translatedFormat('d F Y') ?? '-',
+            'payment_url' => route('payments.index'),
+        ]);
 
         return 'https://wa.me/'.$digits.'?text='.rawurlencode($message);
     }
