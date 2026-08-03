@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted } from 'vue';
-import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
+// import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
+import AppLayout from '@/layouts/app/AppHeaderLayout.vue';
 
 import type { Props } from './AppLayout.types';
 

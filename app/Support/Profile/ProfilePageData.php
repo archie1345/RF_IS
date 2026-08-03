@@ -90,6 +90,7 @@ class ProfilePageData
                 'status' => $coach->status,
                 'specialization' => $coach->specialization,
                 'bio' => $coach->bio,
+                'nik' => $this->editableSensitiveValue($coach->displayValue('nik')),
             ] : null,
             'parentProfile' => $parent ? [
                 'phone' => $user->phone,

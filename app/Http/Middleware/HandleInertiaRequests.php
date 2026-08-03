@@ -25,6 +25,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'publicWhatsappBubbleEnabled' => fn (): bool => $publicContact->bubbleEnabled(),
             'name' => config('app.name'),
             'auth' => fn (): array => $this->sharedAuth($request),
             'publicAdminWhatsapp' => fn (): string => $publicContact->contactNumber(),

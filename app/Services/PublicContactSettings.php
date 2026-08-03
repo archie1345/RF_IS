@@ -70,4 +70,9 @@ final class PublicContactSettings
             'bubble_enabled' => true,
         ];
     }
+
+    public function getAdminPhoneNumber(): ?string
+    {
+        return $this->contactNumber() ?: null;
+    }
 }

@@ -172,7 +172,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function profile(): HasOne
     {
-        return $this->hasOne(UserProfile::class);
+        return $this->hasOne(UserProfile::class, 'user_id', 'id');
     }
 
     public function certifications(): HasMany
@@ -188,6 +188,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function achievements(): HasMany
     {
         return $this->hasMany(UserAchievement::class);
+    }
+
+    public function displayNik(): string
+    {
+        return $this->profile?->displayNik() ?? '';
+    }
+
+    public function displayBpjs(): string
+    {
+        return $this->profile?->displayBpjs() ?? '';
     }
 
     private function canResolveActiveRoleFromRequest(): bool

@@ -213,7 +213,7 @@ function submit(): void {
                 </div>
             </section>
 
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="grid gap-3 sm:grid-cols-2">
                 <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
             </div>
 

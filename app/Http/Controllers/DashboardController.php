@@ -109,7 +109,6 @@ class DashboardController extends Controller
                 ['label' => 'Atlet aktif', 'value' => (string) Athlete::query()->count(), 'detail' => 'Roster atlet klub', 'tone' => 'success'],
                 ['label' => 'Pelatih aktif', 'value' => (string) Coach::query()->where('status', 'active')->count(), 'detail' => 'Profil pelatih aktif', 'tone' => 'info'],
                 ['label' => 'Tagihan terbuka', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Saldo yang belum diselesaikan', 'tone' => 'warning'],
-                ['label' => 'Absensi hari ini', 'value' => (string) (clone $visibleAttendance)->whereDate('date', now()->toDateString())->count(), 'detail' => 'Catatan kehadiran hari ini', 'tone' => 'neutral'],
             ];
         }
 

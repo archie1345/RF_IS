@@ -66,12 +66,6 @@ class AdminPayrollController extends Controller
                     'detail' => 'Termasuk bonus pelatih',
                     'tone' => 'info',
                 ],
-                [
-                    'label' => 'Bonus bulan ini',
-                    'value' => $this->rupiah((float) $currentMonthPayrolls->sum('payroll_bonus_amount')),
-                    'detail' => 'Bonus yang tercatat di slip payroll',
-                    'tone' => 'warning',
-                ],
             ],
             'coaches' => $coaches
                 ->map(fn (User $user): array => [

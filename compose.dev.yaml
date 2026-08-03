@@ -1,8 +1,16 @@
+name: ${COMPOSE_PROJECT_NAME:-rf-is-dev}
+
+x-app-common: &app-common
+  image: ${APP_IMAGE:-rf-is:dev}
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  env_file:
+    - ${APP_ENV_FILE:-.env}
+
 services:
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *app-common
 
     container_name: ${APP_CONTAINER_NAME:-rf-server}
     restart: unless-stopped
@@ -61,9 +69,7 @@ services:
       start_period: 60s
 
   scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *app-common
 
     container_name: ${SCHEDULER_CONTAINER_NAME:-rf-scheduler}
     restart: unless-stopped
@@ -86,7 +92,7 @@ services:
   vite:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       target: frontend-build
 
     container_name: ${VITE_CONTAINER_NAME:-rf-vite}

@@ -30,8 +30,8 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'User Activity Log', href: activityLogsIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Log Aktivitas', href: activityLogsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -95,7 +95,7 @@ function resetFilters() {
 </script>
 
 <template>
-    <Head title="User Activity Log" />
+    <Head title="Log Aktivitas" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">

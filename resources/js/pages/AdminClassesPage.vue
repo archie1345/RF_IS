@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Eye, Pencil, Trash2, UserRoundCheck, Users } from 'lucide-vue-next';
+import { CalendarDays, Eye, Plus, Pencil, Trash2, UserRoundCheck, Users } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -27,6 +27,7 @@ import type {
     ClassSessionRecord,
     SelectOption,
 } from '@/types/training';
+import PageSection from '@/components/shared/PageSection.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -59,7 +60,7 @@ const props = withDefaults(
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     { title: props.title, href: adminClasses.url() },
 ];
 
@@ -451,9 +452,20 @@ watch(
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <PageSection :title="props.title" :description="props.subtitle" eyebrow="Group Management">
+                <template #actions>
+                    <div class="flex flex-wrap gap-2">
+                        <Button v-if="props.canCreateClasses" type="button" @click="openCreateClass">
+                            <Plus class="size-4" />
+                            Tambah Grup
+                        </Button>
+                    </div>
+                </template>
+            </PageSection>
+
             <DataTable
                 title="Daftar Kelas"
-                :description="props.subtitle"
+                description="Daftar kelas yang tersedia. Klik baris untuk melihat daftar atlet. Gunakan tombol mata untuk melihat semua sesi kelas."
                 :columns="classTableColumns"
                 :rows="classTableRows"
                 searchable
@@ -464,10 +476,6 @@ watch(
                 action-label="Aksi"
                 @row-click="openClassAthletesFromRow"
             >
-                <template #actions>
-                    <Button v-if="props.canCreateClasses" type="button" @click="openCreateClass">Tambah Kelas</Button>
-                </template>
-
                 <template #cell="{ row, column, value }">
                     <div v-if="column.key === 'class'" class="grid gap-0.5">
                         <span class="font-bold text-foreground">{{ value }}</span>

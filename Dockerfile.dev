@@ -57,8 +57,7 @@ ARG VITE_APP_NAME="RF Information System"
 ENV VITE_APP_NAME=${VITE_APP_NAME}
 
 RUN test -f .env || cp .env.example .env
-RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
-    && LOG_CHANNEL=stderr VIEW_COMPILED_PATH=/tmp/laravel-views npm run build
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
 
 FROM php:8.4-apache AS final
 
@@ -151,7 +150,6 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 EOF
 
 COPY . .
-COPY --from=php-deps /app/vendor ./vendor
 COPY --from=frontend-build /app/public/build ./public/build
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 

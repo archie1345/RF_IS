@@ -67,7 +67,7 @@ const props = withDefaults(
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
+    { title: 'Beranda', href: dashboard.url() },
     {
         title: props.title,
         href:

@@ -227,7 +227,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
             <div
                 v-for="day in days"
                 :key="`body-${day.id}`"
-                class="min-h-[280px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 p-4 shadow-sm dark:from-card dark:to-muted/40"
+                class="min-h-[230px] rounded-xl border border-border bg-gradient-to-b from-slate-50 to-slate-200/80 shadow-sm dark:from-card dark:to-muted/40"
             >
                 <div v-if="(schedulesByDay.get(day.id) ?? []).length" class="space-y-3">
                     <article

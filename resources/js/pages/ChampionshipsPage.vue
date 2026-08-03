@@ -480,7 +480,6 @@ onMounted(() => {
                             label="Batas pendaftaran"
                             type="datetime-local"
                             :error="eventForm.errors.registration_deadline"
-                            help="Jika dikosongkan, batas otomatis menjadi akhir hari pada tanggal kejuaraan."
                         />
                     </div>
                     <FormSelectField
@@ -513,9 +512,9 @@ onMounted(() => {
                             v-model="eventForm.entry_fee"
                             label="Biaya pendaftaran"
                             type="number"
-                            inputmode="decimal"
-                            min="0"
-                            step="1000"
+                            inputmode="numeric"
+                            min="1"
+                            step="1"
                             required
                             :error="eventForm.errors.entry_fee"
                         />

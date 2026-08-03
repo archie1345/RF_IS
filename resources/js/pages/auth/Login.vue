@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, MessageCircle } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { ArrowLeft,MessageCircle } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,7 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { home } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+import { computed } from 'vue';
 
 const page = usePage<{ publicAdminWhatsapp?: string }>();
 
@@ -22,12 +22,11 @@ defineProps<{
     canResetPassword: boolean;
 }>();
 
-const contactAdminUrl = computed(() =>
-    buildWhatsAppUrl(
-        page.props.publicAdminWhatsapp,
-        'Halo Admin Rhino Fighter, saya ingin membuat akun RF IS. Mohon bantuan untuk proses pendaftaran akun.',
-    ),
-);
+const defaultPhone = '08813323088';
+const whatsappUrl = computed(() => {
+    const phone = page.props.publicAdminWhatsapp || defaultPhone;
+    return buildWhatsAppUrl(phone, 'Halo, saya ingin bertanya mengenai Rhino Fighter Taekwondo.');
+});
 </script>
 
 <template>
@@ -36,7 +35,7 @@ const contactAdminUrl = computed(() =>
 
         <Link
             :href="home()"
-            class="mb-5 inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+            class="mb-1 inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
             <ArrowLeft class="size-4" />
             Back to home
@@ -52,7 +51,7 @@ const contactAdminUrl = computed(() =>
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
         >
-            <div class="grid gap-6">
+            <div class="grid gap-4">
                 <div class="grid gap-2">
                     <Label for="email">Email address</Label>
                     <Input
@@ -99,23 +98,16 @@ const contactAdminUrl = computed(() =>
                     Log in
                 </Button>
             </div>
-
-            <div class="rounded-xl border bg-muted/30 p-4 text-center text-sm">
-                <p class="font-medium text-foreground">Need an account?</p>
-                <a
-                    v-if="contactAdminUrl"
-                    :href="contactAdminUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="mt-2 inline-flex items-center gap-2 font-semibold text-emerald-700 underline underline-offset-4 dark:text-emerald-300"
-                >
-                    <MessageCircle class="size-4" />
-                    Contact admin to create your account
-                </a>
-                <p v-else class="mt-2 text-muted-foreground">
-                    Account creation is handled by the administrator. Ask an RF IS administrator to register you.
-                </p>
-            </div>
         </Form>
+        <a
+        :href="whatsappUrl ?? '#'"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Hubungi admin melalui WhatsApp"
+        title="Hubungi admin melalui WhatsApp"
+        class="fixed right-5 bottom-5 z-50 inline-flex size-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl ring-1 ring-white/20 transition hover:scale-105 hover:bg-emerald-400 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none sm:right-7 sm:bottom-7"
+    >
+        <MessageCircle class="size-7" aria-hidden="true" />
+    </a>
     </AuthBase>
 </template>
