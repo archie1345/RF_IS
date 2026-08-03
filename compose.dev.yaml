@@ -1,0 +1,197 @@
+name: ${COMPOSE_PROJECT_NAME:-rf-is-dev}
+
+x-app-common: &app-common
+  image: ${APP_IMAGE:-rf-is:dev}
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  env_file:
+    - ${APP_ENV_FILE:-.env}
+
+services:
+  server:
+    <<: *app-common
+
+    container_name: ${APP_CONTAINER_NAME:-rf-server}
+    restart: unless-stopped
+
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-9200}:80"
+
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/dev.ini:/usr/local/etc/php/conf.d/zz-development.ini:ro
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          umask 0002
+
+          dev_gid="$${APP_DEV_GID:-1000}"
+          group_name="$$(getent group "$$dev_gid" | cut -d: -f1 || true)"
+
+          if [ -z "$$group_name" ]; then
+            groupadd --gid "$$dev_gid" appdev
+            group_name=appdev
+          fi
+
+          usermod -a -G "$$group_name" www-data
+
+          composer install --no-interaction --no-progress --prefer-dist
+
+          mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache
+          chown -R www-data:"$$group_name" /tmp/laravel storage bootstrap/cache
+          find /tmp/laravel storage bootstrap/cache -type d -exec chmod 2775 {} +
+          find /tmp/laravel storage bootstrap/cache -type f -exec chmod 0664 {} +
+
+          php -r 'if (!is_writable(sys_get_temp_dir())) { fwrite(STDERR, sys_get_temp_dir()." is not writable\n"); exit(1); }'
+
+          php artisan storage:link || true
+          CACHE_STORE=file php artisan optimize:clear
+          php artisan migrate --force
+
+          exec apache2-foreground
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost/ >/dev/null || exit 1"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  scheduler:
+    <<: *app-common
+
+    container_name: ${SCHEDULER_CONTAINER_NAME:-rf-scheduler}
+    restart: unless-stopped
+    working_dir: /var/www/html
+
+    volumes:
+      - .:/var/www/html
+      - ./docker/php/dev.ini:/usr/local/etc/php/conf.d/zz-development.ini:ro
+
+    depends_on:
+      server:
+        condition: service_healthy
+
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          exec php artisan schedule:work --verbose --no-interaction
+
+  vite:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: frontend-build
+
+    container_name: ${VITE_CONTAINER_NAME:-rf-vite}
+    restart: unless-stopped
+    working_dir: /var/www/html
+
+    ports:
+      - "${VITE_BIND_ADDRESS:-0.0.0.0}:${VITE_PORT:-9201}:${VITE_PORT:-9201}"
+
+    volumes:
+      - .:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+
+    environment:
+      APP_URL: ${APP_URL:-http://localhost:9200}
+      VITE_PORT: ${VITE_PORT:-9201}
+      VITE_HOST: ${VITE_HOST:-0.0.0.0}
+      VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL:-http://localhost:9201}
+      VITE_HMR_ENABLED: ${VITE_HMR_ENABLED:-true}
+
+    command:
+      - /bin/sh
+      - -ec
+      - |
+          npm install --no-audit --no-fund
+          exec npm run dev -- --host "$$VITE_HOST" --port "$$VITE_PORT"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('net').connect(process.env.VITE_PORT, '127.0.0.1').on('connect', () => process.exit(0)).on('error', () => process.exit(1))\""
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  db:
+    image: mysql:${MYSQL_VERSION:-8.4}
+
+    container_name: ${DB_CONTAINER_NAME:-rf-db}
+    restart: unless-stopped
+
+    ports:
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${DB_FORWARD_PORT:-9203}:3306"
+
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+    volumes:
+      - db_data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  phpmyadmin:
+    image: phpmyadmin:${PHPMYADMIN_VERSION:-5.2}
+
+    container_name: ${PHPMYADMIN_CONTAINER_NAME:-rf-phpmyadmin}
+    restart: unless-stopped
+
+    ports:
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${PHPMYADMIN_PORT:-9202}:80"
+
+    environment:
+      PMA_HOST: ${DB_HOST:-db}
+      PMA_PORT: ${DB_PORT:-3306}
+      PMA_USER: ${DB_USERNAME:-laravel}
+      PMA_PASSWORD: ${DB_PASSWORD}
+      UPLOAD_LIMIT: ${PHPMYADMIN_UPLOAD_LIMIT:-128M}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.30.5}
+    container_name: ${MAILPIT_CONTAINER_NAME:-rf-mailpit}
+    restart: unless-stopped
+
+    ports:
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_WEB_PORT:-9204}:8025"
+      - "${DEV_TOOL_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_SMTP_PORT:-1025}:1025"
+
+volumes:
+  db_data:
+    name: ${DB_VOLUME_NAME:-rf_is_db-data}
+
+  vite_node_modules:
+    name: ${VITE_NODE_MODULES_VOLUME_NAME:-rf_vite_node_modules}

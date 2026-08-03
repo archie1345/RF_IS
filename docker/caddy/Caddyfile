@@ -1,0 +1,47 @@
+# {
+#     email {$ACME_EMAIL}
+#     admin off
+# }
+
+# {$APP_DOMAIN} {
+#     encode zstd gzip
+
+#     reverse_proxy {$APP_CONTAINER_NAME}:80 {
+#         header_up Host {host}
+#         header_up X-Real-IP {remote_host}
+#         header_up X-Forwarded-For {remote_host}
+#         header_up X-Forwarded-Proto https
+#     }
+
+#     header {
+#         -Server
+#         X-Content-Type-Options "nosniff"
+#         Referrer-Policy "strict-origin-when-cross-origin"
+#         Permissions-Policy "camera=(self), geolocation=(self), microphone=()"
+#     }
+
+#     log {
+#         output stdout
+#         format console
+#     }
+# }
+
+
+{
+    admin off
+}
+
+:80 {
+    encode zstd gzip
+
+    reverse_proxy server:80
+
+    header {
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
