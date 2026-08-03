@@ -38,8 +38,8 @@ const props = defineProps<{
 const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: dashboard.url() },
-    { title: 'Attendance', href: attendanceIndex.url() },
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Absensi & Check-in', href: attendanceIndex.url() },
 ];
 
 const attendanceColumns: TableColumn[] = [
@@ -240,7 +240,7 @@ function submitSession(): void {
 </script>
 
 <template>
-    <Head title="Attendance" />
+    <Head title="Absensi & Check-in" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">

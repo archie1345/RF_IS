@@ -11,7 +11,7 @@ import { type BreadcrumbItem } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole, AttendanceRow, Metric, TableRow, TrainingDay } from '@/types/resource-table';
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: dashboard.url() }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Beranda', href: dashboard.url() }];
 const page = usePage<{ auth: Auth }>();
 const props = defineProps({
     roles: { type: Array as PropType<AppRole[]>, default: () => [] },
@@ -46,7 +46,7 @@ useLiveReload(
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="Beranda" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-5 p-4 md:p-6">

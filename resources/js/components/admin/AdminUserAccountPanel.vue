@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, Plus, Power, PowerOff, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, UserRoundCog } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
@@ -145,7 +145,7 @@ function resetForm(): void {
     form.email = '';
     form.roles = ['athlete'];
     form.branch = '';
-    form.status = 'active';
+    form.status = 'invited';
     form.password = '';
     form.password_confirmation = '';
 }
@@ -218,18 +218,6 @@ function submit(): void {
 
 function isInvitedRow(row: TableRow): boolean {
     return row.statusValue === 'invited';
-}
-
-function canToggleActiveState(row: TableRow): boolean {
-    return row.deletedAt === '-' && !isInvitedRow(row);
-}
-
-function toggleAccountStatus(row: TableRow): void {
-    const id = Number(row.id);
-    if (!id || !canToggleActiveState(row)) return;
-
-    const nextStatus = row.statusValue === 'active' ? 'suspended' : 'active';
-    router.put(`/admin/accounts/${id}/status`, { status: nextStatus }, { preserveScroll: true });
 }
 
 function resendInvitation(row: TableRow): void {
@@ -351,18 +339,6 @@ function confirmPendingAction(): void {
                 <div class="flex flex-wrap justify-end gap-2">
                     <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
                         <PencilLine class="size-4" />
-                        Edit
-                    </Button>
-                    <Button
-                        v-if="canToggleActiveState(row)"
-                        variant="outline"
-                        class="gap-2"
-                        :title="row.statusValue === 'active' ? 'Mark account as not active' : 'Activate account'"
-                        @click="toggleAccountStatus(row)"
-                    >
-                        <PowerOff v-if="row.statusValue === 'active'" class="size-4" />
-                        <Power v-else class="size-4" />
-                        {{ row.statusValue === 'active' ? 'Not active' : 'Activate' }}
                     </Button>
                     <Button
                         v-if="row.deletedAt === '-' && isInvitedRow(row)"
