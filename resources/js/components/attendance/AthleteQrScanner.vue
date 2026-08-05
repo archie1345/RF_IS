@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
+import { Camera, Loader2, QrCode, Smartphone, XCircle } from '@lucide/vue';
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { show as attendanceScanShow } from '@/routes/attendance/scan';

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { CheckSquare2, Download, FileSpreadsheet, Square } from 'lucide-vue-next';
+import { CheckSquare2, Download, FileSpreadsheet, Square } from '@lucide/vue';
 import { computed, ref, watch, reactive } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';

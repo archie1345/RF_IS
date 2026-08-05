@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from 'lucide-vue-next';
+import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { dismissAppPopup, settleAppPopup, useAppPopup, type AppPopupTone } from '@/composables/useAppPopup';

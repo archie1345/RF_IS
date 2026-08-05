@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, Home, RefreshCw } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Home, RefreshCw } from '@lucide/vue';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

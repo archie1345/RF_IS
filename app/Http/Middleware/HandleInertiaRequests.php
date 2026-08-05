@@ -25,7 +25,6 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
-            'publicWhatsappBubbleEnabled' => fn (): bool => $publicContact->bubbleEnabled(),
             'name' => config('app.name'),
             'auth' => fn (): array => $this->sharedAuth($request),
             'publicAdminWhatsapp' => fn (): string => $publicContact->contactNumber(),
@@ -47,15 +46,25 @@ class HandleInertiaRequests extends Middleware
     private function sharedAuth(Request $request): array
     {
         $user = $request->user();
+
+        if (! $user) {
+            return [
+                'user' => null,
+                'children' => [],
+                'activeChild' => null,
+            ];
+        }
+
         $roleContext = app(ActiveRoleContextService::class);
         $childContext = app(ParentChildContextService::class);
+
         $roles = $roleContext->availableRoles($user);
         $activeRole = $roleContext->activeRole($request, $user);
         $primaryRole = $roles[0] ?? $activeRole;
-        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : collect();
+        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : [];
 
         return [
-            'user' => $user ? [
+            'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -67,7 +76,7 @@ class HandleInertiaRequests extends Middleware
                 'avatar' => $user->profile?->profile_picture_path
                     ? Storage::url($user->profile->profile_picture_path)
                     : null,
-            ] : null,
+            ],
             'children' => $children,
             // Parent pages now show all children and filter locally instead of
             // carrying one persistent child context through the application.

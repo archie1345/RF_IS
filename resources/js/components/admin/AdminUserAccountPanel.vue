@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, PencilLine, Plus, UserRoundCog } from 'lucide-vue-next';
+import { AlertTriangle, PencilLine, Plus, UserRoundCog } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';

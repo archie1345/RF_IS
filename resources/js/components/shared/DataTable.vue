@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDownUp, ChevronLeft, ChevronRight, Search } from 'lucide-vue-next';
+import { ArrowDownUp, ChevronLeft, ChevronRight, Search } from '@lucide/vue';
 import { computed, reactive, ref, useSlots, watch } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';

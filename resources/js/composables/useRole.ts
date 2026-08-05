@@ -10,9 +10,9 @@ export function useRole(role?: Ref<AppRole> | AppRole) {
             return typeof role === 'string' ? role : role.value;
         }
 
-        return page.props.auth.user.activeRole ?? page.props.auth.user.role ?? 'athlete';
+        return page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete';
     });
-    const availableRoles = computed<AppRole[]>(() => page.props.auth.user.roles ?? [roleValue.value]);
+    const availableRoles = computed<AppRole[]>(() => page.props.auth.user?.roles ?? [roleValue.value]);
 
     return {
         role: roleValue,

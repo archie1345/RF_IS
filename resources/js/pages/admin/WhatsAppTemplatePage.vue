@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Copy, Eye, MessageCircleMore, RotateCcw } from 'lucide-vue-next';
+import { Copy, Eye, MessageCircleMore, RotateCcw } from '@lucide/vue';
 import { computed } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import PageSection from '@/components/shared/PageSection.vue';

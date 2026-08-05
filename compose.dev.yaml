@@ -191,7 +191,7 @@ services:
 
 volumes:
   db_data:
-    name: ${DB_VOLUME_NAME:-rf_is_db-data}
+    name: ${DB_VOLUME_NAME:-rf_is_dev_db-data}
 
   vite_node_modules:
     name: ${VITE_NODE_MODULES_VOLUME_NAME:-rf_vite_node_modules}

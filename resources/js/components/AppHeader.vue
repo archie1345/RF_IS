@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, Menu, Search, Users, ChevronDown } from 'lucide-vue-next';
+import { BookOpen, Folder, Menu, Search, Users, ChevronDown } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';

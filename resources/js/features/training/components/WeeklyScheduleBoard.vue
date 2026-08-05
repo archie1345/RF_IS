@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw, UserRound } from 'lucide-vue-next';
+import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw, UserRound } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';

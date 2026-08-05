@@ -31,7 +31,7 @@ return new class extends Migration
             $table->id('athlete_attendance_id');
             $table->foreignId('athlete_id')->constrained('athletes', 'athlete_id')->cascadeOnDelete();
             $table->date('date')->index();
-            $table->enum('status', ['PRESENT', 'ABSENT', 'EXCUSED'])->default('ABSENT')->index();
+            $table->enum('status', ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'])->default('ABSENT')->index();
             $table->timestamps();
             $table->softDeletes();
         });

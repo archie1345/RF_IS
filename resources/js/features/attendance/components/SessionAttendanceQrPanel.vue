@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { Check, Copy, QrCode, ShieldCheck, X } from 'lucide-vue-next';
+import { Check, Copy, QrCode, ShieldCheck, X } from '@lucide/vue';
 import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';

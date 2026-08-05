@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { CalendarRange, ClipboardCheck, CreditCard, Dumbbell, Trophy, UserCog, UsersRound } from 'lucide-vue-next';
+import { CalendarRange, ClipboardCheck, CreditCard, Dumbbell, Trophy, UserCog, UsersRound } from '@lucide/vue';
 import { computed } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';

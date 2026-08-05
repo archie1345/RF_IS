@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Megaphone, Search } from 'lucide-vue-next';
+import { Megaphone, Search } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import AnnouncementCard from '@/components/announcements/AnnouncementCard.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';

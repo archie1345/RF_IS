@@ -14,6 +14,7 @@ use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
+use App\Models\UserProfile;
 use App\Models\UserRoleAssignment;
 use App\Services\MemberNumberGenerator;
 use Illuminate\Database\Seeder;
@@ -73,13 +74,14 @@ class AllRoleDemoSeeder extends Seeder
                 'branch_id' => $competitionClass->branch_id,
                 'height_cm' => 165.00,
                 'weight_kg' => 55.00,
+                'school_origin' => 'RFIS Senior Academy',
+                'geup' => 'DAN',
+            ], [
                 'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-NIK'),
                 'nik_ciphertext' => 'RFIS-ALL-ROLE-NIK',
                 'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-BPJS'),
                 'bpjs_ciphertext' => 'RFIS-ALL-ROLE-BPJS',
-                'alamat' => 'Jl. Demo Semua Peran, Malang',
-                'school_origin' => 'RFIS Senior Academy',
-                'geup' => 'DAN',
+                'address' => 'Jl. Demo Semua Peran, Malang',
             ]);
             $childAthlete = $this->seedAthleteProfile($childUser, [
                 'joined_at' => '2026-07-24',
@@ -89,13 +91,14 @@ class AllRoleDemoSeeder extends Seeder
                 'branch_id' => $juniorClass->branch_id,
                 'height_cm' => 142.00,
                 'weight_kg' => 36.00,
+                'school_origin' => 'RFIS Junior Academy',
+                'geup' => 'GEUP_9',
+            ], [
                 'nik_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-NIK'),
                 'nik_ciphertext' => 'RFIS-ALL-ROLE-CHILD-NIK',
                 'bpjs_hash' => hash('sha256', 'RFIS-ALL-ROLE-CHILD-BPJS'),
                 'bpjs_ciphertext' => 'RFIS-ALL-ROLE-CHILD-BPJS',
-                'alamat' => 'Jl. Demo Semua Peran, Malang',
-                'school_origin' => 'RFIS Junior Academy',
-                'geup' => 'GEUP_9',
+                'address' => 'Jl. Demo Semua Peran, Malang',
             ]);
 
             foreach ([$competitionClass, $privateClass] as $class) {
@@ -153,7 +156,7 @@ class AllRoleDemoSeeder extends Seeder
         return $user;
     }
 
-    private function seedAthleteProfile(User $user, array $attributes): Athlete
+    private function seedAthleteProfile(User $user, array $attributes, array $profileAttributes = []): Athlete
     {
         $joinedAt = Carbon::parse($attributes['joined_at'])->startOfDay();
         $memberNumberPrefix = 'G'.$joinedAt->format('Ymd');
@@ -165,6 +168,13 @@ class AllRoleDemoSeeder extends Seeder
         }
 
         $athlete->save();
+
+        if (! empty($profileAttributes)) {
+            UserProfile::query()->updateOrCreate(
+                ['user_id' => $user->id],
+                $profileAttributes,
+            );
+        }
 
         return $athlete->refresh();
     }

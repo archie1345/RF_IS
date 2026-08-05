@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { KeyRound, LayoutDashboard, Palette, ShieldCheck, UserRound } from 'lucide-vue-next';
+import { KeyRound, LayoutDashboard, Palette, ShieldCheck, UserRound } from '@lucide/vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 
 const navigation = [

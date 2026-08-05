@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { ShieldCheck } from 'lucide-vue-next';
+import { ShieldCheck } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Cropper } from 'vue-advanced-cropper';
 import FormInputField from '@/components/forms/FormInputField.vue';

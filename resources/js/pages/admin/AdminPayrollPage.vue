@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Download, Plus } from 'lucide-vue-next';
+import { AlertTriangle, Download, Plus } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';

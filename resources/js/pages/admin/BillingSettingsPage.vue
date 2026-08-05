@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { CalendarClock, CircleDollarSign, PencilLine, Plus, ReceiptText, Send, Trash2 } from 'lucide-vue-next';
+import { CalendarClock, CircleDollarSign, PencilLine, Plus, ReceiptText, Send, Trash2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
