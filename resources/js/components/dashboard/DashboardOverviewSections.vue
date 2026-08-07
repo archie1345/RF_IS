@@ -15,7 +15,7 @@ import {
     Trophy,
     UserRound,
     WalletCards,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { index as achievementsIndex } from '@/routes/achievements';

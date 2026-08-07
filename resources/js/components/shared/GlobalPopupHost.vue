@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from 'lucide-vue-next';
+import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { dismissAppPopup, settleAppPopup, useAppPopup, type AppPopupTone } from '@/composables/useAppPopup';
+import { useKeyboardShortcut } from '@/composables/useKeyboardShortcut';
+import { useAppToast } from '@/composables/useAppToast';
 
 const popup = useAppPopup();
+const toast = useAppToast();
 const page = usePage<{
     flash?: {
         status?: string | null;
@@ -97,17 +100,16 @@ function errorDetail(error: unknown): string {
     return 'Terjadi gangguan yang tidak terduga. Muat ulang halaman bila masalah berlanjut.';
 }
 
-function flashPopup(tone: AppPopupTone, title: string, value?: string | null): void {
-    showFeedback(tone, title, value);
-}
+function flashToast(tone: AppPopupTone, title: string, value?: string | null): void {
+    if (!value) return;
 
-function handleKeydown(event: KeyboardEvent): void {
-    if (!popup.state.open) return;
+    const key = `${tone}:${title}:${value}`;
+    const now = Date.now();
+    if (key === lastFeedbackKey && now - lastFeedbackAt < 1200) return;
 
-    if (event.key === 'Escape') {
-        event.preventDefault();
-        dismissAppPopup();
-    }
+    lastFeedbackKey = key;
+    lastFeedbackAt = now;
+    toast.show({ title, message: value, tone });
 }
 
 function handleWindowError(event: ErrorEvent): void {
@@ -119,11 +121,11 @@ function handleUnhandledRejection(event: PromiseRejectionEvent): void {
 }
 
 function handleOffline(): void {
-    showFeedback('warning', 'Koneksi terputus', 'Perangkat sedang offline. Perubahan belum dapat dikirim ke server.');
+    flashToast('warning', 'Koneksi terputus', 'Perangkat sedang offline. Perubahan belum dapat dikirim ke server.');
 }
 
 function handleOnline(): void {
-    showFeedback(
+    flashToast(
         'info',
         'Koneksi kembali aktif',
         'Koneksi internet tersedia kembali. Silakan ulangi tindakan yang sebelumnya gagal.',
@@ -140,27 +142,31 @@ watch(
 
 watch(
     () => page.props.flash?.status,
-    (value) => flashPopup('success', 'Berhasil', value),
+    (value) => flashToast('success', 'Berhasil', value),
     { immediate: true },
 );
 watch(
     () => page.props.flash?.error,
-    (value) => flashPopup('danger', 'Terjadi kesalahan', value),
+    (value) => flashToast('danger', 'Terjadi kesalahan', value),
     { immediate: true },
 );
 watch(
     () => page.props.flash?.warning,
-    (value) => flashPopup('warning', 'Perlu perhatian', value),
+    (value) => flashToast('warning', 'Perlu perhatian', value),
     { immediate: true },
 );
 watch(
     () => page.props.flash?.info,
-    (value) => flashPopup('info', 'Informasi', value),
+    (value) => flashToast('info', 'Informasi', value),
     { immediate: true },
 );
 
+useKeyboardShortcut('escape', dismissAppPopup, {
+    enabled: () => popup.state.open,
+    preventDefault: true,
+});
+
 onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
     window.addEventListener('error', handleWindowError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
     window.addEventListener('offline', handleOffline);
@@ -189,7 +195,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('error', handleWindowError);
     window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     window.removeEventListener('offline', handleOffline);

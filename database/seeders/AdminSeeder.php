@@ -59,9 +59,9 @@ class AdminSeeder extends Seeder
         });
 
         $this->command?->info(sprintf(
-            'Active administrator account prepared for %s (user ID %d).',
+            'Active administrator account prepared for %s (user ID %s).',
             $admin->email,
-            $admin->id,
+            (string) $admin->id,
         ));
         $this->command?->warn('The administrator password was read from ADMIN_SEED_PASSWORD and was not printed.');
     }

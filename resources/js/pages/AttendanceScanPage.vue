@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
+import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import { Button } from '@/components/ui/button';

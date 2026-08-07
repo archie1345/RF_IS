@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, MapPin, Pencil, Plus, RefreshCcw, Search, Trash2, X } from 'lucide-vue-next';
+import { CalendarDays, MapPin, Pencil, Plus, RefreshCcw, Search, Trash2, X } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';

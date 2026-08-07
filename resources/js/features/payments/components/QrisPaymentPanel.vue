@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { QrCode } from 'lucide-vue-next';
+import { QrCode } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = withDefaults(

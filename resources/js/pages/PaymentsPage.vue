@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Download, MessageCircle, PencilLine, Trash2, WalletCards } from 'lucide-vue-next';
+import { AlertTriangle, Download, MessageCircle, PencilLine, Trash2, WalletCards } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';

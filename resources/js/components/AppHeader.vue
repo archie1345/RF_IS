@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, Menu, Search, Users, ChevronDown } from 'lucide-vue-next';
+import {
+    ChevronDown,
+    Menu,
+    Users,
+} from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -63,7 +67,6 @@ const { whenCurrentUrl } = useCurrentUrl();
 const activeItemStyles = 'bg-accent text-accent-foreground';
 
 const rightNavItems: NavItem[] = [
-    
 ];
 
 const filteredChildren = computed(() => {
@@ -264,9 +267,6 @@ function showMoreChildren() {
                     </div>
 
                     <div class="relative flex items-center space-x-1">
-                        <Button variant="ghost" size="icon" class="group h-9 w-9 cursor-pointer">
-                            <Search class="size-5 opacity-80 group-hover:opacity-100" />
-                        </Button>
 
                         <div class="hidden space-x-1 lg:flex">
                             <template v-for="item in rightNavItems" :key="item.title">
@@ -401,3 +401,4 @@ function showMoreChildren() {
         </Dialog>
     </div>
 </template>
+

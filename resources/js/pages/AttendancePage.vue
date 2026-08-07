@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { QrCode, ShieldCheck } from 'lucide-vue-next';
+import { QrCode, ShieldCheck } from '@lucide/vue';
 import { computed, ref, toRef, watch } from 'vue';
 import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDays, Megaphone, Pencil, Trash2, UserRound, UsersRound } from 'lucide-vue-next';
+import { CalendarDays, Megaphone, Pencil, Trash2, UserRound, UsersRound } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import type { TableBadgeCell, TableRow } from '@/types/resource-table';

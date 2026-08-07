@@ -54,6 +54,16 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+Route::get('/locale/{locale}', function (string $locale) {
+    if (! in_array($locale, ['en', 'id'])) {
+        abort(400);
+    }
+    
+    session()->put('locale', $locale);
+    
+    return redirect()->back();
+})->name('locale.switch');
+
 Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 

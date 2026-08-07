@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { Copy, Eye, MessageCircleMore, RotateCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { Check, Copy, Eye, MessageCircleMore, RotateCcw } from '@lucide/vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
+import CopyToClipboardButton from '@/components/shared/CopyToClipboardButton.vue';
+import FormErrorSummary from '@/components/shared/FormErrorSummary.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
@@ -48,15 +50,6 @@ function saveTemplate(): void {
     form.put('/admin/whatsapp-template', { preserveScroll: true });
 }
 
-async function copyPlaceholder(token: string): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(token);
-        void popup.success('Placeholder disalin', `${token} siap ditempel ke template.`);
-    } catch {
-        void popup.error('Tidak dapat menyalin', `Salin placeholder ini secara manual: ${token}`);
-    }
-}
-
 async function resetTemplate(): Promise<void> {
     const confirmed = await popup.confirm({
         title: 'Kembalikan template bawaan?',
@@ -87,6 +80,12 @@ async function resetTemplate(): Promise<void> {
                     </Button>
                 </template>
             </PageSection>
+
+            <FormErrorSummary
+                :errors="form.errors"
+                title="Form errors / Error formulir"
+                description="Review the fields below before saving. / Periksa kolom di bawah sebelum menyimpan."
+            />
 
             <form
                 class="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.75fr)]"
@@ -176,23 +175,38 @@ async function resetTemplate(): Promise<void> {
                     <section class="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
                         <h2 class="font-semibold">Placeholder</h2>
                         <div class="mt-3 grid gap-2">
-                            <button
+                            <CopyToClipboardButton
                                 v-for="placeholder in props.placeholders"
                                 :key="placeholder.key"
-                                type="button"
-                                class="flex items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:bg-muted/30"
-                                @click="copyPlaceholder(placeholder.token)"
+                                :text="placeholder.token"
+                                label="Salin"
+                                copied-label="Tersalin"
+                                variant="outline"
+                                class="flex h-auto w-full items-center justify-between gap-3 rounded-lg border bg-background p-3 text-left hover:bg-muted/30"
                             >
-                                <span class="min-w-0">
-                                    <code class="text-xs font-bold break-all text-primary">{{
-                                        placeholder.token
-                                    }}</code>
-                                    <span class="mt-1 block text-xs text-muted-foreground">{{
-                                        placeholder.description
-                                    }}</span>
-                                </span>
-                                <Copy class="size-4 shrink-0 text-muted-foreground" />
-                            </button>
+                                <template #default="{ copied, copying, statusLabel }">
+                                    <span class="min-w-0">
+                                        <code class="text-xs font-bold break-all text-primary">{{
+                                            placeholder.token
+                                        }}</code>
+                                        <span class="mt-1 block text-xs text-muted-foreground">{{
+                                            placeholder.description
+                                        }}</span>
+                                    </span>
+                                    <span
+                                        class="inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium"
+                                        :class="
+                                            copied
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-muted text-muted-foreground'
+                                        "
+                                    >
+                                        <Check v-if="copied" class="size-3.5" />
+                                        <Copy v-else class="size-3.5" />
+                                        {{ copying ? 'Menyalin...' : statusLabel }}
+                                    </span>
+                                </template>
+                            </CopyToClipboardButton>
                         </div>
                     </section>
 

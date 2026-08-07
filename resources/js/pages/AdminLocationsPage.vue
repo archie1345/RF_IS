@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Pencil, Plus, RefreshCcw, Trash2 } from 'lucide-vue-next';
+import { Pencil, Plus, RefreshCcw, Trash2 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';

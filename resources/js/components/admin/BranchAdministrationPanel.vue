@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MapPin, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { MapPin, PencilLine, UserRoundCog } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
