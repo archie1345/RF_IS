@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ChevronDown, ChevronUp, ExternalLink, PencilLine, Search } from 'lucide-vue-next';
+import { ChevronDown, ChevronUp, ExternalLink, PencilLine, Search } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';

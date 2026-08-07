@@ -20,7 +20,7 @@ import {
     UserCog,
     UsersRound,
     WalletCards,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { dashboard } from '@/routes';
 import { index as achievementsIndex } from '@/routes/achievements';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';

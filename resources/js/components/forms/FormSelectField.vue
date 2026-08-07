@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
+import { Check, ChevronDown, Search, X } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';

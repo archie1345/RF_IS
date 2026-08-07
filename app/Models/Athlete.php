@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Services\MemberNumberGenerator;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,11 +27,6 @@ class Athlete extends Model
         'joined_at',
         'height_cm',
         'weight_kg',
-        'nik_hash',
-        'nik_ciphertext',
-        'bpjs_hash',
-        'bpjs_ciphertext',
-        'alamat',
         'school_origin',
         'geup',
         'id',
@@ -40,13 +34,6 @@ class Athlete extends Model
         'training_group_id',
         'parent_id',
         'branch_id',
-    ];
-
-    protected $hidden = [
-        'nik_hash',
-        'nik_ciphertext',
-        'bpjs_hash',
-        'bpjs_ciphertext',
     ];
 
     protected static function booted(): void
@@ -66,14 +53,7 @@ class Athlete extends Model
             'joined_at' => 'date',
             'height_cm' => 'decimal:2',
             'weight_kg' => 'decimal:2',
-            'nik_ciphertext' => 'encrypted',
-            'bpjs_ciphertext' => 'encrypted',
         ];
-    }
-
-    public function displayValue(string $column): string
-    {
-        return $this->sensitiveIdentifier($column, $column.'_hash');
     }
 
     public function group(): BelongsTo
@@ -110,18 +90,5 @@ class Athlete extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'athlete_id', 'athlete_id');
-    }
-
-    private function sensitiveIdentifier(string $ciphertextColumn, string $hashColumn): string
-    {
-        if (blank($this->getRawOriginal($ciphertextColumn))) {
-            return filled($this->getRawOriginal($hashColumn)) ? 'Stored as hash only' : 'Not stored';
-        }
-
-        try {
-            return (string) $this->getAttribute($ciphertextColumn);
-        } catch (DecryptException) {
-            return 'Stored, cannot decrypt';
-        }
     }
 }

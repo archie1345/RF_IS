@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { MessageCircle } from 'lucide-vue-next';
+import { MessageCircle } from '@lucide/vue';
 import { computed } from 'vue';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { dashboard, login } from '@/routes';
@@ -41,7 +41,7 @@ const highlights = [
                 <Link :href="dashboard()" class="text-sm font-semibold tracking-[0.24em] uppercase">RF IS</Link>
                 <nav class="flex items-center gap-2">
                     <Link
-                        v-if="page.props.auth.user"
+                        v-if="page.props.auth?.user"
                         :href="dashboard()"
                         class="inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-neutral-950"
                     >
@@ -72,10 +72,10 @@ const highlights = [
                     </p>
                     <div class="mt-8 flex flex-wrap gap-3">
                         <Link
-                            :href="page.props.auth.user ? dashboard() : login()"
+                            :href="page.props.auth?.user ? dashboard() : login()"
                             class="inline-flex h-11 items-center rounded-lg bg-red-500 px-5 text-sm font-semibold hover:bg-red-400"
                         >
-                            {{ page.props.auth.user ? 'Buka dashboard' : 'Masuk ke sistem' }}
+                            {{ page.props.auth?.user ? 'Buka dashboard' : 'Masuk ke sistem' }}
                         </Link>
                     </div>
                 </div>

@@ -19,6 +19,7 @@ use App\Models\TrainingSession;
 use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
+use App\Models\UserProfile;
 use App\Models\UserRoleAssignment;
 use App\Models\WeeklyTrainingSchedule;
 use Illuminate\Database\Seeder;
@@ -261,13 +262,16 @@ class FreshApplicationSeeder extends Seeder
                 'branch_id' => $branch->branch_id,
                 'height_cm' => $height,
                 'weight_kg' => $weight,
+                'school_origin' => 'Sekolah Demo RFIS',
+                'geup' => $belt,
+            ]);
+
+            UserProfile::query()->updateOrCreate(['user_id' => $user->id], [
                 'nik_hash' => hash('sha256', $identifier.'-NIK'),
                 'nik_ciphertext' => $identifier.'-NIK',
                 'bpjs_hash' => hash('sha256', $identifier.'-BPJS'),
                 'bpjs_ciphertext' => $identifier.'-BPJS',
-                'alamat' => $branch->address,
-                'school_origin' => 'Sekolah Demo RFIS',
-                'geup' => $belt,
+                'address' => $branch->address,
             ]);
         }
 

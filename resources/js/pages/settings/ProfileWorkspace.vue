@@ -17,7 +17,7 @@ import {
     UsersRound,
     ZoomIn,
     ZoomOut,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Cropper } from 'vue-advanced-cropper';
 import FormInputField from '@/components/forms/FormInputField.vue';

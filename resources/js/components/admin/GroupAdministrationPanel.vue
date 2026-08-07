@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ClipboardList, PencilLine, UserRoundCog } from 'lucide-vue-next';
+import { ClipboardList, PencilLine, UserRoundCog } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';

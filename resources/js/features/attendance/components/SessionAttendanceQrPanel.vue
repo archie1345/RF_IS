@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { Check, Copy, QrCode, ShieldCheck, X } from 'lucide-vue-next';
 import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
+import { Check, Copy, QrCode, ShieldCheck, X } from '@lucide/vue';
+import CopyToClipboardButton from '@/components/shared/CopyToClipboardButton.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/sessions/attendance-qr';
@@ -24,7 +25,6 @@ const popup = useAppPopup();
 const page = usePage<PagePropsWithQrFlash>();
 const qrDataUrl = ref<string | null>(null);
 const renderError = ref<string | null>(null);
-const copied = ref(false);
 const processing = ref(false);
 
 const qrFlash = computed(() => page.props.flash?.attendanceQr ?? null);
@@ -87,16 +87,6 @@ async function closeQr(): Promise<void> {
             processing.value = false;
         },
     });
-}
-
-async function copyScanUrl(): Promise<void> {
-    if (!scanUrl.value) return;
-
-    await window.navigator.clipboard?.writeText(scanUrl.value);
-    copied.value = true;
-    window.setTimeout(() => {
-        copied.value = false;
-    }, 1800);
 }
 </script>
 
@@ -202,11 +192,20 @@ async function copyScanUrl(): Promise<void> {
                 <div v-if="scanUrl" class="min-w-0">
                     <p class="text-xs font-medium text-muted-foreground">Tautan scan</p>
                     <p class="mt-1 max-h-24 overflow-auto rounded-lg bg-muted p-3 text-xs break-all">{{ scanUrl }}</p>
-                    <Button type="button" size="sm" variant="outline" class="mt-2" @click="copyScanUrl">
-                        <Check v-if="copied" class="mr-2 size-4" />
-                        <Copy v-else class="mr-2 size-4" />
-                        {{ copied ? 'Tersalin' : 'Salin tautan' }}
-                    </Button>
+                    <CopyToClipboardButton
+                        :text="scanUrl"
+                        size="sm"
+                        variant="outline"
+                        class="mt-2"
+                        label="Salin tautan"
+                        copied-label="Tersalin"
+                    >
+                        <template #default="{ copied, copying, statusLabel }">
+                            <Check v-if="copied" class="mr-2 size-4" />
+                            <Copy v-else class="mr-2 size-4" />
+                            {{ copying ? 'Menyalin...' : statusLabel }}
+                        </template>
+                    </CopyToClipboardButton>
                 </div>
             </div>
         </div>

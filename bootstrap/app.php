@@ -43,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             NormalizeChampionshipRegistrationInput::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
+            \App\Http\Middleware\SetLocale::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 

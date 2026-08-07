@@ -1,21 +1,165 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2, QrCode, Smartphone, XCircle } from 'lucide-vue-next';
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { Camera, CheckCircle2, Loader2, QrCode, Smartphone, WifiOff, XCircle } from '@lucide/vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import { show as attendanceScanShow } from '@/routes/attendance/scan';
+import { useAppToast } from '@/composables/useAppToast';
+import { show as attendanceScanShow, store as attendanceScanStore } from '@/routes/attendance/scan';
+import type { Auth } from '@/types/auth';
+
+type PendingScan = {
+    id: string;
+    token: string;
+    athleteId: string | null;
+    capturedAt: string;
+};
+
+type SyncError = Error & {
+    retryable?: boolean;
+};
+
+const PENDING_SCANS_STORAGE_KEY = 'rf-is.pending-attendance-scans';
 
 const scanner = ref<Html5Qrcode | null>(null);
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
 const isPortableDevice = ref(false);
+const isOnline = ref(true);
+const isSyncing = ref(false);
 const isScanning = ref(false);
 const isOpening = ref(false);
 const scannerError = ref<string | null>(null);
-const lastScanUrl = ref<string | null>(null);
+const lastHandledToken = ref<string | null>(null);
+const lastHandledTokenAt = ref(0);
 const manualQrUrl = ref('');
+const pendingScans = ref<PendingScan[]>([]);
+const toast = useAppToast();
+const page = usePage<{ auth?: Auth }>();
 
-function detectPhoneOrTablet() {
+const pendingScanCount = computed(() => pendingScans.value.length);
+const connectionLabel = computed(() => {
+    if (!isOnline.value) {
+        return pendingScanCount.value > 0
+            ? `${pendingScanCount.value} scan menunggu sinkronisasi`
+            : 'Perangkat sedang offline';
+    }
+
+    if (isSyncing.value && pendingScanCount.value > 0) {
+        return `Menyinkronkan ${pendingScanCount.value} scan tersimpan`;
+    }
+
+    if (pendingScanCount.value > 0) {
+        return `${pendingScanCount.value} scan tersimpan dan akan disinkronkan`;
+    }
+
+    return 'Koneksi aktif';
+});
+
+function isBrowser(): boolean {
+    return typeof window !== 'undefined';
+}
+
+function createSyncError(message: string, retryable = false): SyncError {
+    const error = new Error(message) as SyncError;
+    error.retryable = retryable;
+
+    return error;
+}
+
+function readPendingScans(): PendingScan[] {
+    if (!isBrowser()) return [];
+
+    try {
+        const raw = window.localStorage.getItem(PENDING_SCANS_STORAGE_KEY);
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+            .map((entry): PendingScan | null => {
+                if (!entry || typeof entry !== 'object') return null;
+
+                const id = typeof (entry as Record<string, unknown>).id === 'string' ? (entry as Record<string, string>).id : '';
+                const token = typeof (entry as Record<string, unknown>).token === 'string'
+                    ? (entry as Record<string, string>).token
+                    : '';
+                const athleteIdValue = (entry as Record<string, unknown>).athleteId;
+                const athleteId =
+                    typeof athleteIdValue === 'string'
+                        ? athleteIdValue
+                        : athleteIdValue === null || athleteIdValue === undefined
+                          ? null
+                          : String(athleteIdValue);
+                const capturedAt =
+                    typeof (entry as Record<string, unknown>).capturedAt === 'string'
+                        ? (entry as Record<string, string>).capturedAt
+                        : '';
+
+                if (!id || !token || !capturedAt) {
+                    return null;
+                }
+
+                return { id, token, athleteId, capturedAt };
+            })
+            .filter((entry): entry is PendingScan => entry !== null);
+    } catch {
+        return [];
+    }
+}
+
+function persistPendingScans(nextScans: PendingScan[]): void {
+    pendingScans.value = nextScans;
+
+    if (!isBrowser()) return;
+
+    window.localStorage.setItem(PENDING_SCANS_STORAGE_KEY, JSON.stringify(nextScans));
+}
+
+function updatePendingScans(nextScans: PendingScan[]): void {
+    const unique = nextScans.filter(
+        (scan, index, all) =>
+            index ===
+            all.findIndex(
+                (candidate) => candidate.token === scan.token && candidate.athleteId === scan.athleteId,
+            ),
+    );
+
+    persistPendingScans(unique);
+}
+
+function queueScanForLater(token: string): void {
+    const athleteId =
+        page.props.auth?.activeChild?.athlete_id ??
+        page.props.auth?.children?.[0]?.athlete_id ??
+        null;
+    const alreadyQueued = pendingScans.value.some(
+        (scan) => scan.token === token && scan.athleteId === athleteId,
+    );
+
+    if (alreadyQueued) {
+        toast.info('QR sudah disimpan', 'Scan ini sudah ada di antrean sinkronisasi.');
+        return;
+    }
+
+    const nextScans = [
+        ...pendingScans.value,
+        {
+            id: isBrowser() && 'randomUUID' in window.crypto ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            token,
+            athleteId,
+            capturedAt: new Date().toISOString(),
+        },
+    ];
+
+    updatePendingScans(nextScans);
+    toast.warning(
+        'QR disimpan offline',
+        `Perangkat sedang offline. ${nextScans.length} scan menunggu untuk dikirim ke server.`,
+    );
+}
+
+function detectPhoneOrTablet(): void {
     const agent = window.navigator.userAgent.toLowerCase();
     const platform = window.navigator.platform.toLowerCase();
     const hasTouch = window.navigator.maxTouchPoints > 1;
@@ -25,44 +169,46 @@ function detectPhoneOrTablet() {
         (platform.includes('mac') && hasTouch);
 }
 
-function extractAttendanceScanUrl(value: string): string | null {
+function extractAttendanceScanToken(value: string): string | null {
     const raw = value.trim();
     if (!raw) return null;
 
     try {
         const parsed = new URL(raw, window.location.origin);
         const match = parsed.pathname.match(/^\/attendance\/scan\/([^/]+)\/?$/);
-        if (!match?.[1]) return null;
-        return attendanceScanShow.url(match[1]);
+        return match?.[1] ?? null;
     } catch {
         const match = raw.match(/\/attendance\/scan\/([^\s/]+)/);
-        return match?.[1] ? attendanceScanShow.url(match[1]) : null;
+        return match?.[1] ?? null;
     }
 }
 
-async function openScanUrl(url: string) {
-    const scanUrl = extractAttendanceScanUrl(url);
-    if (!scanUrl) {
-        scannerError.value = 'This is not an RF attendance QR code.';
-        return;
-    }
+function isSecureCameraContext(): boolean {
+    return window.isSecureContext || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+}
 
-    if (!isPortableDevice.value) {
-        scannerError.value = 'QR attendance can only be scanned from a phone or tablet.';
-        return;
-    }
+function shouldIgnoreToken(token: string): boolean {
+    return lastHandledToken.value === token && Date.now() - lastHandledTokenAt.value < 3500;
+}
 
-    if (lastScanUrl.value === scanUrl || isOpening.value) return;
-    lastScanUrl.value = scanUrl;
+function markTokenHandled(token: string): void {
+    lastHandledToken.value = token;
+    lastHandledTokenAt.value = Date.now();
+}
+
+async function openScanUrl(token: string): Promise<void> {
+    if (shouldIgnoreToken(token) || isOpening.value) return;
+
+    markTokenHandled(token);
     isOpening.value = true;
     scannerError.value = null;
     await stopScanner();
 
-    router.visit(scanUrl, {
+    router.visit(attendanceScanShow.url(token), {
         preserveScroll: false,
         onError: (errors) => {
             scannerError.value = Object.values(errors)[0] ?? 'Attendance QR page could not be opened.';
-            lastScanUrl.value = null;
+            isOpening.value = false;
         },
         onFinish: () => {
             isOpening.value = false;
@@ -70,11 +216,156 @@ async function openScanUrl(url: string) {
     });
 }
 
-function isSecureCameraContext() {
-    return window.isSecureContext || ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+function handleDecodedScan(decodedText: string): void {
+    const token = extractAttendanceScanToken(decodedText);
+
+    if (!token) {
+        scannerError.value = 'This is not an RF attendance QR code.';
+        return;
+    }
+
+    if (shouldIgnoreToken(token)) {
+        return;
+    }
+
+    markTokenHandled(token);
+
+    if (!isOnline.value) {
+        scannerError.value = null;
+        queueScanForLater(token);
+        return;
+    }
+
+    void openScanUrl(token);
 }
 
-async function startScanner() {
+function csrfHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    const xsrf = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+
+    if (csrf) headers['X-CSRF-TOKEN'] = csrf;
+    if (xsrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
+
+    return headers;
+}
+
+function extractSyncErrorMessage(payload: unknown): string {
+    if (!payload || typeof payload !== 'object') {
+        return 'Attendance scan could not be synchronized.';
+    }
+
+    const response = payload as Record<string, unknown>;
+    if (typeof response.message === 'string' && response.message.trim()) {
+        return response.message.trim();
+    }
+
+    const errors = response.errors;
+    if (errors && typeof errors === 'object') {
+        const messages = Object.values(errors as Record<string, unknown>)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+            .map((value) => value.trim());
+
+        if (messages.length > 0) {
+            return messages[0];
+        }
+    }
+
+    return 'Attendance scan could not be synchronized.';
+}
+
+async function submitQueuedScan(scan: PendingScan): Promise<void> {
+    const response = await fetch(attendanceScanStore.url(scan.token), {
+        method: 'POST',
+        headers: csrfHeaders(),
+        credentials: 'same-origin',
+        body: JSON.stringify(scan.athleteId ? { athlete_id: scan.athleteId } : {}),
+    });
+
+    if (response.redirected && new URL(response.url).pathname.startsWith('/login')) {
+        throw createSyncError('Your session expired before the offline scans could sync.', false);
+    }
+
+    if (response.ok) {
+        return;
+    }
+
+    if (response.status === 422) {
+        const payload = await response.json().catch(() => null);
+        throw createSyncError(extractSyncErrorMessage(payload), false);
+    }
+
+    if (response.status === 401 || response.status === 403 || response.status === 419) {
+        throw createSyncError('Your session is no longer valid. Sign in again to sync offline scans.', false);
+    }
+
+    if (response.status >= 500) {
+        throw createSyncError('The server is temporarily unavailable. Sync will retry later.', true);
+    }
+
+    throw createSyncError(`Unexpected HTTP ${response.status} while syncing offline scans.`, false);
+}
+
+async function syncPendingScans(): Promise<void> {
+    if (!isBrowser() || !isOnline.value || isSyncing.value || pendingScans.value.length === 0) {
+        return;
+    }
+
+    isSyncing.value = true;
+    scannerError.value = null;
+
+    let syncedCount = 0;
+    const remaining = [...pendingScans.value];
+
+    try {
+        for (const scan of [...remaining]) {
+            try {
+                await submitQueuedScan(scan);
+                syncedCount += 1;
+                const index = remaining.findIndex((entry) => entry.id === scan.id);
+                if (index !== -1) {
+                    remaining.splice(index, 1);
+                    persistPendingScans([...remaining]);
+                }
+            } catch (error) {
+                const syncError = error as SyncError;
+
+                if (syncError.retryable) {
+                    toast.warning('Sinkronisasi tertunda', syncError.message);
+                    break;
+                }
+
+                const index = remaining.findIndex((entry) => entry.id === scan.id);
+                if (index !== -1) {
+                    remaining.splice(index, 1);
+                    persistPendingScans([...remaining]);
+                }
+
+                toast.error('QR gagal disinkronkan', syncError.message);
+            }
+        }
+    } finally {
+        isSyncing.value = false;
+    }
+
+    if (syncedCount > 0) {
+        toast.success(
+            'Scan offline tersinkronisasi',
+            `${syncedCount} scan attendance berhasil dikirim ke server.`,
+        );
+    }
+}
+
+async function startScanner(): Promise<void> {
     scannerError.value = null;
 
     if (!isPortableDevice.value) {
@@ -104,7 +395,7 @@ async function startScanner() {
                 qrbox: { width: 240, height: 240 },
                 aspectRatio: 1,
             },
-            (decodedText: string) => void openScanUrl(decodedText),
+            (decodedText: string) => void handleDecodedScan(decodedText),
             () => undefined,
         );
 
@@ -119,7 +410,7 @@ async function startScanner() {
     }
 }
 
-async function stopScanner() {
+async function stopScanner(): Promise<void> {
     if (!scanner.value) {
         isScanning.value = false;
         return;
@@ -138,13 +429,50 @@ async function stopScanner() {
     }
 }
 
-function submitManualQrUrl() {
-    void openScanUrl(manualQrUrl.value);
+function submitManualQrUrl(): void {
+    const token = extractAttendanceScanToken(manualQrUrl.value);
+
+    if (!token) {
+        scannerError.value = 'This is not an RF attendance QR code.';
+        return;
+    }
+
+    if (!isOnline.value) {
+        scannerError.value = null;
+        queueScanForLater(token);
+        return;
+    }
+
+    void openScanUrl(token);
 }
 
-onMounted(detectPhoneOrTablet);
+function handleOffline(): void {
+    isOnline.value = false;
+    toast.warning('Koneksi terputus', 'Perangkat sedang offline. Scan baru akan disimpan lokal sementara.');
+}
+
+function handleOnline(): void {
+    isOnline.value = true;
+    toast.info('Koneksi kembali aktif', 'Scan attendance yang tersimpan akan dikirim ke server otomatis.');
+    void syncPendingScans();
+}
+
+onMounted(() => {
+    detectPhoneOrTablet();
+    isOnline.value = window.navigator.onLine;
+    pendingScans.value = readPendingScans();
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    if (isOnline.value) {
+        void syncPendingScans();
+    }
+});
 
 onBeforeUnmount(() => {
+    window.removeEventListener('offline', handleOffline);
+    window.removeEventListener('online', handleOnline);
     void stopScanner();
 });
 </script>
@@ -163,6 +491,26 @@ onBeforeUnmount(() => {
                     eligibility, then save automatically.
                 </p>
             </div>
+        </div>
+
+        <div
+            v-if="!isOnline || pendingScanCount > 0"
+            class="mt-4 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm"
+            :class="
+                isOnline
+                    ? 'border-emerald-200 bg-emerald-50/80 text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/25 dark:text-emerald-50'
+                    : 'border-amber-200 bg-amber-50/80 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-50'
+            "
+        >
+            <div class="flex min-w-0 items-center gap-2">
+                <WifiOff v-if="!isOnline" class="size-4 shrink-0" />
+                <Loader2 v-else-if="isSyncing && pendingScanCount > 0" class="size-4 shrink-0 animate-spin" />
+                <CheckCircle2 v-else class="size-4 shrink-0" />
+                <span class="truncate">{{ connectionLabel }}</span>
+            </div>
+            <span class="shrink-0 rounded-full border border-current/20 bg-background/80 px-2.5 py-1 text-xs font-semibold">
+                {{ pendingScanCount }} pending
+            </span>
         </div>
 
         <div class="mt-5 overflow-hidden rounded-3xl border bg-background">

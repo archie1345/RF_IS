@@ -10,7 +10,7 @@ import {
     ReceiptText,
     ShieldCheck,
     UserRound,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';

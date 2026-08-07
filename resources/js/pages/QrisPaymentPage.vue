@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, ArrowLeft, CheckCircle2, ImageUp } from 'lucide-vue-next';
+import { AlertTriangle, ArrowLeft, CheckCircle2, ImageUp } from '@lucide/vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import PageSection from '@/components/shared/PageSection.vue';

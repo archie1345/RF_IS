@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Check, LogOut, Settings, UsersRound } from 'lucide-vue-next';
+import { Check, LogOut, Settings, UsersRound, Globe } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 
@@ -81,6 +85,25 @@ defineProps<Props>();
             </DropdownMenuItem>
         </DropdownMenuGroup>
     </template>
+
+    <DropdownMenuSeparator />
+
+    <DropdownMenuSub>
+        <DropdownMenuSubTrigger class="cursor-pointer">
+            <Globe class="mr-2 h-4 w-4" />
+            Bahasa / Language
+        </DropdownMenuSubTrigger>
+        <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+                <DropdownMenuItem as="a" href="/locale/id" class="cursor-pointer">
+                    Indonesia
+                </DropdownMenuItem>
+                <DropdownMenuItem as="a" href="/locale/en" class="cursor-pointer">
+                    English
+                </DropdownMenuItem>
+            </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+    </DropdownMenuSub>
 
     <DropdownMenuSeparator />
     <DropdownMenuGroup>

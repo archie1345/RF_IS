@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ReceiptText } from 'lucide-vue-next';
+import { ReceiptText } from '@lucide/vue';
 import type { PaymentTransactionHistoryEntry } from './PaymentTransactionHistory.types';
 
 const props = withDefaults(

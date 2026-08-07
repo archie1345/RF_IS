@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ArrowRight, Megaphone } from 'lucide-vue-next';
+import { ArrowRight, Megaphone } from '@lucide/vue';
 import AnnouncementCard from '@/components/announcements/AnnouncementCard.vue';
 import { Button } from '@/components/ui/button';
 import { index as announcementsIndex } from '@/routes/announcements';
