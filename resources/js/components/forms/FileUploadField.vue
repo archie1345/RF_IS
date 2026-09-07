@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';
+import { useI18n } from '@/composables/useI18n';
 
 const props = defineProps<{
     id: string;
@@ -10,6 +11,8 @@ const props = defineProps<{
     currentFileName?: string | null;
     currentFileUrl?: string | null;
 }>();
+
+const { t } = useI18n();
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: File | null): void;
@@ -22,14 +25,14 @@ function onFileChange(event: Event) {
 
 <template>
     <div class="grid gap-2">
-        <Label :for="props.id">{{ props.label }}</Label>
+        <Label :for="props.id">{{ t(props.label) }}</Label>
         <a
             v-if="props.currentFileUrl"
             :href="props.currentFileUrl"
             target="_blank"
             class="text-sm font-medium underline underline-offset-4"
         >
-            Current file: {{ props.currentFileName ?? 'Open file' }}
+            {{ t('Current file') }}: {{ props.currentFileName ?? t('Open file') }}
         </a>
         <input
             :id="props.id"

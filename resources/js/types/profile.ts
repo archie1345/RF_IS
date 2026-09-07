@@ -46,7 +46,7 @@ export type ParentProfile = {
 };
 
 export type ProfileCertification = {
-    id: number;
+    id: string;
     cert_type: string;
     title: string;
     issuer?: string;
@@ -58,7 +58,7 @@ export type ProfileCertification = {
 };
 
 export type ProfileAchievement = {
-    id: number;
+    id: string;
     championship_name: string;
     medal: string;
     location?: string;
@@ -73,7 +73,7 @@ export type ProfileAchievement = {
 };
 
 export type ProfileUser = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     gender?: string;

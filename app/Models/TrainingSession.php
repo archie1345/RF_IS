@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,8 @@ use Illuminate\Support\Carbon;
 
 class TrainingSession extends Model
 {
+    use HasUuids;
+
     use SoftDeletes;
 
     protected $table = 'training_sessions';
@@ -100,4 +103,15 @@ class TrainingSession extends Model
     {
         return $this->hasMany(Attendance::class, 'training_session_id', 'training_session_id');
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

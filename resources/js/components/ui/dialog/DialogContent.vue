@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DialogContentProps } from 'reka-ui';
+import type { DialogContentEmits, DialogContentProps } from 'reka-ui';
 import type { HTMLAttributes } from 'vue';
 import { reactiveOmit } from '@vueuse/core';
 import { X } from '@lucide/vue';
@@ -27,7 +27,7 @@ const props = withDefaults(
         showCloseButton: true,
     },
 );
-const emits = defineEmits();
+const emits = defineEmits<DialogContentEmits>();
 
 const delegatedProps = reactiveOmit(props, 'class');
 const forwarded = useForwardPropsEmits(delegatedProps, emits);

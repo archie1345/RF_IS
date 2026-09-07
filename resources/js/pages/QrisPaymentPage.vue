@@ -20,7 +20,7 @@ interface QrisSettings {
 }
 
 interface OutstandingPayment {
-    payment_id: number;
+    payment_id: string;
     invoice_number: string;
     recipient: string;
     category: string;

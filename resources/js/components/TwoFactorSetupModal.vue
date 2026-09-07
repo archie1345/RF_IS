@@ -10,12 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
 import { useAppearance } from '@/composables/useAppearance';
+import { useI18n } from '@/composables/useI18n';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { confirm } from '@/routes/two-factor';
 import type { TwoFactorConfigContent } from '@/types';
 import type { Props } from './TwoFactorSetupModal.types';
 
 const { resolvedAppearance } = useAppearance();
+const { t } = useI18n();
 
 const props = defineProps<Props>();
 const isOpen = defineModel<boolean>('isOpen');
@@ -108,9 +110,9 @@ watch(
                         <ScanLine class="relative z-20 size-6 text-foreground" />
                     </div>
                 </div>
-                <DialogTitle>{{ modalConfig.title }}</DialogTitle>
+                <DialogTitle>{{ t(modalConfig.title) }}</DialogTitle>
                 <DialogDescription class="text-center">
-                    {{ modalConfig.description }}
+                    {{ t(modalConfig.description) }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -143,13 +145,13 @@ watch(
 
                         <div class="flex w-full items-center space-x-5">
                             <Button class="w-full" @click="handleModalNextStep">
-                                {{ modalConfig.buttonText }}
+                                {{ t(modalConfig.buttonText) }}
                             </Button>
                         </div>
 
                         <div class="relative flex w-full items-center justify-center">
                             <div class="absolute inset-0 top-1/2 h-px w-full bg-border" />
-                            <span class="relative bg-card px-2 py-1">or, enter the code manually</span>
+                            <span class="relative bg-card px-2 py-1">{{ t('or, enter the code manually') }}</span>
                         </div>
 
                         <div class="flex w-full items-center justify-center space-x-2">
@@ -207,10 +209,10 @@ watch(
                                     @click="showVerificationStep = false"
                                     :disabled="processing"
                                 >
-                                    Back
+                                    {{ t('Back') }}
                                 </Button>
                                 <Button type="submit" class="w-auto flex-1" :disabled="processing || code.length < 6">
-                                    Confirm
+                                    {{ t('Confirm') }}
                                 </Button>
                             </div>
                         </div>

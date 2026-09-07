@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useI18n } from '@/composables/useI18n';
 
 const props = withDefaults(
     defineProps<{
@@ -27,6 +28,7 @@ const props = withDefaults(
         disabled: false,
     },
 );
+const { t } = useI18n();
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: string): void;
@@ -69,13 +71,13 @@ watch(
 <template>
     <div class="grid min-w-0 gap-2">
         <div class="flex min-w-0 items-center justify-between gap-3">
-            <Label :for="id" class="min-w-0 break-words">{{ label }}</Label>
-            <span v-if="props.required" class="shrink-0 text-xs text-muted-foreground">Wajib</span>
+            <Label :for="id" class="min-w-0 break-words">{{ t(label) }}</Label>
+            <span v-if="props.required" class="shrink-0 text-xs text-muted-foreground">{{ t('Wajib') }}</span>
         </div>
 
         <div v-if="isRangeType(props.type)" class="grid min-w-0 gap-3 sm:grid-cols-2">
             <label class="grid min-w-0 gap-1.5 text-xs font-medium text-muted-foreground">
-                Tanggal mulai
+                {{ t('Tanggal mulai') }}
                 <Input
                     :id="`${id}-start`"
                     v-model="rangeStart"
@@ -90,7 +92,7 @@ watch(
                 />
             </label>
             <label class="grid min-w-0 gap-1.5 text-xs font-medium text-muted-foreground">
-                Tanggal selesai
+                {{ t('Tanggal selesai') }}
                 <Input
                     :id="`${id}-end`"
                     v-model="rangeEnd"
@@ -111,7 +113,7 @@ watch(
             :id="id"
             :type="props.type"
             :model-value="props.modelValue"
-            :placeholder="props.placeholder"
+            :placeholder="props.placeholder ? t(props.placeholder) : undefined"
             :required="props.required"
             :disabled="props.disabled"
             :autocomplete="props.autocomplete"
@@ -125,7 +127,7 @@ watch(
         />
 
         <p v-if="props.help && !props.error" class="text-xs leading-5 break-words text-muted-foreground">
-            {{ props.help }}
+            {{ t(props.help) }}
         </p>
         <InputError :message="props.error" />
     </div>

@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 import { classes as adminClasses, index as adminIndex } from '@/routes/admin';
 import { index as attendanceIndex } from '@/routes/attendance';
 import { index as championshipsIndex } from '@/routes/championships';
@@ -25,7 +26,8 @@ const props = withDefaults(
 );
 
 const page = usePage<{ auth: Auth }>();
-const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || 'Pengguna');
+const { t } = useI18n();
+const firstName = computed(() => page.props.auth.user?.name?.trim().split(/\s+/)[0] || t('Pengguna'));
 const dashboardRoles = computed<AppRole[]>(() => (props.roles.length > 0 ? props.roles : [props.role]));
 const isMultiRole = computed(() => dashboardRoles.value.length > 1);
 
@@ -36,26 +38,38 @@ const roleLabels: Record<AppRole, string> = {
     athlete: 'Atlet',
 };
 
-const heading = computed(() =>
-    isMultiRole.value
-        ? `Ringkasan semua peran, ${firstName.value}`
-        : {
-              admin: `Selamat datang, ${firstName.value}`,
-              coach: `Siap untuk latihan hari ini, ${firstName.value}?`,
-              parent: 'Ringkasan keluarga Anda',
-              athlete: `Tetap konsisten, ${firstName.value}`,
-          }[props.role],
-);
+const heading = computed(() => {
+    if (isMultiRole.value) return t('Selamat Datang, :name', { name: firstName.value });
 
-const description = computed(() =>
-    isMultiRole.value
-        ? `Dashboard ini menggabungkan akses ${dashboardRoles.value.map((role) => roleLabels[role]).join(', ')} tanpa perlu mengganti tampilan dashboard.`
-        : {
-              admin: 'Kondisi operasional klub, tindak lanjut, dan aktivitas terbaru dalam satu ringkasan.',
-              coach: 'Sesi, absensi, agenda kejuaraan, dan honor yang terhubung ke akun Anda.',
-              parent: 'Jadwal, kehadiran, tagihan, dan agenda semua anak yang terhubung.',
-              athlete: 'Latihan berikutnya, kehadiran, pembayaran, dan agenda kejuaraan Anda.',
-          }[props.role],
+    const keys: Record<AppRole, string> = {
+        admin: 'Selamat datang, :name',
+        coach: 'Siap untuk latihan hari ini, :name?',
+        parent: 'Ringkasan keluarga Anda',
+        athlete: 'Tetap konsisten, :name',
+    };
+
+    return t(keys[props.role], { name: firstName.value });
+});
+
+const description = computed(() => {
+    if (isMultiRole.value) {
+        return t('Dashboard ini menggabungkan akses :roles tanpa perlu mengganti tampilan dashboard.', {
+            roles: dashboardRoles.value.map((role) => t(roleLabels[role])).join(', '),
+        });
+    }
+
+    const keys: Record<AppRole, string> = {
+        admin: 'Kondisi operasional klub, tindak lanjut, dan aktivitas terbaru dalam satu ringkasan.',
+        coach: 'Sesi, absensi, agenda kejuaraan, dan honor yang terhubung ke akun Anda.',
+        parent: 'Jadwal, kehadiran, tagihan, dan agenda semua anak yang terhubung.',
+        athlete: 'Latihan berikutnya, kehadiran, pembayaran, dan agenda kejuaraan Anda.',
+    };
+
+    return t(keys[props.role]);
+});
+
+const eyebrow = computed(() =>
+    isMultiRole.value ? t('Dashboard gabungan') : t('Ringkasan :role', { role: t(roleLabels[props.role]) }),
 );
 
 const quickActions = computed(() => {
@@ -95,11 +109,7 @@ const quickActions = computed(() => {
 </script>
 
 <template>
-    <PageSection
-        :eyebrow="isMultiRole ? 'Dashboard gabungan' : `Ringkasan ${roleLabels[props.role]}`"
-        :title="heading"
-        :description="description"
-    >
+    <PageSection :eyebrow="eyebrow" :title="heading" :description="description">
         <template #actions>
             <Button
                 v-for="action in quickActions"
@@ -109,12 +119,12 @@ const quickActions = computed(() => {
                 size="sm"
                 class="gap-2"
             >
-                <Link :href="action.href"><component :is="action.icon" class="size-4" />{{ action.label }}</Link>
+                <Link :href="action.href"><component :is="action.icon" class="size-4" />{{ t(action.label) }}</Link>
             </Button>
         </template>
 
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <!-- <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <StatCard v-for="metric in props.metrics" :key="`${metric.label}-${metric.detail}`" v-bind="metric" />
-        </div>
+        </div> -->
     </PageSection>
 </template>

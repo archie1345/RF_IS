@@ -1,23 +1,20 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { CalendarDays, Eye, Plus, Pencil, Trash2, UserRoundCheck, Users } from '@lucide/vue';
+import { CalendarDays, Plus, UserRoundCheck, Users } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
+import PageSection from '@/components/shared/PageSection.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
+import { useI18n } from '@/composables/useI18n';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { classes as adminClasses } from '@/routes/admin';
-import {
-    athletes as groupAthletes,
-    destroy as groupDestroy,
-    store as groupStore,
-    update as groupUpdate,
-} from '@/routes/admin/groups';
+import { destroy as groupDestroy, store as groupStore, update as groupUpdate } from '@/routes/admin/groups';
 import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 import type {
@@ -27,7 +24,6 @@ import type {
     ClassSessionRecord,
     SelectOption,
 } from '@/types/training';
-import PageSection from '@/components/shared/PageSection.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -58,6 +54,7 @@ const props = withDefaults(
     },
 );
 const popup = useAppPopup();
+const { t } = useI18n();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -114,7 +111,7 @@ const sessionTableColumns: TableColumn[] = [
     { key: 'archive_state', label: 'Tampilan' },
 ];
 
-const editingClassId = ref<number | null>(null);
+const editingClassId = ref<number | string | null>(null);
 const selectedClass = ref<ClassRecord | null>(null);
 const selectedClassAthletes = ref<ClassAthleteRecord[]>([]);
 const athleteModalLoading = ref(false);
@@ -220,7 +217,7 @@ const classTableRows = computed<TableRow[]>(() =>
             schedule: `${item.day_label} · ${item.start_time} - ${item.end_time}`,
             schedule_day: item.day_label,
             schedule_time: `${item.start_time} - ${item.end_time}`,
-            participants: `${item.athletes_count} atlet`,
+            participants: `${item.athletes_count} ${t('Atlet')}`,
             session_summary: `${activeSessions} aktif · ${archivedSessions} arsip`,
             weekly_schedule_status: item.weekly_schedule_status,
             status: item.is_active ? 'AKTIF' : 'NONAKTIF',
@@ -229,15 +226,29 @@ const classTableRows = computed<TableRow[]>(() =>
     }),
 );
 
-const selectedClassAthleteRows = computed<TableRow[]>(() =>
-    selectedClassAthletes.value.map((athlete) => ({
+const selectedClassAthleteRows = computed<TableRow[]>(() => {
+    const geupLabel: Record<string, string> = {
+        GEUP_1: 'Geup 1',
+        GEUP_2: 'Geup 2',
+        GEUP_3: 'Geup 3',
+        GEUP_4: 'Geup 4',
+        GEUP_5: 'Geup 5',
+        GEUP_6: 'Geup 6',
+        GEUP_7: 'Geup 7',
+        GEUP_8: 'Geup 8',
+        GEUP_9: 'Geup 9',
+        GEUP_10: 'Geup 10',
+        DAN: 'Dan',
+    };
+
+    return selectedClassAthletes.value.map((athlete) => ({
         id: String(athlete.id),
         name: athlete.name,
         branch: athlete.branch || '-',
         training_group: athlete.training_group || '-',
-        geup: athlete.geup || '-',
-    })),
-);
+        geup: geupLabel[athlete.geup ?? ''] ?? athlete.geup ?? '-',
+    }));
+});
 
 const sessionRows = computed<TableRow[]>(() => {
     const sessions = selectedSessionClass.value?.sessions ?? [];
@@ -279,9 +290,13 @@ function privateAthleteLabel(item: ClassRecord): string {
     return normalizeClassType(item.class_type) === 'private' ? item.dedicated_athlete || '-' : '-';
 }
 
+function groupRouteKey(item: ClassRecord): string {
+    return item.uuid;
+}
+
 function classFromRow(row: TableRow): ClassRecord | null {
     const id = Number(row.class_id ?? row.id);
-    return props.classes.find((item) => item.id === id) ?? null;
+    return props.classes.find((item) => String(item.id) === String(id)) ?? null;
 }
 
 function enforceActivationRules() {
@@ -336,7 +351,7 @@ async function openClassAthletes(item: ClassRecord) {
     athleteModalLoading.value = true;
 
     try {
-        const response = await fetch(groupAthletes.url(item.id), {
+        const response = await fetch(`/api/admin/groups/${encodeURIComponent(groupRouteKey(item))}/athletes`, {
             headers: { Accept: 'application/json' },
             credentials: 'same-origin',
         });
@@ -368,7 +383,7 @@ function openAttendance(row: TableRow) {
 
 function editClass(item: ClassRecord) {
     const classType = normalizeClassType(item.class_type);
-    editingClassId.value = item.id;
+    editingClassId.value = groupRouteKey(item);
     form.clearErrors();
     form.name = item.name;
     form.class_type = classType;
@@ -407,7 +422,7 @@ function saveClass() {
 
     enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeClassForm };
-    if (editingClassId.value) form.put(groupUpdate.url(editingClassId.value), options);
+    if (editingClassId.value) form.put(groupUpdate.url(String(editingClassId.value)), options);
     else form.post(groupStore.url(), options);
 }
 
@@ -420,7 +435,7 @@ async function deleteClass(item: ClassRecord): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(groupDestroy.url(item.id), { preserveScroll: true });
+    router.delete(groupDestroy.url(groupRouteKey(item)), { preserveScroll: true });
 }
 
 function deleteClassFromRow(row: TableRow) {
@@ -465,16 +480,13 @@ watch(
 
             <DataTable
                 title="Daftar Kelas"
-                description="Daftar kelas yang tersedia. Klik baris untuk melihat daftar atlet. Gunakan tombol mata untuk melihat semua sesi kelas."
+                description="Daftar kelas yang tersedia. Klik baris untuk melihat daftar atlet."
                 :columns="classTableColumns"
                 :rows="classTableRows"
                 searchable
-                row-clickable
-                row-click-label="Klik baris untuk melihat daftar atlet. Gunakan tombol mata untuk melihat semua sesi kelas."
                 search-placeholder="Cari kelas, lokasi, atau pelatih..."
                 empty-text="Belum ada kelas."
                 action-label="Aksi"
-                @row-click="openClassAthletesFromRow"
             >
                 <template #cell="{ row, column, value }">
                     <div v-if="column.key === 'class'" class="grid gap-0.5">
@@ -540,10 +552,17 @@ watch(
                             type="button"
                             size="sm"
                             variant="outline"
+                            title="Lihat Anggota kelas"
+                            @click="openClassAthletesFromRow(row)"
+                        >
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
                             title="Lihat sesi kelas"
                             @click="openClassSessionsFromRow(row)"
                         >
-                            <Eye class="size-4" />
                         </Button>
                         <Button
                             v-if="props.canEditClasses"
@@ -553,7 +572,6 @@ watch(
                             title="Edit kelas"
                             @click="editClassFromRow(row)"
                         >
-                            <Pencil class="size-4" />
                         </Button>
                         <Button
                             v-if="props.canDeleteClasses"
@@ -563,7 +581,6 @@ watch(
                             title="Hapus/nonaktifkan kelas"
                             @click="deleteClassFromRow(row)"
                         >
-                            <Trash2 class="size-4" />
                         </Button>
                     </ActionButtonsRow>
                 </template>
@@ -780,7 +797,7 @@ watch(
                             }}
                         </p>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Pelatih: {{ selectedClass.coach || 'Belum ada pelatih' }}
+                            {{ t('Pelatih') }}: {{ selectedClass.coach || t('Belum ada pelatih') }}
                         </p>
                     </div>
                     <p
@@ -793,9 +810,10 @@ watch(
                     <DataTable
                         v-else
                         title="Atlet kelas"
-                        description="Daftar atlet yang dapat mengikuti kelas ini."
+                        description="Daftar atlet"
                         :columns="athleteTableColumns"
                         :rows="selectedClassAthleteRows"
+                        searchable
                         empty-text="Belum ada atlet."
                     />
                 </section>
@@ -803,7 +821,7 @@ watch(
 
             <FormModal :open="Boolean(selectedSessionClass)" max-width-class="max-w-5xl" @close="closeSessionModal">
                 <section v-if="selectedSessionClass" class="grid gap-4">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="grid min-w-0 gap-3 pr-12 sm:pr-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                         <div>
                             <p class="text-xs font-black tracking-wide text-red-500 uppercase">Riwayat Sesi Kelas</p>
                             <h2 class="text-2xl font-black">{{ selectedSessionClass.name }}</h2>
@@ -812,7 +830,7 @@ watch(
                                 {{ selectedSessionClass.archived_sessions_count ?? 0 }} sesi arsip/past
                             </p>
                         </div>
-                        <div class="flex flex-wrap gap-2">
+                        <div class="flex min-w-0 flex-wrap gap-2 lg:justify-end">
                             <Button
                                 type="button"
                                 size="sm"

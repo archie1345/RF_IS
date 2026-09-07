@@ -14,7 +14,7 @@ import { dashboard } from '@/routes';
 import { locations as adminLocations } from '@/routes/admin';
 import { destroy as branchDestroy, store as branchStore, update as branchUpdate } from '@/routes/admin/branches';
 import type { BreadcrumbItem } from '@/types';
-import type { TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { TableColumn, TableRow } from '@/types/resource-table';
 import type { LocationRecord } from '@/types/training';
 
 const props = withDefaults(
@@ -45,22 +45,7 @@ const locationTableColumns: TableColumn[] = [
     { key: 'status', label: 'Status' },
 ];
 
-const locationTableFilters: TableFilter[] = [
-    { key: 'area', label: 'Kota / Provinsi', type: 'select', columnKey: 'area', placeholder: 'Semua area' },
-    {
-        key: 'status',
-        label: 'Status',
-        type: 'select',
-        columnKey: 'status',
-        placeholder: 'Semua status',
-        options: [
-            { value: 'AKTIF', label: 'Aktif' },
-            { value: 'NONAKTIF', label: 'Nonaktif' },
-        ],
-    },
-];
-
-const editingLocationId = ref<number | null>(null);
+const editingLocationId = ref<string | null>(null);
 const showLocationForm = ref(false);
 
 const form = useForm({
@@ -80,6 +65,7 @@ const locationTableRows = computed<TableRow[]>(() =>
     props.locations.map((location) => ({
         id: String(location.id),
         location_id: location.id,
+        location_uuid: location.uuid,
         name: location.name,
         location_label: location.location ?? '-',
         address: location.address ?? '-',
@@ -163,7 +149,7 @@ function locationFromRow(row: TableRow): LocationRecord | null {
 }
 
 function editLocation(location: LocationRecord) {
-    editingLocationId.value = location.id;
+    editingLocationId.value = location.uuid;
     form.clearErrors();
     form.name = location.name;
     form.location = location.location ?? '';
@@ -192,7 +178,7 @@ function setCoordinates(payload: { latitude: string; longitude: string }) {
 function saveLocation() {
     enforceActivationRules();
     const options = { preserveScroll: true, onSuccess: closeLocationForm };
-    if (editingLocationId.value) form.put(branchUpdate.url(editingLocationId.value), options);
+    if (editingLocationId.value !== null) form.put(branchUpdate.url(editingLocationId.value), options);
     else form.post(branchStore.url(), options);
 }
 
@@ -205,7 +191,7 @@ async function deleteLocation(location: LocationRecord): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(branchDestroy.url(location.id), { preserveScroll: true });
+    router.delete(branchDestroy.url(location.uuid), { preserveScroll: true });
 }
 
 function deleteLocationFromRow(row: TableRow) {
@@ -244,8 +230,6 @@ watch(
                 description="Kelola dojang/lokasi latihan memakai tabel bersama agar filter, pagination, dan desain konsisten."
                 :columns="locationTableColumns"
                 :rows="locationTableRows"
-                :filters="locationTableFilters"
-                filterable
                 searchable
                 search-placeholder="Cari lokasi, alamat, kota, provinsi..."
                 empty-text="Belum ada lokasi."

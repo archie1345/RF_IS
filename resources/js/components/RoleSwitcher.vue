@@ -3,6 +3,7 @@ import { router, usePage } from '@inertiajs/vue3';
 import { Check, ChevronDown, LoaderCircle, UsersRound } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,6 +17,7 @@ import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
 
 const page = usePage<{ auth: Auth }>();
+const { t } = useI18n();
 const switchingRole = ref<AppRole | null>(null);
 
 const roles = computed<AppRole[]>(() => page.props.auth.user?.roles ?? []);
@@ -58,19 +60,19 @@ function switchRole(role: AppRole): void {
                 size="sm"
                 class="max-w-[9.5rem] gap-2 sm:max-w-none"
                 :disabled="switchingRole !== null"
-                aria-label="Ganti tampilan akun"
+                :aria-label="t('Ganti tampilan akun')"
             >
                 <LoaderCircle v-if="switchingRole" class="size-4 animate-spin" />
                 <UsersRound v-else class="size-4" />
-                <span class="truncate">{{ roleLabels[activeRole] }}</span>
+                <span class="truncate">{{ t(roleLabels[activeRole]) }}</span>
                 <ChevronDown class="size-3.5 shrink-0 opacity-70" />
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="w-56">
             <DropdownMenuLabel>
-                <span class="block">Tampilkan sebagai</span>
+                <span class="block">{{ t('Tampilkan sebagai') }}</span>
                 <span class="mt-0.5 block text-xs font-normal text-muted-foreground">
-                    Pilih sesuai tugas yang ingin dilakukan
+                    {{ t('Pilih sesuai tugas yang ingin dilakukan') }}
                 </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -83,7 +85,7 @@ function switchRole(role: AppRole): void {
             >
                 <LoaderCircle v-if="switchingRole === role" class="mr-2 size-4 animate-spin" />
                 <Check v-else class="mr-2 size-4" :class="role === activeRole ? 'opacity-100' : 'opacity-0'" />
-                {{ roleLabels[role] }}
+                {{ t(roleLabels[role]) }}
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
@@ -91,9 +93,9 @@ function switchRole(role: AppRole): void {
     <div
         v-else
         class="inline-flex h-9 max-w-[9.5rem] items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium sm:max-w-none"
-        aria-label="Peran akun saat ini"
+        :aria-label="t('Peran akun saat ini')"
     >
         <UsersRound class="size-4 shrink-0" />
-        <span class="truncate">{{ roleLabels[activeRole] }}</span>
+        <span class="truncate">{{ t(roleLabels[activeRole]) }}</span>
     </div>
 </template>

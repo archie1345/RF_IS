@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import FormInputField from '@/components/forms/FormInputField.vue';
-import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
-import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,16 +16,11 @@ import {
     athleteRosterBaseColumns,
     athleteRosterTrailingColumns,
     coachRosterColumns,
-    genderOptions,
-    geupOptions,
     parentRosterColumns,
 } from '@/pages/profiles/profileRosterConfig';
 import { dashboard } from '@/routes';
 import { sync as parentChildrenSync } from '@/routes/parents/children';
 import { index as usersIndex, show as userShow } from '@/routes/users';
-import { update as athleteRecordUpdate } from '@/routes/users/athlete-record';
-import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
-import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
 import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
@@ -57,15 +49,8 @@ const props = withDefaults(
     },
 );
 
-const showNewAthleteForm = ref(false);
-const showCoachModal = ref(false);
-const showParentModal = ref(false);
 const showParentChildrenModal = ref(false);
-const editingAthleteId = ref<number | null>(null);
-const isLoadingAthlete = ref(false);
-const editingCoachId = ref<number | null>(null);
-const editingParentId = ref<number | null>(null);
-const editingParentChildrenId = ref<number | null>(null);
+const editingParentChildrenId = ref<number | string | null>(null);
 const editingParentChildrenName = ref('');
 const childSearch = ref('');
 const athleteBranchFilter = ref('');
@@ -96,41 +81,6 @@ const athleteRows = computed(() =>
         return branchMatches && groupMatches && statusMatches;
     }),
 );
-const geupSelectOptions = computed(() =>
-    geupOptions.map((option) => ({
-        value: option,
-        label: option.replace('_', ' '),
-    })),
-);
-
-const form = useForm({
-    name: '',
-    email: '',
-    gender: 'MALE',
-    bday: '',
-    phone: '',
-    height_cm: '',
-    weight_kg: '',
-    alamat: '',
-    branch_id: '',
-    group_id: '',
-    geup: 'GEUP_10',
-    parent_id: '',
-    nik: '',
-    bpjs: '',
-});
-
-const coachForm = useForm({
-    status: 'active',
-    specialization: '',
-    bio: '',
-});
-
-const parentForm = useForm({
-    relation: 'guardian',
-    occupation: '',
-    notes: '',
-});
 
 const parentChildrenForm = useForm({
     athlete_ids: [] as string[],
@@ -146,35 +96,8 @@ const filteredChildOptions = computed(() => {
     return props.athletes.filter((option) => option.label.toLowerCase().includes(query));
 });
 
-function submit() {
-    const options = {
-        onSuccess: () => {
-            form.reset();
-            editingAthleteId.value = null;
-            showNewAthleteForm.value = false;
-        },
-    };
-
-    if (editingAthleteId.value) {
-        form.put(athleteRecordUpdate.url(editingAthleteId.value), options);
-        return;
-    }
-}
-
-function closeAthleteForm() {
-    showNewAthleteForm.value = false;
-    editingAthleteId.value = null;
-    isLoadingAthlete.value = false;
-    form.reset();
-    form.clearErrors();
-}
-
-function getUserId(row: TableRow): number | null {
-    return routeId(row.user_id) ?? routeId(row.id) ?? routeId(row.athlete_id);
-}
-
-function getParentId(row: TableRow): number | null {
-    return routeId(row.parent_id) ?? routeId(row.user_id) ?? routeId(row.id);
+function getUserId(row: TableRow): number | string | null {
+    return routeId(row.user_id) ?? routeId(row.id);
 }
 
 function viewProfile(row: TableRow) {
@@ -188,62 +111,8 @@ function viewProfile(row: TableRow) {
     router.visit(userShow.url(userId));
 }
 
-function openEditCoach(row: TableRow) {
-    const userId = getUserId(row);
-
-    if (userId === null) {
-        console.error('Invalid coach user ID', row);
-        return;
-    }
-
-    editingCoachId.value = userId;
-    coachForm.status = String(row.status ?? 'active');
-    coachForm.specialization = String(row.specialization ?? '').replace('-', '');
-    coachForm.bio = '';
-    showCoachModal.value = true;
-}
-
-function saveCoach() {
-    if (editingCoachId.value) {
-        coachForm.put(userCoachProfileUpdate.url(editingCoachId.value), {
-            preserveScroll: true,
-            onSuccess: () => {
-                showCoachModal.value = false;
-            },
-        });
-        return;
-    }
-}
-
-function openEditParent(row: TableRow) {
-    const userId = getUserId(row);
-
-    if (userId === null) {
-        console.error('Invalid parent user ID', row);
-        return;
-    }
-
-    editingParentId.value = userId;
-    parentForm.relation = String(row.relation ?? 'guardian');
-    parentForm.occupation = String(row.occupation ?? '').replace('-', '');
-    parentForm.notes = '';
-    showParentModal.value = true;
-}
-
-function saveParent() {
-    if (editingParentId.value) {
-        parentForm.put(userParentProfileUpdate.url(editingParentId.value), {
-            preserveScroll: true,
-            onSuccess: () => {
-                showParentModal.value = false;
-            },
-        });
-        return;
-    }
-}
-
 function openLinkChildren(row: TableRow) {
-    const parentId = getParentId(row);
+    const parentId = getUserId(row);
 
     if (parentId === null) {
         console.error('Invalid parent ID', row);
@@ -303,7 +172,7 @@ function saveParentChildren() {
             <ResourceTablePanel
                 eyebrow="User Directory"
                 title="User directory workspace"
-                description="View and edit athlete, Coach, Parent profiles. Create/delete accounts from Admin Panel only."
+                description="View and edit athlete, Coach, Parent profiles."
                 table-title="Current athlete roster"
                 table-description="Live athlete data backed by the application database."
                 :columns="athleteColumns"
@@ -342,7 +211,6 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
-                        <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
                     </ActionButtonsRow>
                 </template>
             </ResourceTablePanel>
@@ -375,231 +243,13 @@ function saveParentChildren() {
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
                         <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
-                        <Button size="sm" variant="outline" @click="openEditParent(row)">Edit</Button>
-                        <Button size="sm" variant="outline" :disabled="!getParentId(row)" @click="openLinkChildren(row)"
+                        <Button size="sm" variant="outline" :disabled="!getUserId(row)" @click="openLinkChildren(row)"
                             >Link Children</Button
                         >
                     </ActionButtonsRow>
                 </template>
             </ResourceTablePanel>
         </div>
-
-        <FormModal :open="showNewAthleteForm" max-width-class="max-w-4xl" @close="closeAthleteForm">
-            <form v-if="!isLoadingAthlete" class="grid gap-4" @submit.prevent="submit">
-                <div class="grid gap-2">
-                    <Label for="athlete-name">Full name</Label>
-                    <Input id="athlete-name" v-model="form.name" placeholder="Enter athlete name" />
-                    <InputError :message="form.errors.name" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="athlete-email">Email</Label>
-                    <Input id="athlete-email" v-model="form.email" type="email" placeholder="athlete@example.com" />
-                    <InputError :message="form.errors.email" />
-                </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                    <FormSelectField
-                        id="athlete-gender"
-                        v-model="form.gender"
-                        label="Gender"
-                        :options="genderOptions"
-                        :error="form.errors.gender"
-                    />
-                    <FormInputField
-                        id="athlete-bday"
-                        v-model="form.bday"
-                        label="Birth date"
-                        type="date"
-                        :error="form.errors.bday"
-                    />
-                </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="athlete-phone">Phone</Label>
-                        <Input id="athlete-phone" v-model="form.phone" placeholder="0812..." />
-                        <InputError :message="form.errors.phone" />
-                    </div>
-                    <FormSelectField
-                        id="athlete-geup"
-                        v-model="form.geup"
-                        label="Geup"
-                        :options="geupSelectOptions"
-                        :error="form.errors.geup"
-                    />
-                </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                    <FormNumberStepperField
-                        id="athlete-height"
-                        v-model="form.height_cm"
-                        label="Height (cm)"
-                        :min="0"
-                        :step="0.1"
-                        :error="form.errors.height_cm"
-                    />
-                    <FormNumberStepperField
-                        id="athlete-weight"
-                        v-model="form.weight_kg"
-                        label="Weight (kg)"
-                        :min="0"
-                        :step="0.1"
-                        :error="form.errors.weight_kg"
-                    />
-                </div>
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="athlete-branch">Branch</Label>
-                        <SearchableSelect
-                            v-model="form.branch_id"
-                            :options="props.branches"
-                            placeholder="Select branch"
-                            title="Select branch"
-                            description="Search branch options and choose the correct branch."
-                            search-placeholder="Search branch"
-                            empty-text="No branch matches that search."
-                        />
-                        <InputError :message="form.errors.branch_id" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="athlete-group">Group</Label>
-                        <SearchableSelect
-                            v-model="form.group_id"
-                            :options="props.groups"
-                            placeholder="Select group"
-                            title="Select group"
-                            description="Search group options and choose the correct training group."
-                            search-placeholder="Search group"
-                            empty-text="No group matches that search."
-                        />
-                        <InputError :message="form.errors.group_id" />
-                    </div>
-                </div>
-                <div class="grid gap-2">
-                    <Label for="athlete-parent">Parent</Label>
-                    <SearchableSelect
-                        v-model="form.parent_id"
-                        :options="props.parents"
-                        placeholder="No parent linked"
-                        title="Select parent"
-                        description="Search parent accounts if this athlete should be linked to one. You can leave this empty."
-                        search-placeholder="Search parent"
-                        empty-text="No parent matches that search."
-                    />
-                    <InputError :message="form.errors.parent_id" />
-                </div>
-                <div class="grid gap-2">
-                    <Label for="athlete-address">Address</Label>
-                    <Input id="athlete-address" v-model="form.alamat" placeholder="Street address" />
-                    <InputError :message="form.errors.alamat" />
-                </div>
-                <div v-if="props.canViewSensitiveIdentifiers" class="grid gap-4 md:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="athlete-nik">NIK</Label>
-                        <Input id="athlete-nik" v-model="form.nik" placeholder="3174..." />
-                        <InputError :message="form.errors.nik" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label for="athlete-bpjs">BPJS</Label>
-                        <Input id="athlete-bpjs" v-model="form.bpjs" placeholder="BPJS number" />
-                        <InputError :message="form.errors.bpjs" />
-                    </div>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">
-                        {{ editingAthleteId ? 'Update athlete' : 'Save athlete' }}
-                    </Button>
-                    <Button type="button" class="w-full sm:w-auto" variant="outline" @click="closeAthleteForm">
-                        Cancel
-                    </Button>
-                </div>
-            </form>
-            <div v-else class="py-10 text-center text-sm text-muted-foreground">Loading athlete details...</div>
-        </FormModal>
-
-        <FormModal :open="showCoachModal" max-width-class="max-w-2xl" @close="showCoachModal = false">
-            <PageSection title="Edit coach profile" description="Update coach details only.">
-                <form class="grid gap-4" @submit.prevent="saveCoach">
-                    <FormSelectField
-                        id="coach-status"
-                        v-model="coachForm.status"
-                        label="Status"
-                        :options="[
-                            { value: 'active', label: 'Active' },
-                            { value: 'inactive', label: 'Inactive' },
-                        ]"
-                        :error="coachForm.errors.status"
-                    />
-                    <FormInputField
-                        id="coach-specialization"
-                        v-model="coachForm.specialization"
-                        label="Specialization"
-                        placeholder="Sparring, Poomsae, Conditioning"
-                        :error="coachForm.errors.specialization"
-                    />
-                    <div class="grid gap-2">
-                        <label for="coach-bio" class="text-sm font-medium">Bio</label>
-                        <textarea
-                            id="coach-bio"
-                            v-model="coachForm.bio"
-                            rows="3"
-                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                        ></textarea>
-                        <p v-if="coachForm.errors.bio" class="text-sm text-destructive">{{ coachForm.errors.bio }}</p>
-                    </div>
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="coachForm.processing">Update</Button>
-                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showCoachModal = false"
-                            >Cancel</Button
-                        >
-                    </div>
-                </form>
-            </PageSection>
-        </FormModal>
-
-        <FormModal :open="showParentModal" max-width-class="max-w-2xl" @close="showParentModal = false">
-            <PageSection title="Edit parent profile" description="Update parent details only.">
-                <form class="grid gap-4" @submit.prevent="saveParent">
-                    <FormSelectField
-                        id="parent-relation"
-                        v-model="parentForm.relation"
-                        label="Relation"
-                        :options="[
-                            { value: 'father', label: 'Father' },
-                            { value: 'mother', label: 'Mother' },
-                            { value: 'guardian', label: 'Guardian' },
-                        ]"
-                        :error="parentForm.errors.relation"
-                    />
-                    <FormInputField
-                        id="parent-occupation"
-                        v-model="parentForm.occupation"
-                        label="Occupation"
-                        placeholder="Occupation"
-                        :error="parentForm.errors.occupation"
-                    />
-                    <div class="grid gap-2">
-                        <label for="parent-notes" class="text-sm font-medium">Notes</label>
-                        <textarea
-                            id="parent-notes"
-                            v-model="parentForm.notes"
-                            rows="3"
-                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                        ></textarea>
-                        <p v-if="parentForm.errors.notes" class="text-sm text-destructive">
-                            {{ parentForm.errors.notes }}
-                        </p>
-                    </div>
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentForm.processing">Update</Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            class="w-full sm:w-auto"
-                            @click="showParentModal = false"
-                            >Cancel</Button
-                        >
-                    </div>
-                </form>
-            </PageSection>
-        </FormModal>
 
         <FormModal :open="showParentChildrenModal" max-width-class="max-w-2xl" @close="closeParentChildrenModal">
             <PageSection

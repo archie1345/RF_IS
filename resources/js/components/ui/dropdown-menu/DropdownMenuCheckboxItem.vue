@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const props = defineProps</* @vue-ignore */ DropdownMenuCheckboxItemProps & { class?: HTMLAttributes["class"] }>()
-const emits = defineEmits()
+const emits = defineEmits<DropdownMenuCheckboxItemEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
 

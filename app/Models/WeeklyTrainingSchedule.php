@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WeeklyTrainingSchedule extends Model
 {
+    use HasUuids;
+
     use SoftDeletes;
 
     protected $table = 'weekly_training_schedules';
@@ -58,4 +61,15 @@ class WeeklyTrainingSchedule extends Model
     {
         return $this->hasMany(TrainingSession::class, 'weekly_training_schedule_id', 'weekly_training_schedule_id');
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

@@ -17,7 +17,7 @@ defineOptions({
 })
 
 const props = defineProps</* @vue-ignore */ DialogContentProps & { class?: HTMLAttributes["class"] }>()
-const emits = defineEmits()
+const emits = defineEmits<DialogContentEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
 

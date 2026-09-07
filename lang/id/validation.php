@@ -1,0 +1,42 @@
+<?php
+
+return [
+    'required' => ':attribute wajib diisi.',
+    'string' => ':attribute harus berupa teks.',
+    'integer' => ':attribute harus berupa angka bulat.',
+    'numeric' => ':attribute harus berupa angka.',
+    'email' => ':attribute harus berupa alamat email yang valid.',
+    'date' => ':attribute harus berupa tanggal yang valid.',
+    'date_format' => ':attribute tidak sesuai format :format.',
+    'in' => 'Pilihan :attribute tidak valid.',
+    'exists' => ':attribute yang dipilih tidak valid.',
+    'unique' => ':attribute sudah digunakan.',
+    'confirmed' => 'Konfirmasi :attribute tidak cocok.',
+    'min' => [
+        'numeric' => ':attribute minimal harus bernilai :min.',
+        'string' => ':attribute minimal harus memiliki :min karakter.',
+        'array' => ':attribute minimal harus memiliki :min item.',
+    ],
+    'max' => [
+        'numeric' => ':attribute maksimal harus bernilai :max.',
+        'string' => ':attribute maksimal harus memiliki :max karakter.',
+        'array' => ':attribute maksimal harus memiliki :max item.',
+    ],
+    'attributes' => [
+        'name' => 'nama',
+        'email' => 'email',
+        'password' => 'kata sandi',
+        'password_confirmation' => 'konfirmasi kata sandi',
+        'title' => 'judul',
+        'message' => 'pesan',
+        'status' => 'status',
+        'amount' => 'nominal',
+        'date' => 'tanggal',
+        'start_time' => 'jam mulai',
+        'end_time' => 'jam selesai',
+        'branch_id' => 'cabang',
+        'group_id' => 'grup',
+        'athlete_id' => 'atlet',
+        'coach_id' => 'coach',
+    ],
+];

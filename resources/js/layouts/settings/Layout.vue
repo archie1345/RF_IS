@@ -27,7 +27,7 @@ function active(item: (typeof navigation)[number]): boolean {
 </script>
 
 <template>
-    <div class="flex flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
+    <div v-translate class="flex flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
         <header class="rounded-2xl border bg-card px-4 py-5 shadow-sm sm:px-6">
             <p class="text-xs font-semibold tracking-[0.2em] text-primary uppercase">Akun dan preferensi</p>
             <h1 class="mt-2 text-2xl font-bold tracking-tight">Pengaturan</h1>

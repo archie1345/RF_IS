@@ -94,6 +94,7 @@ trait BuildsTrainingPayloads
     {
         return [
             'id' => $branch->branch_id,
+            'uuid' => $branch->uuid,
             'name' => $branch->branch_name,
             'location' => $branch->location,
             'address' => $branch->address,
@@ -126,6 +127,7 @@ trait BuildsTrainingPayloads
 
             return [
                 'id' => $group->group_id,
+                'uuid' => $group->uuid,
                 'name' => $group->group_name,
                 'training_group_id' => $group->training_group_id,
                 'training_group' => $group->trainingGroup?->name,
@@ -201,6 +203,7 @@ trait BuildsTrainingPayloads
 
                 return [
                     'id' => $session->training_session_id,
+                    'uuid' => $session->uuid,
                     'title' => $session->title,
                     'date' => $date,
                     'time' => trim($start.' - '.$end, ' -'),
@@ -208,7 +211,7 @@ trait BuildsTrainingPayloads
                     'coach' => $coachNames->join(', ') ?: '-',
                     'status' => $session->status,
                     'is_archived' => $isArchived,
-                    'attendance_url' => route('sessions.attendance', $session->training_session_id),
+                    'attendance_url' => route('sessions.attendance', $session->uuid),
                 ];
             })
             ->values();

@@ -3,7 +3,7 @@ import type { DropdownMenuRootEmits, DropdownMenuRootProps } from "reka-ui"
 import { DropdownMenuRoot, useForwardPropsEmits } from "reka-ui"
 
 const props = defineProps</* @vue-ignore */ DropdownMenuRootProps>()
-const emits = defineEmits()
+const emits = defineEmits<DropdownMenuRootEmits>()
 
 const forwarded = useForwardPropsEmits(props, emits)
 </script>

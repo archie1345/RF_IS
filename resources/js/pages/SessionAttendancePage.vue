@@ -31,7 +31,8 @@ const props = defineProps<{
     branches: SelectOption[];
     groups: SelectOption[];
     session: {
-        id: number;
+        id: string;
+        uuid: string;
         title: string;
         date: string;
         start_time?: string | null;
@@ -64,7 +65,7 @@ const popup = useAppPopup();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Sesi Latihan', href: sessionsIndex.url() },
-    { title: 'Detail Sesi', href: sessionAttendance.url(props.session.id) },
+    { title: 'Detail Sesi', href: sessionAttendance.url(props.session.uuid) },
 ];
 
 const athleteColumns: TableColumn[] = [
@@ -209,7 +210,7 @@ async function quickToggleQr(): Promise<void> {
         if (!confirmed) return;
 
         qrProcessing.value = true;
-        router.delete(destroySessionQr.url(props.session.id), {
+        router.delete(destroySessionQr.url(props.session.uuid), {
             preserveScroll: true,
             onFinish: () => {
                 qrProcessing.value = false;
@@ -220,7 +221,7 @@ async function quickToggleQr(): Promise<void> {
 
     qrProcessing.value = true;
     router.post(
-        storeSessionQr.url(props.session.id),
+        storeSessionQr.url(props.session.uuid),
         {},
         {
             preserveScroll: true,
@@ -234,7 +235,7 @@ async function quickToggleQr(): Promise<void> {
 function addCoach(): void {
     if (!props.session.is_private) return;
 
-    coachForm.post(sessionCoachAttendanceStore.url(props.session.id), {
+    coachForm.post(sessionCoachAttendanceStore.url(props.session.uuid), {
         preserveScroll: true,
         onSuccess: () => coachForm.reset(),
     });
@@ -290,7 +291,7 @@ function cancelSessionForm(): void {
 }
 
 function saveSession(): void {
-    sessionForm.put(sessionUpdate.url(props.session.id), {
+    sessionForm.put(sessionUpdate.url(props.session.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             showSessionForm.value = false;
@@ -387,7 +388,7 @@ function saveSession(): void {
                 </div>
             </section>
 
-            <SessionAttendanceQrPanel :session-id="props.session.id" :qr="props.session.attendance_qr" />
+        <SessionAttendanceQrPanel :session-id="props.session.uuid" :qr="props.session.attendance_qr" />
 
             <PageSection
                 eyebrow="Daftar atlet"

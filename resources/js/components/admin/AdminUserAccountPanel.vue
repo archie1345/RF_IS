@@ -32,9 +32,9 @@ const props = defineProps<{
 }>();
 
 const isFormOpen = ref(false);
-const editingId = ref<number | null>(null);
+const editingId = ref<string | null>(null);
 const pendingConfirmation = ref<{
-    id: number;
+    id: string;
     kind: 'soft-delete' | 'hard-delete';
     title: string;
     message: string;
@@ -221,13 +221,13 @@ function isInvitedRow(row: TableRow): boolean {
 }
 
 function resendInvitation(row: TableRow): void {
-    const id = Number(row.id);
+    const id = row.id;
     if (!id) return;
     router.post(adminAccountInvitationResend.url(id), {}, { preserveScroll: true });
 }
 
 function deleteAccount(row: TableRow): void {
-    const id = Number(row.id);
+    const id = row.id;
     if (!id) return;
     pendingConfirmation.value = {
         id,
@@ -239,13 +239,13 @@ function deleteAccount(row: TableRow): void {
 }
 
 function restoreAccount(row: TableRow): void {
-    const id = Number(row.id);
+    const id = row.id;
     if (!id) return;
     router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
 }
 
 function hardDeleteAccount(row: TableRow): void {
-    const id = Number(row.id);
+    const id = row.id;
     if (!id) return;
     pendingConfirmation.value = {
         id,
@@ -399,7 +399,6 @@ function confirmPendingAction(): void {
                     v-model="form.status"
                     label="Account state"
                     :options="statusOptions"
-                    help="Active accounts can sign in. Not active accounts are blocked immediately."
                     :error="form.errors.status"
                 />
                 <div class="grid gap-2">

@@ -128,21 +128,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
     Route::middleware('role:admin')->group(function (): void {
         Route::prefix('users')->controller(UserDirectoryController::class)->group(function (): void {
             Route::get('/', 'index')->name('users.index');
-            Route::post('/', 'store')->name('users.store');
-            Route::put('{user}', 'update')->name('users.update');
-            Route::delete('{user}', 'destroy')->name('users.destroy');
-            Route::post('{user}/restore', 'restore')->name('users.restore');
-            Route::delete('{user}/force', 'forceDelete')->name('users.force-delete');
         });
 
         Route::put('parents/{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])
             ->name('parents.children.sync');
 
         Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function (): void {
-            Route::post('/', 'store')->name('athletes.store');
-            Route::get('{athlete}', 'show')->name('athletes.record.show');
-            Route::put('{athlete}', 'update')->name('athletes.update');
-            Route::delete('{athlete}', 'destroy')->name('athletes.destroy');
             Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
             Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
             Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
@@ -191,7 +182,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin,coach')->group(function (): void {
         Route::get('classes', [TrainingClassController::class, 'index'])->name('classes');
-        Route::get('groups/{group}/athletes', [GroupController::class, 'athletes'])->name('groups.athletes');
         Route::post('groups', [GroupController::class, 'store'])->name('groups.store');
     });
 

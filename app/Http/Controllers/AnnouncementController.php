@@ -43,6 +43,7 @@ class AnnouncementController extends Controller
             'rows' => $announcements->map(fn (Announcement $announcement) => [
                 'id' => 'ANN-'.$announcement->id,
                 'announcement_id' => $announcement->id,
+                'announcement_uuid' => $announcement->uuid,
                 'title' => $announcement->title,
                 'message' => $announcement->message,
                 'target' => $this->targetLabel($announcement->target_role),

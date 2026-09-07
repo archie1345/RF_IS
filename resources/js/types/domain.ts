@@ -28,7 +28,7 @@ export type PaymentHistoryEntry = {
 
 export type PaymentRow = {
     id: string;
-    payment_id: number;
+    payment_id: string;
     athlete_id?: string | null;
     athlete_user_id?: number | null;
     billable_user_id?: number | null;
@@ -40,7 +40,7 @@ export type PaymentRow = {
 
 export type SessionRow = {
     id: string;
-    session_id: number;
+    session_id: string;
     session: string;
     coach_id?: string | null;
     can_join?: boolean;

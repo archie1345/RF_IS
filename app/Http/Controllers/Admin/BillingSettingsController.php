@@ -52,6 +52,7 @@ class BillingSettingsController extends Controller
             ],
             'rules' => $rules->map(fn (BillingRule $rule): array => [
                 'id' => $rule->id,
+                'uuid' => $rule->uuid,
                 'name' => $rule->name,
                 'charge_kind' => $rule->charge_kind,
                 'payment_type' => $rule->payment_type,
@@ -84,7 +85,6 @@ class BillingSettingsController extends Controller
             'metrics' => [
                 ['label' => 'Aturan bulanan aktif', 'value' => (string) $rules->where('charge_kind', BillingRule::KIND_MONTHLY)->where('is_active', true)->count(), 'detail' => 'Tarif khusus di luar tarif default', 'tone' => 'info'],
                 ['label' => 'Tarif default', 'value' => $this->rupiah((float) ($setting?->default_amount ?? 150000)), 'detail' => 'Dipakai bila tidak ada aturan khusus', 'tone' => 'success'],
-                ['label' => 'Jadwal otomatis', 'value' => ($setting?->is_active ?? true) ? 'Aktif' : 'Nonaktif', 'detail' => 'Tanggal '.($setting?->invoice_day ?? 1).' setiap bulan', 'tone' => ($setting?->is_active ?? true) ? 'success' : 'neutral'],
             ],
         ]);
     }

@@ -106,8 +106,8 @@ const visibilityOptions: Array<{
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
 
-function sessionIdFromRow(row: TableRow): number | null {
-    return routeId(row.session_id ?? row.id);
+function sessionIdFromRow(row: TableRow): number | string | null {
+    return row.uuid ? String(row.uuid) : routeId(row.session_id ?? row.id);
 }
 
 function setVisibility(visibility: SessionVisibility): void {
@@ -152,7 +152,7 @@ function joinSession(row: TableRow): void {
         <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
             <PageSection
                 title="Session"
-                description="Sessions are generated from Admin → Kelas Latihan. Coaches see sessions they manage and open sessions that need assistance."
+                description="Sessions are generated from Admin → Training classes. Coaches see sessions they manage and open sessions that need assistance."
             >
                 <div class="grid gap-4 md:grid-cols-3">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />

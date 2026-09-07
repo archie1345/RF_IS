@@ -4,6 +4,7 @@ import { AlertCircle, ArrowLeft, Home, RefreshCw } from '@lucide/vue';
 import { computed } from 'vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 import { httpStatusPresentation } from '@/lib/httpStatuses';
 
 const props = defineProps<{
@@ -14,13 +15,15 @@ const props = defineProps<{
     diagnosis?: string;
 }>();
 
+const { t } = useI18n();
+
 const configuredStatus = computed(() => httpStatusPresentation(props.status, props.statusText));
 const category = computed(() => configuredStatus.value.category);
 const title = computed(() => props.title ?? configuredStatus.value.title);
 const message = computed(() => props.message ?? configuredStatus.value.message);
 const diagnosis = computed(() => props.diagnosis ?? configuredStatus.value.diagnosis);
 const isError = computed(() => props.status >= 400);
-const homeLabel = computed(() => (props.status === 401 ? 'Go to sign in' : 'Go to home'));
+const homeLabel = computed(() => t(props.status === 401 ? 'Go to sign in' : 'Go to home'));
 const homeHref = computed(() => (props.status === 401 ? '/login' : '/'));
 
 function goBack() {
@@ -41,6 +44,7 @@ function reloadPage() {
     <Head :title="`${status} - ${title}`" />
 
     <main
+        v-translate
         class="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground"
     >
         <div class="pointer-events-none absolute inset-0 opacity-50">
@@ -75,7 +79,7 @@ function reloadPage() {
 
             <Alert :variant="isError ? 'destructive' : 'default'" class="shadow-sm">
                 <AlertCircle class="size-4" />
-                <AlertTitle>{{ isError ? 'What happened' : 'Response details' }}</AlertTitle>
+                <AlertTitle>{{ t(isError ? 'What happened' : 'Response details') }}</AlertTitle>
                 <AlertDescription>
                     {{ diagnosis }}
                 </AlertDescription>
@@ -84,11 +88,11 @@ function reloadPage() {
             <div class="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:flex-wrap">
                 <Button type="button" variant="outline" class="w-full sm:w-auto" @click="goBack">
                     <ArrowLeft class="size-4" />
-                    Go back
+                    {{ t('Go back') }}
                 </Button>
                 <Button type="button" variant="outline" class="w-full sm:w-auto" @click="reloadPage">
                     <RefreshCw class="size-4" />
-                    Try again
+                    {{ t('Try again') }}
                 </Button>
                 <Button as-child class="w-full sm:w-auto">
                     <Link :href="homeHref">

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from '@/composables/useI18n';
+
+const { t } = useI18n();
+
 defineProps<{
     title: string;
     description: string;
@@ -14,14 +18,14 @@ defineProps<{
                     v-if="eyebrow"
                     class="text-xs font-semibold tracking-[0.16em] break-words text-muted-foreground uppercase"
                 >
-                    {{ eyebrow }}
+                    {{ t(eyebrow) }}
                 </p>
                 <div class="min-w-0 space-y-1">
                     <h2 class="text-xl font-semibold break-words text-foreground sm:text-2xl">
-                        {{ title }}
+                        {{ t(title) }}
                     </h2>
                     <p class="max-w-3xl text-sm leading-6 break-words text-muted-foreground">
-                        {{ description }}
+                        {{ t(description) }}
                     </p>
                 </div>
             </div>

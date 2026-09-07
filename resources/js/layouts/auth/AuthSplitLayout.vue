@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { useI18n } from '@/composables/useI18n';
 import { home } from '@/routes';
 
 const page = usePage();
 const name = page.props.name;
+const { t } = useI18n();
 
 defineProps<{
     title?: string;
@@ -14,6 +16,7 @@ defineProps<{
 
 <template>
     <div
+        v-translate
         class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0"
     >
         <div class="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
@@ -27,10 +30,10 @@ defineProps<{
             <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
                 <div class="flex flex-col space-y-2 text-center">
                     <h1 class="text-xl font-medium" v-if="title">
-                        {{ title }}
+                        {{ t(title ?? '') }}
                     </h1>
                     <p class="text-sm text-muted-foreground" v-if="description">
-                        {{ description }}
+                        {{ t(description ?? '') }}
                     </p>
                 </div>
                 <slot />

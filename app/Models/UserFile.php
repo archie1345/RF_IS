@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserFile extends Model
 {
+    use HasUuids;
+
     public const DISK_PRIVATE = 'local';
 
     public const DISK_PUBLIC = 'public';
@@ -41,4 +44,15 @@ class UserFile extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

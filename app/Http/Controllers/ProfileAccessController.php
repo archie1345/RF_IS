@@ -90,8 +90,8 @@ class ProfileAccessController extends Controller
                 $athlete = $user->athleteProfile;
 
                 return [
-                    'id' => 'USR-'.$user->id,
-                    'user_id' => $user->id,
+                    'id' => $user->uuid,
+                    'user_id' => $user->uuid,
                     'athlete_id' => $athlete?->athlete_id,
                     'athlete' => $user->name ?? 'Unknown athlete',
                     'account_email' => $user->email ?? '-',
@@ -102,8 +102,8 @@ class ProfileAccessController extends Controller
                     'group_id' => $athlete?->group_id,
                     'height_cm' => $athlete?->height_cm !== null ? number_format((float) $athlete->height_cm, 1).' cm' : '-',
                     'weight_kg' => $athlete?->weight_kg !== null ? number_format((float) $athlete->weight_kg, 1).' kg' : '-',
-                    'nik' => $canViewSensitiveIdentifiers ? ($athlete?->displayValue('nik') ?? 'Not stored') : null,
-                    'bpjs' => $canViewSensitiveIdentifiers ? ($athlete?->displayValue('bpjs') ?? 'Not stored') : null,
+                    'nik' => $canViewSensitiveIdentifiers ? ($athlete?->user?->displayNik() ?? 'Not stored') : null,
+                    'bpjs' => $canViewSensitiveIdentifiers ? ($athlete?->user?->displayBpjs() ?? 'Not stored') : null,
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
                     'status' => $athlete ? $this->badge('Active', 'success') : $this->badge('Profile incomplete', 'warning'),
                 ];
@@ -117,8 +117,8 @@ class ProfileAccessController extends Controller
                     $coach = $user->coachProfile;
 
                     return [
-                        'id' => $user->id,
-                        'user_id' => $user->id,
+                        'id' => $user->uuid,
+                        'user_id' => $user->uuid,
                         'coach_id' => $coach?->coach_id,
                         'name' => $user->name ?? 'Unknown coach',
                         'email' => $user->email ?? '-',
@@ -137,8 +137,8 @@ class ProfileAccessController extends Controller
                     $parent = $user->parentProfile;
 
                     return [
-                        'id' => $user->id,
-                        'user_id' => $user->id,
+                        'id' => $user->uuid,
+                        'user_id' => $user->uuid,
                         'parent_id' => $parent?->parent_id,
                         'name' => $user->name ?? 'Unknown parent',
                         'email' => $user->email ?? '-',
@@ -185,11 +185,11 @@ class ProfileAccessController extends Controller
             'context' => 'admin',
             'canEditAccount' => true,
             'canEditRoleProfiles' => true,
-            'accountUpdateUrl' => '/users/'.$user->id.'/account',
-            'profileUpdateUrl' => '/users/'.$user->id.'/profile',
-            'certificationStoreUrl' => '/users/'.$user->id.'/certifications',
-            'achievementStoreUrl' => '/users/'.$user->id.'/achievements',
-            'passwordUpdateUrl' => $isLinkedParent ? '/users/'.$user->id.'/password' : null,
+            'accountUpdateUrl' => '/users/' . ($user->uuid) . '/account',
+            'profileUpdateUrl' => '/users/' . ($user->uuid) . '/profile',
+            'certificationStoreUrl' => '/users/' . ($user->uuid) . '/certifications',
+            'achievementStoreUrl' => '/users/' . ($user->uuid) . '/achievements',
+            'passwordUpdateUrl' => $isLinkedParent ? '/users/' . ($user->uuid) . '/password' : null,
             'branches' => $this->profilePageData->branchOptions(),
             'groups' => $this->profilePageData->groupOptions(),
         ]);
@@ -201,7 +201,7 @@ class ProfileAccessController extends Controller
 
         $updateUserAccount->handle($user, $request->validated());
 
-        ActivityLogger::log($request, 'profile.account.updated', 'profile', 'Updated accessible user account', $user, ['user_id' => $user->id]);
+        ActivityLogger::log($request, 'profile.account.updated', 'profile', 'Updated accessible user account', $user, ['user_id' => $user->uuid]);
 
         return back();
     }
@@ -212,7 +212,7 @@ class ProfileAccessController extends Controller
 
         $updateAccountProfile->handle($user, $request->validated(), $request);
 
-        ActivityLogger::log($request, 'profile.details.updated', 'profile', 'Updated accessible user profile details', $user, ['user_id' => $user->id]);
+        ActivityLogger::log($request, 'profile.details.updated', 'profile', 'Updated accessible user profile details', $user, ['user_id' => $user->uuid]);
 
         return back();
     }
@@ -224,7 +224,7 @@ class ProfileAccessController extends Controller
 
         $updateAthleteProfile->handle($user, $request->validated());
 
-        ActivityLogger::log($request, 'profile.athlete.updated', 'profile', 'Updated accessible athlete profile', $user, ['user_id' => $user->id]);
+        ActivityLogger::log($request, 'profile.athlete.updated', 'profile', 'Updated accessible athlete profile', $user, ['user_id' => $user->uuid]);
 
         return back();
     }

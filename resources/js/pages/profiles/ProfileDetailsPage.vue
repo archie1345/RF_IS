@@ -314,7 +314,7 @@ function shortHash(value?: string | null) {
             <div :key="$page.url" :class="pageContentClass">
                 <PageSection
                     :title="`${user.name}'s Profile`"
-                    :description="`View detailed information for ${user.email}`"
+                    :description="`View detailed information for ${user.name}`"
                 />
 
                 <ProfileSaveErrorAlert

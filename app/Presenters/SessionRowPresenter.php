@@ -19,6 +19,7 @@ class SessionRowPresenter
         return [
             'id' => 'SES-'.$session->training_session_id,
             'session_id' => $session->training_session_id,
+            'uuid' => $session->uuid,
             'session' => $session->title,
             'branch' => $session->branch?->branch_name ?? 'Unassigned',
             'group' => $session->group?->group_name ?? 'All groups',

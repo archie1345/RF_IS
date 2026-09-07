@@ -35,7 +35,7 @@ const highlights = [
 <template>
     <Head title="Rhino Fighter IS" />
 
-    <main class="min-h-screen bg-neutral-950 text-white">
+    <main v-translate class="min-h-screen bg-neutral-950 text-white">
         <section class="flex min-h-[78svh] flex-col border-b border-white/10">
             <header class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
                 <Link :href="dashboard()" class="text-sm font-semibold tracking-[0.24em] uppercase">RF IS</Link>

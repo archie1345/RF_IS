@@ -64,11 +64,11 @@ const actionIconRules: ActionIconRule[] = [
     { pattern: /kirim|send|message/, icon: Send },
     { pattern: /hapus|delete|remove|force delete/, icon: Trash2 },
     { pattern: /kelola|manage|settings|pengaturan/, icon: Settings2 },
-    { pattern: /ubah|edit|sunting/, icon: Pencil },
-    { pattern: /detail|lihat|view|buka|open/, icon: Eye },
+    { pattern: /ubah|edit|sunting|link children/, icon: Pencil },
     { pattern: /daftar|register/, icon: UserPlus },
-    { pattern: /tambah|add|create|buat/, icon: Plus },
     { pattern: /profil|profile|anggota|member|user/, icon: UserRoundSearch },
+    { pattern: /detail|lihat|view|buka|open/, icon: Eye },
+    { pattern: /tambah|add|create|buat/, icon: Plus },
     { pattern: /arsip|archive/, icon: Archive },
 ];
 

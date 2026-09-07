@@ -8,6 +8,7 @@ import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
+import { useI18n } from '@/composables/useI18n';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -44,6 +45,8 @@ const props = withDefaults(
         sessionOptions: () => [],
     },
 );
+
+const { t } = useI18n();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
@@ -176,11 +179,13 @@ function submitManualCoachAttendance(): void {
                 <template v-if="isCoachReport && props.manualCoachAttendanceUrl" #actions>
                     <Button type="button" @click="showManualCoachForm = true">Tambah presensi coach</Button>
                 </template>
-                <p class="mt-1 text-xs font-semibold tracking-wide text-primary uppercase">{{ props.roleAccess }}</p>
+                <p class="mt-1 text-xs font-semibold tracking-wide text-primary uppercase">
+                    {{ t(props.roleAccess ?? '') }}
+                </p>
 
                 <div v-if="isCoachReport" class="mt-4 grid gap-3 sm:grid-cols-3">
                     <div class="rounded-xl border bg-card p-4">
-                        <p class="text-xs text-muted-foreground">Coach</p>
+                        <p class="text-xs text-muted-foreground">{{ t('Coach') }}</p>
                         <p class="mt-1 text-2xl font-bold">{{ reportRows.length }}</p>
                     </div>
                     <div class="rounded-xl border bg-card p-4">
@@ -196,7 +201,7 @@ function submitManualCoachAttendance(): void {
 
             <FormModal
                 :open="isCoachReport && showManualCoachForm"
-                max-width-class="max-w-4xl"
+                max-width-class="max-w-5xl"
                 @close="cancelManualCoachForm"
             >
                 <PageSection
@@ -276,12 +281,12 @@ function submitManualCoachAttendance(): void {
                     </div>
                 </div>
                 <div class="mb-4 flex items-center gap-2 rounded-lg border bg-muted/20 px-4 py-3 text-sm font-semibold">
-                    <CalendarDays class="size-4" />Periode: {{ props.period.label }}
+                    <CalendarDays class="size-4" />{{ t('Periode') }}: {{ props.period.label }}
                 </div>
 
                 <DataTable
                     :title="isCoachReport ? 'Ringkasan presensi coach' : 'Detail presensi atlet'"
-                    description="Status diberi warna berbeda agar hadir, izin, terlambat, tidak hadir, mengajar, dan tidak mengajar mudah dibedakan."
+                    description="Data kehadiran atlet"
                     :columns="reportColumns"
                     :rows="reportRows"
                     :filters="reportFilters"

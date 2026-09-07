@@ -1,482 +1,671 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { QrCode, ShieldCheck } from '@lucide/vue';
-import { computed, ref, toRef, watch } from 'vue';
-import AthleteQrScanner from '@/components/attendance/AthleteQrScanner.vue';
+import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
+import FormNumberStepperField from '@/components/forms/FormNumberStepperField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
+import InputError from '@/components/InputError.vue';
 import ActionButtonsRow from '@/components/shared/ActionButtonsRow.vue';
-import DataTable from '@/components/shared/DataTable.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
-import StatCard from '@/components/shared/StatCard.vue';
+import ResourceTablePanel from '@/components/shared/ResourceTablePanel.vue';
+import SearchableSelect from '@/components/shared/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
-import { useAppPopup } from '@/composables/useAppPopup';
-import { useRole } from '@/composables/useRole';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { routeId } from '@/lib/routeIds';
+import {
+    athleteRosterBaseColumns,
+    athleteRosterTrailingColumns,
+    coachRosterColumns,
+    genderOptions,
+    geupOptions,
+    parentRosterColumns,
+} from '@/pages/profiles/profileRosterConfig';
 import { dashboard } from '@/routes';
-import { coachAttend, index as attendanceIndex, update as attendanceUpdate } from '@/routes/attendance';
-import { store as sessionsStore } from '@/routes/sessions';
+import { sync as parentChildrenSync } from '@/routes/parents/children';
+import { index as usersIndex, show as userShow } from '@/routes/users';
+import { update as athleteRecordUpdate } from '@/routes/users/athlete-record';
+import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
+import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
 import type { BreadcrumbItem } from '@/types';
-import type { AppRole, AttendanceRow } from '@/types/domain';
-import type { Metric, SelectOption, TableBadgeCell, TableColumn, TableRow } from '@/types/resource-table';
-import type { AttendanceStatusValue, AttendanceUpdateResponse } from './AttendancePage.types';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
 
-const props = defineProps<{
-    metrics: Metric[];
-    rows: AttendanceRow[];
-    coachSessions: TableRow[];
-    athletes: SelectOption[];
-    sessions: (SelectOption & { href?: string; date?: string; title?: string })[];
-    branches: SelectOption[];
-    groups: SelectOption[];
-    role: AppRole;
-    availableModes: AppRole[];
-    activeAthleteId: string | null;
-}>();
-const popup = useAppPopup();
-
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Beranda', href: dashboard.url() },
-    { title: 'Absensi & Check-in', href: attendanceIndex.url() },
-];
-
-const attendanceColumns: TableColumn[] = [
-    { key: 'athlete', label: 'Atlet' },
-    { key: 'session', label: 'Sesi' },
-    { key: 'coach', label: 'Pelatih' },
-    { key: 'checkin', label: 'Check-in', align: 'right' },
-    { key: 'status', label: 'Status' },
-];
-
-const coachSessionColumns: TableColumn[] = [
-    { key: 'session', label: 'Sesi' },
-    { key: 'branch', label: 'Cabang' },
-    { key: 'group', label: 'Kelas' },
-    { key: 'schedule', label: 'Jadwal' },
-    { key: 'session_status', label: 'Status sesi' },
-    { key: 'attendance_status', label: 'Attendance saya' },
-    { key: 'checked_at', label: 'Check-in' },
-];
-
-const sessionForm = useForm({
-    title: '',
-    branch_id: '',
-    group_id: '',
-    location: '',
-    session_date: '',
-    start_time: '',
-    end_time: '',
-    status: 'DRAFT',
-});
-
-const attendanceRows = ref<TableRow[]>(props.rows.map((row) => ({ ...row })));
-const pendingAttendanceRowIds = ref<string[]>([]);
-const pendingCoachSessionIds = ref<number[]>([]);
-const showSessionForm = ref(false);
-
-const { isAdmin, isCoach, isParent, isAthlete } = useRole(toRef(props, 'role'));
-const roleTitle = computed(() => {
-    if (isAdmin.value) return 'Pengelolaan attendance';
-    if (isCoach.value) return 'Attendance mengajar saya';
-    if (isParent.value) return 'Attendance anak';
-    if (isAthlete.value) return 'Attendance atlet saya';
-    return 'Attendance';
-});
-
-watch(
-    () => props.rows,
-    (rows) => {
-        attendanceRows.value = rows.map((row) => ({ ...row }));
+const props = withDefaults(
+    defineProps<{
+        metrics?: Metric[];
+        rows?: TableRow[];
+        branches?: SelectOption[];
+        groups?: SelectOption[];
+        athletes?: SelectOption[];
+        parents?: SelectOption[];
+        coachRows?: TableRow[];
+        parentRows?: TableRow[];
+        canViewSensitiveIdentifiers?: boolean;
+    }>(),
+    {
+        metrics: () => [],
+        rows: () => [],
+        branches: () => [],
+        groups: () => [],
+        athletes: () => [],
+        parents: () => [],
+        coachRows: () => [],
+        parentRows: () => [],
+        canViewSensitiveIdentifiers: false,
     },
 );
 
-function modeLabel(mode: AppRole): string {
-    return ({ admin: 'Admin', coach: 'Pelatih', parent: 'Orang tua', athlete: 'Atlet' } as Record<AppRole, string>)[
-        mode
-    ];
-}
+const showNewAthleteForm = ref(false);
+const showCoachModal = ref(false);
+const showParentModal = ref(false);
+const showParentChildrenModal = ref(false);
+const editingAthleteId = ref<number | string | null>(null);
+const isLoadingAthlete = ref(false);
+const editingCoachId = ref<number | string | null>(null);
+const editingParentId = ref<number | string | null>(null);
+const editingParentChildrenId = ref<number | string | null>(null);
+const editingParentChildrenName = ref('');
+const childSearch = ref('');
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Beranda', href: dashboard.url() },
+    { title: 'Data Atlet', href: usersIndex.url() },
+];
 
-function switchAttendanceMode(mode: AppRole): void {
-    if (mode === props.role) return;
+const athleteColumns: TableColumn[] = [...athleteRosterBaseColumns, ...athleteRosterTrailingColumns];
 
-    router.get(
-        attendanceIndex.url(),
-        { mode },
-        {
-            preserveScroll: true,
-            preserveState: false,
-            replace: true,
-        },
-    );
-}
+const coachColumns: TableColumn[] = coachRosterColumns;
 
-function rowStatusText(row: AttendanceRow | TableRow): string {
-    const status = row.status;
-    return typeof status === 'object' && status !== null && 'text' in status ? status.text : String(status ?? '');
-}
+const parentColumns: TableColumn[] = parentRosterColumns;
 
-function canUpdateRow(row: AttendanceRow | TableRow): boolean {
-    return Boolean(row.can_update);
-}
+const athleteFilters: TableFilter[] = [
+    {
+        key: 'branch',
+        label: 'Branch',
+        type: 'select',
+        columnKey: 'branch_id',
+        options: props.branches,
+        placeholder: 'All branches',
+    },
+    {
+        key: 'group',
+        label: 'Group',
+        type: 'select',
+        columnKey: 'group_id',
+        options: props.groups,
+        placeholder: 'All groups',
+    },
+    {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        columnKey: 'status',
+        options: [
+            { value: 'active', label: 'Active' },
+            { value: 'profile incomplete', label: 'Profile incomplete' },
+        ],
+        placeholder: 'All statuses',
+    },
+];
+const geupSelectOptions = computed(() =>
+    geupOptions.map((option) => ({
+        value: option,
+        label: option.replace('_', ' '),
+    })),
+);
 
-function csrfHeaders(): HeadersInit {
-    const headers: Record<string, string> = {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-    };
-    const csrf = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-    const xsrf = document.cookie
-        .split('; ')
-        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
-        ?.split('=')[1];
-    if (csrf) headers['X-CSRF-TOKEN'] = csrf;
-    if (xsrf) headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
-    return headers;
-}
+const form = useForm({
+    name: '',
+    email: '',
+    gender: 'MALE',
+    bday: '',
+    phone: '',
+    height_cm: '',
+    weight_kg: '',
+    alamat: '',
+    branch_id: '',
+    group_id: '',
+    geup: 'GEUP_10',
+    parent_id: '',
+    nik: '',
+    bpjs: '',
+});
 
-function fallbackAttendanceStatus(status: AttendanceStatusValue): TableBadgeCell {
-    return (
-        {
-            PRESENT: { kind: 'badge', text: 'Hadir', tone: 'success' },
-            ABSENT: { kind: 'badge', text: 'Tidak hadir', tone: 'danger' },
-            EXCUSED: { kind: 'badge', text: 'Izin', tone: 'warning' },
-            LATE: { kind: 'badge', text: 'Terlambat', tone: 'warning' },
-        } as Record<AttendanceStatusValue, TableBadgeCell>
-    )[status];
-}
+const coachForm = useForm({
+    status: 'active',
+    specialization: '',
+    bio: '',
+});
 
-function isAttendancePending(rowId: string): boolean {
-    return pendingAttendanceRowIds.value.includes(rowId);
-}
+const parentForm = useForm({
+    relation: 'guardian',
+    occupation: '',
+    notes: '',
+});
 
-function isCoachSessionPending(sessionId: number): boolean {
-    return pendingCoachSessionIds.value.includes(sessionId);
-}
+const parentChildrenForm = useForm({
+    athlete_ids: [] as string[],
+});
 
-function replaceAttendanceRow(rowId: string, row: TableRow): void {
-    attendanceRows.value = attendanceRows.value.map((currentRow) =>
-        String(currentRow.id) === rowId ? row : currentRow,
-    );
-}
+const filteredChildOptions = computed(() => {
+    const query = childSearch.value.trim().toLowerCase();
 
-function applyFallbackAttendanceStatus(rowId: string, status: AttendanceStatusValue): void {
-    attendanceRows.value = attendanceRows.value.map((row) =>
-        String(row.id) === rowId ? { ...row, status_value: status, status: fallbackAttendanceStatus(status) } : row,
-    );
-}
-
-async function setAttendanceStatus(id: string, status: AttendanceStatusValue): Promise<void> {
-    if (isAttendancePending(id)) return;
-
-    const attendanceId = routeId(id);
-    if (!attendanceId) {
-        await popup.error('Attendance gagal diperbarui', 'Baris attendance tidak valid.');
-        return;
+    if (!query) {
+        return props.athletes;
     }
 
-    pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, id];
+    return props.athletes.filter((option) => option.label.toLowerCase().includes(query));
+});
 
-    try {
-        const response = await fetch(attendanceUpdate.url(attendanceId), {
-            method: 'PUT',
-            headers: csrfHeaders(),
-            credentials: 'same-origin',
-            body: JSON.stringify({ status }),
-        });
-        const payload = (await response.json().catch(() => ({}))) as AttendanceUpdateResponse;
-
-        if (!response.ok) throw new Error(payload.message ?? 'Attendance gagal diperbarui.');
-
-        if (payload.row) replaceAttendanceRow(id, payload.row);
-        else applyFallbackAttendanceStatus(id, status);
-    } catch (error) {
-        await popup.error(
-            'Attendance gagal diperbarui',
-            error instanceof Error ? error.message : 'Attendance gagal diperbarui.',
-        );
-    } finally {
-        pendingAttendanceRowIds.value = pendingAttendanceRowIds.value.filter((rowId) => rowId !== id);
-    }
-}
-
-function attendCoachSession(row: TableRow): void {
-    const sessionId = routeId(row.session_id ?? row.id);
-    if (!sessionId || isCoachSessionPending(sessionId)) {
-        if (!sessionId) void popup.error('Attendance pelatih gagal', 'Sesi latihan tidak valid.');
-        return;
-    }
-
-    pendingCoachSessionIds.value = [...pendingCoachSessionIds.value, sessionId];
-
-    router.post(
-        coachAttend.url(sessionId),
-        {},
-        {
-            preserveScroll: true,
-            onError: (errors) => {
-                void popup.error(
-                    'Attendance pelatih gagal',
-                    String(errors.session ?? 'Attendance pelatih gagal disimpan.'),
-                );
-            },
-            onFinish: () => {
-                pendingCoachSessionIds.value = pendingCoachSessionIds.value.filter((id) => id !== sessionId);
-            },
-        },
-    );
-}
-
-function submitSession(): void {
-    sessionForm.post(sessionsStore.url(), {
+function submit() {
+    const options = {
         onSuccess: () => {
-            sessionForm.reset();
-            showSessionForm.value = false;
+            form.reset();
+            editingAthleteId.value = null;
+            showNewAthleteForm.value = false;
         },
+    };
+
+    if (editingAthleteId.value) {
+        form.put(athleteRecordUpdate.url(editingAthleteId.value as number), options);
+        return;
+    }
+}
+
+function closeAthleteForm() {
+    showNewAthleteForm.value = false;
+    editingAthleteId.value = null;
+    isLoadingAthlete.value = false;
+    form.reset();
+    form.clearErrors();
+}
+
+function getUserId(row: TableRow): number | string | null {
+    return routeId(row.user_id) ?? routeId(row.id);
+}
+
+function viewProfile(row: TableRow) {
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid user ID', row);
+        return;
+    }
+
+    router.visit(userShow.url(userId));
+}
+
+function openEditAthlete(row: TableRow) {
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid athlete user ID', row);
+        return;
+    }
+
+    editingAthleteId.value = userId;
+    form.name = String(row.name ?? '');
+    form.email = String(row.email ?? '');
+    form.gender = String(row.gender ?? 'MALE');
+    form.bday = String(row.bday ?? '');
+    form.phone = String(row.phone ?? '');
+    form.height_cm = String(row.height_cm ?? '');
+    form.weight_kg = String(row.weight_kg ?? '');
+    form.alamat = String(row.alamat ?? '');
+    form.branch_id = String(row.branch_id ?? '');
+    form.group_id = String(row.group_id ?? '');
+    form.geup = String(row.geup ?? 'GEUP_10');
+    form.parent_id = String(row.parent_id ?? '');
+    form.nik = String(row.nik ?? '');
+    form.bpjs = String(row.bpjs ?? '');
+    
+    showNewAthleteForm.value = true;
+}
+
+function openEditCoach(row: TableRow) {
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid coach user ID', row);
+        return;
+    }
+
+    editingCoachId.value = userId;
+    coachForm.status = String(row.status ?? 'active');
+    coachForm.specialization = String(row.specialization ?? '').replace('-', '');
+    coachForm.bio = '';
+    showCoachModal.value = true;
+}
+
+function saveCoach() {
+    if (editingCoachId.value) {
+        coachForm.put(userCoachProfileUpdate.url(editingCoachId.value as number), {
+            preserveScroll: true,
+            onSuccess: () => {
+                showCoachModal.value = false;
+            },
+        });
+        return;
+    }
+}
+
+function openEditParent(row: TableRow) {
+    const userId = getUserId(row);
+
+    if (userId === null) {
+        console.error('Invalid parent user ID', row);
+        return;
+    }
+
+    editingParentId.value = userId;
+    parentForm.relation = String(row.relation ?? 'guardian');
+    parentForm.occupation = String(row.occupation ?? '').replace('-', '');
+    parentForm.notes = '';
+    showParentModal.value = true;
+}
+
+function saveParent() {
+    if (editingParentId.value) {
+        parentForm.put(userParentProfileUpdate.url(editingParentId.value as number), {
+            preserveScroll: true,
+            onSuccess: () => {
+                showParentModal.value = false;
+            },
+        });
+        return;
+    }
+}
+
+function openLinkChildren(row: TableRow) {
+    const parentId = getUserId(row);
+
+    if (parentId === null) {
+        console.error('Invalid parent ID', row);
+        return;
+    }
+
+    editingParentChildrenId.value = parentId;
+    editingParentChildrenName.value = String(row.name ?? 'Parent');
+    parentChildrenForm.athlete_ids = String(row.child_ids ?? '')
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    parentChildrenForm.clearErrors();
+    childSearch.value = '';
+    showParentChildrenModal.value = true;
+}
+
+function closeParentChildrenModal() {
+    showParentChildrenModal.value = false;
+    editingParentChildrenId.value = null;
+    editingParentChildrenName.value = '';
+    parentChildrenForm.athlete_ids = [];
+    parentChildrenForm.clearErrors();
+    childSearch.value = '';
+}
+
+function isChildSelected(value: string | number) {
+    return parentChildrenForm.athlete_ids.includes(String(value));
+}
+
+function toggleChild(value: string | number) {
+    const id = String(value);
+
+    if (isChildSelected(id)) {
+        parentChildrenForm.athlete_ids = parentChildrenForm.athlete_ids.filter((childId) => childId !== id);
+        return;
+    }
+
+    parentChildrenForm.athlete_ids = [...parentChildrenForm.athlete_ids, id];
+}
+
+function saveParentChildren() {
+    if (!editingParentChildrenId.value) return;
+
+    parentChildrenForm.put(parentChildrenSync.url(String(editingParentChildrenId.value)), {
+        preserveScroll: true,
+        onSuccess: closeParentChildrenModal,
     });
 }
 </script>
 
 <template>
-    <Head title="Absensi & Check-in" />
+    <Head title="Data Atlet" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex min-w-0 flex-1 flex-col gap-6 p-3 sm:p-4 md:p-6">
-            <PageSection
-                eyebrow="Attendance workspace"
-                :title="roleTitle"
-                description="Pilih konteks peran yang sedang digunakan. Attendance pelatih dan atlet tetap dicatat secara terpisah."
+        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+            <ResourceTablePanel
+                eyebrow="User Directory"
+                title="User directory workspace"
+                description="View and edit athlete, Coach, Parent profiles. Create/delete accounts from Admin Panel only."
+                table-title="Current athlete roster"
+                table-description="Live athlete data backed by the application database."
+                :columns="athleteColumns"
+                :rows="props.rows"
+                action-label="Actions"
+                :filters="athleteFilters"
+                filterable
+                searchable
+                search-placeholder="Search athletes by name, email, branch, group, or status"
+                :show-create="false"
             >
-                <template #actions>
-                    <div class="flex flex-wrap gap-2">
-                        <Button
-                            v-for="mode in props.availableModes"
-                            :key="mode"
-                            type="button"
-                            size="sm"
-                            :variant="props.role === mode ? 'default' : 'outline'"
-                            @click="switchAttendanceMode(mode)"
-                        >
-                            {{ modeLabel(mode) }}
-                        </Button>
-                        <Button v-if="isAdmin" type="button" variant="outline" @click="showSessionForm = true">
-                            Buat sesi attendance
-                        </Button>
-                    </div>
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditAthlete(row)">Edit</Button>
+                    </ActionButtonsRow>
                 </template>
-
-                <div class="grid gap-4 md:grid-cols-3">
-                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
-                </div>
-            </PageSection>
-
-            <PageSection
-                v-if="isCoach"
-                title="Sesi mengajar yang tersedia"
-                description="Tekan Hadir hanya untuk sesi terkonfirmasi yang ditugaskan kepada Anda. Attendance atlet dikelola dari halaman sesi."
+            </ResourceTablePanel>
+            <ResourceTablePanel
+                :columns="coachColumns"
+                :rows="props.coachRows"
+                table-title="Coach profiles"
+                table-description="Live coach profile data backed by the application database."
+                action-label="Actions"
+                searchable
+                search-placeholder="Search coaches by name, email, status, or specialization"
+                :show-create="false"
             >
-                <DataTable
-                    title="Attendance pelatih"
-                    description="Attendance mengajar tidak digabung dengan attendance atlet meskipun akun memiliki kedua peran."
-                    :columns="coachSessionColumns"
-                    :rows="props.coachSessions"
-                    empty-text="Tidak ada sesi mengajar yang tersedia."
-                    searchable
-                    search-placeholder="Cari sesi, cabang, kelas, atau tanggal..."
-                    action-label="Check-in"
-                >
-                    <template #row-actions="{ row }">
-                        <span v-if="row.has_attended" class="text-xs font-medium text-emerald-600">Sudah hadir</span>
-                        <Button
-                            v-else-if="row.can_attend"
-                            type="button"
-                            size="sm"
-                            :disabled="isCoachSessionPending(Number(row.session_id))"
-                            @click="attendCoachSession(row)"
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditCoach(row)">Edit</Button>
+                    </ActionButtonsRow>
+                </template>
+            </ResourceTablePanel>
+            <ResourceTablePanel
+                :columns="parentColumns"
+                :rows="props.parentRows"
+                table-title="Parent profiles"
+                table-description="Live parent profile data backed by the application database."
+                action-label="Actions"
+                searchable
+                search-placeholder="Search parents by name, email, relation, occupation, or children"
+                :show-create="false"
+            >
+                <template #row-actions="{ row }">
+                    <ActionButtonsRow>
+                        <Button size="sm" variant="outline" @click="viewProfile(row)">View Profile</Button>
+                        <Button size="sm" variant="outline" @click="openEditParent(row)">Edit</Button>
+                        <Button size="sm" variant="outline" :disabled="!getUserId(row)" @click="openLinkChildren(row)"
+                            >Link Children</Button
                         >
-                            {{ isCoachSessionPending(Number(row.session_id)) ? 'Menyimpan...' : 'Hadir' }}
-                        </Button>
-                        <span v-else class="text-xs text-muted-foreground">Belum tersedia</span>
-                    </template>
-                </DataTable>
-            </PageSection>
-
-            <PageSection
-                v-if="isAthlete || isParent"
-                :title="isParent ? 'Scan QR untuk anak' : 'Scan QR attendance'"
-                :description="
-                    isParent
-                        ? 'Orang tua tetap wajib memindai QR pelatih. Setelah QR terbuka, pilih anak yang terhubung dan konfirmasi check-in.'
-                        : 'Attendance atlet hanya dapat dilakukan melalui QR sesi yang dibuka oleh pelatih atau admin.'
-                "
-            >
-                <div class="mb-4 flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
-                    <ShieldCheck class="mt-0.5 size-5 shrink-0 text-emerald-600" />
-                    <div>
-                        <p class="font-medium">QR wajib digunakan</p>
-                        <p class="mt-1 text-sm leading-6 text-muted-foreground">
-                            Tidak tersedia tombol hadir manual untuk atlet maupun orang tua. Koreksi manual hanya dapat
-                            dilakukan oleh admin atau pelatih yang berwenang.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="grid gap-5 lg:grid-cols-[24rem_minmax(0,1fr)]">
-                    <div class="rounded-xl border bg-card p-4">
-                        <div class="mb-3 flex items-center gap-2 font-medium">
-                            <QrCode class="size-5" /> Pemindai QR
-                        </div>
-                        <AthleteQrScanner />
-                    </div>
-
-                    <DataTable
-                        :title="isParent ? 'Riwayat attendance anak' : 'Riwayat attendance atlet'"
-                        :description="
-                            isParent
-                                ? 'Semua anak yang terhubung ditampilkan bersama dan bersifat hanya-baca.'
-                                : 'Riwayat ini berasal dari QR scan atau koreksi petugas.'
-                        "
-                        :columns="attendanceColumns"
-                        :rows="attendanceRows"
-                        :empty-text="
-                            isParent ? 'Belum ada riwayat attendance anak.' : 'Belum ada riwayat attendance atlet.'
-                        "
-                        searchable
-                        search-placeholder="Cari atlet, sesi, atau pelatih..."
-                        action-label="Metode"
-                    >
-                        <template #row-actions>
-                            <span class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                                <QrCode class="size-3.5" /> QR saja
-                            </span>
-                        </template>
-                    </DataTable>
-                </div>
-            </PageSection>
-
-            <PageSection
-                v-if="isAdmin"
-                title="Pengelolaan attendance atlet"
-                description="Admin dapat melihat dan mengoreksi seluruh attendance. Check-in normal tetap diarahkan melalui QR sesi."
-            >
-                <DataTable
-                    title="Daftar check-in sesi"
-                    description="Gunakan halaman attendance sesi untuk operasi detail dan pembukaan QR cepat."
-                    :columns="attendanceColumns"
-                    :rows="attendanceRows"
-                    searchable
-                    search-placeholder="Cari atlet, sesi, atau pelatih..."
-                    action-label="Koreksi"
-                >
-                    <template #row-actions="{ row }">
-                        <span v-if="!canUpdateRow(row)" class="text-xs text-muted-foreground">Hanya lihat</span>
-                        <ActionButtonsRow v-else>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                :disabled="rowStatusText(row) === 'Present' || isAttendancePending(String(row.id))"
-                                @click="setAttendanceStatus(String(row.id), 'PRESENT')"
-                                >Hadir</Button
-                            >
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                :disabled="rowStatusText(row) === 'Absent' || isAttendancePending(String(row.id))"
-                                @click="setAttendanceStatus(String(row.id), 'ABSENT')"
-                                >Tidak hadir</Button
-                            >
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                :disabled="rowStatusText(row) === 'Excused' || isAttendancePending(String(row.id))"
-                                @click="setAttendanceStatus(String(row.id), 'EXCUSED')"
-                                >Izin</Button
-                            >
-                        </ActionButtonsRow>
-                    </template>
-                </DataTable>
-            </PageSection>
+                    </ActionButtonsRow>
+                </template>
+            </ResourceTablePanel>
         </div>
 
-        <FormModal :open="showSessionForm && isAdmin" max-width-class="max-w-2xl" @close="showSessionForm = false">
-            <PageSection
-                title="Buat sesi attendance"
-                description="Buat sesi latihan lalu lanjutkan ke halaman sesi untuk membuka QR dan mengelola attendance."
-            >
-                <form class="grid gap-4" @submit.prevent="submitSession">
-                    <FormInputField
-                        id="session-name"
-                        v-model="sessionForm.title"
-                        label="Nama sesi"
-                        placeholder="Latihan sore"
-                        :error="sessionForm.errors.title"
-                    />
+        <FormModal :open="showNewAthleteForm" max-width-class="max-w-4xl" @close="closeAthleteForm">
+            <form v-if="!isLoadingAthlete" class="grid gap-4" @submit.prevent="submit">
+                <div class="grid gap-2">
+                    <Label for="athlete-name">Full name</Label>
+                    <Input id="athlete-name" v-model="form.name" placeholder="Enter athlete name" />
+                    <InputError :message="form.errors.name" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="athlete-email">Email</Label>
+                    <Input id="athlete-email" v-model="form.email" type="email" placeholder="athlete@example.com" />
+                    <InputError :message="form.errors.email" />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
                     <FormSelectField
-                        id="session-branch"
-                        v-model="sessionForm.branch_id"
-                        label="Cabang"
-                        :options="props.branches"
-                        :error="sessionForm.errors.branch_id"
-                    />
-                    <FormSelectField
-                        id="session-group"
-                        v-model="sessionForm.group_id"
-                        label="Kelas"
-                        :options="props.groups"
-                        placeholder="Semua kelas"
-                        :error="sessionForm.errors.group_id"
+                        id="athlete-gender"
+                        v-model="form.gender"
+                        label="Gender"
+                        :options="genderOptions"
+                        :error="form.errors.gender"
                     />
                     <FormInputField
-                        id="session-location"
-                        v-model="sessionForm.location"
-                        label="Lokasi"
-                        :error="sessionForm.errors.location"
+                        id="athlete-bday"
+                        v-model="form.bday"
+                        label="Birth date"
+                        type="date"
+                        :error="form.errors.bday"
                     />
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <FormInputField
-                            id="session-date"
-                            v-model="sessionForm.session_date"
-                            label="Tanggal"
-                            type="date"
-                            :error="sessionForm.errors.session_date"
-                        />
-                        <FormInputField
-                            id="session-start"
-                            v-model="sessionForm.start_time"
-                            label="Mulai"
-                            type="time"
-                            :error="sessionForm.errors.start_time"
-                        />
-                        <FormInputField
-                            id="session-end"
-                            v-model="sessionForm.end_time"
-                            label="Selesai"
-                            type="time"
-                            :error="sessionForm.errors.end_time"
-                        />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="athlete-phone">Phone</Label>
+                        <Input id="athlete-phone" v-model="form.phone" placeholder="0812..." />
+                        <InputError :message="form.errors.phone" />
                     </div>
                     <FormSelectField
-                        id="session-status"
-                        v-model="sessionForm.status"
+                        id="athlete-geup"
+                        v-model="form.geup"
+                        label="Geup"
+                        :options="geupSelectOptions"
+                        :error="form.errors.geup"
+                    />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <FormNumberStepperField
+                        id="athlete-height"
+                        v-model="form.height_cm"
+                        label="Height (cm)"
+                        :min="0"
+                        :step="0.1"
+                        :error="form.errors.height_cm"
+                    />
+                    <FormNumberStepperField
+                        id="athlete-weight"
+                        v-model="form.weight_kg"
+                        label="Weight (kg)"
+                        :min="0"
+                        :step="0.1"
+                        :error="form.errors.weight_kg"
+                    />
+                </div>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="athlete-branch">Branch</Label>
+                        <SearchableSelect
+                            v-model="form.branch_id"
+                            :options="props.branches"
+                            placeholder="Select branch"
+                            title="Select branch"
+                            description="Search branch options and choose the correct branch."
+                            search-placeholder="Search branch"
+                            empty-text="No branch matches that search."
+                        />
+                        <InputError :message="form.errors.branch_id" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="athlete-group">Group</Label>
+                        <SearchableSelect
+                            v-model="form.group_id"
+                            :options="props.groups"
+                            placeholder="Select group"
+                            title="Select group"
+                            description="Search group options and choose the correct training group."
+                            search-placeholder="Search group"
+                            empty-text="No group matches that search."
+                        />
+                        <InputError :message="form.errors.group_id" />
+                    </div>
+                </div>
+                <div class="grid gap-2">
+                    <Label for="athlete-parent">Parent</Label>
+                    <SearchableSelect
+                        v-model="form.parent_id"
+                        :options="props.parents"
+                        placeholder="No parent linked"
+                        title="Select parent"
+                        description="Search parent accounts if this athlete should be linked to one. You can leave this empty."
+                        search-placeholder="Search parent"
+                        empty-text="No parent matches that search."
+                    />
+                    <InputError :message="form.errors.parent_id" />
+                </div>
+                <div class="grid gap-2">
+                    <Label for="athlete-address">Address</Label>
+                    <Input id="athlete-address" v-model="form.alamat" placeholder="Street address" />
+                    <InputError :message="form.errors.alamat" />
+                </div>
+                <div v-if="props.canViewSensitiveIdentifiers" class="grid gap-4 md:grid-cols-2">
+                    <div class="grid gap-2">
+                        <Label for="athlete-nik">NIK</Label>
+                        <Input id="athlete-nik" v-model="form.nik" placeholder="3174..." />
+                        <InputError :message="form.errors.nik" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label for="athlete-bpjs">BPJS</Label>
+                        <Input id="athlete-bpjs" v-model="form.bpjs" placeholder="BPJS number" />
+                        <InputError :message="form.errors.bpjs" />
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <Button type="submit" class="w-full sm:w-auto" :disabled="form.processing">
+                        {{ editingAthleteId ? 'Update athlete' : 'Save athlete' }}
+                    </Button>
+                    <Button type="button" class="w-full sm:w-auto" variant="outline" @click="closeAthleteForm">
+                        Cancel
+                    </Button>
+                </div>
+            </form>
+            <div v-else class="py-10 text-center text-sm text-muted-foreground">Loading athlete details...</div>
+        </FormModal>
+
+        <FormModal :open="showCoachModal" max-width-class="max-w-2xl" @close="showCoachModal = false">
+            <PageSection title="Edit coach profile" description="Update coach details only.">
+                <form class="grid gap-4" @submit.prevent="saveCoach">
+                    <FormSelectField
+                        id="coach-status"
+                        v-model="coachForm.status"
                         label="Status"
                         :options="[
-                            { value: 'DRAFT', label: 'Draft' },
-                            { value: 'CONFIRMED', label: 'Dikonfirmasi' },
-                            { value: 'NEEDS_ASSISTANT', label: 'Butuh pelatih tambahan' },
-                            { value: 'CANCELED', label: 'Dibatalkan' },
+                            { value: 'active', label: 'Active' },
+                            { value: 'inactive', label: 'Inactive' },
                         ]"
-                        :error="sessionForm.errors.status"
+                        :error="coachForm.errors.status"
                     />
-                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <Button type="button" variant="outline" @click="showSessionForm = false">Batal</Button>
-                        <Button type="submit" :disabled="sessionForm.processing">{{
-                            sessionForm.processing ? 'Menyimpan...' : 'Buat sesi'
-                        }}</Button>
+                    <FormInputField
+                        id="coach-specialization"
+                        v-model="coachForm.specialization"
+                        label="Specialization"
+                        placeholder="Sparring, Poomsae, Conditioning"
+                        :error="coachForm.errors.specialization"
+                    />
+                    <div class="grid gap-2">
+                        <label for="coach-bio" class="text-sm font-medium">Bio</label>
+                        <textarea
+                            id="coach-bio"
+                            v-model="coachForm.bio"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
+                        <p v-if="coachForm.errors.bio" class="text-sm text-destructive">{{ coachForm.errors.bio }}</p>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="coachForm.processing">Update</Button>
+                        <Button type="button" variant="outline" class="w-full sm:w-auto" @click="showCoachModal = false"
+                            >Cancel</Button
+                        >
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="showParentModal" max-width-class="max-w-2xl" @close="showParentModal = false">
+            <PageSection title="Edit parent profile" description="Update parent details only.">
+                <form class="grid gap-4" @submit.prevent="saveParent">
+                    <FormSelectField
+                        id="parent-relation"
+                        v-model="parentForm.relation"
+                        label="Relation"
+                        :options="[
+                            { value: 'father', label: 'Father' },
+                            { value: 'mother', label: 'Mother' },
+                            { value: 'guardian', label: 'Guardian' },
+                        ]"
+                        :error="parentForm.errors.relation"
+                    />
+                    <FormInputField
+                        id="parent-occupation"
+                        v-model="parentForm.occupation"
+                        label="Occupation"
+                        placeholder="Occupation"
+                        :error="parentForm.errors.occupation"
+                    />
+                    <div class="grid gap-2">
+                        <label for="parent-notes" class="text-sm font-medium">Notes</label>
+                        <textarea
+                            id="parent-notes"
+                            v-model="parentForm.notes"
+                            rows="3"
+                            class="rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                        ></textarea>
+                        <p v-if="parentForm.errors.notes" class="text-sm text-destructive">
+                            {{ parentForm.errors.notes }}
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentForm.processing">Update</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="showParentModal = false"
+                            >Cancel</Button
+                        >
+                    </div>
+                </form>
+            </PageSection>
+        </FormModal>
+
+        <FormModal :open="showParentChildrenModal" max-width-class="max-w-2xl" @close="closeParentChildrenModal">
+            <PageSection
+                title="Link children"
+                :description="`Select every athlete child linked to ${editingParentChildrenName}. Leaving all unchecked is allowed.`"
+            >
+                <form class="grid gap-4" @submit.prevent="saveParentChildren">
+                    <div class="grid gap-2">
+                        <Label for="child-search">Search athletes</Label>
+                        <Input id="child-search" v-model="childSearch" placeholder="Search by athlete name" />
+                    </div>
+
+                    <div class="max-h-80 overflow-y-auto rounded-xl border border-border/70 bg-card p-2">
+                        <label
+                            v-for="athlete in filteredChildOptions"
+                            :key="String(athlete.value)"
+                            class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+                        >
+                            <input
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-input"
+                                :checked="isChildSelected(athlete.value)"
+                                @change="toggleChild(athlete.value)"
+                            />
+                            <span class="min-w-0 flex-1 truncate">{{ athlete.label }}</span>
+                        </label>
+
+                        <div
+                            v-if="filteredChildOptions.length === 0"
+                            class="px-3 py-8 text-center text-sm text-muted-foreground"
+                        >
+                            No athletes match that search.
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-muted-foreground">
+                        {{ parentChildrenForm.athlete_ids.length }} child{{
+                            parentChildrenForm.athlete_ids.length === 1 ? '' : 'ren'
+                        }}
+                        selected.
+                    </p>
+                    <InputError :message="parentChildrenForm.errors.athlete_ids" />
+
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <Button type="submit" class="w-full sm:w-auto" :disabled="parentChildrenForm.processing"
+                            >Save children</Button
+                        >
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="w-full sm:w-auto"
+                            @click="closeParentChildrenModal"
+                            >Cancel</Button
+                        >
                     </div>
                 </form>
             </PageSection>

@@ -18,6 +18,9 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
+import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
+import type { DashboardAttendanceRow, DashboardTrainingDay, BeltRow } from './DashboardOverviewSections.types';
 import { index as achievementsIndex } from '@/routes/achievements';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as announcementsIndex } from '@/routes/announcements';
@@ -26,8 +29,6 @@ import { index as championshipsIndex } from '@/routes/championships';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
-import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
-import type { DashboardAttendanceRow, DashboardTrainingDay, BeltRow } from './DashboardOverviewSections.types';
 
 const props = withDefaults(
     defineProps<{
@@ -53,6 +54,8 @@ const props = withDefaults(
     },
 );
 
+const { locale, t } = useI18n();
+
 const currentDate = new Date();
 const today = [
     currentDate.getFullYear(),
@@ -72,19 +75,37 @@ function formatDate(value: string | undefined): string {
     if (!value) return '-';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
     }).format(new Date(`${value}T00:00:00`));
 }
 
-function attendanceLabel(row: DashboardAttendanceRow): string {
+function attendanceStatus(row: DashboardAttendanceRow): string {
     return String(row.status_value || cellText(row.status) || 'UNKNOWN').toUpperCase();
 }
 
+function attendanceLabel(row: DashboardAttendanceRow): string {
+    const status = attendanceStatus(row);
+    const labels: Record<string, string> = {
+        PRESENT: 'Hadir',
+        HADIR: 'Hadir',
+        EXCUSED: 'Izin',
+        IZIN: 'Izin',
+        SICK: 'Sakit',
+        SAKIT: 'Sakit',
+        ABSENT: 'Tidak hadir',
+        ALPHA: 'Alpha',
+        LATE: 'Terlambat',
+        TERLAMBAT: 'Terlambat',
+    };
+
+    return t(labels[status] ?? status);
+}
+
 function attendanceClass(row: DashboardAttendanceRow): string {
-    const status = attendanceLabel(row);
+    const status = attendanceStatus(row);
 
     if (status === 'PRESENT') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
     if (status === 'EXCUSED' || status === 'LATE') return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
@@ -111,7 +132,6 @@ const upcomingTraining = computed(() =>
 const nextTraining = computed(() => upcomingTraining.value[0] ?? null);
 const recentAttendance = computed(() => props.attendanceRows.slice(0, 6));
 const attentionPayments = computed(() => props.paymentRows.filter((row) => remainingAmount(row) > 0));
-const latestAnnouncements = computed(() => props.announcements.slice(0, 4));
 const nextEvents = computed(() => props.upcomingEvents.slice(0, 4));
 const latestActivity = computed(() => props.activityPreviewRows.slice(0, 6));
 
@@ -119,7 +139,7 @@ const attendanceSummary = computed(() => {
     const summary = { present: 0, absent: 0, excused: 0 };
 
     props.attendanceRows.forEach((row) => {
-        const status = attendanceLabel(row);
+        const status = attendanceStatus(row);
         if (status === 'PRESENT') summary.present += 1;
         else if (status === 'EXCUSED' || status === 'LATE') summary.excused += 1;
         else summary.absent += 1;
@@ -145,7 +165,7 @@ const beltRows = computed<BeltRow[]>(() => {
 
     return props.medalRows
         .map((row) => {
-            const rawLabel = String(row.type ?? row.label ?? 'Belum diisi');
+            const rawLabel = String(row.type ?? row.label ?? t('Belum diisi'));
             return { label: labels[rawLabel] ?? rawLabel, count: Number(row.count ?? 0), color: '' };
         })
         .filter((row) => row.count > 0)
@@ -156,10 +176,10 @@ const largestBeltCount = computed(() => Math.max(...beltRows.value.map((row) => 
 
 const profileRows = computed(() => {
     const labels: Record<string, string> = {
-        geup: 'Tingkat sabuk',
-        height: 'Tinggi badan',
-        weight: 'Berat badan',
-        certifications: 'Sertifikasi',
+        geup: t('Tingkat sabuk'),
+        height: t('Tinggi badan'),
+        weight: t('Berat badan'),
+        certifications: t('Sertifikasi'),
     };
 
     return Object.entries(props.profileSummary).map(([key, value]) => ({
@@ -178,12 +198,12 @@ const profileRows = computed(() => {
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
                             <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Agenda operasional
+                                {{ t('Agenda operasional') }}
                             </p>
-                            <h2 class="mt-1 text-lg font-bold">Sesi latihan terdekat</h2>
+                            <h2 class="mt-1 text-lg font-bold">{{ t('Sesi latihan terdekat') }}</h2>
                         </div>
                         <Button as-child variant="ghost" size="sm" class="gap-2">
-                            <Link :href="sessionsIndex.url()">Semua sesi <ArrowRight class="size-4" /></Link>
+                            <Link :href="sessionsIndex.url()">{{ t('Semua sesi') }} <ArrowRight class="size-4" /></Link>
                         </Button>
                     </div>
 
@@ -218,16 +238,16 @@ const profileRows = computed(() => {
                         </div>
                     </div>
                     <p v-else class="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                        Belum ada sesi latihan mendatang.
+                        {{ t('Belum ada sesi latihan mendatang.') }}
                     </p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5">
                         <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            Perlu ditindaklanjuti
+                            {{ t('Perlu ditindaklanjuti') }}
                         </p>
-                        <h2 class="mt-1 text-lg font-bold">Prioritas hari ini</h2>
+                        <h2 class="mt-1 text-lg font-bold">{{ t('Prioritas hari ini') }}</h2>
                     </div>
                     <div class="space-y-3">
                         <Link
@@ -240,9 +260,11 @@ const profileRows = computed(() => {
                                 <WalletCards class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="font-semibold">{{ attentionPayments.length }} pembayaran terbuka</p>
+                                <p class="font-semibold">
+                                    {{ t(':count pembayaran terbuka', { count: attentionPayments.length }) }}
+                                </p>
                                 <p class="text-sm text-muted-foreground">
-                                    Belum lunas atau masih menunggu penyelesaian.
+                                    {{ t('Belum lunas atau masih menunggu penyelesaian.') }}
                                 </p>
                             </div>
                         </Link>
@@ -256,9 +278,11 @@ const profileRows = computed(() => {
                                 <CircleAlert class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="font-semibold">{{ attendanceSummary.absent }} catatan tidak hadir</p>
+                                <p class="font-semibold">
+                                    {{ t(':count catatan tidak hadir', { count: attendanceSummary.absent }) }}
+                                </p>
                                 <p class="text-sm text-muted-foreground">
-                                    Berdasarkan data absensi terbaru yang tampil.
+                                    {{ t('Berdasarkan data absensi terbaru yang tampil.') }}
                                 </p>
                             </div>
                         </Link>
@@ -272,9 +296,11 @@ const profileRows = computed(() => {
                                 <Megaphone class="size-5" />
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="font-semibold">{{ props.announcements.length }} pengumuman aktif</p>
+                                <p class="font-semibold">
+                                    {{ t(':count pengumuman aktif', { count: props.announcements.length }) }}
+                                </p>
                                 <p class="text-sm text-muted-foreground">
-                                    Informasi yang sedang terlihat oleh pengguna.
+                                    {{ t('Informasi yang sedang terlihat oleh pengguna.') }}
                                 </p>
                             </div>
                         </Link>
@@ -282,15 +308,17 @@ const profileRows = computed(() => {
                 </section>
             </div>
 
-            <div class="grid col-1">
+            <div class="col-1 grid">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
-                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Agenda klub</p>
-                            <h2 class="mt-1 text-lg font-bold">Kejuaraan & UKT</h2>
+                            <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                {{ t('Agenda klub') }}
+                            </p>
+                            <h2 class="mt-1 text-lg font-bold">{{ t('Kejuaraan & UKT') }}</h2>
                         </div>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="championshipsIndex.url()">Semua</Link></Button
+                            ><Link :href="championshipsIndex.url()">{{ t('Semua') }}</Link></Button
                         >
                     </div>
                     <div v-if="nextEvents.length" class="space-y-4">
@@ -306,7 +334,7 @@ const profileRows = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada event mendatang.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada event mendatang.') }}</p>
                 </section>
             </div>
             <div class="grid gap-6 xl:grid-cols-2">
@@ -314,12 +342,12 @@ const profileRows = computed(() => {
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
                             <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Audit singkat
+                                {{ t('Audit singkat') }}
                             </p>
-                            <h2 class="mt-1 text-lg font-bold">Aktivitas terbaru</h2>
+                            <h2 class="mt-1 text-lg font-bold">{{ t('Aktivitas terbaru') }}</h2>
                         </div>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="activityLogsIndex.url()">Lihat log</Link></Button
+                            ><Link :href="activityLogsIndex.url()">{{ t('Lihat log') }}</Link></Button
                         >
                     </div>
                     <div v-if="latestActivity.length" class="space-y-4">
@@ -333,15 +361,15 @@ const profileRows = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada aktivitas terbaru.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada aktivitas terbaru.') }}</p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5">
                         <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            Komposisi atlet
+                            {{ t('Komposisi atlet') }}
                         </p>
-                        <h2 class="mt-1 text-lg font-bold">Distribusi tingkat sabuk</h2>
+                        <h2 class="mt-1 text-lg font-bold">{{ t('Distribusi tingkat sabuk') }}</h2>
                     </div>
                     <div v-if="beltRows.length" class="space-y-4">
                         <div v-for="row in beltRows" :key="row.label">
@@ -357,7 +385,7 @@ const profileRows = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Data sabuk atlet belum tersedia.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Data sabuk atlet belum tersedia.') }}</p>
                 </section>
             </div>
         </template>
@@ -365,7 +393,9 @@ const profileRows = computed(() => {
         <template v-else-if="props.role === 'coach'">
             <div class="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Fokus berikutnya</p>
+                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        {{ t('Fokus berikutnya') }}
+                    </p>
                     <div v-if="nextTraining" class="mt-4">
                         <div class="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                             <div>
@@ -379,36 +409,40 @@ const profileRows = computed(() => {
                                     <span class="rounded-lg bg-muted px-3 py-2">{{ nextTraining.branch }}</span>
                                 </div>
                             </div>
-                            <Button as-child><Link :href="sessionsIndex.url()">Buka sesi</Link></Button>
+                            <Button as-child
+                                ><Link :href="sessionsIndex.url()">{{ t('Buka sesi') }}</Link></Button
+                            >
                         </div>
                     </div>
                     <p
                         v-else
                         class="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground"
                     >
-                        Tidak ada sesi yang ditugaskan dalam waktu dekat.
+                        {{ t('Tidak ada sesi yang ditugaskan dalam waktu dekat.') }}
                     </p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Absensi sesi</p>
-                    <h2 class="mt-1 text-lg font-bold">Ringkasan terbaru</h2>
+                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        {{ t('Absensi sesi') }}
+                    </p>
+                    <h2 class="mt-1 text-lg font-bold">{{ t('Ringkasan terbaru') }}</h2>
                     <div class="mt-5 grid grid-cols-3 gap-3 text-center">
                         <div class="rounded-xl bg-emerald-500/10 p-4">
                             <p class="text-2xl font-bold">{{ attendanceSummary.present }}</p>
-                            <p class="text-xs text-muted-foreground">Hadir</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Hadir') }}</p>
                         </div>
                         <div class="rounded-xl bg-amber-500/10 p-4">
                             <p class="text-2xl font-bold">{{ attendanceSummary.excused }}</p>
-                            <p class="text-xs text-muted-foreground">Izin/Terlambat</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Izin/Terlambat') }}</p>
                         </div>
                         <div class="rounded-xl bg-rose-500/10 p-4">
                             <p class="text-2xl font-bold">{{ attendanceSummary.absent }}</p>
-                            <p class="text-xs text-muted-foreground">Tidak hadir</p>
+                            <p class="text-xs text-muted-foreground">{{ t('Tidak hadir') }}</p>
                         </div>
                     </div>
                     <Button as-child variant="outline" class="mt-5 w-full"
-                        ><Link :href="attendanceIndex.url()">Kelola absensi</Link></Button
+                        ><Link :href="attendanceIndex.url()">{{ t('Kelola absensi') }}</Link></Button
                     >
                 </section>
             </div>
@@ -416,9 +450,9 @@ const profileRows = computed(() => {
             <div class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">Jadwal saya</h2>
+                        <h2 class="text-lg font-bold">{{ t('Jadwal saya') }}</h2>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="trainingScheduleIndex.url()">Lihat jadwal</Link></Button
+                            ><Link :href="trainingScheduleIndex.url()">{{ t('Lihat jadwal') }}</Link></Button
                         >
                     </div>
                     <div v-if="upcomingTraining.length" class="space-y-3">
@@ -439,19 +473,19 @@ const profileRows = computed(() => {
                             <p class="mt-2 text-xs text-muted-foreground">{{ session.time }}</p>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada jadwal yang ditugaskan.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada jadwal yang ditugaskan.') }}</p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
                         <div>
                             <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Honor pelatih
+                                {{ t('Honor pelatih') }}
                             </p>
-                            <h2 class="mt-1 text-lg font-bold">Catatan pembayaran</h2>
+                            <h2 class="mt-1 text-lg font-bold">{{ t('Catatan pembayaran') }}</h2>
                         </div>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="paymentsIndex.url()">Selengkapnya</Link></Button
+                            ><Link :href="paymentsIndex.url()">{{ t('Selengkapnya') }}</Link></Button
                         >
                     </div>
                     <div v-if="props.paymentRows.length" class="space-y-3">
@@ -461,15 +495,17 @@ const profileRows = computed(() => {
                             class="flex items-center justify-between gap-4 rounded-xl border p-4"
                         >
                             <div>
-                                <p class="font-semibold">{{ row.total || row.athlete || 'Honor' }}</p>
-                                <p class="text-sm text-muted-foreground">Sisa: {{ row.remaining || '-' }}</p>
+                                <p class="font-semibold">{{ row.total || row.athlete || t('Honor') }}</p>
+                                <p class="text-sm text-muted-foreground">{{ t('Sisa') }}: {{ row.remaining || '-' }}</p>
                             </div>
                             <span class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{{
-                                cellText(row.status)
+                                t(cellText(row.status))
                             }}</span>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada catatan honor untuk akun ini.</p>
+                    <p v-else class="text-sm text-muted-foreground">
+                        {{ t('Belum ada catatan honor untuk akun ini.') }}
+                    </p>
                 </section>
             </div>
         </template>
@@ -478,7 +514,7 @@ const profileRows = computed(() => {
             <div class="grid gap-4 md:grid-cols-3">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:col-span-2">
                     <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Latihan berikutnya
+                        {{ t('Latihan berikutnya') }}
                     </p>
                     <div
                         v-if="nextTraining"
@@ -492,29 +528,29 @@ const profileRows = computed(() => {
                             </p>
                         </div>
                         <Button as-child variant="outline"
-                            ><Link :href="trainingScheduleIndex.url()">Buka jadwal</Link></Button
+                            ><Link :href="trainingScheduleIndex.url()">{{ t('Buka jadwal') }}</Link></Button
                         >
                     </div>
                     <p v-else class="mt-3 text-sm text-muted-foreground">
-                        Belum ada latihan mendatang untuk anak yang dipilih.
+                        {{ t('Belum ada latihan mendatang untuk anak yang dipilih.') }}
                     </p>
                 </section>
                 <section class="rounded-xl border bg-card p-5 shadow-sm">
                     <ReceiptText class="size-5 text-primary" />
                     <p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p>
-                    <p class="text-sm font-medium">Tagihan perlu perhatian</p>
-                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
-                        >Lihat pembayaran</Link
-                    >
+                    <p class="text-sm font-medium">{{ t('Tagihan perlu perhatian') }}</p>
+                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">{{
+                        t('Lihat pembayaran')
+                    }}</Link>
                 </section>
             </div>
 
             <div class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">Jadwal anak</h2>
+                        <h2 class="text-lg font-bold">{{ t('Jadwal anak') }}</h2>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button
+                            ><Link :href="trainingScheduleIndex.url()">{{ t('Semua jadwal') }}</Link></Button
                         >
                     </div>
                     <div v-if="upcomingTraining.length" class="space-y-3">
@@ -533,14 +569,14 @@ const profileRows = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada jadwal yang tersedia.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada jadwal yang tersedia.') }}</p>
                 </section>
 
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">Kehadiran terbaru</h2>
+                        <h2 class="text-lg font-bold">{{ t('Kehadiran terbaru') }}</h2>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button
+                            ><Link :href="attendanceIndex.url()">{{ t('Riwayat lengkap') }}</Link></Button
                         >
                     </div>
                     <div v-if="recentAttendance.length" class="space-y-3">
@@ -551,7 +587,7 @@ const profileRows = computed(() => {
                         >
                             <div>
                                 <p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p>
-                                <p class="text-xs text-muted-foreground">Catatan kehadiran latihan</p>
+                                <p class="text-xs text-muted-foreground">{{ t('Catatan kehadiran latihan') }}</p>
                             </div>
                             <span
                                 class="rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -560,7 +596,7 @@ const profileRows = computed(() => {
                             >
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada riwayat kehadiran.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada riwayat kehadiran.') }}</p>
                 </section>
             </div>
         </template>
@@ -571,30 +607,32 @@ const profileRows = computed(() => {
                     <div class="absolute -top-16 -right-16 size-48 rounded-full bg-primary/10"></div>
                     <div class="relative">
                         <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                            Latihan berikutnya
+                            {{ t('Latihan berikutnya') }}
                         </p>
                         <div v-if="nextTraining" class="mt-4">
                             <h2 class="text-2xl font-bold">{{ nextTraining.title }}</h2>
                             <p class="mt-1 text-muted-foreground">{{ nextTraining.group }}</p>
                             <div class="mt-5 grid gap-3 sm:grid-cols-3">
                                 <div class="rounded-xl bg-muted/70 p-3">
-                                    <p class="text-xs text-muted-foreground">Tanggal</p>
+                                    <p class="text-xs text-muted-foreground">{{ t('Tanggal') }}</p>
                                     <p class="mt-1 font-semibold">{{ formatDate(nextTraining.date) }}</p>
                                 </div>
                                 <div class="rounded-xl bg-muted/70 p-3">
-                                    <p class="text-xs text-muted-foreground">Waktu</p>
+                                    <p class="text-xs text-muted-foreground">{{ t('Waktu') }}</p>
                                     <p class="mt-1 font-semibold">{{ nextTraining.time }}</p>
                                 </div>
                                 <div class="rounded-xl bg-muted/70 p-3">
-                                    <p class="text-xs text-muted-foreground">Lokasi</p>
+                                    <p class="text-xs text-muted-foreground">{{ t('Lokasi') }}</p>
                                     <p class="mt-1 font-semibold">{{ nextTraining.branch }}</p>
                                 </div>
                             </div>
                             <Button as-child class="mt-5"
-                                ><Link :href="attendanceIndex.url()">Buka absensi</Link></Button
+                                ><Link :href="attendanceIndex.url()">{{ t('Buka absensi') }}</Link></Button
                             >
                         </div>
-                        <p v-else class="mt-4 text-sm text-muted-foreground">Belum ada jadwal latihan mendatang.</p>
+                        <p v-else class="mt-4 text-sm text-muted-foreground">
+                            {{ t('Belum ada jadwal latihan mendatang.') }}
+                        </p>
                     </div>
                 </section>
 
@@ -605,9 +643,9 @@ const profileRows = computed(() => {
                         </div>
                         <div>
                             <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                Profil latihan
+                                {{ t('Profil latihan') }}
                             </p>
-                            <h2 class="text-lg font-bold">Data saya</h2>
+                            <h2 class="text-lg font-bold">{{ t('Data saya') }}</h2>
                         </div>
                     </div>
                     <div v-if="profileRows.length" class="mt-5 divide-y">
@@ -622,7 +660,7 @@ const profileRows = computed(() => {
                     </div>
                     <Button as-child variant="outline" class="mt-5 w-full"
                         ><Link :href="achievementsIndex.url()"
-                            ><Award class="mr-2 size-4" />Prestasi & sertifikat</Link
+                            ><Award class="mr-2 size-4" />{{ t('Prestasi & sertifikat') }}</Link
                         ></Button
                     >
                 </section>
@@ -632,25 +670,27 @@ const profileRows = computed(() => {
                 <section class="rounded-xl border bg-card p-5 shadow-sm">
                     <CheckCircle2 class="size-5 text-emerald-600" />
                     <p class="mt-3 text-2xl font-bold">{{ attendanceSummary.present }}</p>
-                    <p class="text-sm font-medium">Kehadiran tercatat</p>
-                    <Link :href="attendanceIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
-                        >Lihat riwayat</Link
-                    >
+                    <p class="text-sm font-medium">{{ t('Kehadiran tercatat') }}</p>
+                    <Link :href="attendanceIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">{{
+                        t('Lihat riwayat')
+                    }}</Link>
                 </section>
                 <section class="rounded-xl border bg-card p-5 shadow-sm">
                     <WalletCards class="size-5 text-amber-600" />
                     <p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p>
-                    <p class="text-sm font-medium">Pembayaran perlu perhatian</p>
-                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
-                        >Buka pembayaran</Link
-                    >
+                    <p class="text-sm font-medium">{{ t('Pembayaran perlu perhatian') }}</p>
+                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">{{
+                        t('Buka pembayaran')
+                    }}</Link>
                 </section>
                 <section class="rounded-xl border bg-card p-5 shadow-sm">
                     <Trophy class="size-5 text-primary" />
                     <p class="mt-3 text-2xl font-bold">{{ nextEvents.length }}</p>
-                    <p class="text-sm font-medium">Event mendatang</p>
-                    <Link :href="championshipsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline"
-                        >Lihat kejuaraan</Link
+                    <p class="text-sm font-medium">{{ t('Event mendatang') }}</p>
+                    <Link
+                        :href="championshipsIndex.url()"
+                        class="mt-2 inline-flex text-sm text-primary hover:underline"
+                        >{{ t('Lihat kejuaraan') }}</Link
                     >
                 </section>
             </div>
@@ -658,9 +698,9 @@ const profileRows = computed(() => {
             <div class="grid gap-6 xl:grid-cols-2">
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">Jadwal latihan saya</h2>
+                        <h2 class="text-lg font-bold">{{ t('Jadwal latihan saya') }}</h2>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="trainingScheduleIndex.url()">Semua jadwal</Link></Button
+                            ><Link :href="trainingScheduleIndex.url()">{{ t('Semua jadwal') }}</Link></Button
                         >
                     </div>
                     <div v-if="upcomingTraining.length" class="space-y-3">
@@ -679,13 +719,13 @@ const profileRows = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada jadwal latihan.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada jadwal latihan.') }}</p>
                 </section>
                 <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
                     <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">Absensi terakhir</h2>
+                        <h2 class="text-lg font-bold">{{ t('Absensi terakhir') }}</h2>
                         <Button as-child variant="ghost" size="sm"
-                            ><Link :href="attendanceIndex.url()">Riwayat lengkap</Link></Button
+                            ><Link :href="attendanceIndex.url()">{{ t('Riwayat lengkap') }}</Link></Button
                         >
                     </div>
                     <div v-if="recentAttendance.length" class="space-y-3">
@@ -702,7 +742,7 @@ const profileRows = computed(() => {
                             >
                         </div>
                     </div>
-                    <p v-else class="text-sm text-muted-foreground">Belum ada riwayat absensi.</p>
+                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada riwayat absensi.') }}</p>
                 </section>
             </div>
         </template>

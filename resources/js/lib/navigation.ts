@@ -21,9 +21,10 @@ import {
     UsersRound,
     WalletCards,
 } from '@lucide/vue';
+import type { NavSection } from '@/types';
+import type { AppRole } from '@/types/resource-table';
 import { dashboard } from '@/routes';
 import { index as achievementsIndex } from '@/routes/achievements';
-import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import {
     attendance as adminAttendance,
     classes as adminClasses,
@@ -31,6 +32,7 @@ import {
     instructorAttendance as adminInstructorAttendance,
     locations as adminLocations,
 } from '@/routes/admin';
+import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { history as adminEventHistory } from '@/routes/admin/events';
 import { index as announcementsIndex } from '@/routes/announcements';
 import { index as attendanceIndex } from '@/routes/attendance';
@@ -40,8 +42,6 @@ import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import { index as usersIndex } from '@/routes/users';
-import type { NavSection, NavItem } from '@/types';
-import type { AppRole } from '@/types/resource-table';
 
 export const allRoles: AppRole[] = ['admin', 'coach', 'parent', 'athlete'];
 

@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TrainingGroup extends Model
 {
+    use HasUuids;
+
     protected $table = 'training_groups';
 
     protected $fillable = [
@@ -28,4 +31,15 @@ class TrainingGroup extends Model
     {
         return $this->hasMany(Athlete::class, 'training_group_id', 'id');
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

@@ -166,8 +166,6 @@ class PaymentPageController extends Controller
 
         return [
             ['label' => 'Diterima bulan ini', 'value' => $this->rupiah($receivedThisMonth), 'detail' => 'Pemasukan dari transaksi tagihan anggota yang disetujui', 'tone' => 'success'],
-            ['label' => 'Piutang anggota', 'value' => $this->rupiah($outstandingInvoices), 'detail' => 'Sisa seluruh tagihan anggota yang masih aktif', 'tone' => 'warning'],
-            ['label' => 'Sudah jatuh tempo', 'value' => $this->rupiah($overdueAmount), 'detail' => $overdueInvoices->count().' tagihan anggota perlu ditindaklanjuti', 'tone' => 'danger'],
             ['label' => 'Bukti menunggu review', 'value' => (string) $attention['proof_review_count'], 'detail' => 'Prioritas pertama dalam antrean keuangan', 'tone' => 'info'],
         ];
     }

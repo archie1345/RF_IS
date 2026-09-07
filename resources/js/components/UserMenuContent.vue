@@ -19,8 +19,10 @@ import { update as roleContextUpdate } from '@/routes/role-context';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
 import type { Props } from './UserMenuContent.types';
+import { useI18n } from '@/composables/useI18n';
 
 const page = usePage<{ auth: Auth }>();
+const { t } = useI18n();
 const isSwitchingRole = ref(false);
 const roles = computed<AppRole[]>(() => page.props.auth.user.roles ?? []);
 const activeRole = computed<AppRole>(() => page.props.auth.user.activeRole ?? page.props.auth.user.role ?? 'athlete');
@@ -70,7 +72,7 @@ defineProps<Props>();
         <DropdownMenuSeparator />
         <DropdownMenuLabel class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <UsersRound class="size-4" />
-            Gunakan peran
+            {{ t('Gunakan peran') }}
         </DropdownMenuLabel>
         <DropdownMenuGroup>
             <DropdownMenuItem
@@ -81,7 +83,7 @@ defineProps<Props>();
                 @select.prevent="switchRole(role)"
             >
                 <Check class="mr-2 size-4" :class="role === activeRole ? 'opacity-100' : 'opacity-0'" />
-                {{ roleLabels[role] }}
+                {{ t(roleLabels[role]) }}
             </DropdownMenuItem>
         </DropdownMenuGroup>
     </template>
@@ -91,15 +93,15 @@ defineProps<Props>();
     <DropdownMenuSub>
         <DropdownMenuSubTrigger class="cursor-pointer">
             <Globe class="mr-2 h-4 w-4" />
-            Bahasa / Language
+            {{ t('Bahasa / Language') }}
         </DropdownMenuSubTrigger>
         <DropdownMenuPortal>
             <DropdownMenuSubContent>
                 <DropdownMenuItem as="a" href="/locale/id" class="cursor-pointer">
-                    Indonesia
+                    {{ t('Indonesia') }}
                 </DropdownMenuItem>
                 <DropdownMenuItem as="a" href="/locale/en" class="cursor-pointer">
-                    English
+                    {{ t('English') }}
                 </DropdownMenuItem>
             </DropdownMenuSubContent>
         </DropdownMenuPortal>
@@ -110,7 +112,7 @@ defineProps<Props>();
         <DropdownMenuItem :as-child="true">
             <Link class="block w-full cursor-pointer" href="/settings" prefetch>
                 <Settings class="mr-2 h-4 w-4" />
-                Pengaturan
+                {{ t('Pengaturan') }}
             </Link>
         </DropdownMenuItem>
     </DropdownMenuGroup>
@@ -124,7 +126,7 @@ defineProps<Props>();
             data-test="logout-button"
         >
             <LogOut class="mr-2 h-4 w-4" />
-            Keluar
+            {{ t('Keluar') }}
         </Link>
     </DropdownMenuItem>
 </template>

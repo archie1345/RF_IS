@@ -3,6 +3,7 @@ import { ArrowDownUp, ChevronLeft, ChevronRight, Search } from '@lucide/vue';
 import { computed, reactive, ref, useSlots, watch } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
+import { useI18n } from '@/composables/useI18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type {
@@ -57,6 +58,7 @@ const emit = defineEmits<{
 }>();
 
 const slots = useSlots();
+const { t } = useI18n();
 const hasRowActions = Boolean(slots['row-actions']);
 const hasHeaderActions = Boolean(slots.actions);
 const search = ref('');
@@ -154,48 +156,19 @@ function filterText(filter: TableFilter, row: TableRow): string {
     return String(getCellText(value)).trim();
 }
 
-const automaticPersonFilter = computed<TableFilter | null>(() => {
-    const preferredKey = ['child', 'athlete', 'coach'].find((key) =>
-        props.rows.some((row) => String(getCellText(row[key])).trim() !== '-'),
-    );
-    if (!preferredKey) return null;
-    if ((props.filters ?? []).some((filter) => (filter.columnKey ?? filter.key) === preferredKey)) return null;
-
-    const values = new Set(
-        props.rows
-            .map((row) => String(getCellText(row[preferredKey])).trim())
-            .filter((value) => value !== '' && value !== '-'),
-    );
-    if (values.size <= 1) return null;
-
-    return {
-        key: `auto_${preferredKey}`,
-        columnKey: preferredKey,
-        label: preferredKey === 'child' ? 'Anak' : preferredKey === 'coach' ? 'Pelatih' : 'Atlet / Anak',
-        type: 'select',
-        multiple: false,
-        placeholder: 'Semua',
-    };
-});
-
-const normalizedFilters = computed<TableFilter[]>(() => [
-    ...(props.filters ?? []),
-    ...(automaticPersonFilter.value ? [automaticPersonFilter.value] : []),
-]);
+const normalizedFilters = computed<TableFilter[]>(() => props.filters ?? []);
 const orderedFilters = computed(() => [
     ...normalizedFilters.value.filter((filter) => filterType(filter) === 'text'),
     ...normalizedFilters.value.filter((filter) => filterType(filter) === 'select'),
 ]);
-const hasTableFilters = computed(
-    () => (props.filterable && normalizedFilters.value.length > 0) || automaticPersonFilter.value !== null,
-);
+const hasTableFilters = computed(() => props.filterable && normalizedFilters.value.length > 0);
 const activeFilterSignature = computed(() =>
     normalizedFilters.value
         .map((filter) => `${filter.key}:${JSON.stringify(filterValues[filter.key] ?? '')}`)
         .join('|'),
 );
 const hasActiveFilters = computed(() => normalizedFilters.value.some((filter) => filterSelections(filter).length > 0));
-const clickableHint = computed(() => props.rowClickLabel.trim() || 'Tekan data untuk membuka detail.');
+const clickableHint = computed(() => t(props.rowClickLabel.trim() || 'Tekan data untuk membuka detail.'));
 const filterGridClass = computed(() => filterColumnsClass(props.filterColumns));
 const rowsPerPageSelectId = computed(() => `rows-per-page-${safeId(props.title)}`);
 
@@ -209,7 +182,7 @@ const rowsPerPageOptions = computed<SelectOption[]>(() => {
     return [
         ...Array.from(numericOptions)
             .sort((left, right) => left - right)
-            .map((value) => ({ value: String(value), label: `${value} baris` })),
+            .map((value) => ({ value: String(value), label: `${value} ${t('baris')}` })),
         { value: 'all', label: 'Semua baris' },
     ];
 });
@@ -367,10 +340,10 @@ watch(totalPages, (pages) => {
             <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div class="min-w-0 space-y-1">
                     <div class="flex flex-wrap items-center gap-2">
-                        <CardTitle class="text-lg font-bold break-words sm:text-xl">{{ title }}</CardTitle>
+                        <CardTitle class="text-lg font-bold break-words sm:text-xl">{{ t(title) }}</CardTitle>
                         <slot v-if="hasHeaderActions" name="actions" />
                     </div>
-                    <CardDescription v-if="description" class="text-sm leading-5">{{ description }}</CardDescription>
+                    <CardDescription v-if="description" class="text-sm leading-5">{{ t(description) }}</CardDescription>
                     <p v-if="props.rowClickable" class="text-xs text-muted-foreground">{{ clickableHint }}</p>
                 </div>
 
@@ -379,7 +352,7 @@ watch(totalPages, (pages) => {
                         v-if="props.paginate && props.showRowsPerPage"
                         :id="rowsPerPageSelectId"
                         v-model="selectedRowsPerPage"
-                        label="Jumlah baris"
+                        :label="t('Jumlah baris')"
                         :options="rowsPerPageOptions"
                         :show-placeholder="false"
                     />
@@ -389,7 +362,7 @@ watch(totalPages, (pages) => {
                             v-model="search"
                             type="search"
                             class="h-10 w-full rounded-lg border border-input bg-background pr-3 pl-10 text-sm focus:ring-2 focus:ring-ring/25 focus:outline-none"
-                            :placeholder="props.searchPlaceholder ?? 'Cari data...'"
+                            :placeholder="t(props.searchPlaceholder ?? 'Cari data...')"
                         />
                     </div>
                 </div>
@@ -403,27 +376,27 @@ watch(totalPages, (pages) => {
                         :class="['grid min-w-0 gap-1.5 text-sm font-semibold', filterSpanClass(filter)]"
                     >
                         <label v-if="filterType(filter) === 'text'" class="grid gap-1.5">
-                            {{ filter.label }}
+                            {{ t(filter.label) }}
                             <input
                                 v-model="filterValues[filter.key]"
                                 type="text"
                                 class="h-10 rounded-lg border bg-background px-3 text-sm focus:ring-2 focus:ring-ring/25 focus:outline-none"
-                                :placeholder="filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`"
+                                :placeholder="t(filter.placeholder ?? `Filter ${filter.label.toLowerCase()}`)"
                             />
                         </label>
                         <FormSelectField
                             v-else
                             :id="filterInputId(filter)"
                             v-model="filterValues[filter.key]"
-                            :label="filter.label"
+                            :label="t(filter.label)"
                             :options="filterOptions(filter)"
-                            :placeholder="filter.placeholder ?? `Semua ${filter.label.toLowerCase()}`"
+                            :placeholder="t(filter.placeholder ?? `Semua ${filter.label.toLowerCase()}`)"
                             :multiple="filterMultiple(filter)"
                         />
                     </div>
                 </div>
                 <Button v-if="hasActiveFilters" type="button" variant="ghost" size="sm" @click="clearFilters">
-                    Hapus filter
+                    {{ t('Hapus filter') }}
                 </Button>
             </div>
         </CardHeader>
@@ -446,7 +419,7 @@ watch(totalPages, (pages) => {
                             :key="`${row.id}-${column.key}-mobile`"
                             class="grid grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] gap-3 border-b pb-2.5 last:border-0 last:pb-0"
                         >
-                            <dt class="text-xs font-semibold text-muted-foreground">{{ column.label }}</dt>
+                            <dt class="text-xs font-semibold text-muted-foreground">{{ t(column.label) }}</dt>
                             <dd class="min-w-0 text-right text-sm break-words">
                                 <slot name="cell" :row="row" :column="column" :value="getCellValue(row, column.key)">
                                     <StatusBadge
@@ -478,7 +451,7 @@ watch(totalPages, (pages) => {
                 v-else
                 class="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground sm:hidden"
             >
-                {{ props.emptyText ?? 'Belum ada data.' }}
+                {{ t(props.emptyText ?? 'Belum ada data.') }}
             </div>
 
             <div class="hidden w-full overflow-x-auto sm:block">
@@ -496,7 +469,7 @@ watch(totalPages, (pages) => {
                                     class="inline-flex items-center gap-1 hover:text-primary"
                                     @click="setSort(column)"
                                 >
-                                    {{ column.label }}
+                                    {{ t(column.label) }}
                                     <ArrowDownUp
                                         class="size-3"
                                         :class="sortKey === column.key ? 'text-primary' : 'opacity-30'"
@@ -504,7 +477,7 @@ watch(totalPages, (pages) => {
                                 </button>
                             </th>
                             <th v-if="hasRowActions" class="px-3 py-3 text-right font-bold">
-                                {{ props.actionLabel ?? 'Tindakan' }}
+                                {{ t(props.actionLabel ?? 'Tindakan') }}
                             </th>
                         </tr>
                     </thead>
@@ -556,7 +529,7 @@ watch(totalPages, (pages) => {
                                 :colspan="props.columns.length + (hasRowActions ? 1 : 0)"
                                 class="px-3 py-10 text-center text-sm text-muted-foreground"
                             >
-                                {{ props.emptyText ?? 'Belum ada data.' }}
+                                {{ t(props.emptyText ?? 'Belum ada data.') }}
                             </td>
                         </tr>
                     </tbody>
@@ -568,8 +541,16 @@ watch(totalPages, (pages) => {
                 class="mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
             >
                 <p class="text-xs font-medium text-muted-foreground">
-                    Menampilkan {{ displayStart }}–{{ displayEnd }} dari {{ filteredRows.length }} baris
-                    <span v-if="filteredRows.length !== props.rows.length">({{ props.rows.length }} total)</span>
+                    {{
+                        t('Menampilkan :start–:end dari :visible baris', {
+                            start: displayStart,
+                            end: displayEnd,
+                            visible: filteredRows.length,
+                        })
+                    }}
+                    <span v-if="filteredRows.length !== props.rows.length">
+                        ({{ props.rows.length }} {{ t('total') }})
+                    </span>
                 </p>
                 <div class="flex items-center justify-end gap-2">
                     <Button
@@ -579,11 +560,11 @@ watch(totalPages, (pages) => {
                         :disabled="currentPage <= 1"
                         @click="currentPage -= 1"
                     >
-                        <ChevronLeft class="size-4" /> Sebelumnya
+                        <ChevronLeft class="size-4" /> {{ t('Sebelumnya') }}
                     </Button>
-                    <span class="min-w-20 text-center text-xs font-semibold"
-                        >Halaman {{ currentPage }} / {{ totalPages }}</span
-                    >
+                    <span class="min-w-20 text-center text-xs font-semibold">{{
+                        t('Halaman :current / :total', { current: currentPage, total: totalPages })
+                    }}</span>
                     <Button
                         type="button"
                         variant="outline"
@@ -591,7 +572,7 @@ watch(totalPages, (pages) => {
                         :disabled="currentPage >= totalPages"
                         @click="currentPage += 1"
                     >
-                        Berikutnya <ChevronRight class="size-4" />
+                        {{ t('Berikutnya') }} <ChevronRight class="size-4" />
                     </Button>
                 </div>
             </div>

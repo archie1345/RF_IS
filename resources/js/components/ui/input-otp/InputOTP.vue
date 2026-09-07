@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 const props = defineProps() as OTPInputProps & { class?: HTMLAttributes["class"] }
 
-const emits = defineEmits()
+const emits = defineEmits<OTPInputEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
 

@@ -36,7 +36,7 @@ const props = defineProps<{
     canDeleteRegistration: boolean;
     canAddRegistration: boolean;
     event: {
-        id: number;
+        id: string;
         name: string;
         date: string;
         location: string;
@@ -56,6 +56,7 @@ const popup = useAppPopup();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
+    { title: 'Daftar Kejuaraan', href: championshipsIndex.url() },
     { title: props.event.name, href: championshipShow.url(props.event.id) },
 ];
 

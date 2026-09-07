@@ -5,6 +5,7 @@ import DashboardAnnouncementWidget from '@/components/dashboard/DashboardAnnounc
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
 import { useLiveReload } from '@/composables/useLiveReload';
+import { useI18n } from '@/composables/useI18n';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -13,6 +14,7 @@ import type { AppRole, AttendanceRow, Metric, TableRow, TrainingDay } from '@/ty
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Beranda', href: dashboard.url() }];
 const page = usePage<{ auth: Auth }>();
+const { t } = useI18n();
 const props = defineProps({
     roles: { type: Array as PropType<AppRole[]>, default: () => [] },
     metrics: { type: Array as PropType<Metric[]>, required: true },
@@ -55,7 +57,7 @@ useLiveReload(
 
             <section v-for="dashboardRole in dashboardRoles" :key="dashboardRole" class="space-y-3">
                 <div v-if="dashboardRoles.length > 1" class="flex items-center gap-3">
-                    <h2 class="text-sm font-bold tracking-wide uppercase">{{ roleLabels[dashboardRole] }}</h2>
+                    <h2 class="text-sm font-bold tracking-wide uppercase">{{ t(roleLabels[dashboardRole]) }}</h2>
                     <div class="h-px flex-1 bg-border" />
                 </div>
                 <DashboardOverviewSections

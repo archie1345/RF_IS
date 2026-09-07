@@ -12,11 +12,13 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppShell variant="sidebar">
-        <AppSidebar />
-        <AppContent variant="sidebar" class="min-w-0">
-            <AppSidebarHeader :breadcrumbs="breadcrumbs" />
-            <slot />
-        </AppContent>
-    </AppShell>
+    <div v-translate>
+        <AppShell variant="sidebar">
+            <AppSidebar />
+            <AppContent variant="sidebar" class="min-w-0">
+                <AppSidebarHeader :breadcrumbs="breadcrumbs" />
+                <slot />
+            </AppContent>
+        </AppShell>
+    </div>
 </template>

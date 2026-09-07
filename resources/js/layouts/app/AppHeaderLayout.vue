@@ -11,10 +11,12 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppShell class="flex-col">
-        <AppHeader :breadcrumbs="breadcrumbs" />
-        <AppContent>
-            <slot />
-        </AppContent>
-    </AppShell>
+    <div v-translate>
+        <AppShell class="flex-col">
+            <AppHeader :breadcrumbs="breadcrumbs" />
+            <AppContent>
+                <slot />
+            </AppContent>
+        </AppShell>
+    </div>
 </template>

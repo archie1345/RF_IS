@@ -9,7 +9,7 @@ export type AttendanceReportPeriod = {
 export type AdminWeeklySession = { title: string; time: string; location: string; date?: string };
 
 export type AdminFeatureWeeklySchedule = {
-    id: number;
+    id: string;
     title: string;
     branch: string;
     group: string;
@@ -30,7 +30,7 @@ export type BillingSettings = {
 };
 
 export type ManagedLocation = {
-    id: number;
+    id: string;
     name: string;
     location?: string | null;
     address?: string | null;
@@ -45,7 +45,7 @@ export type ManagedLocation = {
 };
 
 export type ManagedClass = {
-    id: number;
+    id: string;
     name: string;
     class_type: string;
     coach_id?: string | null;

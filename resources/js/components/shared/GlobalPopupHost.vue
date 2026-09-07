@@ -4,11 +4,13 @@ import { AlertTriangle, CheckCircle2, CircleAlert, Info, X } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { dismissAppPopup, settleAppPopup, useAppPopup, type AppPopupTone } from '@/composables/useAppPopup';
-import { useKeyboardShortcut } from '@/composables/useKeyboardShortcut';
 import { useAppToast } from '@/composables/useAppToast';
+import { useKeyboardShortcut } from '@/composables/useKeyboardShortcut';
+import { useI18n } from '@/composables/useI18n';
 
 const popup = useAppPopup();
 const toast = useAppToast();
+const { t } = useI18n();
 const page = usePage<{
     flash?: {
         status?: string | null;
@@ -60,7 +62,7 @@ function showFeedback(tone: AppPopupTone, title: string, message?: string | null
 
 function validationMessage(errors: unknown): string {
     if (!errors || typeof errors !== 'object') {
-        return 'Periksa kembali data yang diisi, lalu coba simpan lagi.';
+        return t('Periksa kembali data yang diisi, lalu coba simpan lagi.');
     }
 
     const messages = Object.values(errors as Record<string, unknown>)
@@ -69,7 +71,7 @@ function validationMessage(errors: unknown): string {
         .map((value) => value.trim());
 
     if (messages.length === 0) {
-        return 'Periksa kembali data yang diisi, lalu coba simpan lagi.';
+        return t('Periksa kembali data yang diisi, lalu coba simpan lagi.');
     }
 
     const visible = [...new Set(messages)].slice(0, 6);
@@ -173,7 +175,7 @@ onMounted(() => {
     window.addEventListener('online', handleOnline);
 
     removeValidationListener = router.on('error', (event) => {
-        showFeedback('danger', 'Data belum valid', validationMessage(event.detail.errors));
+        flashToast('warning', 'Data belum valid', validationMessage(event.detail.errors));
     });
     removeInvalidResponseListener = router.on('invalid', (event) => {
         showFeedback(
@@ -242,7 +244,7 @@ onBeforeUnmount(() => {
                             v-if="popup.state.dismissible"
                             type="button"
                             class="absolute top-4 right-4 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-label="Tutup popup"
+                            :aria-label="t('Tutup popup')"
                             @click="dismissAppPopup"
                         >
                             <X class="size-4" />
@@ -258,14 +260,14 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <h2 id="global-popup-title" class="text-lg font-bold tracking-tight">
-                                        {{ popup.state.title }}
+                                        {{ t(popup.state.title) }}
                                     </h2>
                                     <p
                                         v-if="popup.state.message"
                                         id="global-popup-message"
                                         class="mt-2 text-sm leading-6 whitespace-pre-line text-muted-foreground"
                                     >
-                                        {{ popup.state.message }}
+                                        {{ t(popup.state.message) }}
                                     </p>
                                 </div>
                             </div>
@@ -277,7 +279,7 @@ onBeforeUnmount(() => {
                                     variant="outline"
                                     @click="settleAppPopup(false)"
                                 >
-                                    {{ popup.state.cancelLabel }}
+                                    {{ t(popup.state.cancelLabel) }}
                                 </Button>
                                 <Button
                                     ref="primaryButton"
@@ -285,7 +287,7 @@ onBeforeUnmount(() => {
                                     :variant="primaryVariant"
                                     @click="settleAppPopup(true)"
                                 >
-                                    {{ popup.state.confirmLabel }}
+                                    {{ t(popup.state.confirmLabel) }}
                                 </Button>
                             </div>
                         </div>

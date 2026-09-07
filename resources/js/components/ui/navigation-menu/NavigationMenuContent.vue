@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const props = defineProps</* @vue-ignore */ NavigationMenuContentProps & { class?: HTMLAttributes["class"] }>()
-const emits = defineEmits()
+const emits = defineEmits<NavigationMenuContentEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
 

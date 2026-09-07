@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,6 +11,8 @@ use Illuminate\Support\Carbon;
 
 class Payment extends Model
 {
+    use HasUuids;
+
     use SoftDeletes;
 
     public const PROOF_DISK_PRIVATE = 'local';
@@ -140,4 +143,15 @@ class Payment extends Model
             ->latest('transaction_date')
             ->latest('ptid');
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

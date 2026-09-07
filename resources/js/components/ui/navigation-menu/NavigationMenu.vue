@@ -15,7 +15,7 @@ const props = withDefaults(defineProps</* @vue-ignore */ NavigationMenuRootProps
 }>(), {
   viewport: true,
 })
-const emits = defineEmits()
+const emits = defineEmits<NavigationMenuRootEmits>()
 
 const delegatedProps = reactiveOmit(props, "class", "viewport")
 const forwarded = useForwardPropsEmits(delegatedProps, emits)

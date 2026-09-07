@@ -11,7 +11,6 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
 import { index as championshipsIndex, show as championshipShow } from '@/routes/championships';
 import {
@@ -28,7 +27,8 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption, TableColumn, TableRow } from '@/types/resource-table';
 
 type ExistingRegistration = {
-    registration_id: number;
+    registration_id: string;
+    registration_uuid?: string;
     category: string;
     classification: string;
     class_name: string;
@@ -45,7 +45,7 @@ const props = withDefaults(
         rows: TableRow[];
         athletes: SelectOption[];
         events: SelectOption[];
-        pendingPayments: { payment_id: number; athlete: string; amount: number; remaining: number }[];
+        pendingPayments: { payment_id: string; athlete: string; amount: number; remaining: number }[];
     }>(),
     {
         isAthlete: false,
@@ -56,6 +56,7 @@ const popup = useAppPopup();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
+    { title: 'Daftar Kejuaraan', href: championshipsIndex.url() },
 ];
 
 const columns: TableColumn[] = [
@@ -115,8 +116,8 @@ const eventForm = useForm({
 const showRegistrationForm = ref(false);
 const showEventForm = ref(false);
 const showPaymentPrompt = ref(false);
-const editingEventId = ref<number | null>(null);
-const editingRegistrationId = ref<number | null>(null);
+const editingEventId = ref<string | null>(null);
+const editingRegistrationId = ref<string | null>(null);
 const registrationEventLabel = ref('');
 
 function existingRegistration(row: TableRow): ExistingRegistration | null {
@@ -177,7 +178,7 @@ function openCreateEvent(): void {
 }
 
 function openEditEvent(row: TableRow): void {
-    const eventId = routeId(row.event_id ?? row.id);
+    const eventId = row.event_uuid ? String(row.event_uuid) : null;
     if (eventId === null) return;
 
     eventForm.clearErrors();
@@ -215,7 +216,7 @@ function submitEvent(): void {
 }
 
 async function removeEvent(row: TableRow): Promise<void> {
-    const eventId = routeId(row.event_id ?? row.id);
+    const eventId = row.event_uuid ? String(row.event_uuid) : null;
     if (eventId === null) return;
 
     const registrationCount = Number(row.registrations_count ?? 0);
@@ -253,7 +254,7 @@ function openRegistrationForEvent(row: TableRow): void {
 
     const registration = existingRegistration(row);
     if (registration) {
-        const registrationId = routeId(registration.registration_id);
+        const registrationId = registration.registration_uuid ? String(registration.registration_uuid) : null;
         if (registrationId === null) return;
 
         editingRegistrationId.value = registrationId;
@@ -268,7 +269,7 @@ function openRegistrationForEvent(row: TableRow): void {
 }
 
 function championshipUrl(row: TableRow): string | null {
-    const eventId = routeId(row.event_id);
+    const eventId = row.event_uuid ? String(row.event_uuid) : null;
     return eventId === null ? null : championshipShow.url(eventId);
 }
 
@@ -299,10 +300,6 @@ onMounted(() => {
                     </Button>
                     <Button v-if="props.isAdmin" type="button" @click="openCreateEvent">Tambah kejuaraan</Button>
                 </template>
-
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
-                </div>
             </PageSection>
 
             <DataTable

@@ -3,6 +3,7 @@ import { Link } from '@inertiajs/vue3';
 import { ArrowRight, Megaphone } from '@lucide/vue';
 import AnnouncementCard from '@/components/announcements/AnnouncementCard.vue';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 import { index as announcementsIndex } from '@/routes/announcements';
 import type { TableRow } from '@/types/resource-table';
 
@@ -14,6 +15,8 @@ const props = withDefaults(
         announcements: () => [],
     },
 );
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -25,13 +28,13 @@ const props = withDefaults(
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        Informasi terbaru
+                        {{ t('Informasi terbaru') }}
                     </p>
-                    <h2 class="truncate font-bold">Pengumuman</h2>
+                    <h2 class="truncate font-bold">{{ t('Pengumuman') }}</h2>
                 </div>
             </div>
             <Button as-child variant="ghost" size="sm" class="shrink-0 gap-1">
-                <Link :href="announcementsIndex.url()">Lihat semua <ArrowRight class="size-3.5" /></Link>
+                <Link :href="announcementsIndex.url()">{{ t('Lihat semua') }} <ArrowRight class="size-3.5" /></Link>
             </Button>
         </div>
 
@@ -45,7 +48,7 @@ const props = withDefaults(
         </div>
 
         <div v-else class="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-            Belum ada pengumuman aktif untuk peran ini.
+            {{ t('Belum ada pengumuman aktif untuk peran ini.') }}
         </div>
     </section>
 </template>

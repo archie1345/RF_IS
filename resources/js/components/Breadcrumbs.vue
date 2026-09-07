@@ -9,8 +9,10 @@ import {
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import type { Props } from './Breadcrumbs.types';
+import { useI18n } from '@/composables/useI18n';
 
 defineProps<Props>();
+const { t } = useI18n();
 </script>
 
 <template>
@@ -22,12 +24,12 @@ defineProps<Props>();
                 >
                     <template v-if="index === breadcrumbs.length - 1">
                         <BreadcrumbPage class="block max-w-[42vw] truncate sm:max-w-[55vw] lg:max-w-none">
-                            {{ item.title }}
+                            {{ t(item.title) }}
                         </BreadcrumbPage>
                     </template>
                     <template v-else>
                         <BreadcrumbLink as-child>
-                            <Link :href="item.href ?? '#'">{{ item.title }}</Link>
+                        <Link :href="item.href ?? '#'">{{ t(item.title) }}</Link>
                         </BreadcrumbLink>
                     </template>
                 </BreadcrumbItem>

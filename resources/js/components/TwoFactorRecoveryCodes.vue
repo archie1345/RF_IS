@@ -6,9 +6,11 @@ import AlertError from '@/components/AlertError.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
+import { useI18n } from '@/composables/useI18n';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
 const { recoveryCodesList, fetchRecoveryCodes, errors } = useTwoFactorAuth();
+const { t } = useI18n();
 const isRecoveryCodesVisible = ref<boolean>(false);
 const recoveryCodeSectionRef = useTemplateRef('recoveryCodeSectionRef');
 
@@ -35,17 +37,20 @@ onMounted(async () => {
 <template>
     <Card class="w-full">
         <CardHeader>
-            <CardTitle class="flex gap-3"> <LockKeyhole class="size-4" />2FA Recovery Codes </CardTitle>
+            <CardTitle class="flex gap-3"> <LockKeyhole class="size-4" />{{ t('2FA Recovery Codes') }}</CardTitle>
             <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password
-                manager.
+                {{
+                    t(
+                        'Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password manager.',
+                    )
+                }}
             </CardDescription>
         </CardHeader>
         <CardContent>
             <div class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between">
                 <Button @click="toggleRecoveryCodesVisibility" class="w-fit">
                     <component :is="isRecoveryCodesVisible ? EyeOff : Eye" class="size-4" />
-                    {{ isRecoveryCodesVisible ? 'Hide' : 'View' }} Recovery Codes
+                    {{ isRecoveryCodesVisible ? t('Hide') : t('View') }} {{ t('Recovery Codes') }}
                 </Button>
 
                 <Form
@@ -57,7 +62,7 @@ onMounted(async () => {
                     #default="{ processing }"
                 >
                     <Button variant="secondary" type="submit" :disabled="processing">
-                        <RefreshCw /> Regenerate Codes
+                        <RefreshCw /> {{ t('Regenerate Codes') }}
                     </Button>
                 </Form>
             </div>
@@ -80,9 +85,12 @@ onMounted(async () => {
                         </div>
                     </div>
                     <p class="text-xs text-muted-foreground select-none">
-                        Each recovery code can be used once to access your account and will be removed after use. If you
-                        need more, click
-                        <span class="font-bold">Regenerate Codes</span> above.
+                        {{
+                            t(
+                                'Each recovery code can be used once to access your account and will be removed after use. If you need more, click',
+                            )
+                        }}
+                        <span class="font-bold">{{ t('Regenerate Codes') }}</span> {{ t('above.') }}
                     </p>
                 </div>
             </div>

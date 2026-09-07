@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Registration extends Model
 {
+    use HasUuids;
+
     use SoftDeletes;
 
     protected $table = 'event_registrations';
@@ -37,4 +40,15 @@ class Registration extends Model
     {
         return $this->belongsTo(Athlete::class, 'athlete_id', 'athlete_id');
     }
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
 }

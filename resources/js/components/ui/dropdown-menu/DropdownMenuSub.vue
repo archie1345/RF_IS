@@ -6,7 +6,7 @@ import {
 } from "reka-ui"
 
 const props = defineProps</* @vue-ignore */ DropdownMenuSubProps>()
-const emits = defineEmits()
+const emits = defineEmits<DropdownMenuSubEmits>()
 
 const forwarded = useForwardPropsEmits(props, emits)
 </script>

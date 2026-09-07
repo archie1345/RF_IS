@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { Check, ChevronDown, Search, X } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Label } from '@/components/ui/label';
+import { useI18n } from '@/composables/useI18n';
 import type { FieldOption, ModelValue } from './FormSelectField.types';
 
 const props = withDefaults(
@@ -27,6 +28,8 @@ const props = withDefaults(
     },
 );
 
+const { t } = useI18n();
+
 const emit = defineEmits<{
     (e: 'update:modelValue', value: ModelValue): void;
 }>();
@@ -34,6 +37,14 @@ const emit = defineEmits<{
 const rootRef = ref<HTMLElement | null>(null);
 const open = ref(false);
 const search = ref('');
+const dropdownPosition = ref({
+    left: 0,
+    width: 0,
+    top: 0,
+    bottom: 0,
+    placement: 'below' as 'above' | 'below',
+    maxHeight: 384,
+});
 const instanceId = `select-${props.id}-${Math.random().toString(36).slice(2)}`;
 const closeEventName = 'rf-select-opened';
 
@@ -44,17 +55,18 @@ const selectedValues = computed(() =>
           ? []
           : [String(props.modelValue)],
 );
+const translatedOptions = computed(() => props.options.map((option) => ({ ...option, label: t(option.label) })));
 const selectedOption = computed(
-    () => props.options.find((option) => String(option.value) === String(props.modelValue)) ?? null,
+    () => translatedOptions.value.find((option) => String(option.value) === String(props.modelValue)) ?? null,
 );
 const selectedOptions = computed(() =>
-    props.options.filter((option) => selectedValues.value.includes(String(option.value))),
+    translatedOptions.value.filter((option) => selectedValues.value.includes(String(option.value))),
 );
 const filteredOptions = computed(() => {
     const keyword = search.value.trim().toLowerCase();
-    if (!keyword) return props.options;
+    if (!keyword) return translatedOptions.value;
 
-    return props.options.filter(
+    return translatedOptions.value.filter(
         (option) =>
             option.label.toLowerCase().includes(keyword) || String(option.value).toLowerCase().includes(keyword),
     );
@@ -67,6 +79,29 @@ function optionSelected(value: string | number): boolean {
 function closeDropdown(): void {
     open.value = false;
     search.value = '';
+}
+
+function updateDropdownPosition(): void {
+    if (!open.value || !rootRef.value) return;
+
+    const trigger = rootRef.value.querySelector('button');
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const belowSpace = window.innerHeight - rect.bottom - gap;
+    const aboveSpace = rect.top - gap;
+    const placement = belowSpace >= 220 || belowSpace >= aboveSpace ? 'below' : 'above';
+    const availableSpace = Math.max(160, placement === 'below' ? belowSpace : aboveSpace);
+
+    dropdownPosition.value = {
+        left: rect.left,
+        width: rect.width,
+        top: rect.bottom + gap,
+        bottom: window.innerHeight - rect.top + gap,
+        placement,
+        maxHeight: Math.min(384, availableSpace),
+    };
 }
 
 function announceDropdownOpen(): void {
@@ -82,6 +117,7 @@ function toggleDropdown(): void {
 
     announceDropdownOpen();
     open.value = true;
+    void nextTick(updateDropdownPosition);
 }
 
 function handleOtherDropdownOpened(event: Event): void {
@@ -99,11 +135,15 @@ function handleOutsidePointerDown(event: PointerEvent): void {
 onMounted(() => {
     window.addEventListener(closeEventName, handleOtherDropdownOpened);
     document.addEventListener('pointerdown', handleOutsidePointerDown);
+    window.addEventListener('resize', updateDropdownPosition);
+    window.addEventListener('scroll', updateDropdownPosition, true);
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener(closeEventName, handleOtherDropdownOpened);
     document.removeEventListener('pointerdown', handleOutsidePointerDown);
+    window.removeEventListener('resize', updateDropdownPosition);
+    window.removeEventListener('scroll', updateDropdownPosition, true);
 });
 
 function selectValue(value: string | number): void {
@@ -141,8 +181,8 @@ function removeValue(value: string | number): void {
 <template>
     <div ref="rootRef" class="relative grid min-w-0 gap-2">
         <div class="flex min-w-0 items-center justify-between gap-3">
-            <Label :for="props.id" class="min-w-0 break-words">{{ props.label }}</Label>
-            <span v-if="props.required" class="shrink-0 text-xs text-muted-foreground">Wajib</span>
+            <Label :for="props.id" class="min-w-0 break-words">{{ t(props.label) }}</Label>
+            <span v-if="props.required" class="shrink-0 text-xs text-muted-foreground">{{ t('Wajib') }}</span>
         </div>
 
         <button
@@ -173,58 +213,71 @@ function removeValue(value: string | number): void {
                 <X class="size-3 shrink-0" @click.stop="clearValue" />
             </span>
             <span v-else class="min-w-0 flex-1 truncate text-muted-foreground">
-                {{ props.placeholder ?? `Pilih ${props.label.toLowerCase()}` }}
+                {{ props.placeholder ? t(props.placeholder) : `${t('Pilih')} ${t(props.label).toLowerCase()}` }}
             </span>
             <ChevronDown class="size-4 shrink-0 text-muted-foreground transition" :class="open ? 'rotate-180' : ''" />
         </button>
 
-        <div
-            v-if="open"
-            class="absolute top-full right-0 left-0 z-50 mt-2 max-h-[min(24rem,55dvh)] min-w-0 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl"
-        >
-            <div class="flex items-center gap-2 border-b px-3 py-2">
-                <Search class="size-4 shrink-0 text-muted-foreground" />
-                <input
-                    v-model="search"
-                    type="search"
-                    class="h-10 min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm"
-                    :placeholder="props.searchPlaceholder ?? 'Cari...'"
-                />
-            </div>
-            <div class="max-h-[min(19rem,45dvh)] overflow-y-auto overscroll-contain p-1">
-                <button
-                    v-for="option in filteredOptions"
-                    :key="option.value"
-                    type="button"
-                    class="flex min-h-10 w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-muted"
-                    @click="selectValue(option.value)"
-                >
-                    <span
-                        class="flex size-5 shrink-0 items-center justify-center rounded-md border"
-                        :class="
-                            optionSelected(option.value)
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-input'
-                        "
-                    >
-                        <Check v-if="optionSelected(option.value)" class="size-3" />
-                    </span>
-                    <span class="min-w-0 break-words">{{ option.label }}</span>
-                </button>
-                <p v-if="filteredOptions.length === 0" class="px-3 py-6 text-center text-sm text-muted-foreground">
-                    Tidak ada pilihan yang cocok.
-                </p>
-            </div>
+        <Teleport to="body">
             <div
-                v-if="props.multiple && selectedOptions.length"
-                class="border-t px-3 py-2 text-xs text-muted-foreground"
+                v-if="open"
+                class="fixed z-[100] min-w-0 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl"
+                :style="{
+                    left: `${dropdownPosition.left}px`,
+                    width: `${dropdownPosition.width}px`,
+                    top: dropdownPosition.placement === 'below' ? `${dropdownPosition.top}px` : undefined,
+                    bottom: dropdownPosition.placement === 'above' ? `${dropdownPosition.bottom}px` : undefined,
+                    maxHeight: `${dropdownPosition.maxHeight}px`,
+                }"
+                @pointerdown.stop
             >
-                {{ selectedOptions.length }} dipilih
+                <div class="flex items-center gap-2 border-b px-3 py-2">
+                    <Search class="size-4 shrink-0 text-muted-foreground" />
+                    <input
+                        v-model="search"
+                        type="search"
+                        class="h-10 min-w-0 flex-1 bg-transparent text-base outline-none sm:text-sm"
+                        :placeholder="t(props.searchPlaceholder ?? 'Cari...')"
+                    />
+                </div>
+                <div
+                    class="overflow-y-auto overscroll-contain p-1"
+                    :style="{ maxHeight: `${Math.max(80, dropdownPosition.maxHeight - 58)}px` }"
+                >
+                    <button
+                        v-for="option in filteredOptions"
+                        :key="option.value"
+                        type="button"
+                        class="flex min-h-10 w-full min-w-0 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-muted"
+                        @click="selectValue(option.value)"
+                    >
+                        <span
+                            class="flex size-5 shrink-0 items-center justify-center rounded-md border"
+                            :class="
+                                optionSelected(option.value)
+                                    ? 'border-primary bg-primary text-primary-foreground'
+                                    : 'border-input'
+                            "
+                        >
+                            <Check v-if="optionSelected(option.value)" class="size-3" />
+                        </span>
+                        <span class="min-w-0 break-words">{{ option.label }}</span>
+                    </button>
+                    <p v-if="filteredOptions.length === 0" class="px-3 py-6 text-center text-sm text-muted-foreground">
+                        {{ t('Tidak ada pilihan yang cocok.') }}
+                    </p>
+                </div>
+                <div
+                    v-if="props.multiple && selectedOptions.length"
+                    class="border-t px-3 py-2 text-xs text-muted-foreground"
+                >
+                    {{ selectedOptions.length }} {{ t('dipilih') }}
+                </div>
             </div>
-        </div>
+        </Teleport>
 
         <p v-if="props.help && !props.error" class="text-xs leading-5 break-words text-muted-foreground">
-            {{ props.help }}
+            {{ t(props.help) }}
         </p>
         <InputError :message="props.error" />
     </div>

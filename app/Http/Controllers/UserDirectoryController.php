@@ -74,8 +74,8 @@ class UserDirectoryController extends Controller
                 $athlete = $directoryUser->athleteProfile;
 
                 return [
-                    'id' => 'USR-'.$directoryUser->id,
-                    'user_id' => $directoryUser->id,
+                    'id' => $directoryUser->uuid,
+                    'user_id' => $directoryUser->uuid,
                     'athlete_id' => $athlete?->athlete_id,
                     'member_number' => $athlete?->member_number ?? 'Belum tersedia',
                     'joined_at' => $athlete?->joined_at?->format('d M Y') ?? '-',
@@ -90,8 +90,8 @@ class UserDirectoryController extends Controller
                     'weight_kg' => $athlete?->weight_kg !== null
                         ? number_format((float) $athlete->weight_kg, 1).' kg'
                         : '-',
-                    'nik' => $athlete?->displayValue('nik') ?? 'Not stored',
-                    'bpjs' => $athlete?->displayValue('bpjs') ?? 'Not stored',
+                    'nik' => $athlete?->user?->displayNik() ?? 'Not stored',
+                    'bpjs' => $athlete?->user?->displayBpjs() ?? 'Not stored',
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
                     'status' => $athlete
                         ? $this->badge('Active', 'success')
@@ -103,8 +103,8 @@ class UserDirectoryController extends Controller
                     $coach = $directoryUser->coachProfile;
 
                     return [
-                        'id' => $directoryUser->id,
-                        'user_id' => $directoryUser->id,
+                        'id' => $directoryUser->uuid,
+                        'user_id' => $directoryUser->uuid,
                         'coach_id' => $coach?->coach_id,
                         'name' => $directoryUser->name ?? 'Unknown coach',
                         'email' => $directoryUser->email ?? '-',
@@ -119,8 +119,8 @@ class UserDirectoryController extends Controller
                     $parent = $directoryUser->parentProfile;
 
                     return [
-                        'id' => $directoryUser->id,
-                        'user_id' => $directoryUser->id,
+                        'id' => $directoryUser->uuid,
+                        'user_id' => $directoryUser->uuid,
                         'parent_id' => $parent?->parent_id,
                         'name' => $directoryUser->name ?? 'Unknown parent',
                         'email' => $directoryUser->email ?? '-',
@@ -161,24 +161,6 @@ class UserDirectoryController extends Controller
                 ->values(),
             'canViewSensitiveIdentifiers' => true,
         ]);
-    }
-
-    public function show(Request $request, Athlete $athlete): JsonResponse
-    {
-        abort_unless($request->user()?->isAdmin(), 403);
-        $athlete->loadMissing([
-            'user:id,name,email,gender,bday,phone',
-            'branch:branch_id,branch_name',
-            'group:group_id,group_name',
-            'parent:parent_id,id',
-        ]);
-
-        return response()->json($this->athleteFormPayload($athlete));
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        abort(403, 'Create athlete account from Admin Panel only.');
     }
 
     public function linkParent(Request $request, Athlete $athlete): RedirectResponse
@@ -231,29 +213,6 @@ class UserDirectoryController extends Controller
         return redirect()->route('users.index');
     }
 
-    public function update(Request $request, Athlete $athlete): RedirectResponse
-    {
-        abort_unless($request->user()?->isAdmin(), 403);
-        $validated = $this->validatedAthleteData($request, $athlete->id);
-
-        DB::transaction(function () use ($validated, $athlete): void {
-            $athlete->user()->update([
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'gender' => $validated['gender'],
-                'bday' => $validated['bday'],
-                'phone' => $validated['phone'] ?? null,
-            ]);
-            $athlete->update($this->athleteRecordPayload($validated));
-        });
-
-        return redirect()->route('users.index');
-    }
-
-    public function destroy(Request $request, Athlete $athlete): RedirectResponse
-    {
-        abort(403, 'Delete athlete account from Admin Panel only.');
-    }
 
     public function showByUser(Request $request, User $user): JsonResponse
     {
@@ -361,7 +320,7 @@ class UserDirectoryController extends Controller
     private function athleteFormPayload(Athlete $athlete): array
     {
         return [
-            'user_id' => $athlete->id,
+            'user_id' => $athlete->user?->uuid,
             'athlete_id' => $athlete->athlete_id,
             'member_number' => $athlete->member_number,
             'joined_at' => $athlete->joined_at?->format('Y-m-d'),
@@ -377,8 +336,8 @@ class UserDirectoryController extends Controller
             'group_id' => (string) ($athlete->group_id ?? ''),
             'geup' => $athlete->geup ?? 'GEUP_10',
             'parent_id' => (string) ($athlete->parent_id ?? ''),
-            'nik' => $athlete->displayValue('nik'),
-            'bpjs' => $athlete->displayValue('bpjs'),
+            'nik' => $athlete->user?->displayNik() ?? '',
+            'bpjs' => $athlete->user?->displayBpjs() ?? '',
         ];
     }
 }

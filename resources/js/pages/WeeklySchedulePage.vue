@@ -5,6 +5,7 @@ import FormSelectField from '@/components/forms/FormSelectField.vue';
 import DataTable from '@/components/shared/DataTable.vue';
 import WeeklyScheduleBoard from '@/features/training/components/WeeklyScheduleBoard.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useI18n } from '@/composables/useI18n';
 import { dashboard } from '@/routes';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import type { BreadcrumbItem } from '@/types';
@@ -38,22 +39,24 @@ const props = withDefaults(
     },
 );
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Beranda', href: dashboard.url() },
-    { title: props.title, href: trainingScheduleIndex.url() },
-];
+const { t } = useI18n();
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { title: t('Beranda'), href: dashboard.url() },
+    { title: t(props.title), href: trainingScheduleIndex.url() },
+]);
 const scheduleView = ref<'cards' | 'table'>('cards');
 const selectedChild = ref('');
-const scheduleColumns: TableColumn[] = [
-    { key: 'title', label: 'Jadwal' },
-    { key: 'day_label', label: 'Hari' },
-    { key: 'time', label: 'Waktu' },
-    { key: 'location_display', label: 'Lokasi' },
-    { key: 'session_type_display', label: 'Tipe' },
-    { key: 'group_display', label: 'Kelas' },
-    { key: 'participant_display', label: 'Atlet / Anak' },
-    { key: 'status', label: 'Status' },
-];
+const scheduleColumns = computed<TableColumn[]>(() => [
+    { key: 'title', label: t('Jadwal') },
+    { key: 'day_label', label: t('Hari') },
+    { key: 'time', label: t('Waktu') },
+    { key: 'location_display', label: t('Lokasi') },
+    { key: 'session_type_display', label: t('Tipe') },
+    { key: 'group_display', label: t('Kelas') },
+    { key: 'participant_display', label: t('Atlet / Anak') },
+    { key: 'status', label: t('Status') },
+]);
 
 const childFilterOptions = computed<SelectOption[]>(() => {
     const names = new Set<string>();
@@ -66,7 +69,7 @@ const childFilterOptions = computed<SelectOption[]>(() => {
     });
 
     return [
-        { value: '', label: 'Semua anak' },
+        { value: '', label: t('Semua anak') },
         ...Array.from(names)
             .sort()
             .map((name) => ({ value: name, label: name })),
@@ -92,7 +95,7 @@ const scheduleTableRows = computed<TableRow[]>(() =>
         time: `${schedule.start_time || '--:--'}–${schedule.end_time || '--:--'}`,
         location_display: schedule.location || schedule.branch || '-',
         session_type_display: String(schedule.session_type ?? 'reguler').replaceAll('_', ' '),
-        group_display: schedule.group || 'Semua kelas',
+        group_display: schedule.group || t('Semua kelas'),
         participant_display: schedule.child || schedule.athletes || schedule.dedicated_athlete || '-',
         status: schedule.is_active === false ? 'INACTIVE' : 'ACTIVE',
     })),
@@ -100,7 +103,7 @@ const scheduleTableRows = computed<TableRow[]>(() =>
 </script>
 
 <template>
-    <Head :title="props.title" />
+    <Head :title="t(props.title)" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-1 flex-col gap-5 p-4 md:p-6">
@@ -109,7 +112,7 @@ const scheduleTableRows = computed<TableRow[]>(() =>
                     v-if="childFilterOptions.length > 2"
                     id="schedule-child-filter"
                     v-model="selectedChild"
-                    label="Filter anak"
+                    :label="t('Filter anak')"
                     :options="childFilterOptions"
                     :show-placeholder="false"
                     class="w-full sm:max-w-xs"
@@ -122,7 +125,7 @@ const scheduleTableRows = computed<TableRow[]>(() =>
                         :class="scheduleView === 'cards' ? 'bg-primary text-primary-foreground' : 'bg-card'"
                         @click="scheduleView = 'cards'"
                     >
-                        Kartu
+                        {{ t('Kartu') }}
                     </button>
                     <button
                         type="button"
@@ -130,7 +133,7 @@ const scheduleTableRows = computed<TableRow[]>(() =>
                         :class="scheduleView === 'table' ? 'bg-primary text-primary-foreground' : 'bg-card'"
                         @click="scheduleView = 'table'"
                     >
-                        Tabel
+                        {{ t('Tabel') }}
                     </button>
                 </div>
             </div>
@@ -140,20 +143,20 @@ const scheduleTableRows = computed<TableRow[]>(() =>
                 :schedules="displayedSchedules"
                 :can-manage="props.canManageSchedule"
                 :show-management-hint="false"
-                :title="props.title"
-                :subtitle="props.subtitle"
+                :title="t(props.title)"
+                :subtitle="t(props.subtitle)"
             />
 
             <DataTable
                 v-if="props.canManageSchedule && scheduleView === 'table'"
-                :title="props.title"
-                :description="props.subtitle"
+                :title="t(props.title)"
+                :description="t(props.subtitle)"
                 :columns="scheduleColumns"
                 :rows="scheduleTableRows"
                 searchable
                 filterable
-                search-placeholder="Cari jadwal, kelas, pelatih, anak, atau atlet"
-                empty-text="Belum ada jadwal latihan."
+                :search-placeholder="t('Cari jadwal, kelas, pelatih, anak, atau atlet')"
+                :empty-text="t('Belum ada jadwal latihan.')"
             />
         </div>
     </AppLayout>

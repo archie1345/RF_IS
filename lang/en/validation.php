@@ -1,0 +1,43 @@
+<?php
+
+return [
+    'required' => 'The :attribute field is required.',
+    'string' => 'The :attribute must be a string.',
+    'integer' => 'The :attribute must be an integer.',
+    'numeric' => 'The :attribute must be a number.',
+    'email' => 'The :attribute must be a valid email address.',
+    'date' => 'The :attribute must be a valid date.',
+    'date_format' => 'The :attribute must match the format :format.',
+    'in' => 'The selected :attribute is invalid.',
+    'exists' => 'The selected :attribute is invalid.',
+    'unique' => 'The :attribute has already been taken.',
+    'confirmed' => 'The :attribute confirmation does not match.',
+    'min' => [
+        'numeric' => 'The :attribute must be at least :min.',
+        'string' => 'The :attribute must be at least :min characters.',
+        'array' => 'The :attribute must have at least :min items.',
+        'file' => 'The :attribute must be at least :min kilobytes.',
+    ],
+    'max' => [
+        'numeric' => 'The :attribute may not be greater than :max.',
+        'string' => 'The :attribute may not be greater than :max characters.',
+        'array' => 'The :attribute may not have more than :max items.',
+        'file' => 'The :attribute may not be greater than :max kilobytes.',
+    ],
+    'attributes' => [
+        'name' => 'name',
+        'email' => 'email',
+        'password' => 'password',
+        'title' => 'title',
+        'message' => 'message',
+        'status' => 'status',
+        'amount' => 'amount',
+        'date' => 'date',
+        'start_time' => 'start time',
+        'end_time' => 'end time',
+        'branch_id' => 'branch',
+        'group_id' => 'group',
+        'athlete_id' => 'athlete',
+        'coach_id' => 'coach',
+    ],
+];

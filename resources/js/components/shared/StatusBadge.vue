@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/composables/useI18n';
 import type { StatusTone } from '@/types/resource-table';
 
 const props = withDefaults(
@@ -12,6 +13,7 @@ const props = withDefaults(
         tone: 'neutral',
     },
 );
+const { t } = useI18n();
 
 const toneClasses = {
     neutral:
@@ -26,6 +28,6 @@ const toneClasses = {
 
 <template>
     <Badge variant="outline" :class="cn('rounded-full px-2.5 py-1 font-medium', toneClasses[props.tone])">
-        {{ props.label }}
+        {{ t(props.label) }}
     </Badge>
 </template>

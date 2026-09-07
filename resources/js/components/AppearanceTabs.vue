@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Monitor, Moon, Sun } from '@lucide/vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useI18n } from '@/composables/useI18n';
 
 const { appearance, updateAppearance } = useAppearance();
+const { t } = useI18n();
 
 const tabs = [
     { value: 'light', Icon: Sun, label: 'Light' },
@@ -25,7 +27,7 @@ const tabs = [
             ]"
         >
             <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
+            <span class="ml-1.5 text-sm">{{ t(label) }}</span>
         </button>
     </div>
 </template>

@@ -27,6 +27,7 @@ class PaymentRowPresenter
         return [
             'id' => 'PAY-'.$payment->payment_id,
             'payment_id' => $payment->payment_id,
+            'payment_uuid' => $payment->uuid,
             'invoice_number' => $payment->invoice_number ?: 'INV-'.$payment->payment_id,
             'athlete_id' => $payment->athlete_id,
             'athlete_user_id' => $payment->athlete?->id,

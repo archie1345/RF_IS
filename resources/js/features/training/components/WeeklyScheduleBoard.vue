@@ -3,6 +3,7 @@ import { CalendarDays, Clock3, Crown, Info, MapPin, RefreshCcw, UserRound } from
 import { computed, ref } from 'vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import LeafletLocationMap from '@/components/shared/LeafletLocationMap.vue';
+import { useI18n } from '@/composables/useI18n';
 import type { WeeklyScheduleCard } from '@/types/training';
 
 const props = withDefaults(
@@ -27,6 +28,7 @@ const emit = defineEmits<{
     refresh: [];
 }>();
 
+const { t } = useI18n();
 const selectedSchedule = ref<WeeklyScheduleCard | null>(null);
 
 const days = [
@@ -55,15 +57,15 @@ const schedulesByDay = computed(() => {
 const branchLabel = computed(() => {
     const branches = [...new Set(props.schedules.map((schedule) => schedule.branch).filter(Boolean))];
     if (branches.length === 1) return branches[0];
-    if (branches.length > 1) return 'Multiple Dojang';
-    return 'Rhino Fighter';
+    if (branches.length > 1) return t('Multiple Dojang');
+    return t('Rhino Fighter');
 });
 
 function typeLabel(schedule: WeeklyScheduleCard): string {
-    return (schedule.session_type || schedule.class_type || schedule.group || 'Reguler')
+    const type = (schedule.session_type || schedule.class_type || schedule.group || 'Reguler')
         .toString()
-        .replace(/_/g, ' ')
-        .toUpperCase();
+        .replace(/_/g, ' ');
+    return t(type).toUpperCase();
 }
 
 function typeTone(schedule: WeeklyScheduleCard): string {
@@ -90,11 +92,11 @@ function openSchedule(schedule: WeeklyScheduleCard) {
     <section class="rounded-2xl border border-border bg-background p-4 text-foreground shadow-sm md:p-6">
         <div class="mb-7 grid gap-4 xl:grid-cols-[1fr_auto] xl:items-start">
             <div>
-                <h2 class="text-3xl font-black tracking-tight text-foreground">{{ title }}</h2>
+                <h2 class="text-3xl font-black tracking-tight text-foreground">{{ t(title) }}</h2>
                 <p class="mt-1 text-xs font-black text-red-500 uppercase dark:text-red-400">
                     DOJANG: {{ branchLabel }}
                 </p>
-                <p class="mt-1 text-sm font-medium text-muted-foreground">{{ subtitle }}</p>
+                <p class="mt-1 text-sm font-medium text-muted-foreground">{{ t(subtitle) }}</p>
             </div>
             <div class="flex justify-start gap-3 xl:justify-end">
                 <button
@@ -109,7 +111,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                     class="flex min-h-12 items-center gap-3 rounded-xl border border-border bg-card px-4 text-sm font-black text-muted-foreground uppercase shadow-sm"
                 >
                     <Info class="size-5 text-muted-foreground" />
-                    Atur jadwal di menu Master Data &gt; Kelas
+                    {{ t('Atur jadwal di menu Master Data > Kelas') }}
                 </div>
             </div>
         </div>
@@ -124,7 +126,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                             : 'border-border bg-card text-card-foreground'
                     "
                 >
-                    <p class="text-xl leading-none font-black">{{ day.name }}</p>
+                    <p class="text-xl leading-none font-black">{{ t(day.name) }}</p>
                     <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">
                         {{ day.english }}
                     </p>
@@ -155,7 +157,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                                     {{
                                         schedule.group && schedule.group !== 'All groups'
                                             ? schedule.group
-                                            : 'Sesi terbuka'
+                                            : t('Sesi terbuka')
                                     }}
                                 </p>
                                 <span
@@ -168,7 +170,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                                 <div class="flex min-w-0 gap-3">
                                     <Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-400" />
                                     <div class="min-w-0">
-                                        <p>Waktu</p>
+                                        <p>{{ t('Waktu') }}</p>
                                         <p class="truncate text-sm text-card-foreground">
                                             {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
                                         </p>
@@ -177,7 +179,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                                 <div class="flex min-w-0 gap-3">
                                     <MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
                                     <div class="min-w-0">
-                                        <p>Lokasi</p>
+                                        <p>{{ t('Lokasi') }}</p>
                                         <p class="truncate text-sm text-card-foreground normal-case">
                                             {{ schedule.location || schedule.branch || 'Rhino Fighter' }}
                                         </p>
@@ -186,7 +188,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                                 <div v-if="participantLabel(schedule)" class="flex min-w-0 gap-3">
                                     <UserRound class="mt-0.5 size-4 shrink-0 text-violet-500 dark:text-violet-400" />
                                     <div class="min-w-0">
-                                        <p>Atlet / Anak</p>
+                                        <p>{{ t('Atlet / Anak') }}</p>
                                         <p class="text-sm break-words text-card-foreground normal-case">
                                             {{ participantLabel(schedule) }}
                                         </p>
@@ -199,7 +201,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                         v-else
                         class="flex h-full min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase"
                     >
-                        <CalendarDays class="mb-3 size-8 opacity-70" />Libur
+                        <CalendarDays class="mb-3 size-8 opacity-70" />{{ t('Libur') }}
                     </div>
                 </div>
             </section>
@@ -216,7 +218,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                         : 'border-border bg-card text-card-foreground'
                 "
             >
-                <p class="text-xl leading-none font-black">{{ day.name }}</p>
+                <p class="text-xl leading-none font-black">{{ t(day.name) }}</p>
                 <p class="mt-1 text-xs" :class="day.id === todayDay ? 'text-white/90' : 'text-muted-foreground'">
                     {{ day.english }}
                 </p>
@@ -246,7 +248,9 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                             </h3>
                             <p class="mt-1 truncate text-xs font-semibold text-muted-foreground">
                                 {{
-                                    schedule.group && schedule.group !== 'All groups' ? schedule.group : 'Sesi terbuka'
+                                    schedule.group && schedule.group !== 'All groups'
+                                        ? schedule.group
+                                        : t('Sesi terbuka')
                                 }}
                             </p>
                             <span
@@ -259,7 +263,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                             <div class="flex min-w-0 gap-3">
                                 <Clock3 class="mt-0.5 size-4 shrink-0 text-blue-500 dark:text-blue-400" />
                                 <div class="min-w-0">
-                                    <p>Waktu</p>
+                                    <p>{{ t('Waktu') }}</p>
                                     <p class="truncate text-sm text-card-foreground">
                                         {{ schedule.start_time || '--:--' }} - {{ schedule.end_time || '--:--' }}
                                     </p>
@@ -268,7 +272,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                             <div class="flex min-w-0 gap-3">
                                 <MapPin class="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
                                 <div class="min-w-0">
-                                    <p>Lokasi</p>
+                                    <p>{{ t('Lokasi') }}</p>
                                     <p class="truncate text-sm text-card-foreground normal-case">
                                         {{ schedule.location || schedule.branch || 'Rhino Fighter' }}
                                     </p>
@@ -277,7 +281,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                             <div v-if="participantLabel(schedule)" class="flex min-w-0 gap-3">
                                 <UserRound class="mt-0.5 size-4 shrink-0 text-violet-500 dark:text-violet-400" />
                                 <div class="min-w-0">
-                                    <p>Atlet / Anak</p>
+                                    <p>{{ t('Atlet / Anak') }}</p>
                                     <p class="text-sm break-words text-card-foreground normal-case">
                                         {{ participantLabel(schedule) }}
                                     </p>
@@ -290,7 +294,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                     v-else
                     class="flex h-full min-h-[240px] flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 text-xs font-black text-muted-foreground uppercase"
                 >
-                    <CalendarDays class="mb-3 size-8 opacity-70" />Libur
+                    <CalendarDays class="mb-3 size-8 opacity-70" />{{ t('Libur') }}
                 </div>
             </div>
         </div>
@@ -298,7 +302,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
         <FormModal :open="Boolean(selectedSchedule)" max-width-class="max-w-3xl" @close="selectedSchedule = null">
             <section v-if="selectedSchedule" class="grid gap-4">
                 <div>
-                    <p class="text-xs font-black tracking-wide text-red-500 uppercase">Detail Jadwal</p>
+                    <p class="text-xs font-black tracking-wide text-red-500 uppercase">{{ t('Detail Jadwal') }}</p>
                     <h2 class="text-2xl font-black">{{ selectedSchedule.title }}</h2>
                     <p class="text-sm text-muted-foreground">
                         {{ selectedSchedule.day_label }} · {{ selectedSchedule.start_time }} -
@@ -307,15 +311,26 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                 </div>
 
                 <div class="grid gap-3 rounded-xl border bg-muted/30 p-4 text-sm">
-                    <p><span class="font-black">Tipe:</span> {{ typeLabel(selectedSchedule) }}</p>
-                    <p><span class="font-black">Kelas:</span> {{ selectedSchedule.group || 'Sesi terbuka' }}</p>
-                    <p v-if="participantLabel(selectedSchedule)">
-                        <span class="font-black">Atlet / Anak:</span> {{ participantLabel(selectedSchedule) }}
-                    </p>
-                    <p><span class="font-black">Minimal sabuk:</span> {{ selectedSchedule.min_belt_label || '-' }}</p>
-                    <p><span class="font-black">Coach:</span> {{ selectedSchedule.coach || '-' }}</p>
                     <p>
-                        <span class="font-black">Lokasi:</span>
+                        <span class="font-black">{{ t('Tipe') }}:</span> {{ typeLabel(selectedSchedule) }}
+                    </p>
+                    <p>
+                        <span class="font-black">{{ t('Kelas') }}:</span>
+                        {{ selectedSchedule.group || t('Sesi terbuka') }}
+                    </p>
+                    <p v-if="participantLabel(selectedSchedule)">
+                        <span class="font-black">{{ t('Atlet / Anak') }}:</span>
+                        {{ participantLabel(selectedSchedule) }}
+                    </p>
+                    <p>
+                        <span class="font-black">{{ t('Minimal sabuk') }}:</span>
+                        {{ selectedSchedule.min_belt_label || '-' }}
+                    </p>
+                    <p>
+                        <span class="font-black">{{ t('Coach') }}:</span> {{ selectedSchedule.coach || '-' }}
+                    </p>
+                    <p>
+                        <span class="font-black">{{ t('Lokasi') }}:</span>
                         {{ selectedSchedule.location || selectedSchedule.branch || '-' }}
                     </p>
                 </div>
@@ -330,7 +345,7 @@ function openSchedule(schedule: WeeklyScheduleCard) {
                     v-else
                     class="rounded-xl border border-dashed p-6 text-center text-sm font-semibold text-muted-foreground"
                 >
-                    Koordinat lokasi belum diisi.
+                    {{ t('Koordinat lokasi belum diisi.') }}
                 </div>
             </section>
         </FormModal>

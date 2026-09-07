@@ -39,11 +39,6 @@ class ChampionshipPageController extends Controller
             'isAdmin' => $role === 'admin',
             'isAthlete' => $role === 'athlete',
             'canRegister' => in_array($role, ['admin', 'parent', 'athlete'], true),
-            'metrics' => [
-                ['label' => 'Pendaftaran dibuka', 'value' => (string) $events->filter(fn (Event $event): bool => $this->registrationIsOpen($event))->count(), 'detail' => 'Kejuaraan yang masih menerima peserta', 'tone' => 'warning'],
-                ['label' => 'Entri terlihat', 'value' => (string) $registrations->count(), 'detail' => 'Pendaftaran dalam konteks peran aktif', 'tone' => 'info'],
-                ['label' => 'Entri terkonfirmasi', 'value' => (string) $registrations->where('status', 'CONFIRMED')->count(), 'detail' => 'Pendaftaran yang sudah dikonfirmasi', 'tone' => 'success'],
-            ],
             'rows' => $events->map(function (Event $event) use ($myRegistrations, $role): array {
                 /** @var EventRegistration|null $myRegistration */
                 $myRegistration = $myRegistrations->get((string) $event->event_id);
@@ -53,6 +48,7 @@ class ChampionshipPageController extends Controller
                 return [
                     'id' => 'EVT-'.$event->event_id,
                     'event_id' => $event->event_id,
+                    'event_uuid' => $event->uuid,
                     'event' => $event->e_name,
                     'date' => optional($event->e_date)->format('d M Y') ?? '-',
                     'date_value' => optional($event->e_date)->format('Y-m-d') ?? '',
@@ -70,6 +66,7 @@ class ChampionshipPageController extends Controller
                     'slots' => $event->registrations_count.' / '.$event->max_slots.' atlet',
                     'my_registration' => $myRegistration ? [
                         'registration_id' => $myRegistration->evrid,
+                        'registration_uuid' => $myRegistration->uuid,
                         'category' => $myRegistration->category,
                         'classification' => $myRegistration->classification ?? '',
                         'class_name' => $myRegistration->class_name ?? '',

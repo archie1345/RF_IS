@@ -10,7 +10,7 @@ import { destroy as destroySessionQr, store as storeSessionQr } from '@/routes/s
 import type { PagePropsWithQrFlash } from './SessionAttendanceQrPanel.types';
 
 const props = defineProps<{
-    sessionId: number;
+    sessionId: string;
     qr: {
         is_active: boolean;
         scan_url?: string | null;

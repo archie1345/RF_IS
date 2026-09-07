@@ -4,7 +4,7 @@ export type SelectOption = {
 };
 
 export type Child = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     gender?: string;

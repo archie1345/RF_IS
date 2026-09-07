@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ChevronDown, ChevronUp, ExternalLink, PencilLine, Search } from '@lucide/vue';
+import { ExternalLink, PencilLine, Search } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
@@ -17,7 +17,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { TableColumn, TableRow } from '@/types/resource-table';
 
 type HistoricalRegistration = {
-    id: number;
+    id: string;
     athlete: string;
     classification: string;
     entry_category: string;
@@ -33,7 +33,7 @@ type HistoricalRegistration = {
 };
 
 type HistoricalEvent = {
-    id: number;
+    id: string;
     name: string;
     date: string;
     date_raw: string;
@@ -56,7 +56,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const search = ref('');
-const expandedEventIds = ref<number[]>([]);
+const expandedEventIds = ref<Array<number | string>>([]);
 const showResultForm = ref(false);
 const activeEvent = ref<HistoricalEvent | null>(null);
 const activeRegistration = ref<HistoricalRegistration | null>(null);

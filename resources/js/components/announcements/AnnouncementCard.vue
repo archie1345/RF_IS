@@ -2,6 +2,7 @@
 import { CalendarDays, Megaphone, Pencil, Trash2, UserRound, UsersRound } from '@lucide/vue';
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/composables/useI18n';
 import type { TableBadgeCell, TableRow } from '@/types/resource-table';
 
 const props = withDefaults(
@@ -21,10 +22,12 @@ const emit = defineEmits<{
     remove: [announcement: TableRow];
 }>();
 
-const title = computed(() => String(props.announcement.title ?? 'Tanpa judul'));
-const message = computed(() => String(props.announcement.message ?? ''));
+const { t } = useI18n();
+
+const title = computed(() => t(String(props.announcement.title ?? 'Tanpa judul')));
+const message = computed(() => t(String(props.announcement.message ?? '')));
 const audience = computed(() => String(props.announcement.target ?? props.announcement.audience ?? 'Semua pengguna'));
-const author = computed(() => String(props.announcement.author ?? 'Sistem'));
+const author = computed(() => t(String(props.announcement.author ?? 'Sistem')));
 const published = computed(() => String(props.announcement.published ?? '-'));
 const status = computed(() => {
     const value = props.announcement.status;
@@ -66,7 +69,7 @@ const statusClass = computed(
                         {{ title }}
                     </h2>
                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusClass">
-                        {{ status.text }}
+                        {{ t(String(status.text)) }}
                     </span>
                 </div>
 
@@ -79,7 +82,7 @@ const statusClass = computed(
 
                 <div class="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
                     <span class="inline-flex items-center gap-1.5">
-                        <UsersRound class="size-3.5" />{{ audience }}
+                        <UsersRound class="size-3.5" />{{ t(audience) }}
                     </span>
                     <span class="inline-flex items-center gap-1.5">
                         <CalendarDays class="size-3.5" />{{ published }}
@@ -93,10 +96,10 @@ const statusClass = computed(
 
         <div v-if="props.editable && !props.compact" class="mt-5 flex flex-wrap justify-end gap-2 border-t pt-4">
             <Button type="button" size="sm" variant="outline" @click="emit('edit', props.announcement)">
-                <Pencil class="mr-2 size-4" />Ubah
+                <Pencil class="mr-2 size-4" />{{ t('Ubah') }}
             </Button>
             <Button type="button" size="sm" variant="destructive" @click="emit('remove', props.announcement)">
-                <Trash2 class="mr-2 size-4" />Hapus
+                <Trash2 class="mr-2 size-4" />{{ t('Hapus') }}
             </Button>
         </div>
     </article>

@@ -1,7 +1,8 @@
 export type SelectOption = { value: number | string; label: string };
 
 export type LocationRecord = {
-    id: number;
+    id: string;
+    uuid: string;
     name: string;
     location?: string | null;
     address?: string | null;
@@ -26,7 +27,7 @@ export type ClassAthleteRecord = {
 };
 
 export type ClassSessionRecord = {
-    id: number;
+    id: string;
     title: string;
     date: string;
     time: string;
@@ -40,7 +41,8 @@ export type ClassSessionRecord = {
 export type ClassScheduleMode = 'weekly' | 'one_day';
 
 export type ClassRecord = {
-    id: number;
+    id: string;
+    uuid: string;
     name: string;
     training_group_id?: number | string | null;
     training_group?: string | null;
@@ -75,7 +77,7 @@ export type ClassRecord = {
 };
 
 export type WeeklySchedule = {
-    id: number;
+    id: string;
     title: string;
     branch_id?: number | null;
     branch?: string | null;

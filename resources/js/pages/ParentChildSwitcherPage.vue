@@ -12,7 +12,7 @@ import type { BreadcrumbItem } from '@/types';
 const props = defineProps<{
     children: Array<{
         athlete_id: string;
-        user_id: number;
+        user_id: string;
         name: string;
         email: string;
         branch: string;

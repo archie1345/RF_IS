@@ -42,8 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             NormalizeChampionshipRegistrationInput::class,
             HandleAppearance::class,
-            HandleInertiaRequests::class,
             \App\Http\Middleware\SetLocale::class,
+            HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 

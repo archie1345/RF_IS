@@ -100,12 +100,6 @@ class DashboardController extends Controller
                 ->count();
 
             return [
-                [
-                    'label' => 'Payroll '.$monthStart->translatedFormat('F'),
-                    'value' => $payrollCount > 0 ? (string) $payrollCount : 'Belum dibuat',
-                    'detail' => $payrollCount > 0 ? 'Slip payroll sudah diterbitkan bulan ini' : 'Buka Payroll Pelatih dan buat bukti pembayaran bulan ini',
-                    'tone' => $payrollCount > 0 ? 'success' : 'danger',
-                ],
                 ['label' => 'Atlet aktif', 'value' => (string) Athlete::query()->count(), 'detail' => 'Roster atlet klub', 'tone' => 'success'],
                 ['label' => 'Pelatih aktif', 'value' => (string) Coach::query()->where('status', 'active')->count(), 'detail' => 'Profil pelatih aktif', 'tone' => 'info'],
                 ['label' => 'Tagihan terbuka', 'value' => $this->rupiah($outstandingBalance), 'detail' => 'Saldo yang belum diselesaikan', 'tone' => 'warning'],

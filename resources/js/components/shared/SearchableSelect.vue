@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { useI18n } from '@/composables/useI18n';
 import type { SelectValue, SelectOption } from './SearchableSelect.types';
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 
 const isOpen = ref(false);
 const search = ref('');
+const { t } = useI18n();
 
 const selectedOption = computed(() =>
     props.options.find((option) => String(option.value) === String(props.modelValue)),
@@ -65,7 +67,7 @@ function clearSelection() {
             @click="isOpen = true"
         >
             <span class="truncate text-left">
-                {{ selectedOption?.label ?? placeholder ?? 'Select option' }}
+                {{ t(selectedOption?.label ?? placeholder ?? 'Select option') }}
             </span>
             <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-60" />
         </Button>
@@ -75,9 +77,9 @@ function clearSelection() {
                 class="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl border-border/70 p-4 sm:max-w-2xl sm:p-6"
             >
                 <DialogHeader>
-                    <DialogTitle>{{ title ?? 'Select option' }}</DialogTitle>
+                    <DialogTitle>{{ t(title ?? 'Select option') }}</DialogTitle>
                     <DialogDescription>
-                        {{ description ?? 'Search and choose from the available options.' }}
+                        {{ t(description ?? 'Search and choose from the available options.') }}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -86,7 +88,7 @@ function clearSelection() {
                         <Search
                             class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                         />
-                        <Input v-model="search" class="pl-9" :placeholder="searchPlaceholder ?? 'Search options'" />
+                        <Input v-model="search" class="pl-9" :placeholder="t(searchPlaceholder ?? 'Search options')" />
                     </div>
 
                     <div class="rounded-xl border border-border/70 bg-card">
@@ -111,13 +113,13 @@ function clearSelection() {
                         </div>
 
                         <div v-else class="px-4 py-8 text-center text-sm text-muted-foreground">
-                            {{ emptyText ?? 'No matching options found.' }}
+                            {{ t(emptyText ?? 'No matching options found.') }}
                         </div>
                     </div>
 
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <p class="text-sm text-muted-foreground">
-                            {{ filteredOptions.length }} option{{ filteredOptions.length === 1 ? '' : 's' }}
+                            {{ filteredOptions.length }} {{ filteredOptions.length === 1 ? t('option') : t('options') }}
                         </p>
                         <Button
                             v-if="modelValue !== '' && modelValue !== null"
@@ -125,7 +127,7 @@ function clearSelection() {
                             variant="outline"
                             @click="clearSelection"
                         >
-                            Clear
+                            {{ t('Clear') }}
                         </Button>
                     </div>
                 </div>

@@ -11,7 +11,6 @@ import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { routeId } from '@/lib/routeIds';
 import { dashboard } from '@/routes';
 import {
     destroy as announcementDestroy,
@@ -27,6 +26,7 @@ const popup = useAppPopup();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
+    { title: 'Pusat Informasi', href: announcementsIndex.url() },
     { title: 'Pengumuman', href: announcementsIndex.url() },
 ];
 
@@ -45,7 +45,7 @@ const activeOptions = [
 
 const searchQuery = ref('');
 const showForm = ref(false);
-const editingId = ref<number | null>(null);
+const editingId = ref<string | null>(null);
 const form = useForm({
     title: '',
     message: '',
@@ -78,27 +78,6 @@ const filteredRows = computed(() => {
     );
 });
 
-const metrics = computed(() => [
-    {
-        label: 'Total pengumuman',
-        value: String(props.rows.length),
-        detail: props.isAdmin ? 'Semua pengumuman yang tersimpan' : 'Pengumuman yang tersedia untuk peran ini',
-        tone: 'info' as const,
-    },
-    {
-        label: 'Sedang diterbitkan',
-        value: String(props.rows.filter((row) => statusText(row) === 'Diterbitkan').length),
-        detail: 'Aktif dan berada dalam periode publikasi',
-        tone: 'success' as const,
-    },
-    {
-        label: 'Terjadwal',
-        value: String(props.rows.filter((row) => statusText(row) === 'Terjadwal').length),
-        detail: props.isAdmin ? 'Akan terbit otomatis sesuai jadwal' : 'Belum tersedia untuk akun ini',
-        tone: 'neutral' as const,
-    },
-]);
-
 function resetForm(): void {
     form.reset();
     form.clearErrors();
@@ -113,7 +92,7 @@ function openCreate(): void {
 }
 
 function openEdit(row: TableRow): void {
-    const id = routeId(row.announcement_id ?? row.id);
+    const id = row.announcement_uuid ? String(row.announcement_uuid) : null;
     if (id === null) return;
 
     form.clearErrors();
@@ -152,7 +131,7 @@ function submit(): void {
 }
 
 async function removeAnnouncement(row: TableRow): Promise<void> {
-    const id = routeId(row.announcement_id ?? row.id);
+    const id = row.announcement_uuid ? String(row.announcement_uuid) : null;
     if (id === null) return;
 
     const confirmed = await popup.confirm({
@@ -181,10 +160,6 @@ async function removeAnnouncement(row: TableRow): Promise<void> {
                         <Megaphone class="mr-2 size-4" />Buat pengumuman
                     </Button>
                 </template>
-
-                <div class="grid gap-4 md:grid-cols-3">
-                    <StatCard v-for="metric in metrics" :key="metric.label" v-bind="metric" />
-                </div>
             </PageSection>
 
             <PageSection

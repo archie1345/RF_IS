@@ -1,7 +1,7 @@
 import type { AppRole } from '@/types/resource-table';
 
 export type User = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     /** Compatibility alias for the currently selected role. */
@@ -19,7 +19,8 @@ export type User = {
 
 export type ParentChild = {
     athlete_id: string;
-    user_id: number;
+    user_id: string;
+    user_uuid?: string;
     name: string;
 };
 

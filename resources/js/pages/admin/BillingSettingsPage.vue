@@ -14,7 +14,8 @@ import type { BreadcrumbItem } from '@/types';
 import type { Metric, SelectOption } from '@/types/resource-table';
 
 type BillingRuleRecord = {
-    id: number;
+    id: string;
+    uuid: string;
     name: string;
     charge_kind: 'MONTHLY' | 'ONE_TIME';
     payment_type: string;
@@ -47,14 +48,14 @@ const props = defineProps<{
 
 const popup = useAppPopup();
 const ruleModalOpen = ref(false);
-const editingRuleId = ref<number | null>(null);
+const editingRuleId = ref<string | null>(null);
 const ruleHasNoEndDate = ref(true);
 const issueModalOpen = ref(false);
 const issuingRule = ref<BillingRuleRecord | null>(null);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: '/dashboard' },
-    { title: 'Keuangan', href: '/payments' },
+    { title: 'Keuangan & Bayar', href: '/payments' },
     { title: 'Aturan Tagihan', href: '/admin/billing-settings' },
 ];
 
@@ -196,7 +197,7 @@ function openCreateRule(): void {
 }
 
 function openEditRule(rule: BillingRuleRecord): void {
-    editingRuleId.value = rule.id;
+    editingRuleId.value = rule.uuid;
     ruleForm.name = rule.name;
     ruleForm.charge_kind = rule.charge_kind;
     ruleForm.payment_type = rule.payment_type;
@@ -303,7 +304,7 @@ function issueOneTimeCharge(): void {
                 </template>
             </PageSection>
 
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="grid gap-3 sm:grid-cols-2">
                 <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
             </div>
 

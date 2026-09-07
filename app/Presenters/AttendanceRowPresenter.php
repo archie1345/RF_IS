@@ -25,7 +25,7 @@ class AttendanceRowPresenter
             'status_value' => $record->status,
             'athlete' => $record->athlete?->user?->name ?? 'Unknown athlete',
             'session' => $record->trainingSession?->title ?? 'General attendance',
-            'session_href' => $record->trainingSession ? route('sessions.attendance', $record->trainingSession->training_session_id) : '',
+            'session_href' => $record->trainingSession ? route('sessions.attendance', $record->trainingSession->uuid) : '',
             'is_locked' => $isLocked,
             'can_update' => ! $isLocked && $this->attendanceVisibility->userCanUpdate($user, $record),
             'coach' => $record->trainingSession?->primaryCoach?->user?->name ?? 'Unassigned',

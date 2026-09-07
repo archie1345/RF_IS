@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { AlertTriangle, Download, MessageCircle, PencilLine, Trash2, WalletCards } from '@lucide/vue';
+import { Download, MessageCircle, PencilLine, Trash2 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import FormFileField from '@/components/forms/FormFileField.vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import PaymentTransactionHistory from '@/features/payments/components/PaymentTransactionHistory.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { BreadcrumbItem } from '@/types';
+import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
+import type { PaymentHistoryEntry } from './PaymentsPage.types';
 import { dashboard } from '@/routes';
 import {
     destroy as paymentDestroy,
@@ -22,9 +25,6 @@ import {
     update as paymentUpdate,
 } from '@/routes/payments';
 import { review as paymentProofReview, submit as paymentProofSubmit } from '@/routes/payments/proof';
-import type { BreadcrumbItem } from '@/types';
-import type { Metric, SelectOption, TableColumn, TableFilter, TableRow } from '@/types/resource-table';
-import type { PaymentHistoryEntry } from './PaymentsPage.types';
 
 const props = withDefaults(
     defineProps<{
@@ -73,14 +73,15 @@ const popup = useAppPopup();
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Keuangan & Bayar', href: paymentsIndex.url() },
+    { title: 'Daftar Tagihan', href: paymentsIndex.url() },
 ];
 
 const invoiceTemplateModalOpen = ref(false);
 const showPaymentForm = ref(false);
-const editingPaymentId = ref<number | null>(null);
+const editingPaymentId = ref<string | null>(null);
 const editingPaymentRow = ref<TableRow | null>(null);
 const showProofForm = ref(false);
-const proofPaymentId = ref<number | null>(null);
+const proofPaymentId = ref<string | null>(null);
 const showReviewForm = ref(false);
 const reviewPaymentRow = ref<TableRow | null>(null);
 const showManualPaymentForm = ref(false);
@@ -193,9 +194,9 @@ function defaultDueDate() {
     return date.toISOString().slice(0, 10);
 }
 
-function paymentRouteId(value: unknown): number | null {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function paymentRouteKey(row: TableRow | null | undefined): string | null {
+    const uuid = row?.payment_uuid;
+    return uuid ? String(uuid) : null;
 }
 
 const form = useForm({
@@ -244,7 +245,7 @@ const invoiceTemplateForm = useForm({
 });
 
 const activeProofRow = computed(
-    () => props.rows.find((row) => Number(row.payment_id) === proofPaymentId.value) ?? null,
+    () => props.rows.find((row) => String(row.payment_uuid ?? '') === proofPaymentId.value) ?? null,
 );
 const identityLocked = computed(() => Number(editingPaymentRow.value?.transaction_count ?? 0) > 0);
 
@@ -312,8 +313,8 @@ function submit() {
     form.post(paymentStore.url(), options);
 }
 
-function exportInvoice(paymentId: unknown) {
-    const id = paymentRouteId(paymentId);
+function exportInvoice(row: TableRow) {
+    const id = paymentRouteKey(row);
     if (!id) return;
     window.open(`/payments/${id}/export`, '_blank');
 }
@@ -337,10 +338,11 @@ function openCreate() {
 }
 
 function editPayment(row: TableRow) {
-    const id = paymentRouteId(row.payment_id);
+    const id = paymentRouteKey(row);
     if (!id) return;
 
-    editingPaymentId.value = id;
+    editingPaymentId.value = paymentRouteKey(row);
+    if (!editingPaymentId.value) return;
     editingPaymentRow.value = row;
     form.athlete_id = String(row.athlete_id ?? '');
     form.billable_user_id = String(row.billable_user_id ?? row.athlete_user_id ?? '');
@@ -358,7 +360,7 @@ function editPayment(row: TableRow) {
 }
 
 async function deletePayment(row: TableRow): Promise<boolean> {
-    const id = paymentRouteId(row.payment_id);
+    const id = paymentRouteKey(row);
     if (!id || row.can_delete !== true) return false;
 
     const confirmed = await popup.confirm({
@@ -392,7 +394,7 @@ function saveInvoiceTemplate() {
 }
 
 function openProofForm(row: TableRow) {
-    const id = paymentRouteId(row.payment_id);
+    const id = paymentRouteKey(row);
     if (!id) return;
 
     proofPaymentId.value = id;
@@ -423,7 +425,7 @@ function openReviewModal(row: TableRow) {
 
 async function submitReview(decision: 'APPROVED' | 'REJECTED'): Promise<void> {
     if (!reviewPaymentRow.value) return;
-    const id = paymentRouteId(reviewPaymentRow.value.payment_id);
+    const id = paymentRouteKey(reviewPaymentRow.value);
     if (!id) return;
 
     reviewForm.decision = decision;
@@ -460,7 +462,7 @@ function openManualPayment(row: TableRow) {
 
 function submitManualPayment() {
     if (!manualPaymentRow.value) return;
-    const id = paymentRouteId(manualPaymentRow.value.payment_id);
+    const id = paymentRouteKey(manualPaymentRow.value);
     if (!id) return;
 
     manualPaymentForm.post(`/payments/${id}/transactions`, {
@@ -500,7 +502,7 @@ function submitManualPayment() {
                     </div>
                 </template>
 
-                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div class="grid gap-4 md:grid-cols-2">
                     <StatCard v-for="metric in props.metrics" :key="metric.label" v-bind="metric" />
                 </div>
             </PageSection>
@@ -522,7 +524,7 @@ function submitManualPayment() {
                             size="sm"
                             variant="outline"
                             title="Download invoice"
-                            @click="exportInvoice(row.payment_id)"
+    @click="exportInvoice(row)"
                         >
                             <Download class="size-4" />
                         </Button>

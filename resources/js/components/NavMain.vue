@@ -10,6 +10,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
+import { useI18n } from '@/composables/useI18n';
 import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
@@ -28,6 +29,7 @@ const props = withDefaults(
 
 const page = usePage<{ auth: Auth }>();
 const { isCurrentUrl } = useCurrentUrl();
+const { t } = useI18n();
 const switchingHref = ref<string | null>(null);
 
 const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
@@ -76,7 +78,7 @@ function openDestination(event: MouseEvent, item: NavItem): void {
 
 <template>
     <SidebarGroup v-for="section in visibleSections" :key="section.label" class="px-2 py-1">
-        <SidebarGroupLabel>{{ section.label }}</SidebarGroupLabel>
+        <SidebarGroupLabel>{{ t(section.label) }}</SidebarGroupLabel>
         <SidebarMenu>
             <SidebarMenuItem
                 v-for="item in section.items"
@@ -86,16 +88,13 @@ function openDestination(event: MouseEvent, item: NavItem): void {
                     v-if="item.href"
                     as-child
                     :is-active="isCurrentUrl(item.href)"
-                    :tooltip="item.title"
+                    :tooltip="t(item.title)"
                     :aria-busy="switchingHref === hrefText(item.href)"
                 >
                     <Link :href="item.href" @click="openDestination($event, item)">
-                        <LoaderCircle
-                            v-if="switchingHref === hrefText(item.href)"
-                            class="animate-spin"
-                        />
+                        <LoaderCircle v-if="switchingHref === hrefText(item.href)" class="animate-spin" />
                         <component :is="item.icon" v-else-if="item.icon" />
-                        <span>{{ item.title }}</span>
+                        <span>{{ t(item.title) }}</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>

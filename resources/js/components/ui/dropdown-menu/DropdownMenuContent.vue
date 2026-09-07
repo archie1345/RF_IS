@@ -19,7 +19,7 @@ const props = withDefaults(
     sideOffset: 4,
   },
 )
-const emits = defineEmits()
+const emits = defineEmits<DropdownMenuContentEmits>()
 
 const delegatedProps = reactiveOmit(props, "class")
 

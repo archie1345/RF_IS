@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
-import {
-    ChevronDown,
-    Menu,
-    Users,
-} from '@lucide/vue';
+import { Menu, Users } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
@@ -19,27 +15,19 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-    NavigationMenu,
-    NavigationMenuContent,
-    NavigationMenuItem,
-    NavigationMenuLink,
-    NavigationMenuList,
-    NavigationMenuTrigger,
-    navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import UserMenuContent from '@/components/UserMenuContent.vue';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { getInitials } from '@/composables/useInitials';
+import { useI18n } from '@/composables/useI18n';
 import { getVisibleSections, navigationSections } from '@/lib/navigation';
 import { routeId } from '@/lib/routeIds';
 import { toUrl } from '@/lib/utils';
-import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 import type { AppRole } from '@/types/resource-table';
 import type { Props } from './AppHeader.types';
+import { dashboard } from '@/routes';
 import { clear as clearChildRoute, switchMethod as switchChildRoute } from '@/routes/parent/children';
 import { show as userShow } from '@/routes/users';
 
@@ -63,11 +51,11 @@ const isChildPickerOpen = ref(false);
 const childSearch = ref('');
 const visibleChildrenCount = ref(12);
 const { whenCurrentUrl } = useCurrentUrl();
+const { t } = useI18n();
 
 const activeItemStyles = 'bg-accent text-accent-foreground';
 
-const rightNavItems: NavItem[] = [
-];
+const rightNavItems: NavItem[] = [];
 
 const filteredChildren = computed(() => {
     const query = childSearch.value.trim().toLowerCase();
@@ -109,7 +97,7 @@ function clearChildContext() {
 function profileUrl(userId: unknown): string {
     const normalizedUserId = routeId(userId);
 
-    return normalizedUserId === null ? '#' : userShow.url(normalizedUserId);
+    return normalizedUserId === null ? '#' : userShow.url(String(normalizedUserId));
 }
 
 function showMoreChildren() {
@@ -120,7 +108,7 @@ function showMoreChildren() {
 <template>
     <div>
         <div class="border-b border-sidebar-border/80">
-            <div class="mx-auto flex h-16 items-center px-4 ">
+            <div class="mx-auto flex h-16 items-center px-4">
                 <!-- Mobile Menu -->
                 <div class="lg:hidden">
                     <Sheet>
@@ -129,15 +117,21 @@ function showMoreChildren() {
                                 <Menu class="h-5 w-5" />
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="left" class="flex flex-col w-[300px] p-6 h-full">
-                            <SheetTitle class="sr-only">Navigation Menu</SheetTitle>
-                            <SheetHeader class="shrink-0 flex justify-start text-left mb-4">
+                        <SheetContent side="left" class="flex h-full w-[300px] flex-col p-6">
+                            <SheetTitle class="sr-only">{{ t('Navigation Menu') }}</SheetTitle>
+                            <SheetHeader class="mb-4 flex shrink-0 justify-start text-left">
                                 <AppLogoIcon class="h-10 w-auto" />
                             </SheetHeader>
-                            <div class="flex-1 flex flex-col justify-between overflow-y-auto overflow-x-hidden scrollbar-none min-h-0 -mx-2 px-2">
+                            <div
+                                class="-mx-2 flex min-h-0 flex-1 scrollbar-none flex-col justify-between overflow-x-hidden overflow-y-auto px-2"
+                            >
                                 <nav class="space-y-4">
                                     <div v-for="section in visibleNavSections" :key="section.label">
-                                        <div class="px-3 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{{ section.label }}</div>
+                                        <div
+                                            class="px-3 pb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                                        >
+                                            {{ t(section.label) }}
+                                        </div>
                                         <div class="space-y-1">
                                             <Link
                                                 v-for="item in section.items"
@@ -147,7 +141,7 @@ function showMoreChildren() {
                                                 :class="whenCurrentUrl(item.href || '#', activeItemStyles)"
                                             >
                                                 <component v-if="item.icon" :is="item.icon" class="size-5 shrink-0" />
-                                                <span class="truncate">{{ item.title }}</span>
+                                                <span class="truncate">{{ t(item.title) }}</span>
                                             </Link>
                                         </div>
                                     </div>
@@ -162,7 +156,7 @@ function showMoreChildren() {
                                         class="flex items-center space-x-2 text-sm font-medium"
                                     >
                                         <component v-if="item.icon" :is="item.icon" class="size-5 shrink-0" />
-                                        <span>{{ item.title }}</span>
+                                        <span>{{ t(item.title) }}</span>
                                     </a>
                                 </div>
                             </div>
@@ -175,7 +169,7 @@ function showMoreChildren() {
                 </Link>
 
                 <!-- Desktop Menu -->
-                <div class="hidden h-full lg:flex lg:flex-1 ml-10">
+                <div class="ml-10 hidden h-full lg:flex lg:flex-1">
                     <nav class="flex h-full items-stretch space-x-2">
                         <div
                             v-for="section in visibleNavSections"
@@ -186,12 +180,14 @@ function showMoreChildren() {
                                 <DropdownMenuTrigger as-child>
                                     <Button
                                         variant="ghost"
-                                        class="h-9 px-3 text-sm font-medium gap-1"
+                                        class="h-9 gap-1 px-3 text-sm font-medium"
                                         :class="{
-                                            'bg-accent text-accent-foreground': section.items.some(item => whenCurrentUrl(item.href || '#', 'yes'))
+                                            'bg-accent text-accent-foreground': section.items.some((item) =>
+                                                whenCurrentUrl(item.href || '#', 'yes'),
+                                            ),
                                         }"
                                     >
-                                        {{ section.label }}
+                                        {{ t(section.label) }}
                                         <ChevronDown class="h-4 w-4 opacity-50" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -201,12 +197,23 @@ function showMoreChildren() {
                                             <DropdownMenuItem as-child class="p-0">
                                                 <Link
                                                     :href="item.href || '#'"
-                                                    class="block w-full min-w-0 select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer"
-                                                    :class="whenCurrentUrl(item.href || '#', 'bg-accent text-accent-foreground')"
+                                                    class="block w-full min-w-0 cursor-pointer space-y-1 rounded-md p-3 leading-none no-underline transition-colors outline-none select-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                                                    :class="
+                                                        whenCurrentUrl(
+                                                            item.href || '#',
+                                                            'bg-accent text-accent-foreground',
+                                                        )
+                                                    "
                                                 >
-                                                    <div class="flex items-center gap-2 text-sm font-medium leading-none overflow-hidden">
-                                                        <component v-if="item.icon" :is="item.icon" class="h-4 w-4 shrink-0" />
-                                                        <span class="truncate">{{ item.title }}</span>
+                                                    <div
+                                                        class="flex items-center gap-2 overflow-hidden text-sm leading-none font-medium"
+                                                    >
+                                                        <component
+                                                            v-if="item.icon"
+                                                            :is="item.icon"
+                                                            class="h-4 w-4 shrink-0"
+                                                        />
+                                                        <span class="truncate">{{ t(item.title) }}</span>
                                                     </div>
                                                 </Link>
                                             </DropdownMenuItem>
@@ -223,8 +230,12 @@ function showMoreChildren() {
                                 :class="whenCurrentUrl(section.items[0].href || '#', activeItemStyles)"
                             >
                                 <Link :href="section.items[0].href || '#'">
-                                    <component v-if="section.items[0].icon" :is="section.items[0].icon" class="mr-2 h-4 w-4" />
-                                    {{ section.label }}
+                                    <component
+                                        v-if="section.items[0].icon"
+                                        :is="section.items[0].icon"
+                                        class="mr-2 h-4 w-4"
+                                    />
+                                    {{ t(section.label) }}
                                 </Link>
                             </Button>
                         </div>
@@ -240,7 +251,7 @@ function showMoreChildren() {
                             @click="isChildPickerOpen = true"
                         >
                             <Users class="size-4" />
-                            {{ activeChild?.name ?? 'Select child' }}
+                            {{ activeChild?.name ?? t('Select child') }}
                         </Button>
                         <Button
                             type="button"
@@ -250,10 +261,10 @@ function showMoreChildren() {
                             @click="isChildPickerOpen = true"
                         >
                             <Users class="size-5" />
-                            <span class="sr-only">Open child picker</span>
+                            <span class="sr-only">{{ t('Open child picker') }}</span>
                         </Button>
                         <Button v-if="activeChild" type="button" variant="outline" size="sm" @click="clearChildContext">
-                            Exit view
+                            {{ t('Exit view') }}
                         </Button>
                         <Button
                             v-if="activeChild?.user_id"
@@ -262,12 +273,13 @@ function showMoreChildren() {
                             size="sm"
                             class="hidden lg:inline-flex"
                         >
-                            <Link :href="profileUrl(activeChild.user_id)">Profile</Link>
+                            <Link :href="profileUrl(activeChild.user_uuid ?? activeChild.user_id)">{{
+                                t('Profile')
+                            }}</Link>
                         </Button>
                     </div>
 
                     <div class="relative flex items-center space-x-1">
-
                         <div class="hidden space-x-1 lg:flex">
                             <template v-for="item in rightNavItems" :key="item.title">
                                 <TooltipProvider :delay-duration="0">
@@ -327,7 +339,7 @@ function showMoreChildren() {
         </div>
 
         <div v-if="props.breadcrumbs.length > 1" class="flex w-full border-b border-sidebar-border/70">
-            <div class="mx-auto flex h-12 w-full items-center justify-start px-4 text-neutral-500 ">
+            <div class="mx-auto flex h-12 w-full items-center justify-start px-4 text-neutral-500">
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </div>
         </div>
@@ -337,13 +349,15 @@ function showMoreChildren() {
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
                         <Users class="size-5" />
-                        Switch child account
+                        {{ t('Switch child account') }}
                     </DialogTitle>
-                    <DialogDescription> Search and open the child account context you want to view. </DialogDescription>
+                    <DialogDescription>{{
+                        t('Search and open the child account context you want to view.')
+                    }}</DialogDescription>
                 </DialogHeader>
 
                 <div class="space-y-4">
-                    <Input v-model="childSearch" placeholder="Search child name" />
+                    <Input v-model="childSearch" :placeholder="t('Search child name')" />
 
                     <div class="rounded-xl border border-border/70 bg-card">
                         <div v-if="visibleChildren.length > 0" class="max-h-80 space-y-1 overflow-y-auto p-2">
@@ -363,7 +377,7 @@ function showMoreChildren() {
                                         v-if="child.athlete_id === activeChild?.athlete_id"
                                         class="text-xs tracking-[0.16em] text-muted-foreground uppercase"
                                     >
-                                        Active
+                                        {{ t('Active') }}
                                     </span>
                                 </button>
                                 <Button
@@ -373,19 +387,24 @@ function showMoreChildren() {
                                     class="shrink-0"
                                     @click="isChildPickerOpen = false"
                                 >
-                                    <Link :href="profileUrl(child.user_id)">Profile</Link>
+                                    <Link :href="profileUrl(child.user_uuid ?? child.user_id)">{{ t('Profile') }}</Link>
                                 </Button>
                             </div>
                         </div>
 
                         <div v-else class="px-4 py-8 text-center text-sm text-muted-foreground">
-                            No child matches that search.
+                            {{ t('No child matches that search.') }}
                         </div>
                     </div>
 
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm text-muted-foreground">
-                            Showing {{ visibleChildren.length }} of {{ filteredChildren.length }} children
+                            {{
+                                t('Showing :visible of :total children', {
+                                    visible: visibleChildren.length,
+                                    total: filteredChildren.length,
+                                })
+                            }}
                         </p>
                         <Button
                             v-if="visibleChildren.length < filteredChildren.length"
@@ -393,7 +412,7 @@ function showMoreChildren() {
                             variant="outline"
                             @click="showMoreChildren"
                         >
-                            Show more
+                            {{ t('Show more') }}
                         </Button>
                     </div>
                 </div>
@@ -401,4 +420,3 @@ function showMoreChildren() {
         </Dialog>
     </div>
 </template>
-
