@@ -49,6 +49,11 @@ jobs:
         run: php artisan key:generate
 
       - name: Verify Laravel configuration and routes
+        env:
+          CACHE_STORE: file
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          DB_URL: ''
         run: |
           php artisan config:cache
           php artisan route:list --except-vendor
