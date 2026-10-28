@@ -8,7 +8,6 @@ use App\Models\Coach;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -17,21 +16,24 @@ use App\Models\UserCertification;
 use App\Models\UserProfile;
 use App\Models\UserRoleAssignment;
 use App\Services\MemberNumberGenerator;
+use Database\Seeders\Concerns\GuardsDemoSeeding;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AllRoleDemoSeeder extends Seeder
 {
-    private const PASSWORD = '12345678';
+    use GuardsDemoSeeding;
 
     public function run(): void
     {
+        $this->guardDemoSeeding();
+
         DB::transaction(function (): void {
             $allRoleUser = $this->seedUser(
                 'Pengguna Semua Peran',
                 'allroles@rfis.test',
-                ['admin', 'coach', 'parent', 'athlete'],
+                ['admin', 'coach', 'athlete'],
                 'FEMALE',
                 '1995-05-20',
                 '080000000099',
@@ -44,15 +46,32 @@ class AllRoleDemoSeeder extends Seeder
                 '2014-09-12',
                 '080000000098',
             );
+            $adminCoachUser = $this->seedUser(
+                'Admin dan Pelatih Demo',
+                'admincoach@rfis.test',
+                ['admin', 'coach'],
+                'MALE',
+                '1992-02-14',
+                '080000000096',
+            );
+            $adminAthleteUser = $this->seedUser(
+                'Admin dan Atlet Demo',
+                'adminathlete@rfis.test',
+                ['admin', 'athlete'],
+                'FEMALE',
+                '1994-06-18',
+                '080000000097',
+            );
 
-            $parent = ParentProfile::query()->updateOrCreate(
-                ['id' => $allRoleUser->id],
+            Coach::query()->updateOrCreate(
+                ['id' => $adminCoachUser->id],
                 [
-                    'relation' => 'guardian',
-                    'occupation' => 'Administrator and coach',
-                    'notes' => 'Demo parent profile for the account with every application role.',
+                    'specialization' => 'Demo multirole coaching',
+                    'bio' => 'Development account for admin and coach permission-union checks.',
+                    'status' => 'active',
                 ],
             );
+
             $coach = Coach::query()->updateOrCreate(
                 ['id' => $allRoleUser->id],
                 [
@@ -66,11 +85,27 @@ class AllRoleDemoSeeder extends Seeder
             $juniorClass = Group::query()->where('group_name', 'Junior Sparring')->firstOrFail();
             $privateClass = Group::query()->where('group_name', 'Private Performance')->firstOrFail();
 
+            $adminAthlete = $this->seedAthleteProfile($adminAthleteUser, [
+                'joined_at' => '2024-06-18',
+                'group_id' => $juniorClass->group_id,
+                'training_group_id' => $juniorClass->training_group_id,
+                'branch_id' => $juniorClass->branch_id,
+                'height_cm' => 158.00,
+                'weight_kg' => 48.00,
+                'school_origin' => 'RFIS Multirole Academy',
+                'geup' => 'GEUP_5',
+            ], [
+                'nik_hash' => hash('sha256', 'RFIS-ADMIN-ATHLETE-NIK'),
+                'nik_ciphertext' => 'RFIS-ADMIN-ATHLETE-NIK',
+                'bpjs_hash' => hash('sha256', 'RFIS-ADMIN-ATHLETE-BPJS'),
+                'bpjs_ciphertext' => 'RFIS-ADMIN-ATHLETE-BPJS',
+                'address' => 'Jl. Demo Admin Atlet, Malang',
+            ]);
+
             $allRoleAthlete = $this->seedAthleteProfile($allRoleUser, [
                 'joined_at' => '2023-03-01',
                 'group_id' => $competitionClass->group_id,
                 'training_group_id' => $competitionClass->training_group_id,
-                'parent_id' => null,
                 'branch_id' => $competitionClass->branch_id,
                 'height_cm' => 165.00,
                 'weight_kg' => 55.00,
@@ -87,8 +122,10 @@ class AllRoleDemoSeeder extends Seeder
                 'joined_at' => '2026-07-24',
                 'group_id' => $juniorClass->group_id,
                 'training_group_id' => $juniorClass->training_group_id,
-                'parent_id' => $parent->parent_id,
                 'branch_id' => $juniorClass->branch_id,
+                'guardian_name' => $allRoleUser->name,
+                'guardian_phone' => $allRoleUser->phone,
+                'guardian_relation' => 'guardian',
                 'height_cm' => 142.00,
                 'weight_kg' => 36.00,
                 'school_origin' => 'RFIS Junior Academy',
@@ -118,9 +155,11 @@ class AllRoleDemoSeeder extends Seeder
             $this->seedPayroll($allRoleUser);
             $this->seedCompetitionRecord($allRoleUser, $allRoleAthlete);
             $this->seedProfileRecords($allRoleUser);
+
+            $this->seedProfileRecords($adminAthleteUser);
         });
 
-        $this->command?->info('All-role demo account: allroles@rfis.test / '.self::PASSWORD);
+        $this->command?->info('Multirole development accounts are ready; password is configured in RFIS_DEMO_PASSWORD.');
     }
 
     /** @param array<int, string> $roles */
@@ -136,7 +175,7 @@ class AllRoleDemoSeeder extends Seeder
             ['email' => $email],
             [
                 'name' => $name,
-                'password' => self::PASSWORD,
+                'password' => config('app.demo_password'),
                 'gender' => $gender,
                 'role' => $roles[0],
                 'bday' => $birthday,
@@ -145,6 +184,11 @@ class AllRoleDemoSeeder extends Seeder
             ],
         );
         $user->forceFill(['email_verified_at' => now()])->save();
+
+        UserRoleAssignment::query()
+            ->where('user_id', $user->id)
+            ->whereNotIn('role', $roles)
+            ->delete();
 
         foreach ($roles as $role) {
             UserRoleAssignment::query()->updateOrCreate([

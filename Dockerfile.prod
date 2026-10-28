@@ -5,7 +5,23 @@
 # Composer binary
 ####################################
 
-FROM composer:2 AS composer-bin
+FROM composer:2.10.3 AS composer-bin
+
+FROM node:24.22.1-bookworm-slim AS node-runtime
+
+COPY scripts/install-patched-npm-undici.sh /usr/local/bin/install-patched-npm-undici
+RUN npm install --global npm@12.2.1 \
+    && sh /usr/local/bin/install-patched-npm-undici \
+    && test "$(node --version)" = "v24.22.1" \
+    && test "$(npm --version)" = "12.2.1" \
+    && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/undici/package.json").version')" = "6.29.1"
+
+FROM php:8.4.27-cli AS libxml2-build
+
+COPY docker/libxml2/CVE-2026-86140.patch /tmp/CVE-2026-86140.patch
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
+COPY docker/libxml2/build-fixed-package.sh /usr/local/bin/build-fixed-libxml2
+RUN /usr/local/bin/build-fixed-libxml2
 
 
 
@@ -13,17 +29,17 @@ FROM composer:2 AS composer-bin
 # PHP dependencies + Node build
 ####################################
 
-FROM php:8.4-cli AS build
+FROM php:8.4.27-cli AS build
 
 WORKDIR /var/www/html
+
+COPY --from=node-runtime /usr/local/ /usr/local/
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
     curl \
-    nodejs \
-    npm \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
@@ -67,9 +83,11 @@ RUN composer install \
 ####################################
 
 COPY package.json package-lock.json ./
+COPY scripts/verify-npm-lock-sources.mjs ./scripts/
 
 
-RUN npm ci \
+RUN node scripts/verify-npm-lock-sources.mjs package-lock.json \
+    && npm ci --allow-remote=all \
     --no-audit \
     --no-fund
 
@@ -107,10 +125,13 @@ RUN rm -f public/hot public/build/hot
 # Production runtime
 ####################################
 
-FROM php:8.4-apache AS final
+FROM php:8.4.27-apache AS final
 
 
 WORKDIR /var/www/html
+
+COPY --from=libxml2-build /tmp/libxml2-fixed.deb /opt/libxml2-fixed.deb
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
 
 
 ENV APP_ENV=production \
@@ -153,6 +174,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libonig-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN dpkg -i /opt/libxml2-fixed.deb \
+    && rm /opt/libxml2-fixed.deb \
+    && ldconfig \
+    && dpkg-query -W -f='${Package} ${Version}\n' libxml2 \
+    && php /usr/local/libexec/verify-bounded-dtd-error.php
 
 
 

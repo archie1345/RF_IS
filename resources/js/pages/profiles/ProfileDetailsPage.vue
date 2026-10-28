@@ -15,7 +15,12 @@ import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCer
 import ProfileRoleDetailsSection from '@/pages/profiles/components/ProfileRoleDetailsSection.vue';
 import ProfileSaveErrorAlert from '@/pages/profiles/components/ProfileSaveErrorAlert.vue';
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
-import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
+import {
+    coachStatusOptions,
+    genderOptions,
+    geupOptions,
+    guardianRelationOptions,
+} from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import { dashboard } from '@/routes';
 import { edit as profileEdit } from '@/routes/profile';
@@ -56,7 +61,6 @@ const {
     achievementUpdateUrl,
     athleteProfileUpdateUrl,
     coachProfileUpdateUrl,
-    parentProfileUpdateUrl,
 } = useProfileRoutes({
     user: props.user,
     context: props.context,
@@ -82,8 +86,7 @@ const pageContentClass = computed(() => (isSettingsContext.value ? 'flex flex-1 
 const canEditRoleProfiles = computed(() => props.canEditRoleProfiles);
 const isAthlete = computed(() => props.user.roles.includes('athlete'));
 const isCoach = computed(() => props.user.roles.includes('coach'));
-const isParent = computed(() => props.user.roles.includes('parent'));
-const hasRoleDetails = computed(() => isAthlete.value || isCoach.value || isParent.value);
+const hasRoleDetails = computed(() => isAthlete.value || isCoach.value);
 const shouldShowMilestones = computed(() => isAthlete.value || isCoach.value);
 const canManageMilestones = computed(() => shouldShowMilestones.value);
 
@@ -91,7 +94,6 @@ const isEditingProfile = ref(false);
 const isEditingAccount = ref(false);
 const isEditingAthlete = ref(false);
 const isEditingCoach = ref(false);
-const isEditingParent = ref(false);
 const isEditingPassword = ref(false);
 const saveError = ref<{
     title: string;
@@ -117,12 +119,14 @@ const {
     cropperRef,
     profilePictureError,
     profilePictureReady,
+    cropperReady,
     profilePictureFileInput,
     profilePictureWidth,
     profilePictureHeight,
     clearSelectedImage,
     onProfilePictureChange,
     editCurrentProfilePicture,
+    markCropperReady,
     applyCrop,
     zoomCrop,
     rotateCrop,
@@ -143,6 +147,9 @@ const athleteForm = useForm({
     alamat: props.user.athleteProfile?.alamat ?? '',
     branch_id: String(props.user.athleteProfile?.branch_id ?? props.branches[0]?.value ?? ''),
     group_id: String(props.user.athleteProfile?.group_id ?? props.groups[0]?.value ?? ''),
+    guardian_name: props.user.athleteProfile?.guardian_name ?? '',
+    guardian_phone: props.user.athleteProfile?.guardian_phone ?? '',
+    guardian_relation: props.user.athleteProfile?.guardian_relation ?? '',
 });
 
 const coachForm = useForm({
@@ -150,12 +157,6 @@ const coachForm = useForm({
     specialization: props.user.coachProfile?.specialization ?? '',
     bio: props.user.coachProfile?.bio ?? '',
     nik: props.user.coachProfile?.nik ?? '',
-});
-
-const parentForm = useForm({
-    relation: props.user.parentProfile?.relation ?? 'guardian',
-    occupation: props.user.parentProfile?.occupation ?? '',
-    notes: props.user.parentProfile?.notes ?? '',
 });
 
 const passwordForm = useForm({
@@ -182,11 +183,6 @@ function cancelAthleteEdit() {
 function cancelCoachEdit() {
     isEditingCoach.value = false;
     coachForm.reset();
-}
-
-function cancelParentEdit() {
-    isEditingParent.value = false;
-    parentForm.reset();
 }
 
 function cancelPasswordEdit() {
@@ -279,19 +275,6 @@ function saveCoachChanges() {
             clearSaveError();
         },
         onError: (errors) => showSaveError('Coach details', errors),
-    });
-}
-
-function saveParentChanges() {
-    if (!canEditRoleProfiles.value) return;
-
-    parentForm.put(parentProfileUpdateUrl.value, {
-        preserveScroll: true,
-        onSuccess: () => {
-            isEditingParent.value = false;
-            clearSaveError();
-        },
-        onError: (errors) => showSaveError('Parent details', errors),
     });
 }
 
@@ -533,23 +516,46 @@ function shortHash(value?: string | null) {
                                             class="h-72 w-full sm:h-96"
                                             image-restriction="stencil"
                                             @change="markCropDirty"
+                                            @ready="markCropperReady"
                                         />
                                     </div>
 
                                     <div class="flex flex-wrap gap-2">
-                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(1.1)"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="!cropperReady"
+                                            @click="zoomCrop(1.1)"
                                             >Zoom in</Button
                                         >
-                                        <Button type="button" variant="outline" size="sm" @click="zoomCrop(0.9)"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="!cropperReady"
+                                            @click="zoomCrop(0.9)"
                                             >Zoom out</Button
                                         >
-                                        <Button type="button" variant="outline" size="sm" @click="rotateCrop"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="!cropperReady"
+                                            @click="rotateCrop"
                                             >Rotate</Button
                                         >
-                                        <Button type="button" variant="outline" size="sm" @click="resetCrop"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="!cropperReady"
+                                            @click="resetCrop"
                                             >Reset</Button
                                         >
-                                        <Button type="button" size="sm" @click="applyCrop">Use 3x4 Crop</Button>
+                                        <Button type="button" size="sm" :disabled="!cropperReady" @click="applyCrop"
+                                            >Use 3x4 Crop</Button
+                                        >
                                     </div>
 
                                     <p v-if="profilePictureReady" class="text-sm text-brand-lime">
@@ -560,7 +566,7 @@ function shortHash(value?: string | null) {
                             <div v-if="isEditingProfile" class="flex flex-col gap-2 sm:flex-row">
                                 <Button
                                     type="submit"
-                                    :disabled="profileForm.processing"
+                                    :disabled="profileForm.processing || (!!selectedImage && !cropperReady)"
                                     size="sm"
                                     class="w-full sm:w-auto"
                                 >
@@ -730,6 +736,31 @@ function shortHash(value?: string | null) {
                                 :disabled="!isEditingAthlete"
                                 :error="athleteForm.errors.alamat"
                             />
+                            <div class="grid gap-2 md:grid-cols-3">
+                                <FormInputField
+                                    id="guardian-name"
+                                    v-model="athleteForm.guardian_name"
+                                    label="Guardian / Parent Name"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.guardian_name"
+                                />
+                                <FormInputField
+                                    id="guardian-phone"
+                                    v-model="athleteForm.guardian_phone"
+                                    label="Guardian Phone (WhatsApp)"
+                                    type="tel"
+                                    :disabled="!isEditingAthlete"
+                                    :error="athleteForm.errors.guardian_phone"
+                                />
+                                <FormSelectField
+                                    id="guardian-relation"
+                                    v-model="athleteForm.guardian_relation"
+                                    label="Guardian Relation"
+                                    :disabled="!isEditingAthlete"
+                                    :options="guardianRelationOptions"
+                                    :error="athleteForm.errors.guardian_relation"
+                                />
+                            </div>
                         </ProfileRoleDetailsSection>
 
                         <ProfileRoleDetailsSection
@@ -763,6 +794,7 @@ function shortHash(value?: string | null) {
                                 v-model="coachForm.nik"
                                 label="NIK (Nomor Induk Kependudukan)"
                                 placeholder="16-digit NIK"
+                                :disabled="!isEditingCoach"
                                 :error="coachForm.errors.nik"
                             />
                             <div class="grid gap-2">
@@ -776,62 +808,6 @@ function shortHash(value?: string | null) {
                                 />
                                 <p v-if="coachForm.errors.bio" class="text-sm text-brand-coral">
                                     {{ coachForm.errors.bio }}
-                                </p>
-                            </div>
-                        </ProfileRoleDetailsSection>
-
-                        <ProfileRoleDetailsSection
-                            v-if="isParent"
-                            title="Parent profile"
-                            description="Guardian relationship and linked athlete information."
-                            :can-edit="canEditRoleProfiles"
-                            :editing="isEditingParent"
-                            :processing="parentForm.processing"
-                            :divided="props.canEditAccount || isAthlete || isCoach"
-                            @edit="isEditingParent = true"
-                            @save="saveParentChanges"
-                            @cancel="cancelParentEdit"
-                        >
-                            <div class="grid gap-3 md:grid-cols-2">
-                                <FormSelectField
-                                    id="parent-relation"
-                                    v-model="parentForm.relation"
-                                    label="Relation"
-                                    :disabled="!isEditingParent"
-                                    :options="parentRelationOptions"
-                                />
-                                <FormInputField
-                                    id="parent-occupation"
-                                    v-model="parentForm.occupation"
-                                    label="Occupation"
-                                    :disabled="!isEditingParent"
-                                    :error="parentForm.errors.occupation"
-                                />
-                            </div>
-                            <div class="grid gap-2">
-                                <label for="parent-notes" class="text-sm font-medium">Notes</label>
-                                <textarea
-                                    id="parent-notes"
-                                    v-model="parentForm.notes"
-                                    :disabled="!isEditingParent"
-                                    rows="3"
-                                    class="rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                            </div>
-
-                            <div class="mt-4 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                                <span class="font-medium">Linked Athletes (Children):</span>
-                                <ul
-                                    v-if="user.parentProfile?.athletes?.length"
-                                    class="mt-1 ml-4 list-disc text-muted-foreground"
-                                >
-                                    <li v-for="athlete in user.parentProfile?.athletes" :key="athlete.id">
-                                        {{ athlete.name }} ({{ athlete.branch?.branch_name }} -
-                                        {{ athlete.group?.group_name }})
-                                    </li>
-                                </ul>
-                                <p v-else class="mt-1 text-muted-foreground italic">
-                                    No children linked to this account yet.
                                 </p>
                             </div>
                         </ProfileRoleDetailsSection>

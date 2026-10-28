@@ -4,12 +4,10 @@ export type User = {
     id: string;
     name: string;
     email: string;
-    /** Compatibility alias for the currently selected role. */
+    /** Primary (highest privilege) role of the account. */
     role?: AppRole;
-    activeRole?: AppRole;
-    primaryRole?: AppRole;
+    /** Every role assigned to the account. */
     roles?: AppRole[];
-    isMultiRole?: boolean;
     avatar?: string | null;
     email_verified_at?: string | null;
     created_at?: string;
@@ -17,17 +15,8 @@ export type User = {
     [key: string]: unknown;
 };
 
-export type ParentChild = {
-    athlete_id: string;
-    user_id: string;
-    user_uuid?: string;
-    name: string;
-};
-
 export type Auth = {
     user: User;
-    children?: ParentChild[];
-    activeChild?: ParentChild | null;
 };
 
 export type TwoFactorConfigContent = {

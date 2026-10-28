@@ -7,7 +7,6 @@ import FormInputField from '@/components/forms/FormInputField.vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import FormModal from '@/components/shared/FormModal.vue';
 import PageSection from '@/components/shared/PageSection.vue';
-import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -34,7 +33,6 @@ const targetRoleOptions = [
     { value: 'ALL', label: 'Semua pengguna' },
     { value: 'ADMIN', label: 'Admin saja' },
     { value: 'COACH', label: 'Pelatih saja' },
-    { value: 'PARENT', label: 'Orang tua saja' },
     { value: 'ATHLETE', label: 'Atlet saja' },
 ];
 

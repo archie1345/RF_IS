@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentTransaction extends Model
 {
     use HasUuids;
-
     use SoftDeletes;
 
     public const TYPE_PAYMENT = 'PAYMENT';
@@ -76,5 +75,4 @@ class PaymentTransaction extends Model
     {
         return 'uuid';
     }
-
 }

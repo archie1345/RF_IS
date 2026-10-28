@@ -28,6 +28,10 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    'demo_seeding_enabled' => env('RFIS_ALLOW_DEMO_SEEDING', false),
+
+    'demo_password' => env('RFIS_DEMO_PASSWORD', env('APP_ENV') === 'testing' ? 'RFIS-Test-Only-2026!' : null),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

@@ -5,7 +5,6 @@ use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\AttendanceQrTokenService;
@@ -32,8 +31,6 @@ function makeQrAttendanceContext(string $prefix = 'QR Test'): array
         'branch_id' => $branch->branch_id,
         'height_cm' => 150,
         'weight_kg' => 45,
-        'nik_hash' => hash('sha256', $prefix.' nik'),
-        'bpjs_hash' => hash('sha256', $prefix.' bpjs'),
         'geup' => 'GEUP_1',
     ]);
     $session = TrainingSession::create([
@@ -91,18 +88,12 @@ test('attendance QR stays open without a closing time until manually closed', fu
         ->and(app(AttendanceQrTokenService::class)->findActiveSessionByToken($token))->toBeNull();
 });
 
-test('parent cannot bypass QR but can scan for a linked child', function () {
+test('athlete cannot bypass QR manually but can scan for their own attendance', function () {
     Carbon::setTestNow('2026-07-24 12:00:00');
 
-    [, $athlete, , , $session, $attendance] = makeQrAttendanceContext('Parent QR');
-    $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = ParentProfile::create([
-        'id' => $parentUser->id,
-        'relation' => 'mother',
-    ]);
-    $athlete->update(['parent_id' => $parent->parent_id]);
+    [$athleteUser, $athlete, , , $session, $attendance] = makeQrAttendanceContext('Athlete QR');
 
-    $this->actingAs($parentUser)
+    $this->actingAs($athleteUser)
         ->post(route('attendance.store'), [
             'athlete_id' => $athlete->athlete_id,
             'training_session_id' => $session->training_session_id,
@@ -111,7 +102,7 @@ test('parent cannot bypass QR but can scan for a linked child', function () {
         ])
         ->assertForbidden();
 
-    $this->actingAs($parentUser)
+    $this->actingAs($athleteUser)
         ->put(route('attendance.update', $attendance), ['status' => 'PRESENT'])
         ->assertForbidden();
 
@@ -119,10 +110,8 @@ test('parent cannot bypass QR but can scan for a linked child', function () {
 
     [, $token] = app(GenerateSessionAttendanceQr::class)->handle($session);
 
-    $this->actingAs($parentUser)
-        ->post(route('attendance.scan.store', $token), [
-            'athlete_id' => $athlete->athlete_id,
-        ])
+    $this->actingAs($athleteUser)
+        ->post(route('attendance.scan.store', $token))
         ->assertRedirect();
 
     expect($attendance->refresh()->status)->toBe('PRESENT');

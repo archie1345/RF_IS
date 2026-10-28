@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Session extends Model
 {
     use HasUuids;
-
     use SoftDeletes;
 
     protected $table = 'coach_sessions';
@@ -73,5 +72,4 @@ class Session extends Model
     {
         return 'uuid';
     }
-
 }

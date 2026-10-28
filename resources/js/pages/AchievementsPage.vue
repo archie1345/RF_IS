@@ -54,7 +54,7 @@ const medalOptions = [
 ];
 
 const showAchievementModal = ref(false);
-const editingId = ref<number | null>(null);
+const editingId = ref<number | string | null>(null);
 const achievementForm = useForm({
     championship_name: '',
     medal: 'NONE',
@@ -82,7 +82,7 @@ function openCreate(): void {
 
 function openEdit(row: TableRow): void {
     if (row.can_manage !== true) return;
-    const id = routeId(row.achievement_id ?? row.id);
+    const id = routeId(row.route_id ?? row.achievement_id ?? row.id);
     if (id === null) return;
 
     achievementForm.clearErrors();
@@ -115,7 +115,7 @@ function saveAchievement(): void {
     if (editingId.value !== null) {
         achievementForm
             .transform((data) => ({ ...data, _method: 'put' }))
-            .post(achievementsUpdate.url(editingId.value), {
+            .post(achievementsUpdate.url(String(editingId.value)), {
                 forceFormData: true,
                 preserveScroll: true,
                 onSuccess: closeForm,
@@ -133,7 +133,7 @@ function saveAchievement(): void {
 
 async function removeAchievement(row: TableRow): Promise<void> {
     if (row.can_manage !== true) return;
-    const id = routeId(row.achievement_id ?? row.id);
+    const id = routeId(row.route_id ?? row.achievement_id ?? row.id);
     if (id === null) return;
 
     const confirmed = await popup.confirm({
@@ -144,7 +144,7 @@ async function removeAchievement(row: TableRow): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(achievementsDestroy.url(id), { preserveScroll: true });
+    router.delete(achievementsDestroy.url(String(id)), { preserveScroll: true });
 }
 </script>
 

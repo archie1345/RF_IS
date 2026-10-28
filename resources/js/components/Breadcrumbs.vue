@@ -8,8 +8,8 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import type { Props } from './Breadcrumbs.types';
 import { useI18n } from '@/composables/useI18n';
+import type { Props } from './Breadcrumbs.types';
 
 defineProps<Props>();
 const { t } = useI18n();
@@ -29,7 +29,7 @@ const { t } = useI18n();
                     </template>
                     <template v-else>
                         <BreadcrumbLink as-child>
-                        <Link :href="item.href ?? '#'">{{ t(item.title) }}</Link>
+                            <Link :href="item.href ?? '#'">{{ t(item.title) }}</Link>
                         </BreadcrumbLink>
                     </template>
                 </BreadcrumbItem>

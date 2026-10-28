@@ -106,8 +106,10 @@ const visibilityOptions: Array<{
     { value: 'all', label: 'All', countKey: 'all_count' },
 ];
 
-function sessionIdFromRow(row: TableRow): number | string | null {
-    return row.uuid ? String(row.uuid) : routeId(row.session_id ?? row.id);
+function sessionIdFromRow(row: TableRow): string | null {
+    if (row.uuid) return String(row.uuid);
+    const id = routeId(row.session_id ?? row.id);
+    return id === null ? null : String(id);
 }
 
 function setVisibility(visibility: SessionVisibility): void {

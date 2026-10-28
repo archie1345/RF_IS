@@ -58,21 +58,18 @@ const rolesError = computed(() => (form.errors as Record<string, string>).roles)
 const roleLabel: Record<AdminAccountRole, string> = {
     admin: 'Admin',
     coach: 'Coach',
-    parent: 'Parent',
     athlete: 'Athlete',
 };
 
 const roleTone: Record<AdminAccountRole, 'danger' | 'info' | 'warning' | 'success'> = {
     admin: 'danger',
     coach: 'info',
-    parent: 'warning',
     athlete: 'success',
 };
 
 const roleOptions: Array<{ value: AdminAccountRole; label: string }> = [
     { value: 'admin', label: 'Admin' },
     { value: 'coach', label: 'Coach' },
-    { value: 'parent', label: 'Parent' },
     { value: 'athlete', label: 'Athlete' },
 ];
 
@@ -106,7 +103,7 @@ const columns: TableColumn[] = [
 
 const rows = computed<TableRow[]>(() =>
     users.value.map((user) => ({
-        id: String(user.id),
+        id: user.uuid,
         name: user.name,
         email: user.email,
         roleLabel: {
@@ -129,7 +126,7 @@ const rows = computed<TableRow[]>(() =>
 );
 
 function accountForRow(row: TableRow): AdminAccountRow | undefined {
-    return users.value.find((entry) => String(entry.id) === row.id);
+    return users.value.find((entry) => entry.uuid === row.id);
 }
 
 function openEditByRow(row: TableRow): void {
@@ -156,7 +153,7 @@ function openCreate(): void {
 }
 
 function openEdit(user: AdminAccountRow): void {
-    editingId.value = user.id;
+    editingId.value = user.uuid;
     form.name = user.name;
     form.email = user.email;
     form.roles = user.roles && user.roles.length > 0 ? [...user.roles] : [user.role];
@@ -239,16 +236,16 @@ function deleteAccount(row: TableRow): void {
 }
 
 function restoreAccount(row: TableRow): void {
-    const id = row.id;
-    if (!id) return;
-    router.put(adminAccountRestore.url(id), {}, { preserveScroll: true });
+    const user = accountForRow(row);
+    if (!user) return;
+    router.put(adminAccountRestore.url(user.id), {}, { preserveScroll: true });
 }
 
 function hardDeleteAccount(row: TableRow): void {
-    const id = row.id;
-    if (!id) return;
+    const user = accountForRow(row);
+    if (!user) return;
     pendingConfirmation.value = {
-        id,
+        id: String(user.id),
         kind: 'hard-delete',
         title: 'Permanently delete this account?',
         message: 'This removes the account for good. This action cannot be undone.',
@@ -319,7 +316,7 @@ function confirmPendingAction(): void {
             description="Create accounts here and set every non-invited account to Active or Not active. Profile pages remain responsible for role-specific details."
             create-label="Create user"
             table-title="Account roster"
-            table-description="A role-based management table for admins, coaches, parents, and athletes."
+            table-description="A role-based management table for admins, coaches, and athletes."
             :columns="columns"
             :rows="rows"
             empty-text="No accounts available yet."
@@ -337,7 +334,13 @@ function confirmPendingAction(): void {
 
             <template #row-actions="{ row }">
                 <div class="flex flex-wrap justify-end gap-2">
-                    <Button v-if="row.deletedAt === '-'" variant="outline" class="gap-2" @click="openEditByRow(row)">
+                    <Button
+                        v-if="row.deletedAt === '-'"
+                        variant="outline"
+                        class="gap-2"
+                        aria-label="Edit account"
+                        @click="openEditByRow(row)"
+                    >
                         <PencilLine class="size-4" />
                     </Button>
                     <Button
@@ -367,8 +370,8 @@ function confirmPendingAction(): void {
                     {{ editingId !== null ? 'Edit account' : 'Create user account' }}
                 </DialogTitle>
                 <DialogDescription>
-                    Admin-only account creation. Use multiple roles when the same person is both a coach, parent,
-                    athlete, or admin.
+                    Admin-only account creation. Use multiple roles when the same person is both a coach, athlete, or
+                    admin.
                 </DialogDescription>
             </DialogHeader>
 

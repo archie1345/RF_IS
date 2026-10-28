@@ -1,8 +1,24 @@
 # syntax=docker/dockerfile:1.5
 
-FROM composer:2 AS composer-bin
+FROM composer:2.10.3 AS composer-bin
 
-FROM php:8.4-cli AS php-deps
+FROM node:24.22.1-bookworm-slim AS node-runtime
+
+COPY scripts/install-patched-npm-undici.sh /usr/local/bin/install-patched-npm-undici
+RUN npm install --global npm@12.2.1 \
+    && sh /usr/local/bin/install-patched-npm-undici \
+    && test "$(node --version)" = "v24.22.1" \
+    && test "$(npm --version)" = "12.2.1" \
+    && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/undici/package.json").version')" = "6.29.1"
+
+FROM php:8.4.27-cli AS libxml2-build
+
+COPY docker/libxml2/CVE-2026-86140.patch /tmp/CVE-2026-86140.patch
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
+COPY docker/libxml2/build-fixed-package.sh /usr/local/bin/build-fixed-libxml2
+RUN /usr/local/bin/build-fixed-libxml2
+
+FROM php:8.4.27-cli AS php-deps
 
 WORKDIR /app
 
@@ -29,39 +45,56 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-FROM php:8.4-cli AS frontend-build
+FROM php:8.4.27-cli AS frontend-build
 
 WORKDIR /app
 
+COPY --from=node-runtime /usr/local/ /usr/local/
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    curl \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
-    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=php-deps /app/vendor ./vendor
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+COPY scripts/verify-npm-lock-sources.mjs ./scripts/
+RUN node scripts/verify-npm-lock-sources.mjs package-lock.json \
+    && npm ci --allow-remote=all --no-audit --no-fund
 
 COPY . .
 
 ARG VITE_APP_NAME="RF Information System"
 ENV VITE_APP_NAME=${VITE_APP_NAME}
 
+ENV APP_ENV=testing \
+    APP_DEBUG=false \
+    APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=:memory: \
+    DB_URL= \
+    SESSION_DRIVER=array \
+    CACHE_STORE=array \
+    QUEUE_CONNECTION=sync \
+    MAIL_MAILER=array \
+    BROADCAST_CONNECTION=null
+
 RUN test -f .env || cp .env.example .env
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
+RUN npm run build
 
-FROM php:8.4-apache AS final
+FROM php:8.4.27-apache AS final
 
 WORKDIR /var/www/html
+
+COPY --from=libxml2-build /tmp/libxml2-fixed.deb /opt/libxml2-fixed.deb
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
@@ -75,8 +108,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libonig-dev \
+    libsqlite3-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath opcache \
+    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql pdo_sqlite bcmath opcache \
     && a2enmod rewrite headers expires deflate \
     && apt-get purge -y \
         libzip-dev \
@@ -84,8 +118,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
         libonig-dev \
+        libsqlite3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN dpkg -i /opt/libxml2-fixed.deb \
+    && rm /opt/libxml2-fixed.deb \
+    && ldconfig \
+    && dpkg-query -W -f='${Package} ${Version}\n' libxml2 \
+    && php /usr/local/libexec/verify-bounded-dtd-error.php
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && { \
@@ -150,16 +191,11 @@ RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 EOF
 
 COPY . .
+COPY --from=php-deps /app/vendor ./vendor
 COPY --from=frontend-build /app/public/build ./public/build
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
-RUN composer dump-autoload \
-        --no-dev \
-        --classmap-authoritative \
-        --no-interaction \
-        --no-progress \
-    && rm -f /usr/local/bin/composer \
-    && set -eux; \
+RUN set -eux; \
     mkdir -p \
         /tmp/laravel \
         storage/app/public \
@@ -169,6 +205,10 @@ RUN composer dump-autoload \
         storage/logs \
         bootstrap/cache \
         public/build; \
+    composer dump-autoload \
+        --no-dev \
+        --classmap-authoritative \
+        --no-interaction; \
     chown -R www-data:www-data /tmp/laravel storage bootstrap/cache public/build; \
     find /tmp/laravel storage bootstrap/cache public/build -type d -exec chmod 2775 {} +; \
     find /tmp/laravel storage bootstrap/cache public/build -type f -exec chmod 0664 {} +

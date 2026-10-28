@@ -1,7 +1,8 @@
-export type AdminAccountRole = 'admin' | 'coach' | 'parent' | 'athlete';
+export type AdminAccountRole = 'admin' | 'coach' | 'athlete';
 
 export type AdminAccountRow = {
-    id: string;
+    id: number;
+    uuid: string;
     name: string;
     email: string;
     role: AdminAccountRole;

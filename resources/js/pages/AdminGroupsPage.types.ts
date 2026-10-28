@@ -1,5 +1,6 @@
 export type TrainingGroupRecord = {
     id: string;
+    route_key: string;
     name: string;
     description?: string | null;
     is_active: boolean;

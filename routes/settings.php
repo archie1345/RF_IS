@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ActiveRoleContextController;
 use App\Http\Controllers\Admin\AdminPayrollController;
 use App\Http\Controllers\ChampionshipController;
 use App\Http\Controllers\Settings\PasswordController;
@@ -18,7 +17,6 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::post('settings/profile/details', [ProfileController::class, 'updateAccountProfile'])->name('profile.details.update');
     Route::put('settings/profile/athlete', [ProfileController::class, 'updateAthleteProfile'])->name('profile.athlete.update');
     Route::put('settings/profile/coach', [ProfileController::class, 'updateCoachProfile'])->name('profile.coach.update');
-    Route::put('settings/profile/parent', [ProfileController::class, 'updateParentProfile'])->name('profile.parent.update');
     Route::post('settings/profile/certifications', [ProfileController::class, 'storeCertification'])->name('profile.certifications.store');
     Route::put('settings/profile/certifications/{certification}', [ProfileController::class, 'updateCertification'])->name('profile.certifications.update');
     Route::delete('settings/profile/certifications/{certification}', [ProfileController::class, 'destroyCertification'])->name('profile.certifications.destroy');
@@ -28,8 +26,6 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
 });
 
 Route::middleware(['auth', 'account.active', 'verified'])->group(function (): void {
-    Route::put('account/active-role', ActiveRoleContextController::class)->name('role-context.update');
-
     Route::middleware('role:admin')->group(function (): void {
         Route::get('admin/payroll', [AdminPayrollController::class, 'index'])->name('admin.payroll.index');
         Route::get('admin/payroll/estimate', [AdminPayrollController::class, 'estimate'])->name('admin.payroll.estimate');

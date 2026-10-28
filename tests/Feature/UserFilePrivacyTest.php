@@ -1,9 +1,5 @@
 <?php
 
-use App\Models\Athlete;
-use App\Models\Branch;
-use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserFile;
 use Illuminate\Http\UploadedFile;
@@ -62,40 +58,18 @@ it('allows an owner to download their private file', function () {
         ->assertDownload('certificate.pdf');
 });
 
-it('allows a linked parent to download a child file but denies unrelated accounts', function () {
-    $branch = Branch::query()->create([
-        'branch_name' => 'Private File Branch',
-        'location' => 'Malang',
-    ]);
-    $group = Group::query()->create([
-        'group_name' => 'Private File Group',
-    ]);
-    $parentUser = User::factory()->create([
-        'role' => 'parent',
+it('allows an admin to download a private file but denies unrelated accounts', function () {
+    $admin = User::factory()->create([
+        'role' => 'admin',
         'email_verified_at' => now(),
     ]);
-    $parent = ParentProfile::query()->create([
-        'id' => $parentUser->id,
-        'relation' => 'guardian',
-    ]);
-    $childUser = User::factory()->create([
+    $athleteUser = User::factory()->create([
         'role' => 'athlete',
         'email_verified_at' => now(),
     ]);
-    Athlete::query()->create([
-        'id' => $childUser->id,
-        'parent_id' => $parent->parent_id,
-        'branch_id' => $branch->branch_id,
-        'group_id' => $group->group_id,
-        'height_cm' => 150,
-        'weight_kg' => 45,
-        'geup' => 'GEUP_5',
-        'nik_hash' => hash('sha256', 'private-child-nik'),
-        'bpjs_hash' => hash('sha256', 'private-child-bpjs'),
-    ]);
-    $file = createUserFileFixture($childUser);
+    $file = createUserFileFixture($athleteUser);
 
-    $this->actingAs($parentUser)
+    $this->actingAs($admin)
         ->get(route('user-files.download', $file))
         ->assertOk()
         ->assertDownload('certificate.pdf');

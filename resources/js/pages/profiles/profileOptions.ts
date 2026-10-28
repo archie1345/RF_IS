@@ -24,7 +24,8 @@ export const coachStatusOptions = [
     { value: 'inactive', label: 'Inactive' },
 ];
 
-export const parentRelationOptions = [
+export const guardianRelationOptions = [
+    { value: '', label: 'None / Self' },
     { value: 'father', label: 'Father' },
     { value: 'mother', label: 'Mother' },
     { value: 'guardian', label: 'Guardian' },

@@ -2,14 +2,12 @@
 
 namespace App\Models;
 
-use App\Services\ActiveRoleContextService;
 use App\Support\RoleResolver;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -79,37 +77,25 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->account_status === self::ACCOUNT_STATUS_SUSPENDED;
     }
 
+    /*
+     * Role checks evaluate the union of every role assigned to the account.
+     * There is no session-scoped "active role": the same account has the same
+     * permissions on every request. Code that narrows access for a lower role
+     * (e.g. "coach sees only own classes") must therefore check isAdmin() first.
+     */
     public function isAdmin(): bool
     {
-        return $this->isActingAs('admin');
+        return $this->hasRole('admin');
     }
 
     public function isCoach(): bool
     {
-        return $this->isActingAs('coach');
-    }
-
-    public function isParent(): bool
-    {
-        return $this->isActingAs('parent');
+        return $this->hasRole('coach');
     }
 
     public function isAthlete(): bool
     {
-        return $this->isActingAs('athlete');
-    }
-
-    public function isActingAs(string $role): bool
-    {
-        if (! $this->hasRole($role)) {
-            return false;
-        }
-
-        if (! $this->canResolveActiveRoleFromRequest()) {
-            return true;
-        }
-
-        return app(ActiveRoleContextService::class)->activeRole(request(), $this) === strtolower(trim($role));
+        return $this->hasRole('athlete');
     }
 
     public function assignedRoles(): array
@@ -154,23 +140,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(UserRoleAssignment::class);
     }
 
-    public function parentProfile(): HasOne
-    {
-        return $this->hasOne(ParentProfile::class, 'id', 'id');
-    }
-
-    public function children(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            Athlete::class,
-            ParentProfile::class,
-            'id',
-            'parent_id',
-            'id',
-            'parent_id'
-        );
-    }
-
     public function athleteProfile(): HasOne
     {
         return $this->hasOne(Athlete::class, 'id', 'id');
@@ -209,16 +178,5 @@ class User extends Authenticatable implements MustVerifyEmail
     public function displayBpjs(): string
     {
         return $this->profile?->displayBpjs() ?? '';
-    }
-
-    private function canResolveActiveRoleFromRequest(): bool
-    {
-        if (! app()->bound('request')) {
-            return false;
-        }
-
-        $request = request();
-
-        return $request->hasSession() && (int) $request->user()?->id === (int) $this->id;
     }
 }

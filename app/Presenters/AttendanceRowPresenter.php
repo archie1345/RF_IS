@@ -20,6 +20,7 @@ class AttendanceRowPresenter
 
         return [
             'id' => 'ATT-'.$record->athlete_attendance_id,
+            'route_id' => $record->uuid,
             'athlete_id' => $record->athlete_id,
             'date' => $this->formatDateYmd($record->date),
             'status_value' => $record->status,

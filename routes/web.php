@@ -23,15 +23,12 @@ use App\Http\Controllers\ChampionshipPageController;
 use App\Http\Controllers\ChampionshipPaymentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EventAthletePhotoExportController;
-use App\Http\Controllers\ParentChildContextController;
-use App\Http\Controllers\ParentChildProfileController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentExportController;
 use App\Http\Controllers\PaymentPageController;
 use App\Http\Controllers\PaymentProofFileController;
 use App\Http\Controllers\ProfileAccessController;
 use App\Http\Controllers\Profiles\CoachProfileController;
-use App\Http\Controllers\Profiles\ParentProfileController;
 use App\Http\Controllers\Profiles\UserAchievementController as ProfileUserAchievementController;
 use App\Http\Controllers\Profiles\UserCertificationController;
 use App\Http\Controllers\QrisPaymentPageController;
@@ -44,9 +41,9 @@ use App\Http\Controllers\Training\WeeklySchedulePageController;
 use App\Http\Controllers\UserAchievementController;
 use App\Http\Controllers\UserDirectoryController;
 use App\Http\Controllers\UserFileController;
+use App\Services\PublicContactSettings;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Services\PublicContactSettings;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -58,9 +55,9 @@ Route::get('/locale/{locale}', function (string $locale) {
     if (! in_array($locale, ['en', 'id'])) {
         abort(400);
     }
-    
+
     session()->put('locale', $locale);
-    
+
     return redirect()->back();
 })->name('locale.switch');
 
@@ -102,7 +99,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     });
 
-    Route::middleware(['role:parent,athlete', 'throttle:qr-scan'])->group(function (): void {
+    Route::middleware(['role:athlete', 'throttle:qr-scan'])->group(function (): void {
         Route::get('attendance/scan/{token}', [AttendanceScanController::class, 'show'])->name('attendance.scan.show');
         Route::post('attendance/scan/{token}', [AttendanceScanController::class, 'store'])->name('attendance.scan.store');
     });
@@ -115,8 +112,6 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::post('{user}/profile', [ProfileAccessController::class, 'updateAccountProfile'])->name('users.profile.update');
         Route::put('{user}/athlete-profile', [ProfileAccessController::class, 'updateAthleteProfile'])->name('users.athlete-profile.update');
         Route::put('{user}/coach-profile', [CoachProfileController::class, 'update'])->name('users.coach-profile.update');
-        Route::put('{user}/parent-profile', [ParentProfileController::class, 'update'])->name('users.parent-profile.update');
-        Route::put('{user}/password', [ParentChildProfileController::class, 'updatePassword'])->name('users.password.update');
         Route::post('{user}/certifications', [UserCertificationController::class, 'store'])->name('users.certifications.store');
         Route::put('{user}/certifications/{certification}', [UserCertificationController::class, 'update'])->name('users.certifications.update');
         Route::delete('{user}/certifications/{certification}', [UserCertificationController::class, 'destroy'])->name('users.certifications.destroy');
@@ -130,26 +125,11 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
             Route::get('/', 'index')->name('users.index');
         });
 
-        Route::put('parents/{parent:parent_id}/children', [UserDirectoryController::class, 'syncParentChildren'])
-            ->name('parents.children.sync');
-
         Route::prefix('athlete')->controller(UserDirectoryController::class)->group(function (): void {
-            Route::post('{athlete}/parent-link', 'linkParent')->name('athletes.parent-link');
             Route::get('user/{user}', 'showByUser')->name('users.athlete-record.show');
             Route::put('user/{user}', 'upsertByUser')->name('users.athlete-record.update');
         });
     });
-
-    Route::prefix('parent/children')
-        ->name('parent.children.')
-        ->middleware('role:parent')
-        ->controller(ParentChildContextController::class)
-        ->group(function (): void {
-            Route::get('/', 'index')->name('index');
-            Route::post('switch', 'switch')->name('switch');
-            Route::delete('switch', 'clear')->name('clear');
-            Route::post('{athlete:athlete_id}/switch', 'switchAthlete')->name('switch-athlete');
-        });
 
     Route::prefix('championships')->name('championships.')->group(function (): void {
         Route::get('/', ChampionshipPageController::class)->name('index');
@@ -163,12 +143,12 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
             Route::get('{event}/photos', EventAthletePhotoExportController::class)->name('photos');
         });
 
-        Route::middleware('role:admin,parent,athlete')->group(function (): void {
+        Route::middleware('role:admin,athlete')->group(function (): void {
             Route::post('registrations', [ChampionshipController::class, 'storeRegistration'])->name('registrations.store');
         });
 
         Route::put('registrations/{registration}', [ChampionshipController::class, 'updateRegistration'])
-            ->middleware('role:admin,coach,parent,athlete')
+            ->middleware('role:admin,coach,athlete')
             ->name('registrations.update');
 
         Route::middleware('role:admin,coach')->group(function (): void {
@@ -247,7 +227,7 @@ Route::middleware(['auth', 'account.active', 'verified'])->group(function (): vo
         Route::get('/', PaymentPageController::class)->name('index');
         Route::get('qris', QrisPaymentPageController::class)->name('qris');
         Route::post('{payment}/proof', [PaymentController::class, 'submitProof'])
-            ->middleware('role:parent,athlete')
+            ->middleware('role:athlete')
             ->name('proof.submit');
         Route::get('{payment}/proof-file', [PaymentProofFileController::class, 'payment'])->name('proof.download');
         Route::get('transactions/{paymentTransaction}/proof-file', [PaymentProofFileController::class, 'transaction'])

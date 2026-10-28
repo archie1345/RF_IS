@@ -34,6 +34,7 @@ class CombinedDataExport implements FromArray, WithColumnWidths, WithHeadings, W
         foreach ($this->headings as $index => $heading) {
             $widths[Coordinate::stringFromColumnIndex($index + 1)] = min(max(mb_strlen($heading) + 4, 14), 32);
         }
+
         return $widths;
     }
 

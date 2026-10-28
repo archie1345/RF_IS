@@ -2,19 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\Athlete;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
+/**
+ * Decides which payments a user may see or act on.
+ *
+ * With no `$mode` the visible set is the UNION of what each held role may see
+ * (admin sees everything). A mode narrows it to one role for the stateless
+ * `?mode=` view switch on the payments page.
+ */
 class PaymentVisibilityService
 {
-    public function __construct(
-        private readonly ParentChildContextService $childContext,
-        private readonly ActiveRoleContextService $activeRoleContext,
-    ) {}
-
     public function visiblePaymentsQuery(Request $request, ?string $mode = null): Builder
     {
         $query = Payment::query();
@@ -24,47 +25,28 @@ class PaymentVisibilityService
             return $query->whereRaw('1 = 0');
         }
 
-        $mode = $this->resolveMode($user, $request, $mode);
+        $roles = $this->rolesFor($user, $mode);
 
-        if ($mode === 'admin') {
+        if ($roles === []) {
+            // Accounts without a recognised role can only ever see bills addressed to them.
+            return $this->ownInvoices($query, $user, null);
+        }
+
+        if (in_array('admin', $roles, true)) {
             return $query;
         }
 
-        if ($mode === 'parent') {
-            $childIds = $this->childContext->visibleChildAthleteIds($request, false);
-            $childUserIds = $this->childContext->visibleChildUserIds($request, false);
-
-            return $this->invoiceOnly($query)
-                ->where(function ($inner) use ($user, $childIds, $childUserIds): void {
-                    $inner->where('billable_user_id', $user->id)
-                        ->orWhere('payer_user_id', $user->id)
-                        ->when(count($childIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('athlete_id', $childIds))
-                        ->when(count($childUserIds) > 0, fn ($childQuery) => $childQuery->orWhereIn('billable_user_id', $childUserIds));
-                });
-        }
-
-        if ($mode === 'athlete') {
-            $athleteId = $user->athleteProfile?->athlete_id;
-
-            return $this->invoiceOnly($query)
-                ->where(function ($inner) use ($user, $athleteId): void {
-                    $inner->where('billable_user_id', $user->id)
-                        ->orWhere('payer_user_id', $user->id)
-                        ->when($athleteId, fn ($athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
-                });
-        }
-
-        if ($mode === 'coach') {
-            return $query
-                ->where('bill_kind', 'PAYROLL')
-                ->where('payee_user_id', $user->id);
-        }
-
-        return $this->invoiceOnly($query)
-            ->where(function ($inner) use ($user): void {
-                $inner->where('billable_user_id', $user->id)
-                    ->orWhere('payer_user_id', $user->id);
-            });
+        return $query->where(function (Builder $scope) use ($user, $roles): void {
+            foreach ($roles as $role) {
+                if ($role === 'athlete') {
+                    $scope->orWhere(fn (Builder $own) => $this->ownInvoices($own, $user, $user->athleteProfile?->athlete_id));
+                } elseif ($role === 'coach') {
+                    $scope->orWhere(fn (Builder $payroll) => $payroll
+                        ->where('bill_kind', 'PAYROLL')
+                        ->where('payee_user_id', $user->id));
+                }
+            }
+        });
     }
 
     public function userCanViewPayment(Request $request, Payment $payment): bool
@@ -74,16 +56,10 @@ class PaymentVisibilityService
             ->exists();
     }
 
-    public function userCanSubmitProof(?User $user, Payment $payment, ?string $mode = null): bool
+    /** Only the athlete (or whoever the invoice names as payer) may upload proof; admin records payments directly. */
+    public function userCanSubmitProof(?User $user, Payment $payment): bool
     {
-        if (! $user || ! $this->isMemberInvoice($payment) || $user->isAdmin()) {
-            return false;
-        }
-
-        $request = $this->currentRequestFor($user);
-        $mode = $this->resolveMode($user, $request, $mode);
-
-        if (! in_array($mode, ['athlete', 'parent'], true)) {
+        if (! $user || ! $this->isMemberInvoice($payment) || $user->isAdmin() || ! $user->isAthlete()) {
             return false;
         }
 
@@ -97,52 +73,32 @@ class PaymentVisibilityService
             return true;
         }
 
-        if ($mode === 'athlete') {
-            return (string) $payment->athlete_id === (string) $user->athleteProfile?->athlete_id;
-        }
+        $athleteId = $user->athleteProfile?->athlete_id;
 
-        $childAthletes = $user->children()
-            ->with('user:id')
-            ->get(['athletes.athlete_id', 'athletes.id', 'athletes.parent_id'])
-            ->map(fn (Athlete $athlete) => [
-                'athlete_id' => (string) $athlete->athlete_id,
-                'user_id' => (int) $athlete->id,
-            ]);
-
-        return $childAthletes->contains('athlete_id', (string) $payment->athlete_id)
-            || $childAthletes->contains('user_id', (int) $payment->billable_user_id);
+        return $athleteId !== null && (string) $payment->athlete_id === (string) $athleteId;
     }
 
-    private function resolveMode(User $user, ?Request $request, ?string $mode): string
+    /** @return array<int, string> */
+    private function rolesFor(User $user, ?string $mode): array
     {
-        $normalizedMode = strtolower(trim((string) $mode));
-        if ($normalizedMode !== '' && $user->hasRole($normalizedMode)) {
-            return $normalizedMode;
+        $mode = strtolower(trim((string) $mode));
+
+        if ($mode === '') {
+            return $user->assignedRoles();
         }
 
-        if ($request) {
-            return $this->activeRoleContext->activeRole($request, $user);
-        }
-
-        return $user->primaryRole();
+        return $user->hasRole($mode) ? [$mode] : [];
     }
 
-    private function currentRequestFor(User $user): ?Request
+    private function ownInvoices(Builder $query, User $user, ?string $athleteId): Builder
     {
-        if (! app()->bound('request')) {
-            return null;
-        }
-
-        $request = request();
-
-        return $request->hasSession() && (int) $request->user()?->id === (int) $user->id
-            ? $request
-            : null;
-    }
-
-    private function invoiceOnly(Builder $query): Builder
-    {
-        return $query->where('bill_kind', 'INVOICE');
+        return $query
+            ->where('bill_kind', 'INVOICE')
+            ->where(function (Builder $inner) use ($user, $athleteId): void {
+                $inner->where('billable_user_id', $user->id)
+                    ->orWhere('payer_user_id', $user->id)
+                    ->when($athleteId, fn (Builder $athleteQuery) => $athleteQuery->orWhere('athlete_id', $athleteId));
+            });
     }
 
     private function isMemberInvoice(Payment $payment): bool

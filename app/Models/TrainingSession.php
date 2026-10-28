@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ResolvesUuidRouteBindings;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,8 +14,9 @@ use Illuminate\Support\Carbon;
 
 class TrainingSession extends Model
 {
-    use HasUuids;
-
+    use HasUuids, ResolvesUuidRouteBindings {
+        ResolvesUuidRouteBindings::resolveRouteBindingQuery insteadof HasUuids;
+    }
     use SoftDeletes;
 
     protected $table = 'training_sessions';
@@ -113,5 +115,4 @@ class TrainingSession extends Model
     {
         return 'uuid';
     }
-
 }

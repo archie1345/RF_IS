@@ -1,5 +1,5 @@
-import { computed, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
 
 export type AppLocale = 'id' | 'en';
 
@@ -60,6 +60,7 @@ const messages: Record<AppLocale, Record<string, MessageValue>> = {
         'Activate account': 'Aktifkan akun',
         'Already active?': 'Sudah aktif?',
         'Navigation Menu': 'Menu navigasi',
+        'Open navigation menu': 'Buka menu navigasi',
         'Select child': 'Pilih anak',
         'Open child picker': 'Buka pemilih anak',
         'Exit view': 'Keluar dari tampilan',
@@ -219,6 +220,7 @@ const messages: Record<AppLocale, Record<string, MessageValue>> = {
         'Tutup toast / Dismiss toast': 'Tutup notifikasi',
     },
     en: {
+        'Open navigation menu': 'Open navigation menu',
         'Bahasa / Language': 'Language',
         Indonesia: 'Indonesian',
         English: 'English',
@@ -678,6 +680,7 @@ const extendedIndonesianMessages: Record<string, string> = {
     'Coach Bio': 'Bio pelatih',
     'Linked Athletes (Children):': 'Atlet tertaut (anak):',
     'Use 3x4 Crop': 'Gunakan crop 3x4',
+    '3x4 profile picture is ready to save.': 'Foto 3×4 siap disimpan.',
     'Paste /attendance/scan/... link if camera scanner is unavailable':
         'Tempel tautan /attendance/scan/... jika pemindai kamera tidak tersedia',
     'Toggle Sidebar': 'Buka/tutup sidebar',
@@ -1266,10 +1269,10 @@ const extendedEnglishMessages: Record<string, string> = {
     'Perlu Perhatian': 'Needs attention',
     'Belum Ada Data': 'No data yet',
     'Training locations': 'Training locations',
-    'Refresh': 'Refresh',
-    'Koordinat': 'Coordinates',
-    'Radius': 'Radius',
-    'Aksi': 'Actions',
+    Refresh: 'Refresh',
+    Koordinat: 'Coordinates',
+    Radius: 'Radius',
+    Aksi: 'Actions',
     'Klik peta untuk memilih koordinat, atau isi latitude dan longitude manual.':
         'Click the map to choose coordinates, or enter latitude and longitude manually.',
     'Nama Lokasi *': 'Location name *',
@@ -1278,7 +1281,7 @@ const extendedEnglishMessages: Record<string, string> = {
     'Radius Absensi': 'Attendance radius',
     'Simpan Lokasi': 'Save location',
     'Saving...': 'Saving...',
-    'Batal': 'Cancel',
+    Batal: 'Cancel',
     'Konfigurasi keuangan': 'Finance configuration',
     'Aturan Tagihan': 'Billing Rules',
     'Jadwal SPP otomatis': 'Automatic tuition schedule',
@@ -1293,20 +1296,20 @@ const extendedEnglishMessages: Record<string, string> = {
     'Prioritas SPP: cabang + kelas, kelas, cabang, lalu Tarif default dari Jadwal SPP otomatis.':
         'Tuition priority: branch + class, class, branch, then the default rate from the automatic tuition schedule.',
     'Tambah aturan': 'Add rule',
-    'Arsipkan': 'Archive',
+    Arsipkan: 'Archive',
     'Semua atlet memakai Tarif default sampai tarif cabang, kelas, atau tagihan satu kali dibuat.':
         'All athletes use the default rate until a branch, class, or one-time payment rule is created.',
     'Buat aturan pertama': 'Create the first rule',
     'Rekap Presensi Coach': 'Coach attendance recap',
     'Riwayat Event & UKT': 'Event & tuition history',
     'Pengaturan WhatsApp': 'WhatsApp settings',
-    'Placeholder': 'Placeholder',
+    Placeholder: 'Placeholder',
     'Nomor Anggota': 'Member number',
     'Tanggal Bergabung': 'Join date',
-    'Geup': 'Geup',
-    'Status': 'Status',
-    'Aktif': 'Active',
-    'Nonaktif': 'Inactive',
+    Geup: 'Geup',
+    Status: 'Status',
+    Aktif: 'Active',
+    Nonaktif: 'Inactive',
     Dan: 'And',
     'Atlet Private': 'Private athletes',
     'Cari hari...': 'Search days... ',
@@ -1353,7 +1356,7 @@ const extendedEnglishMessages: Record<string, string> = {
     'Contoh: Pindai QRIS, bayar sesuai sisa tagihan, lalu unggah bukti.':
         'Example: Scan QRIS, pay the remaining amount, then upload proof.',
     'Nomor WhatsApp admin': 'Administrator WhatsApp number',
-    'Keuangan': 'Finance',
+    Keuangan: 'Finance',
     'Keuangan pelatih': 'Coach finance',
     'Payroll dan slip pembayaran': 'Payroll and payslips',
     'Riwayat payroll': 'Payroll history',
@@ -1431,9 +1434,12 @@ const extendedEnglishMessages: Record<string, string> = {
     'Tidak ada atlet yang memenuhi syarat untuk sesi ini. Periksa kelas dan cabang sesi.':
         'No eligible athletes were found for this session. Check the session class and branch.',
     'Arsip kompetisi': 'Competition archive',
-    'Cari atlet, kelas, divisi, kategori, atau hasil...': 'Search athletes, classes, divisions, categories, or results...',
-    'Cari event, tanggal, lokasi, penyelenggara, atau level...': 'Search events, dates, locations, organizers, or levels...',
-    'Cari nama, kejuaraan, medali, kelas, atau kategori...': 'Search names, championships, medals, classes, or categories...',
+    'Cari atlet, kelas, divisi, kategori, atau hasil...':
+        'Search athletes, classes, divisions, categories, or results...',
+    'Cari event, tanggal, lokasi, penyelenggara, atau level...':
+        'Search events, dates, locations, organizers, or levels...',
+    'Cari nama, kejuaraan, medali, kelas, atau kategori...':
+        'Search names, championships, medals, classes, or categories...',
     'Tambah Kelas Baru': 'Add new class',
     'Contoh: Perubahan jadwal latihan': 'Example: Training schedule change',
     'Terbit pada': 'Published on',
@@ -1487,8 +1493,10 @@ const extendedEnglishMessages: Record<string, string> = {
     'Kode ini langsung tidak dapat digunakan lagi. Atlet atau orang tua yang belum memindai harus menunggu QR dibuka kembali.':
         'This code cannot be used again immediately. Athletes or parents who have not scanned must wait for the QR to be reopened.',
     'QR attendance sesi': 'Session attendance QR',
-    'QR tetap aktif sampai admin atau pelatih menekan Tutup QR.': 'The QR remains active until an administrator or coach presses Close QR.',
-    'QR tidak dapat dirender. Gunakan tautan pemindaian di bawah.': 'The QR could not be rendered. Use the scan link below.',
+    'QR tetap aktif sampai admin atau pelatih menekan Tutup QR.':
+        'The QR remains active until an administrator or coach presses Close QR.',
+    'QR tidak dapat dirender. Gunakan tautan pemindaian di bawah.':
+        'The QR could not be rendered. Use the scan link below.',
     'Tekan Buka QR saat atlet sudah siap melakukan check-in.': 'Press Open QR when athletes are ready to check in.',
     'Belum ada transaksi pembayaran yang disetujui.': 'No approved payment transactions yet.',
     'Riwayat transaksi': 'Transaction history',
@@ -1520,7 +1528,8 @@ const extendedEnglishMessages: Record<string, string> = {
     'Pusat pengaturan': 'Settings center',
     'Data akun, foto 3×4, bio, sertifikasi, prestasi, dan informasi sesuai peran.':
         'Account data, 3×4 photo, biography, certifications, achievements, and role-specific information.',
-    'Ganti kata sandi dengan verifikasi kata sandi saat ini.': 'Change your password by verifying your current password.',
+    'Ganti kata sandi dengan verifikasi kata sandi saat ini.':
+        'Change your password by verifying your current password.',
     'Hak akses, menu, dashboard, dan data mengikuti peran yang sedang dipilih.':
         'Access rights, menus, dashboard, and data follow the selected role.',
     'Peran aktif:': 'Active role:',
@@ -1541,7 +1550,8 @@ const extendedEnglishMessages: Record<string, string> = {
         'Complete the photo, contact, and role data to make administration easier.',
     'Nama, email, tanggal lahir, dan kontak utama.': 'Name, email, date of birth, and primary contact.',
     'Status, spesialisasi, dan profil profesional.': 'Status, specialization, and professional profile.',
-    'Hapus gambar QRIS saat ini dan kembali ke placeholder': 'Delete the current QRIS image and restore the placeholder',
+    'Hapus gambar QRIS saat ini dan kembali ke placeholder':
+        'Delete the current QRIS image and restore the placeholder',
     'Instruksi pembayaran': 'Payment instructions',
     'Kanal QRIS sedang dinonaktifkan oleh admin. Gunakan metode pembayaran lain yang tercantum pada tagihan.':
         'The QRIS channel has been disabled by an administrator. Use another payment method listed on the payment.',
@@ -1623,8 +1633,7 @@ const extendedEnglishMessages: Record<string, string> = {
     'Tinjau bukti': 'Review proof',
     'Bukti menunggu review': 'Proof awaiting review',
     'Diterima bulan ini': 'Received this month',
-    'Pemasukan dari transaksi tagihan anggota yang disetujui':
-        'Income from approved member payment transactions',
+    'Pemasukan dari transaksi tagihan anggota yang disetujui': 'Income from approved member payment transactions',
     'Prioritas pertama dalam antrean keuangan': 'Top priority in the finance queue',
     'Coach bisa menambahkan kelas latihan dan memilih satu atau beberapa pelatih. Admin tetap mengelola edit dan hapus kelas.':
         'Coaches can add training classes and select one or more coaches. Administrators still manage class editing and deletion.',
@@ -1674,7 +1683,7 @@ const extendedEnglishMessages: Record<string, string> = {
     'Anak terhubung': 'Linked children',
     'Atlet aktif': 'Active athletes',
     'Atlet hadir dari sesi yang ditangani': 'Athletes present in managed sessions',
-    'Dashboard': 'Dashboard',
+    Dashboard: 'Dashboard',
     'Kehadiran saya': 'My attendance',
     'Kehadiran sesi': 'Session attendance',
     'Kejuaraan dan kegiatan terjadwal': 'Scheduled championships and activities',
@@ -1712,18 +1721,20 @@ const extendedEnglishMessages: Record<string, string> = {
     'Pengumuman berhasil diterbitkan.': 'Announcement published successfully.',
     'QR attendance dibuka dan akan tetap aktif sampai ditutup oleh admin atau pelatih.':
         'Attendance QR opened and will remain active until closed by an administrator or coach.',
-    'Generated {$result[\'created\']} sesi latihan; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.':
-        'Generated {$result[\'created\']} training sessions; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.',
+    "Generated {$result['created']} sesi latihan; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.":
+        "Generated {$result['created']} training sessions; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.",
     'Jadwal memiliki riwayat sehingga dinonaktifkan. {$removed} sesi mendatang dihapus.':
         'The schedule has history and was deactivated. {$removed} upcoming sessions were removed.',
     'Jadwal mingguan dihapus.': 'Weekly schedule deleted.',
-    'Jadwal mingguan diperbarui. Created {$result[\'created\']}; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.':
-        'Weekly schedule updated. Created {$result[\'created\']}; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.',
-    'Jadwal mingguan disimpan. Auto-created {$result[\'created\']} sesi latihan; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.':
-        'Weekly schedule saved. Automatically created {$result[\'created\']} training sessions; updated {$result[\'updated\']}; removed {$result[\'removed\']}; skipped {$result[\'skipped\']}.',
+    "Jadwal mingguan diperbarui. Created {$result['created']}; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.":
+        "Weekly schedule updated. Created {$result['created']}; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.",
+    "Jadwal mingguan disimpan. Auto-created {$result['created']} sesi latihan; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.":
+        "Weekly schedule saved. Automatically created {$result['created']} training sessions; updated {$result['updated']}; removed {$result['removed']}; skipped {$result['skipped']}.",
     'Kelas yang dipilih harus berada pada cabang yang sama.': 'The selected classes must be in the same branch.',
-    'Pelatih hanya dapat menggunakan kelas yang ditugaskan kepadanya.': 'Coaches can only use classes assigned to them.',
-    'Profil pelatih aktif diperlukan untuk mengelola jadwal.': 'An active coach profile is required to manage schedules.',
+    'Pelatih hanya dapat menggunakan kelas yang ditugaskan kepadanya.':
+        'Coaches can only use classes assigned to them.',
+    'Profil pelatih aktif diperlukan untuk mengelola jadwal.':
+        'An active coach profile is required to manage schedules.',
     'Rentang pembuatan sesi maksimal 90 hari.': 'The session generation range cannot exceed 90 days.',
     'Belum ada lokasi': 'No location',
     'Pindai QRIS, bayar sesuai sisa tagihan, lalu unggah bukti pembayaran untuk direview admin.':
@@ -1738,7 +1749,8 @@ const extendedEnglishMessages: Record<string, string> = {
     'Payroll bulan ini': 'This month’s payroll',
     'Semua pelatih sudah memiliki bukti pembayaran': 'All coaches already have payment proof',
     'Slip payroll dan bukti pembayaran berhasil dibuat.': 'Payroll slips and payment proof created successfully.',
-    'Slip payroll pelatih ini untuk periode tersebut sudah ada.': 'A payroll slip for this coach and period already exists.',
+    'Slip payroll pelatih ini untuk periode tersebut sudah ada.':
+        'A payroll slip for this coach and period already exists.',
     'Termasuk bonus pelatih': 'Including coach bonus',
     'Total dibayar bulan ini': 'Total paid this month',
     'Total payroll harus lebih dari nol.': 'Total payroll must be greater than zero.',
@@ -1769,7 +1781,8 @@ const extendedEnglishMessages: Record<string, string> = {
     'Tagihan bulanan dibuat:': 'Monthly payments created:',
     'Tagihan satu kali dibuat:': 'One-time payments created:',
     'Atlet berhasil ditambahkan ke daftar peserta.': 'Athlete added to the participant list successfully.',
-    'Atlet ini sudah tercatat pada kejuaraan yang dipilih.': 'This athlete is already registered for the selected championship.',
+    'Atlet ini sudah tercatat pada kejuaraan yang dipilih.':
+        'This athlete is already registered for the selected championship.',
     'Batas waktu pendaftaran kejuaraan sudah berakhir atau pendaftaran sudah ditutup.':
         'The championship registration deadline has passed or registration is closed.',
     'Entri peserta berhasil dihapus.': 'Participant entry deleted successfully.',
@@ -1844,8 +1857,7 @@ const extendedEnglishMessages: Record<string, string> = {
     'Penugasan ': 'Assignment ',
     'akan dihapus dari event ini.': 'will be deleted from this event.',
     'Sertifikasi “': 'Certification “',
-    'dan berkas pendukungnya akan dihapus dari profil.':
-        'and its supporting file will be deleted from the profile.',
+    'dan berkas pendukungnya akan dihapus dari profil.': 'and its supporting file will be deleted from the profile.',
     'Category:': 'Category:',
     'menunggu sinkronisasi': 'awaiting synchronization',
     Menyinkronkan: 'Synchronizing',
@@ -1857,6 +1869,64 @@ const extendedEnglishMessages: Record<string, string> = {
     'kesalahan lainnya.': 'other errors.',
     'Server mengembalikan respons HTTP ': 'The server returned an HTTP ',
     'yang tidak dapat diproses oleh aplikasi.': ' response that the application cannot process.',
+    'Buka menu pengguna': 'Open user menu',
+    'Salin tautan': 'Copy link',
+    Tersalin: 'Copied',
+    'Nama kejuaraan atau prestasi': 'Championship or achievement name',
+    'Minimal Sabuk': 'Minimum belt',
+    Judul: 'Title',
+    'Berakhir pada': 'Expires on',
+    Visibilitas: 'Visibility',
+    'Pilih konteks peran yang sedang digunakan. Attendance pelatih dan atlet tetap dicatat secara terpisah.':
+        'Select the active role context. Coach and athlete attendance remain recorded separately.',
+    'Sesi mengajar yang tersedia': 'Available teaching sessions',
+    'Tekan Hadir hanya untuk sesi terkonfirmasi yang ditugaskan kepada Anda. Attendance atlet dikelola dari halaman sesi.':
+        'Press Present only for confirmed sessions assigned to you. Athlete attendance is managed from the session page.',
+    'Attendance pelatih': 'Coach attendance',
+    'Attendance mengajar tidak digabung dengan attendance atlet meskipun akun memiliki kedua peran.':
+        'Teaching attendance is not combined with athlete attendance even when an account has both roles.',
+    'Tidak ada sesi mengajar yang tersedia.': 'No teaching sessions are available.',
+    'Cari sesi, cabang, kelas, atau tanggal...': 'Search sessions, branches, classes, or dates...',
+    'Scan QR attendance': 'Scan attendance QR',
+    'Attendance atlet hanya dapat dilakukan melalui QR sesi yang dibuka oleh pelatih atau admin.':
+        'Athlete attendance can only be recorded through a session QR opened by a coach or administrator.',
+    'Riwayat attendance atlet': 'Athlete attendance history',
+    'Riwayat ini berasal dari QR scan atau koreksi petugas.': 'This history comes from QR scans or staff corrections.',
+    'Belum ada riwayat attendance atlet.': 'No athlete attendance history yet.',
+    'Cari atlet, sesi, atau pelatih...': 'Search athletes, sessions, or coaches...',
+    'Pengelolaan attendance atlet': 'Athlete attendance management',
+    'Admin dapat melihat dan mengoreksi seluruh attendance. Check-in normal tetap diarahkan melalui QR sesi.':
+        'Administrators can view and correct all attendance. Normal check-ins still go through the session QR.',
+    'Daftar check-in sesi': 'Session check-in list',
+    'Gunakan halaman attendance sesi untuk operasi detail dan pembukaan QR cepat.':
+        'Use the session attendance page for detailed operations and quick QR opening.',
+    Koreksi: 'Correction',
+    'Buat sesi attendance': 'Create attendance session',
+    'Buat sesi latihan lalu lanjutkan ke halaman sesi untuk membuka QR dan mengelola attendance.':
+        'Create a training session, then continue to the session page to open the QR and manage attendance.',
+    Klasifikasi: 'Classification',
+    'Tim/Kontingen': 'Team/Delegation',
+    'Daftar kejuaraan': 'Register for championship',
+    'Tautan Google Maps': 'Google Maps link',
+    'Biaya pendaftaran': 'Registration fee',
+    'Catat hasil peserta': 'Record participant result',
+    'Buat tagihan baru': 'Create new payment',
+    'File logo invoice': 'Invoice logo file',
+    'Nama klub': 'Club name',
+    'Catatan admin': 'Administrator notes',
+    'Nominal diterima': 'Amount received',
+    'Catatan transaksi': 'Transaction notes',
+    'Edit QRIS': 'Edit QRIS',
+    'Judul QRIS': 'QRIS title',
+    'Gambar QRIS resmi': 'Official QRIS image',
+    'Tidak ada data anggota': 'No member data',
+    'Data tidak ditemukan': 'No data found',
+    Spesialisasi: 'Specialization',
+    Sabuk: 'Belt',
+    'Jadwal mingguan disimpan.': 'Weekly schedule saved.',
+    'Jadwal mingguan diperbarui.': 'Weekly schedule updated.',
+    'Auto-created': 'Automatically created',
+    'sesi mendatang dihapus.': 'upcoming sessions were removed.',
 };
 
 function interpolate(value: string, params: Record<string, string | number>): string {
@@ -1892,17 +1962,18 @@ export function useI18n() {
     };
 }
 
+const translationFragments = [...new Set([...Object.keys(messages.en), ...Object.keys(extendedEnglishMessages)])]
+    .filter((key) => key.length >= 3 && !key.includes(':'))
+    .sort((left, right) => right.length - left.length);
+
 function translateText(source: string, locale: AppLocale): string {
     const exact = translate(source, locale);
     if (locale !== 'en' || exact !== source) return exact;
 
     // Text nodes containing interpolated names/counts are not exact dictionary
     // keys. Translate known Indonesian fragments inside those nodes as well.
-    const fragments = [...new Set([...Object.keys(messages.en), ...Object.keys(extendedEnglishMessages)])]
-        .filter((key) => key.length >= 3 && !key.includes(':'))
-        .sort((left, right) => right.length - left.length);
     let rendered = source;
-    fragments.forEach((fragment) => {
+    translationFragments.forEach((fragment) => {
         if (!rendered.includes(fragment)) return;
         const translated = translate(fragment, locale);
         if (translated === fragment) return;

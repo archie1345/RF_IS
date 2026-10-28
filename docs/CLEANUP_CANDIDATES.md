@@ -2,13 +2,14 @@
 
 No file was deleted during this pass. Search-only absence is insufficient proof; each candidate below records framework and compatibility considerations.
 
+This inventory predates the 2026-10 role and route changes. Its former parent-profile overlap entry is superseded because the parent portal and those controllers have since been removed. Recheck all route/API status against the current source before acting on any remaining candidate.
+
 | Candidate | Why suspicious | Evidence checked | Classification / next step |
 |---|---|---|---|
-| `Http/Controllers/Api/*` and explicit API CRUD routes | Parallel implementations exist beside browser controllers. | `routes/api.php` references every controller; `bootstrap/app.php` loads API routes. | **Active/uncertain consumers; retain.** Inventory clients and add authentication before consolidation. |
+| JSON endpoints in `routes/api.php` | Separate API route file may look like a broad CRUD surface. | Current file exposes `/api/user` under Sanctum and one admin/coach group-athlete endpoint under session auth, active account, verification, and role middleware. | **Active and authenticated; retain.** The former broad CRUD description no longer applies. |
 | `Models/Session.php` and `Models/TrainingSession.php` | Two names suggest a pre-/post-rename domain. | PHP references, relationships, migration `2026_07_02_000001_rename_attendance_training_session_domain.php`, controllers/actions/tests. | **Compatibility risk; retain.** Establish canonical model and deprecation plan before removal. |
 | `Models/Group.php` and `Models/TrainingGroup.php` | Overlapping group terminology. | Admin routes/controllers, training-class payloads, model relations, migrations, frontend pages. | **Both active domains; retain.** Document legacy ClassGroup versus training grouping semantics. |
 | Root `UserAchievementController` and profile controller alias | Similar controller names. | `routes/web.php` uses root controller for achievement page and aliased profile controller for user-scoped mutations. | **Distinct active responsibilities; retain.** Namespacing is intentional. |
-| `ParentChildProfileController` versus `ProfileAccessController` | Overlapping profile responsibilities. | User password route, user show/profile routes, parent-child tests. | **Active; responsibility could be clearer.** Move password mutation to a dedicated controller only with route/test parity. |
 | `AdminFeaturePage.vue` | Generic page can conceal unfinished features. | `BaseAdminFeatureController` dynamically renders it; admin feature controllers extend/use the base. | **Active shared read-model page; retain.** |
 | `ErrorPage.vue` | No literal `Inertia::render` reference. | Inertia exception handling/bootstrap dynamic resolution and recursive page resolver. | **Framework-discovered; retain.** |
 | `resources/js/types/wayfinder-route-stub.d.ts` | Declares broad `unknown` parameters and many generic names, weakening generated helper contracts. | TypeScript config/module resolution, imports from generated route modules, Wayfinder generation workflow. | **Active technical-debt candidate; retain for now.** Remove only after generated declarations pass `vue-tsc`; prefer exact route parameter types and normalized IDs. |

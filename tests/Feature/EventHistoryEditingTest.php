@@ -67,9 +67,9 @@ test('admin can view past event and UKT results from history', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('EventHistoryPage')
-            ->where('events.0.id', $event->event_id)
+            ->where('events.0.id', $event->uuid)
             ->where('events.0.results_count', 1)
-            ->where('events.0.registrations.0.id', $registration->evrid)
+            ->where('events.0.registrations.0.id', $registration->uuid)
             ->where('events.0.registrations.0.result_medal', 'BRONZE')
             ->where('events.0.registrations.0.result_class_name', 'U-58 KG'));
 });

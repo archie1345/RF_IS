@@ -9,12 +9,12 @@ it('uses role assignments as the primary role source', function () {
 
     UserRoleAssignment::create([
         'user_id' => $user->id,
-        'role' => 'parent',
+        'role' => 'coach',
     ]);
 
-    expect($user->fresh()->assignedRoles())->toBe(['parent'])
-        ->and($user->fresh()->primaryRole())->toBe('parent')
-        ->and($user->fresh()->isParent())->toBeTrue()
+    expect($user->fresh()->assignedRoles())->toBe(['coach'])
+        ->and($user->fresh()->primaryRole())->toBe('coach')
+        ->and($user->fresh()->isCoach())->toBeTrue()
         ->and($user->fresh()->isAthlete())->toBeFalse();
 });
 

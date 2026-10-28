@@ -96,13 +96,13 @@ const filteredEvents = computed(() => {
     );
 });
 
-function toggleEvent(eventId: number): void {
+function toggleEvent(eventId: number | string): void {
     expandedEventIds.value = expandedEventIds.value.includes(eventId)
         ? expandedEventIds.value.filter((id) => id !== eventId)
         : [...expandedEventIds.value, eventId];
 }
 
-function isExpanded(eventId: number): boolean {
+function isExpanded(eventId: number | string): boolean {
     return expandedEventIds.value.includes(eventId);
 }
 

@@ -32,7 +32,7 @@ class AdminSeeder extends Seeder
         $admin = DB::transaction(function () use ($attributes): User {
             $admin = User::withTrashed()
                 ->where('email', $attributes['email'])
-                ->first() ?? new User();
+                ->first() ?? new User;
 
             if ($admin->exists && $admin->trashed()) {
                 $admin->restore();

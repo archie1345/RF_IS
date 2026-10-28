@@ -153,7 +153,8 @@ function isAttendancePending(rowId: string): boolean {
 async function updateStatus(rowId: string, status: AttendanceStatusValue): Promise<void> {
     if (isAttendancePending(rowId)) return;
 
-    const attendanceId = routeId(rowId);
+    const row = attendanceRows.value.find((candidate) => String(candidate.id) === rowId);
+    const attendanceId = routeId(row?.route_id ?? rowId);
     if (!attendanceId) {
         attendanceUpdateError.value = 'Baris attendance tidak valid.';
         return;
@@ -163,7 +164,7 @@ async function updateStatus(rowId: string, status: AttendanceStatusValue): Promi
     pendingAttendanceRowIds.value = [...pendingAttendanceRowIds.value, rowId];
 
     try {
-        const response = await fetch(attendanceUpdate.url(attendanceId), {
+        const response = await fetch(attendanceUpdate.url(String(attendanceId)), {
             method: 'PUT',
             headers: csrfHeaders(),
             credentials: 'same-origin',
@@ -242,10 +243,11 @@ function addCoach(): void {
 }
 
 function updateCoachStatus(rowId: string, status: 'TEACH' | 'NOT_TEACH'): void {
-    const coachAttendanceId = routeId(rowId);
+    const row = props.coachRows.find((candidate) => String(candidate.id) === rowId);
+    const coachAttendanceId = routeId(row?.route_id ?? rowId);
     if (!coachAttendanceId) return;
 
-    router.put(sessionCoachAttendanceUpdate.url(coachAttendanceId), { status }, { preserveScroll: true });
+    router.put(sessionCoachAttendanceUpdate.url(String(coachAttendanceId)), { status }, { preserveScroll: true });
 }
 
 function requestRemoveCoach(rowId: string): void {
@@ -255,11 +257,12 @@ function requestRemoveCoach(rowId: string): void {
 function confirmRemoveCoach(): void {
     if (!pendingCoachDeleteId.value) return;
 
-    const coachAttendanceId = routeId(pendingCoachDeleteId.value);
+    const row = props.coachRows.find((candidate) => String(candidate.id) === pendingCoachDeleteId.value);
+    const coachAttendanceId = routeId(row?.route_id ?? pendingCoachDeleteId.value);
     pendingCoachDeleteId.value = null;
     if (!coachAttendanceId) return;
 
-    router.delete(sessionCoachAttendanceDestroy.url(coachAttendanceId), { preserveScroll: true });
+    router.delete(sessionCoachAttendanceDestroy.url(String(coachAttendanceId)), { preserveScroll: true });
 }
 
 function resetCoachForm(): void {
@@ -388,7 +391,7 @@ function saveSession(): void {
                 </div>
             </section>
 
-        <SessionAttendanceQrPanel :session-id="props.session.uuid" :qr="props.session.attendance_qr" />
+            <SessionAttendanceQrPanel :session-id="props.session.uuid" :qr="props.session.attendance_qr" />
 
             <PageSection
                 eyebrow="Daftar atlet"

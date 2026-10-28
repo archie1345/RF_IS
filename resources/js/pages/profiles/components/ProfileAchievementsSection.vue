@@ -25,7 +25,7 @@ const popup = useAppPopup();
 
 const rows = computed(() =>
     achievementRows(props.achievements).map((row) => {
-        const achievement = props.achievements.find((item) => String(item.id) === String(row.id));
+        const achievement = props.achievements.find((item) => item.route_id === String(row.id));
 
         return {
             ...row,
@@ -83,7 +83,7 @@ function addAchievement(): void {
 }
 
 function findAchievement(row: TableRow): ProfileAchievement | undefined {
-    return props.achievements.find((item) => String(item.id) === String(row.id));
+    return props.achievements.find((item) => item.route_id === String(row.id));
 }
 
 function openAchievementEdit(row: TableRow): void {
@@ -114,7 +114,7 @@ function saveAchievementEdit(): void {
 
     achievementEditForm
         .transform((data) => ({ ...data, _method: 'put' }))
-        .post(props.updateUrl(editingAchievement.value.id), {
+        .post(props.updateUrl(editingAchievement.value.route_id), {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: closeAchievementEdit,
@@ -134,7 +134,7 @@ async function removeAchievement(row: TableRow): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(props.updateUrl(achievement.id), { preserveScroll: true });
+    router.delete(props.updateUrl(achievement.route_id), { preserveScroll: true });
 }
 </script>
 

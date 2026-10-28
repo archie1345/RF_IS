@@ -56,7 +56,7 @@ const groupTableFilters: TableFilter[] = [
 ];
 
 const showForm = ref(false);
-const editingId = ref<number | null>(null);
+const editingRouteKey = ref<string | null>(null);
 
 const form = useForm({
     name: '',
@@ -81,7 +81,7 @@ const groupTableRows = computed<TableRow[]>(() =>
 );
 
 function resetForm() {
-    editingId.value = null;
+    editingRouteKey.value = null;
     form.clearErrors();
     form.name = '';
     form.description = '';
@@ -100,7 +100,7 @@ function groupFromRow(row: TableRow): TrainingGroupRecord | null {
 }
 
 function openEdit(group: TrainingGroupRecord) {
-    editingId.value = group.id;
+    editingRouteKey.value = group.route_key;
     form.clearErrors();
     form.name = group.name;
     form.description = group.description ?? '';
@@ -121,8 +121,8 @@ function closeForm() {
 function saveGroup() {
     const options = { preserveScroll: true, onSuccess: closeForm };
 
-    if (editingId.value) {
-        form.put(`/admin/training-groups/${editingId.value}`, options);
+    if (editingRouteKey.value) {
+        form.put(`/admin/training-groups/${encodeURIComponent(editingRouteKey.value)}`, options);
         return;
     }
 
@@ -138,7 +138,7 @@ async function deleteGroup(group: TrainingGroupRecord): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(`/admin/training-groups/${group.id}`, { preserveScroll: true });
+    router.delete(`/admin/training-groups/${encodeURIComponent(group.route_key)}`, { preserveScroll: true });
 }
 
 function deleteGroupFromRow(row: TableRow) {
@@ -181,10 +181,22 @@ function deleteGroupFromRow(row: TableRow) {
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="openEditFromRow(row)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            :aria-label="`Ubah grup ${String(row.name ?? '')}`"
+                            @click="openEditFromRow(row)"
+                        >
                             <Pencil class="size-4" />
                         </Button>
-                        <Button type="button" size="sm" variant="destructive" @click="deleteGroupFromRow(row)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            :aria-label="`Hapus grup ${String(row.name ?? '')}`"
+                            @click="deleteGroupFromRow(row)"
+                        >
                             <Trash2 class="size-4" />
                         </Button>
                     </ActionButtonsRow>
@@ -194,7 +206,7 @@ function deleteGroupFromRow(row: TableRow) {
             <FormModal :open="showForm" max-width-class="max-w-xl" @close="closeForm">
                 <form class="grid gap-4" @submit.prevent="saveGroup">
                     <div>
-                        <h2 class="text-xl font-black">{{ editingId ? 'Edit Grup' : 'Tambah Grup' }}</h2>
+                        <h2 class="text-xl font-black">{{ editingRouteKey ? 'Edit Grup' : 'Tambah Grup' }}</h2>
                         <p class="mt-1 text-sm text-muted-foreground">
                             Grup ini akan dipakai sebagai kategori wajib saat membuat kelas.
                         </p>

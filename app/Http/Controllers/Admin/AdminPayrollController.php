@@ -200,6 +200,18 @@ class AdminPayrollController extends Controller
         }
 
         $payment = DB::transaction(function () use ($request, $validated, $coach, $period, $basisType, $units, $rate, $baseAmount, $bonusAmount, $totalAmount): Payment {
+            User::query()->whereKey($coach->id)->lockForUpdate()->firstOrFail();
+
+            if (Payment::query()
+                ->where('bill_kind', 'PAYROLL')
+                ->where('payee_user_id', $coach->id)
+                ->whereDate('payroll_period', $period->toDateString())
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'payroll_period' => 'Slip payroll pelatih ini untuk periode tersebut sudah ada.',
+                ]);
+            }
+
             $paidAt = Carbon::parse($validated['paid_at']);
 
             $payment = Payment::query()->create([

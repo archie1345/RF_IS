@@ -5,7 +5,6 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -30,8 +29,6 @@ function makeAthleteWithProfile(string $name = 'Athlete User'): array
         'branch_id' => $branch->branch_id,
         'height_cm' => 150,
         'weight_kg' => 45,
-        'nik_hash' => hash('sha256', $name.' nik'),
-        'bpjs_hash' => hash('sha256', $name.' bpjs'),
         'geup' => 'GEUP_1',
     ]);
 
@@ -70,16 +67,13 @@ test('athlete cannot bypass QR by manually updating attendance', function () {
     expect($attendance->refresh()->status)->toBe('ABSENT');
 });
 
-test('parent can see and upload proof for a tuition bill issued to their child user account', function () {
+test('athlete can see and upload proof for a tuition bill issued to their user account', function () {
     Storage::fake(Payment::PROOF_DISK_PRIVATE);
 
-    [$childUser, $childAthlete] = makeAthleteWithProfile('Child User');
-    $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'mother']);
-    $childAthlete->update(['parent_id' => $parent->parent_id]);
+    [$athleteUser] = makeAthleteWithProfile('Athlete Tuition User');
 
     $payment = Payment::create([
-        'billable_user_id' => $childUser->id,
+        'billable_user_id' => $athleteUser->id,
         'bill_kind' => 'INVOICE',
         'payment_type' => 'TUITION',
         'amount' => 300000,
@@ -90,14 +84,14 @@ test('parent can see and upload proof for a tuition bill issued to their child u
         'status' => 'PENDING',
     ]);
 
-    $this->actingAs($parentUser)
+    $this->actingAs($athleteUser)
         ->get(route('payments.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('PaymentsPage')
             ->where('rows.0.payment_id', $payment->payment_id));
 
-    $this->actingAs($parentUser)
+    $this->actingAs($athleteUser)
         ->post(route('payments.proof.submit', $payment), [
             'notes' => 'Tuition transfer receipt',
             'proof_file' => UploadedFile::fake()->image('tuition-receipt.jpg'),

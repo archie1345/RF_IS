@@ -12,7 +12,7 @@ These rules are the cleanup target for new work and incremental refactors. They 
 - Put dropdown/query providers behind `options()` or `selectOptions()` and return a documented stable shape.
 - Put authorization in Policies. An explicit role check is acceptable at a boundary only when a policy cannot express it cleanly; reuse `User`/`RoleResolver` helpers rather than duplicating role strings.
 - Centralize audit writes in `ActivityLogger`; log actor, action, subject, meaningful metadata, and outcome consistently.
-- Keep visibility in dedicated query services. `PaymentVisibilityService`, `AttendanceVisibilityService`, `SessionVisibilityService`, and `ParentChildContextService` own payment visibility, attendance eligibility, session visibility, and linked-child access respectively. Do not reproduce these filters in controllers.
+- Keep visibility and eligibility in dedicated query services. `PaymentVisibilityService`, `AttendanceVisibilityService`, `SessionVisibilityService`, and `SessionEligibilityService` own payment visibility, attendance visibility, session visibility, and session eligibility respectively. Do not reproduce these rules in controllers.
 - Enforce private-session coach selection on the backend as well as the UI. Regular groups use assigned class/session coaches; private groups may expose the applicable selection flow.
 - Wrap multi-record mutations in transactions within the action. Eager-load presenter inputs and avoid hidden N+1 queries.
 - Preserve route names/URLs and migration history. Compatibility redirects are contracts until evidence and a deprecation plan permit removal.

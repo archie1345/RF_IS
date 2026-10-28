@@ -122,8 +122,7 @@ async function refreshEstimate(): Promise<void> {
             headers: { Accept: 'application/json' },
         });
         const payload = (await response.json()) as
-            | PayrollEstimate
-            | { message?: string; errors?: Record<string, string[]> };
+            PayrollEstimate | { message?: string; errors?: Record<string, string[]> };
 
         if (!response.ok) {
             const errors = 'errors' in payload ? payload.errors : undefined;

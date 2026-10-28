@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import {
     BadgeCheck,
     Brush,
@@ -22,9 +22,7 @@ const props = defineProps<{
         email: string;
         email_verified: boolean;
         account_status: string;
-        active_role: string;
         roles: string[];
-        is_multi_role: boolean;
         certifications_count: number;
         achievements_count: number;
         two_factor_enabled: boolean;
@@ -32,20 +30,12 @@ const props = defineProps<{
 }>();
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Pengaturan', href: '/settings' }];
-const roleForm = useForm({ role: props.account.active_role, redirect_to: '/settings' });
 
 const roleLabels: Record<string, string> = {
     admin: 'Admin',
     coach: 'Pelatih',
-    parent: 'Orang tua',
     athlete: 'Atlet',
 };
-
-function switchRole(role: string): void {
-    if (role === props.account.active_role || roleForm.processing) return;
-    roleForm.role = role;
-    roleForm.put('/account/active-role', { preserveScroll: true });
-}
 </script>
 
 <template>
@@ -83,43 +73,13 @@ function switchRole(role: string): void {
                                     }}
                                 </span>
                                 <span class="rounded-full border bg-background px-3 py-1 text-xs font-medium"
-                                    >Peran aktif:
-                                    {{ roleLabels[props.account.active_role] ?? props.account.active_role }}</span
+                                    >Peran: {{ props.account.roles.map((r) => roleLabels[r] ?? r).join(', ') }}</span
                                 >
                             </div>
                         </div>
                         <Button as-child class="w-full sm:w-auto"
                             ><Link href="/settings/profile">Lengkapi profil</Link></Button
                         >
-                    </div>
-                </section>
-
-                <section v-if="props.account.is_multi_role" class="rounded-2xl border bg-card p-4 sm:p-5">
-                    <div class="mb-4">
-                        <h2 class="font-semibold">Konteks peran aktif</h2>
-                        <p class="text-sm text-muted-foreground">
-                            Hak akses, menu, dashboard, dan data mengikuti peran yang sedang dipilih.
-                        </p>
-                    </div>
-                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                        <button
-                            v-for="role in props.account.roles"
-                            :key="role"
-                            type="button"
-                            class="rounded-xl border px-4 py-3 text-left transition hover:border-primary/50 hover:bg-primary/5"
-                            :class="
-                                role === props.account.active_role
-                                    ? 'border-primary bg-primary/10 text-primary'
-                                    : 'bg-background'
-                            "
-                            :disabled="roleForm.processing"
-                            @click="switchRole(role)"
-                        >
-                            <span class="block text-sm font-semibold">{{ roleLabels[role] ?? role }}</span>
-                            <span class="mt-1 block text-xs text-muted-foreground">{{
-                                role === props.account.active_role ? 'Sedang digunakan' : 'Gunakan peran ini'
-                            }}</span>
-                        </button>
                     </div>
                 </section>
 

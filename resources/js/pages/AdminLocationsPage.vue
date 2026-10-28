@@ -94,8 +94,8 @@ const locationCanBeActive = computed(() => {
         form.address.trim() &&
         form.city.trim() &&
         form.province.trim() &&
-        isValidCoordinate(form.latitude) &&
-        isValidCoordinate(form.longitude),
+        isValidCoordinate(form.latitude, -90, 90) &&
+        isValidCoordinate(form.longitude, -180, 180),
     );
 });
 
@@ -105,10 +105,12 @@ const activationHint = computed(() => {
     return 'Lengkapi nama, alamat, kota, provinsi, latitude, dan longitude sebelum lokasi bisa aktif.';
 });
 
-function isValidCoordinate(value: string | number | null | undefined): boolean {
+function isValidCoordinate(value: string | number | null | undefined, min: number, max: number): boolean {
     if (value === null || value === undefined || value === '') return false;
 
-    return Number.isFinite(Number(value));
+    const coordinate = Number(value);
+
+    return Number.isFinite(coordinate) && coordinate >= min && coordinate <= max;
 }
 
 function enforceActivationRules() {
@@ -237,10 +239,22 @@ watch(
             >
                 <template #row-actions="{ row }">
                     <ActionButtonsRow>
-                        <Button type="button" size="sm" variant="outline" @click="editLocationFromRow(row)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            :aria-label="`Edit lokasi ${row.name}`"
+                            @click="editLocationFromRow(row)"
+                        >
                             <Pencil class="size-4" />
                         </Button>
-                        <Button type="button" size="sm" variant="destructive" @click="deleteLocationFromRow(row)">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            :aria-label="`Hapus lokasi ${row.name}`"
+                            @click="deleteLocationFromRow(row)"
+                        >
                             <Trash2 class="size-4" />
                         </Button>
                     </ActionButtonsRow>
@@ -283,7 +297,7 @@ watch(
                         </label>
 
                         <label class="grid gap-1 text-sm font-semibold">
-                            Alamat *
+                            Alamat
                             <textarea
                                 v-model="form.address"
                                 class="min-h-20 rounded-lg border bg-background px-3 py-2 text-sm"
@@ -296,14 +310,14 @@ watch(
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
-                                Kota *
+                                Kota
                                 <input v-model="form.city" class="h-10 rounded-lg border bg-background px-3 text-sm" />
                                 <span v-if="form.errors.city" class="text-xs text-destructive">{{
                                     form.errors.city
                                 }}</span>
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
-                                Provinsi *
+                                Provinsi
                                 <input
                                     v-model="form.province"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
@@ -316,16 +330,26 @@ watch(
 
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="grid gap-1 text-sm font-semibold">
-                                Latitude *
+                                Latitude
                                 <input
                                     v-model="form.latitude"
+                                    type="number"
+                                    inputmode="decimal"
+                                    min="-90"
+                                    max="90"
+                                    step="any"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 />
                             </label>
                             <label class="grid gap-1 text-sm font-semibold">
-                                Longitude *
+                                Longitude
                                 <input
                                     v-model="form.longitude"
+                                    type="number"
+                                    inputmode="decimal"
+                                    min="-180"
+                                    max="180"
+                                    step="any"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 />
                             </label>
@@ -337,7 +361,8 @@ watch(
                                 <input
                                     v-model="form.attendance_radius_meters"
                                     type="number"
-                                    min="10"
+                                    min="20"
+                                    max="5000"
                                     class="h-10 rounded-lg border bg-background px-3 text-sm"
                                 />
                             </label>

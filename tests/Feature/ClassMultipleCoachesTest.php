@@ -113,3 +113,38 @@ it('keeps the legacy single coach payload compatible', function () {
 
     expect($group->coaches()->where('coaches.coach_id', $coach->coach_id)->exists())->toBeTrue();
 });
+
+it('ignores empty dedicated_athlete_ids array for non-private classes', function () {
+    Carbon::setTestNow('2026-07-20 09:00:00');
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $coach = classCoachTestCoach('Reguler Coach');
+    $branch = Branch::query()->create([
+        'branch_name' => 'Dojang Reguler Coach',
+        'location' => 'Malang',
+        'is_active' => true,
+    ]);
+    $trainingGroup = TrainingGroup::query()->create([
+        'name' => 'Reguler Coach Test Category',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('admin.classes'))
+        ->post(route('admin.groups.store'), [
+            'name' => 'Kelas Reguler Non Private',
+            'class_type' => 'reguler',
+            'training_group_id' => $trainingGroup->id,
+            'coach_ids' => [$coach->coach_id],
+            'dedicated_athlete_ids' => [],
+            'schedule_mode' => 'weekly',
+            'branch_id' => $branch->branch_id,
+            'day_of_week' => 1,
+            'start_time' => '18:00',
+            'end_time' => '20:00',
+            'is_active' => true,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(Group::query()->where('group_name', 'Kelas Reguler Non Private')->exists())->toBeTrue();
+});

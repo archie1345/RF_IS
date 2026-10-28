@@ -1,166 +1,37 @@
-# RFIS Full System Simulation
+# RFIS full-system demo data
 
-`FullSystemSimulationSeeder` prepares a local database that demonstrates the main business flows, role combinations, statuses, filters, table actions, invoices, payroll, attendance, schedules, and championship processes.
+`DatabaseSeeder` creates synthetic development users and workflow records for the supported roles: `admin`, `coach`, and `athlete`. Role assignments combine additively, so the demo accounts cover every non-empty role combination.
 
-## Safety
+## Safety and repeatable reset
 
-The seeder refuses to run when Laravel is in the `production` environment. It is intended for local development, automated tests, demonstrations, and staging environments containing disposable data.
+Demo seeders reject production, require in-memory SQLite under PHPUnit, and require `RFIS_ALLOW_DEMO_SEEDING=true` for local MySQL. Direct calls to the application and multirole demo seeders use the same guard.
 
-For the clearest result, use a fresh database because the base application seeders also create historical records.
+For the verified `rf-is-dev` Compose project only, run:
 
-```powershell
-docker compose exec server php artisan migrate:fresh --seed
+```bash
+bash scripts/dev-reset-seed.sh
 ```
 
-The default `DatabaseSeeder` now calls `FullSystemSimulationSeeder`.
+The script checks the Compose project, container identities, Laravel DB host/name/environment, and exact development volume. It makes a consistent owner-only backup outside the repository, stops the app and scheduler if running, then runs fresh migrations and `DatabaseSeeder`. It does not delete the MySQL volume. The development password is randomly generated into ignored `.env` as `RFIS_DEMO_PASSWORD` if missing; it is never printed or committed.
 
-To invoke the simulation explicitly:
+Do not point the reset script at another Compose project. Backend tests continue to use the isolated `composer test` command with SQLite `:memory:`.
 
-```powershell
-docker compose exec server php artisan db:seed --class="Database\\Seeders\\FullSystemSimulationSeeder"
-```
+## Accounts and role combinations
 
-After seeding, clear caches and restart Vite when frontend files were recently pulled:
-
-```powershell
-docker compose exec server php artisan optimize:clear
-docker compose restart vite
-```
-
-## Demo accounts
-
-All demo accounts use the password `12345678`.
-
-| Account | Primary use |
+| Roles | Account |
 |---|---|
-| `admin@rfis.test` | Administration, user management, finance, payroll, reports, settings, events |
-| `coach@rfis.test` | Sessions, teaching attendance, assigned classes and athletes |
-| `coach2@rfis.test` | Secondary coach, unpaid/paid payroll comparison, expired certification |
-| `parent@rfis.test` | Multiple linked children, combined schedules, attendance and invoices |
-| `athlete@rfis.test` | Athlete attendance, championship registration, profile and payments |
-| `multirole@rfis.test` | Combined coach, parent and athlete dashboard |
-| `allroles@rfis.test` | Admin, coach, parent and athlete access in one account |
-| `allroles.child@rfis.test` | Child linked to the all-role parent account |
+| Admin | `admin@rfis.test` |
+| Coach | `coach@rfis.test` |
+| Athlete | `athlete@rfis.test` |
+| Coach + Athlete | `multirole@rfis.test` |
+| Admin + Coach | `admincoach@rfis.test` |
+| Admin + Athlete | `adminathlete@rfis.test` |
+| Admin + Coach + Athlete | `allroles@rfis.test` |
 
-## Simulation coverage
+All accounts use the local-only value in `.env` under `RFIS_DEMO_PASSWORD`. Keep `.env` ignored and do not reuse this credential elsewhere.
 
-### Users and role access
+## Synthetic workflow coverage
 
-- Single-role admin, coach, parent and athlete accounts.
-- Coach + parent + athlete account.
-- Admin + coach + parent + athlete account.
-- Active role assignments and corresponding role profiles.
-- Parent accounts with more than one linked child.
+Seed records cover branches, training groups, classes, weekly schedules, sessions, coach assignments, attendance statuses, QR attendance initialization, payments, proof states, transactions, payroll, events, registrations, announcements, achievements, and certifications. Values are synthetic and intended for local development. The seeders use stable email/name/reference keys so repeated seed calls update the demo rows instead of multiplying them.
 
-### Branches, groups and schedules
-
-- Multiple branches and training locations.
-- Regular, achievement-oriented and private groups.
-- Weekly schedules and generated past/future sessions.
-- Private sessions with named athletes and multiple coaches.
-- Two current-month sessions named `Simulation Payroll Session A` and `Simulation Payroll Session B` used as payroll calculation sources.
-
-### Athlete attendance
-
-The simulation ensures that the database contains all principal athlete attendance states:
-
-- `PRESENT`
-- `LATE`
-- `EXCUSED`
-- `ABSENT`
-
-The records contain realistic check-in timestamps, follow-up ownership and notes so table colors, filters, detail pages and dashboard totals can be reviewed.
-
-### Coach attendance and payroll sources
-
-- `TEACH` records with check-in timestamps.
-- `NOT_TEACH` records.
-- Teaching sessions with valid start/end times for automatic session and hour totals.
-- Payroll calculation units are derived from these database records, not from browser-submitted unit values.
-
-### Finance and payroll
-
-The seed data includes:
-
-- Completed member invoices.
-- Open invoices.
-- Overdue invoices.
-- Partial payments with ledger transactions.
-- Championship registration invoices.
-- Pending payroll records.
-- Completed payroll with a base amount, session basis, bonus and payment transaction.
-- Downloadable invoice/payroll identifiers generated by the `Payment` model.
-
-Useful admin checks:
-
-1. Open **Keuangan** and filter by overdue, partial, paid and payroll records.
-2. Open **Payroll Pelatih**.
-3. Select `coach@rfis.test`, the current month and **Per sesi** or **Per jam**.
-4. Confirm that the unit field is filled from coach attendance and session duration.
-5. Enter a rate and optional bonus, then issue the paid slip.
-
-### Championships and UKT
-
-- Scheduled event with open registration.
-- Ongoing event with assigned coach and participant roster.
-- Completed event with recorded result and achievement.
-- Canceled event retained for read-only/history states.
-- Confirmed and pending participant records.
-- Athlete-owned registration and participant visibility scenarios.
-
-### Announcements
-
-- Role-targeted announcements for `ALL`, `ADMIN`, `COACH`, `PARENT` and `ATHLETE`.
-- Published announcements.
-- A future scheduled announcement.
-- An expired announcement.
-- An inactive draft announcement.
-
-### Profiles
-
-- Athlete belt certification.
-- Active coach certification.
-- Expired coach certification.
-- Automatic and manual achievements.
-- Participation record without a medal.
-
-## Table action icons
-
-Table row actions are centralized in `resources/js/components/shared/ActionButtonsRow.vue`.
-
-Inside table rows, actions are converted to compact icon buttons while preserving:
-
-- an `aria-label` for assistive technologies;
-- a native tooltip through `title`;
-- the existing button variant, disabled state and click/link behavior;
-- distinct semantic icons for detail, registration, registration editing, ordinary editing, deletion, payment recording, proof upload/review, download, attendance, QR, restore and management actions.
-
-Buttons outside `ActionButtonsRow` keep their normal text labels. This prevents page-level primary actions such as **Tambah**, **Simpan** and **Buat payroll** from becoming ambiguous.
-
-## Validation
-
-Run the focused regression test:
-
-```powershell
-docker compose exec server php artisan test tests/Feature/FullSystemSimulationSeederTest.php
-```
-
-Then validate the entire project:
-
-```powershell
-docker compose exec server php artisan test
-docker compose exec vite npx vue-tsc --noEmit
-docker compose exec vite npm run build
-```
-
-## Resetting the simulation
-
-To discard changes made while testing and rebuild the same baseline:
-
-```powershell
-docker compose exec server php artisan migrate:fresh --seed
-docker compose exec server php artisan optimize:clear
-docker compose restart vite
-```
-
-This command permanently removes the current database contents. Use it only with disposable local or staging data.
+The database rebuild command is destructive to the configured development schema. Its checks and backup do not make it suitable for any other database.

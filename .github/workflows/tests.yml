@@ -18,15 +18,23 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-          tools: composer:v2
+          php-version: '8.4.27'
+          tools: composer:2.10.3
           coverage: none
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24.22.1'
           cache: npm
+
+      - name: Pin npm and replace its vulnerable bundled undici
+        run: |
+          npm install --global npm@12.2.1
+          sh scripts/install-patched-npm-undici.sh
+          test "$(npm --version)" = "12.2.1"
+          npm_global="$(npm root -g)"
+          test "$(node -p "require('${npm_global}/npm/node_modules/undici/package.json').version")" = "6.29.1"
 
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader

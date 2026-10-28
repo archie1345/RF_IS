@@ -5,8 +5,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Button } from '@/components/ui/button';
 import { dismissAppPopup, settleAppPopup, useAppPopup, type AppPopupTone } from '@/composables/useAppPopup';
 import { useAppToast } from '@/composables/useAppToast';
-import { useKeyboardShortcut } from '@/composables/useKeyboardShortcut';
 import { useI18n } from '@/composables/useI18n';
+import { useKeyboardShortcut } from '@/composables/useKeyboardShortcut';
 
 const popup = useAppPopup();
 const toast = useAppToast();
@@ -23,8 +23,6 @@ const primaryButton = ref<{ $el?: HTMLElement } | null>(null);
 let removeValidationListener: (() => void) | undefined;
 let removeInvalidResponseListener: (() => void) | undefined;
 let removeExceptionListener: (() => void) | undefined;
-let lastFeedbackKey = '';
-let lastFeedbackAt = 0;
 
 const icon = computed(
     () =>
@@ -51,12 +49,6 @@ const primaryVariant = computed(() => (popup.state.tone === 'danger' ? 'destruct
 function showFeedback(tone: AppPopupTone, title: string, message?: string | null): void {
     if (!message) return;
 
-    const key = `${tone}:${title}:${message}`;
-    const now = Date.now();
-    if (key === lastFeedbackKey && now - lastFeedbackAt < 1200) return;
-
-    lastFeedbackKey = key;
-    lastFeedbackAt = now;
     void popup.show({ title, message, tone });
 }
 
@@ -105,12 +97,6 @@ function errorDetail(error: unknown): string {
 function flashToast(tone: AppPopupTone, title: string, value?: string | null): void {
     if (!value) return;
 
-    const key = `${tone}:${title}:${value}`;
-    const now = Date.now();
-    if (key === lastFeedbackKey && now - lastFeedbackAt < 1200) return;
-
-    lastFeedbackKey = key;
-    lastFeedbackAt = now;
     toast.show({ title, message: value, tone });
 }
 

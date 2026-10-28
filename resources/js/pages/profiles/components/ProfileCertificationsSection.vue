@@ -70,7 +70,7 @@ function addCertification(): void {
 }
 
 function findCertification(row: TableRow): ProfileCertification | undefined {
-    return props.certifications.find((item) => String(item.id) === String(row.id));
+    return props.certifications.find((item) => item.route_id === String(row.id));
 }
 
 function openCertificationEdit(row: TableRow): void {
@@ -99,7 +99,7 @@ function saveCertificationEdit(): void {
 
     certificationEditForm
         .transform((data) => ({ ...data, _method: 'put' }))
-        .post(props.updateUrl(editingCertification.value.id), {
+        .post(props.updateUrl(editingCertification.value.route_id), {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: closeCertificationEdit,
@@ -119,7 +119,7 @@ async function removeCertification(row: TableRow): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(props.updateUrl(certification.id), { preserveScroll: true });
+    router.delete(props.updateUrl(certification.route_id), { preserveScroll: true });
 }
 </script>
 

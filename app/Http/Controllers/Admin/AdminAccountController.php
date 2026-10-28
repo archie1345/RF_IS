@@ -81,7 +81,7 @@ class AdminAccountController extends Controller
                 Rule::unique('users', 'email')->ignore($user?->id),
             ],
             'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['required', 'distinct', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
+            'roles.*' => ['required', 'distinct', Rule::in(['admin', 'coach', 'athlete'])],
             'status' => ['required', Rule::in([
                 User::ACCOUNT_STATUS_ACTIVE,
                 User::ACCOUNT_STATUS_INVITED,

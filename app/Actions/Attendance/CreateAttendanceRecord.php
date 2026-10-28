@@ -6,7 +6,6 @@ use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\AttendanceVisibilityService;
-use App\Services\ParentChildContextService;
 use App\Support\Domain\AttendanceStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,38 +15,19 @@ use Illuminate\Validation\ValidationException;
 class CreateAttendanceRecord
 {
     public function __construct(
-        private readonly ParentChildContextService $childContext,
         private readonly AttendanceVisibilityService $attendanceVisibility,
     ) {}
 
+    /** Staff (admin/coach) record attendance on behalf of an athlete; athletes use QR check-in instead. */
     public function handle(User $user, Request $request, array $validated): Attendance
     {
-        $parentChildAthleteIds = $user->isParent()
-            ? $this->childContext->visibleChildAthleteIds($request, false)
-            : null;
-        $athleteScopedId = $user->isAthlete() ? $user->athleteProfile?->athlete_id : null;
-        $athleteId = $athleteScopedId ?? ($validated['athlete_id'] ?? null);
+        $athleteId = $validated['athlete_id'] ?? null;
 
         if ($athleteId === null) {
             throw ValidationException::withMessages(['athlete_id' => 'Athlete is required.']);
         }
 
-        if ($parentChildAthleteIds !== null && ! in_array((string) $athleteId, array_map('strval', $parentChildAthleteIds), true)) {
-            throw ValidationException::withMessages(['athlete_id' => 'Selected athlete is not linked to this parent account.']);
-        }
-
-        if ($user->isParent() && ! empty($validated['training_session_id'])) {
-            $sessionIsVisible = $this->attendanceVisibility
-                ->visibleSessionQuery($user)
-                ->where('training_session_id', $validated['training_session_id'])
-                ->exists();
-
-            if (! $sessionIsVisible) {
-                throw ValidationException::withMessages(['training_session_id' => 'Selected session is not available for this child.']);
-            }
-        }
-
-        if ($user->isCoach() && ! empty($validated['training_session_id'])) {
+        if (! $user->isAdmin() && $user->isCoach() && ! empty($validated['training_session_id'])) {
             $session = TrainingSession::query()->find($validated['training_session_id']);
             if (! $session || ! $this->attendanceVisibility->coachCanAccessSession($user, $session)) {
                 abort(403);

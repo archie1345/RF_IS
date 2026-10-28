@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Form, Head, Link, usePage } from '@inertiajs/vue3';
-import { ArrowLeft,MessageCircle } from '@lucide/vue';
+import { ArrowLeft, MessageCircle } from '@lucide/vue';
+import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
@@ -13,14 +14,15 @@ import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { home } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import { computed } from 'vue';
 
-const page = usePage<{ publicAdminWhatsapp?: string }>();
+const page = usePage<{ publicAdminWhatsapp?: string; errors?: Record<string, string | undefined> }>();
 
 defineProps<{
     status?: string;
     canResetPassword: boolean;
 }>();
+
+const invitationError = computed(() => page.props.errors?.invitation);
 
 const defaultPhone = '08813323088';
 const whatsappUrl = computed(() => {
@@ -51,6 +53,8 @@ const whatsappUrl = computed(() => {
             v-slot="{ errors, processing }"
             class="flex flex-col gap-6"
         >
+            <InputError :message="invitationError ?? errors.invitation" class="text-center" />
+
             <div class="grid gap-4">
                 <div class="grid gap-2">
                     <Label for="email">Email address</Label>
@@ -100,14 +104,14 @@ const whatsappUrl = computed(() => {
             </div>
         </Form>
         <a
-        :href="whatsappUrl ?? '#'"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Hubungi admin melalui WhatsApp"
-        title="Hubungi admin melalui WhatsApp"
-        class="fixed right-5 bottom-5 z-50 inline-flex size-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl ring-1 ring-white/20 transition hover:scale-105 hover:bg-emerald-400 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none sm:right-7 sm:bottom-7"
-    >
-        <MessageCircle class="size-7" aria-hidden="true" />
-    </a>
+            :href="whatsappUrl ?? '#'"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hubungi admin melalui WhatsApp"
+            title="Hubungi admin melalui WhatsApp"
+            class="fixed right-5 bottom-5 z-50 inline-flex size-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-2xl ring-1 ring-white/20 transition hover:scale-105 hover:bg-emerald-400 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none sm:right-7 sm:bottom-7"
+        >
+            <MessageCircle class="size-7" aria-hidden="true" />
+        </a>
     </AuthBase>
 </template>

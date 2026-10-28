@@ -46,7 +46,7 @@ class AdminDataExportController extends Controller
             'status' => ['nullable', 'array'],
             'status.*' => ['required', 'string', 'max:80'],
             'role' => ['nullable', 'array'],
-            'role.*' => ['required', 'string', Rule::in(['admin', 'coach', 'parent', 'athlete'])],
+            'role.*' => ['required', 'string', Rule::in(['admin', 'coach', 'athlete'])],
             'branch' => ['nullable', 'array'],
             'branch.*' => ['required', 'integer'],
             'group' => ['nullable', 'array'],
@@ -78,13 +78,13 @@ class AdminDataExportController extends Controller
                 if (empty($datasetFields)) {
                     continue;
                 }
-                
+
                 $sheets[] = $this->exports->makeExport($datasetKey, $datasetFields, $filters);
             }
 
             $export = new MultiSheetExport($sheets);
         }
-        $filename = 'System_Data_Export_' . now()->format('Y-m-d_Hi') . '.xlsx';
+        $filename = 'System_Data_Export_'.now()->format('Y-m-d_Hi').'.xlsx';
 
         ActivityLogger::log(
             $request,

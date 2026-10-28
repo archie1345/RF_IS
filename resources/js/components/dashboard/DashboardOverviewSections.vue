@@ -11,7 +11,6 @@ import {
     Clock3,
     MapPin,
     Megaphone,
-    ReceiptText,
     Trophy,
     UserRound,
     WalletCards,
@@ -19,8 +18,6 @@ import {
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/composables/useI18n';
-import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
-import type { DashboardAttendanceRow, DashboardTrainingDay, BeltRow } from './DashboardOverviewSections.types';
 import { index as achievementsIndex } from '@/routes/achievements';
 import { index as activityLogsIndex } from '@/routes/admin/activity-logs';
 import { index as announcementsIndex } from '@/routes/announcements';
@@ -29,6 +26,8 @@ import { index as championshipsIndex } from '@/routes/championships';
 import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
+import type { AppRole, TableBadgeCell, TableRow } from '@/types/resource-table';
+import type { DashboardAttendanceRow, DashboardTrainingDay, BeltRow } from './DashboardOverviewSections.types';
 
 const props = withDefaults(
     defineProps<{
@@ -506,97 +505,6 @@ const profileRows = computed(() => {
                     <p v-else class="text-sm text-muted-foreground">
                         {{ t('Belum ada catatan honor untuk akun ini.') }}
                     </p>
-                </section>
-            </div>
-        </template>
-
-        <template v-else-if="props.role === 'parent'">
-            <div class="grid gap-4 md:grid-cols-3">
-                <section class="rounded-xl border bg-card p-5 shadow-sm md:col-span-2">
-                    <p class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        {{ t('Latihan berikutnya') }}
-                    </p>
-                    <div
-                        v-if="nextTraining"
-                        class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <h2 class="text-xl font-bold">{{ nextTraining.title }}</h2>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                {{ formatDate(nextTraining.date) }} · {{ nextTraining.time }} ·
-                                {{ nextTraining.branch }}
-                            </p>
-                        </div>
-                        <Button as-child variant="outline"
-                            ><Link :href="trainingScheduleIndex.url()">{{ t('Buka jadwal') }}</Link></Button
-                        >
-                    </div>
-                    <p v-else class="mt-3 text-sm text-muted-foreground">
-                        {{ t('Belum ada latihan mendatang untuk anak yang dipilih.') }}
-                    </p>
-                </section>
-                <section class="rounded-xl border bg-card p-5 shadow-sm">
-                    <ReceiptText class="size-5 text-primary" />
-                    <p class="mt-3 text-2xl font-bold">{{ attentionPayments.length }}</p>
-                    <p class="text-sm font-medium">{{ t('Tagihan perlu perhatian') }}</p>
-                    <Link :href="paymentsIndex.url()" class="mt-2 inline-flex text-sm text-primary hover:underline">{{
-                        t('Lihat pembayaran')
-                    }}</Link>
-                </section>
-            </div>
-
-            <div class="grid gap-6 xl:grid-cols-2">
-                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">{{ t('Jadwal anak') }}</h2>
-                        <Button as-child variant="ghost" size="sm"
-                            ><Link :href="trainingScheduleIndex.url()">{{ t('Semua jadwal') }}</Link></Button
-                        >
-                    </div>
-                    <div v-if="upcomingTraining.length" class="space-y-3">
-                        <div
-                            v-for="session in upcomingTraining.slice(0, 5)"
-                            :key="session.id"
-                            class="flex gap-3 rounded-xl border p-4"
-                        >
-                            <CalendarDays class="mt-0.5 size-5 shrink-0 text-primary" />
-                            <div class="min-w-0">
-                                <p class="font-semibold">{{ session.title }}</p>
-                                <p class="text-sm text-muted-foreground">
-                                    {{ formatDate(session.date) }} · {{ session.time }}
-                                </p>
-                                <p class="text-xs text-muted-foreground">{{ session.branch }} · {{ session.group }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada jadwal yang tersedia.') }}</p>
-                </section>
-
-                <section class="rounded-xl border bg-card p-5 shadow-sm md:p-6">
-                    <div class="mb-5 flex items-center justify-between gap-3">
-                        <h2 class="text-lg font-bold">{{ t('Kehadiran terbaru') }}</h2>
-                        <Button as-child variant="ghost" size="sm"
-                            ><Link :href="attendanceIndex.url()">{{ t('Riwayat lengkap') }}</Link></Button
-                        >
-                    </div>
-                    <div v-if="recentAttendance.length" class="space-y-3">
-                        <div
-                            v-for="row in recentAttendance"
-                            :key="String(row.id)"
-                            class="flex items-center justify-between gap-3 rounded-xl border p-4"
-                        >
-                            <div>
-                                <p class="font-medium">{{ formatDate(row.date || row.session_date) }}</p>
-                                <p class="text-xs text-muted-foreground">{{ t('Catatan kehadiran latihan') }}</p>
-                            </div>
-                            <span
-                                class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                                :class="attendanceClass(row)"
-                                >{{ attendanceLabel(row) }}</span
-                            >
-                        </div>
-                    </div>
-                    <p v-else class="text-sm text-muted-foreground">{{ t('Belum ada riwayat kehadiran.') }}</p>
                 </section>
             </div>
         </template>

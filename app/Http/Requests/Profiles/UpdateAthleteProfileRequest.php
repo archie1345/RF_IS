@@ -23,6 +23,9 @@ class UpdateAthleteProfileRequest extends FormRequest
             'alamat' => ['nullable', 'string'],
             'branch_id' => ['nullable', 'exists:branches,branch_id'],
             'group_id' => ['nullable', 'exists:class_groups,group_id'],
+            'guardian_name' => ['nullable', 'string', 'max:120'],
+            'guardian_phone' => ['nullable', 'string', 'max:30'],
+            'guardian_relation' => ['nullable', 'string', 'max:50'],
         ];
     }
 }

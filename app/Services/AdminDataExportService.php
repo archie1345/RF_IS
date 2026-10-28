@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Exports\SelectedDataExport;
-use App\Models\Attendance;
 use App\Models\Athlete;
+use App\Models\Attendance;
 use App\Models\CoachAttendance;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -104,7 +104,6 @@ class AdminDataExportService
         $roleOptions = [
             ['value' => 'admin', 'label' => 'Admin'],
             ['value' => 'coach', 'label' => 'Coach'],
-            ['value' => 'parent', 'label' => 'Parent'],
             ['value' => 'athlete', 'label' => 'Athlete'],
         ];
 
@@ -135,7 +134,7 @@ class AdminDataExportService
             ],
             'athletes' => [
                 'label' => 'Athletes',
-                'description' => 'Athlete profile, account, parent, group, branch, and membership data.',
+                'description' => 'Athlete profile, account, guardian contact, group, branch, and membership data.',
                 'sheet' => 'Athletes',
                 'filename' => 'athletes',
                 'status_options' => $accountStatuses,
@@ -152,13 +151,14 @@ class AdminDataExportService
                     'account_status' => ['label' => 'Account Status', 'value' => fn (Athlete $athlete): string => $this->accountStatusLabel($athlete->user?->account_status)],
                     'branch_name' => ['label' => 'Branch', 'value' => fn (Athlete $athlete): string => (string) ($athlete->branch?->branch_name ?? '')],
                     'group_name' => ['label' => 'Group', 'value' => fn (Athlete $athlete): string => (string) ($athlete->group?->group_name ?? '')],
-                    'parent' => ['label' => 'Parent / Guardian', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->name ?? '')],
-                    'parent_phone' => ['label' => 'Parent Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->parent?->user?->phone ?? '')],
+                    'guardian_name' => ['label' => 'Parent / Guardian', 'value' => fn (Athlete $athlete): string => (string) ($athlete->guardian_name ?? '')],
+                    'guardian_phone' => ['label' => 'Guardian Phone', 'value' => fn (Athlete $athlete): string => (string) ($athlete->guardian_phone ?? '')],
+                    'guardian_relation' => ['label' => 'Guardian Relation', 'value' => fn (Athlete $athlete): string => (string) ($athlete->guardian_relation ?? '')],
                     'geup' => ['label' => 'Belt / Geup', 'value' => fn (Athlete $athlete): string => (string) ($athlete->geup ?? '')],
                     'height_cm' => ['label' => 'Height (cm)', 'value' => fn (Athlete $athlete): float => (float) ($athlete->height_cm ?? 0)],
                     'weight_kg' => ['label' => 'Weight (kg)', 'value' => fn (Athlete $athlete): float => (float) ($athlete->weight_kg ?? 0)],
                     'school_origin' => ['label' => 'School Origin', 'value' => fn (Athlete $athlete): string => (string) ($athlete->school_origin ?? '')],
-                    'address' => ['label' => 'Address', 'value' => fn (Athlete $athlete): string => (string) ($athlete->alamat ?? '')],
+                    'address' => ['label' => 'Address', 'value' => fn (Athlete $athlete): string => (string) ($athlete->user?->profile?->address ?? '')],
                     'joined_at' => ['label' => 'Joined At', 'value' => fn (Athlete $athlete): mixed => $athlete->joined_at],
                     'deleted_at' => ['label' => 'Deleted At', 'value' => fn (Athlete $athlete): mixed => $athlete->deleted_at],
                 ],
@@ -334,29 +334,30 @@ class AdminDataExportService
     }
 
     /** @param array<string, mixed> $filters */
-
     public function makeCombinedExport(array $datasets, array $selectedFields, array $filters): \App\Exports\CombinedDataExport
     {
         $allFields = [];
         $headings = ['Record Source']; // Add Source column
-        
+
         $fieldMap = []; // To map fields across datasets uniquely
         $definitions = $this->definitions();
 
         // Pass 1: Collect unique headings across all selected datasets
         foreach ($datasets as $dataset) {
             $definition = $definitions[$dataset] ?? null;
-            if (!$definition) continue;
-            
+            if (! $definition) {
+                continue;
+            }
+
             $fields = $definition['fields'];
             $selected = collect($selectedFields[$dataset] ?? [])
                 ->map(fn ($field) => trim((string) $field))
                 ->filter(fn ($field) => array_key_exists($field, $fields))
                 ->unique()
                 ->values();
-                
+
             foreach ($selected as $fieldKey) {
-                if (!isset($fieldMap[$fieldKey])) {
+                if (! isset($fieldMap[$fieldKey])) {
                     $fieldMap[$fieldKey] = $fields[$fieldKey]['label'];
                     $headings[] = $fields[$fieldKey]['label'];
                 }
@@ -371,8 +372,10 @@ class AdminDataExportService
         // Pass 2: Fetch and map data
         foreach ($datasets as $dataset) {
             $definition = $definitions[$dataset] ?? null;
-            if (!$definition) continue;
-            
+            if (! $definition) {
+                continue;
+            }
+
             $fields = $definition['fields'];
             $selected = collect($selectedFields[$dataset] ?? [])
                 ->map(fn ($field) => trim((string) $field))
@@ -380,10 +383,12 @@ class AdminDataExportService
                 ->unique()
                 ->values();
 
-            if ($selected->isEmpty()) continue;
+            if ($selected->isEmpty()) {
+                continue;
+            }
 
             $query = ($definition['query'])($filters);
-            
+
             // Chunking to prevent memory exhaustion
             $query->chunk(500, function ($records) use ($dataset, $definition, $selected, $fields, $fieldIndexMap, &$data) {
                 foreach ($records as $record) {
@@ -412,9 +417,6 @@ class AdminDataExportService
                 'roleAssignments:id,user_id,role',
                 'athleteProfile:athlete_id,id,branch_id',
                 'athleteProfile.branch:branch_id,branch_name',
-                'parentProfile:parent_id,id',
-                'parentProfile.athletes:athlete_id,parent_id,branch_id',
-                'parentProfile.athletes.branch:branch_id,branch_name',
                 'coachProfile:coach_id,id,status,specialization',
             ]);
 
@@ -438,10 +440,9 @@ class AdminDataExportService
     {
         $query = Athlete::query()->with([
             'user:id,name,email,phone,gender,bday,account_status',
+            'user.profile:id,user_id,address',
             'branch:branch_id,branch_name',
             'group:group_id,group_name',
-            'parent:parent_id,id',
-            'parent.user:id,name,email,phone',
         ]);
 
         if ($this->includeDeleted($filters)) {
@@ -604,16 +605,6 @@ class AdminDataExportService
     {
         if ($user->athleteProfile?->branch?->branch_name) {
             return $user->athleteProfile->branch->branch_name;
-        }
-
-        $childBranches = $user->parentProfile?->athletes
-            ?->pluck('branch.branch_name')
-            ->filter()
-            ->unique()
-            ->implode(', ');
-
-        if (filled($childBranches)) {
-            return $childBranches;
         }
 
         return $user->coachProfile ? 'Coaching team' : ($user->hasRole('admin') ? 'Head Office' : '');

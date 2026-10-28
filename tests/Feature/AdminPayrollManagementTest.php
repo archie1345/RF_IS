@@ -156,7 +156,7 @@ test('admin payroll page and dashboard remind admin until current month payroll 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('roles', ['admin'])
-            ->where('metrics.0.value', 'Belum dibuat'));
+            ->where('metrics.0.value', '0'));
 
     Payment::query()->create([
         'payee_user_id' => $coach->id,

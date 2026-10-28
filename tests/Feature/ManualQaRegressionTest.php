@@ -6,7 +6,6 @@ use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\CoachAttendance;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -29,8 +28,6 @@ function qaAthlete(string $name = 'QA Athlete'): array
         'branch_id' => $branch->branch_id,
         'height_cm' => 150,
         'weight_kg' => 45,
-        'nik_hash' => hash('sha256', $name.' nik'),
-        'bpjs_hash' => hash('sha256', $name.' bpjs'),
         'geup' => 'GEUP_1',
     ]);
 
@@ -138,8 +135,6 @@ test('coach athlete account can switch attendance modes without mixing records',
         'branch_id' => $branch->branch_id,
         'height_cm' => 170,
         'weight_kg' => 65,
-        'nik_hash' => hash('sha256', 'dual role nik'),
-        'bpjs_hash' => hash('sha256', 'dual role bpjs'),
         'geup' => 'GEUP_1',
     ]);
     UserRoleAssignment::create(['user_id' => $user->id, 'role' => 'coach']);
@@ -204,17 +199,14 @@ test('payment proof actions are hidden for admin and coach dashboards', function
     $this->actingAs($coachUser)->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canSubmitPaymentProof', false));
 });
 
-test('parent can upload linked child proof but unrelated child access is blocked', function () {
+test('athlete can upload own payment proof but unrelated athlete access is blocked', function () {
     Storage::fake('public');
-    [$childUser, $childAthlete] = qaAthlete('Linked Child');
-    [$otherUser, $otherAthlete] = qaAthlete('Other Child');
-    $parentUser = User::factory()->create(['role' => 'parent']);
-    $parent = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'mother']);
-    $childAthlete->update(['parent_id' => $parent->parent_id]);
+    [$athleteUser, $athlete] = qaAthlete('Own Athlete');
+    [, $otherAthlete] = qaAthlete('Other Athlete');
 
-    $linked = Payment::create(['athlete_id' => $childAthlete->athlete_id, 'bill_kind' => 'INVOICE', 'payment_type' => 'TUITION', 'amount' => 1000, 'total_amount' => 1000, 'paid_amount' => 0, 'remaining_amount' => 1000, 'payment_date' => now()->toDateString(), 'status' => 'PENDING']);
+    $own = Payment::create(['athlete_id' => $athlete->athlete_id, 'bill_kind' => 'INVOICE', 'payment_type' => 'TUITION', 'amount' => 1000, 'total_amount' => 1000, 'paid_amount' => 0, 'remaining_amount' => 1000, 'payment_date' => now()->toDateString(), 'status' => 'PENDING']);
     $unrelated = Payment::create(['athlete_id' => $otherAthlete->athlete_id, 'bill_kind' => 'INVOICE', 'payment_type' => 'TUITION', 'amount' => 1000, 'total_amount' => 1000, 'paid_amount' => 0, 'remaining_amount' => 1000, 'payment_date' => now()->toDateString(), 'status' => 'PENDING']);
 
-    $this->actingAs($parentUser)->post(route('payments.proof.submit', $linked), ['proof_file' => UploadedFile::fake()->image('linked.jpg')])->assertRedirect(route('payments.index'));
-    $this->actingAs($parentUser)->post(route('payments.proof.submit', $unrelated), ['proof_file' => UploadedFile::fake()->image('blocked.jpg')])->assertForbidden();
+    $this->actingAs($athleteUser)->post(route('payments.proof.submit', $own), ['proof_file' => UploadedFile::fake()->image('own.jpg')])->assertRedirect(route('payments.index'));
+    $this->actingAs($athleteUser)->post(route('payments.proof.submit', $unrelated), ['proof_file' => UploadedFile::fake()->image('blocked.jpg')])->assertForbidden();
 });

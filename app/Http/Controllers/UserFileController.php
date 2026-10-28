@@ -33,16 +33,6 @@ class UserFileController extends Controller
 
     private function canDownload(User $viewer, UserFile $userFile): bool
     {
-        if ($viewer->isAdmin() || (int) $viewer->id === (int) $userFile->user_id) {
-            return true;
-        }
-
-        if (! $viewer->isParent()) {
-            return false;
-        }
-
-        return $viewer->children()
-            ->where('athletes.id', $userFile->user_id)
-            ->exists();
+        return $viewer->isAdmin() || (int) $viewer->id === (int) $userFile->user_id;
     }
 }

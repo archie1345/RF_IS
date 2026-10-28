@@ -1,8 +1,11 @@
 <?php
 
+use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\CoachAttendance;
+use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\User;
@@ -51,6 +54,51 @@ beforeEach(function () {
 
 afterEach(function () {
     Carbon::setTestNow();
+});
+
+it('does not compare UUID route values against numeric primary keys', function () {
+    $uuid = '01a17bb6-b6ed-712f-9097-3b9930b33991';
+
+    foreach ([Event::class, Attendance::class, CoachAttendance::class, TrainingSession::class, EventRegistration::class] as $modelClass) {
+        $model = new $modelClass;
+        $uuidQuery = $model->resolveRouteBindingQuery($modelClass::query(), $uuid);
+
+        expect($uuidQuery->getBindings())->toBe([$uuid]);
+    }
+});
+
+it('resolves a session UUID to its own attendance sheet and preserves numeric ID routes', function () {
+    $branch = Branch::query()->create([
+        'branch_name' => 'UUID Route Branch',
+        'location' => 'Malang',
+    ]);
+    $group = Group::query()->create([
+        'group_name' => 'UUID Route Group',
+    ]);
+    [, $coach] = sessionAuthorizationCoach('UUID Route Coach');
+    $first = sessionAuthorizationSession($coach, $branch, $group, 'First Session', SessionStatus::CONFIRMED);
+    $target = sessionAuthorizationSession($coach, $branch, $group, 'Target Session', SessionStatus::CONFIRMED);
+
+    expect((new TrainingSession)->resolveRouteBinding($target->uuid)?->training_session_id)
+        ->toBe($target->training_session_id);
+
+    expect((new TrainingSession)->resolveRouteBinding((string) $target->training_session_id)?->training_session_id)
+        ->toBe($target->training_session_id);
+
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'email_verified_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('sessions.attendance', $target->uuid))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('SessionAttendancePage')
+            ->where('session.id', $target->training_session_id)
+            ->where('session.title', 'Target Session'));
+
+    expect($first->training_session_id)->not->toBe($target->training_session_id);
 });
 
 it('shows coaches only managed sessions and open sessions needing assistance', function () {

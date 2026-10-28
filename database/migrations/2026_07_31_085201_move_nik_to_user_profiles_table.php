@@ -36,12 +36,24 @@ return new class extends Migration
             }
 
             // 3. Drop migrated columns from athletes
-            Schema::table('athletes', function (Blueprint $table) {
-                $columns = array_filter(['nik_hash', 'nik_ciphertext', 'bpjs_hash', 'bpjs_ciphertext', 'alamat'], fn ($col) => Schema::hasColumn('athletes', $col));
-                if (! empty($columns)) {
-                    $table->dropColumn($columns);
+            $columns = array_values(array_filter(
+                ['nik_hash', 'nik_ciphertext', 'bpjs_hash', 'bpjs_ciphertext', 'alamat'],
+                fn ($col) => Schema::hasColumn('athletes', $col),
+            ));
+
+            if (! empty($columns)) {
+                // SQLite cannot drop a column that is still covered by an index,
+                // so drop those indexes first (harmless on MySQL).
+                foreach (Schema::getIndexes('athletes') as $index) {
+                    if ($index['primary'] || array_intersect($index['columns'], $columns) === []) {
+                        continue;
+                    }
+
+                    Schema::table('athletes', fn (Blueprint $table) => $table->dropIndex($index['name']));
                 }
-            });
+
+                Schema::table('athletes', fn (Blueprint $table) => $table->dropColumn($columns));
+            }
         }
     }
 

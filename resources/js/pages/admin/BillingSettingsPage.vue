@@ -258,7 +258,7 @@ async function archiveRule(rule: BillingRuleRecord): Promise<void> {
     });
     if (!confirmed) return;
 
-    router.delete(`/admin/billing-rules/${rule.id}`, { preserveScroll: true });
+    router.delete(`/admin/billing-rules/${rule.uuid}`, { preserveScroll: true });
 }
 
 function openIssueModal(rule: BillingRuleRecord): void {
@@ -276,7 +276,7 @@ function closeIssueModal(): void {
 
 function issueOneTimeCharge(): void {
     if (!issuingRule.value) return;
-    issueForm.post(`/admin/billing-rules/${issuingRule.value.id}/generate`, {
+    issueForm.post(`/admin/billing-rules/${issuingRule.value.uuid}/generate`, {
         preserveScroll: true,
         onSuccess: closeIssueModal,
     });

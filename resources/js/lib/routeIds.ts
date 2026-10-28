@@ -11,7 +11,10 @@ export function routeId(value: unknown): number | string | null {
     }
 
     const trimmed = value.trim();
-    if (/^[0-9A-Z]{26}$/i.test(trimmed) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    if (
+        /^[0-9A-Z]{26}$/i.test(trimmed) ||
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)
+    ) {
         return trimmed;
     }
 
@@ -22,7 +25,7 @@ export function routeId(value: unknown): number | string | null {
     }
 
     const matchedStr = match[1];
-    
+
     if (/^[0-9A-Z]{26}$/i.test(matchedStr)) {
         return matchedStr.toUpperCase();
     }

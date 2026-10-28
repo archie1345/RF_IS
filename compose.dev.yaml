@@ -9,14 +9,64 @@ x-app-common: &app-common
     - ${APP_ENV_FILE:-.env}
 
 services:
+  test:
+    image: ${APP_IMAGE:-rf-is:dev}
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles:
+      - testing
+    working_dir: /var/www/html
+    network_mode: none
+    read_only: true
+    user: "${APP_DEV_UID:-1000}:${APP_DEV_GID:-1000}"
+    volumes:
+      - .:/var/www/html:ro
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /var/www/html/storage:mode=1777,size=64m
+      - /var/www/html/bootstrap/cache:mode=1777,size=16m
+      - /var/www/html/vendor/pestphp/pest/.temp:mode=1777,size=16m
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: "false"
+      APP_KEY: "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      APP_MAINTENANCE_DRIVER: file
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      DB_URL: ""
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      BROADCAST_CONNECTION: "null"
+      FILESYSTEM_DISK: local
+      LOG_CHANNEL: stderr
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs bootstrap/cache && sh tests/run-isolated.sh --cache-directory=/tmp/phpunit-cache
+
   server:
     <<: *app-common
 
     container_name: ${APP_CONTAINER_NAME:-rf-server}
     restart: unless-stopped
 
+    environment:
+      DEBUGBAR_ENABLED: ${DEBUGBAR_ENABLED:-false}
+      TRUSTED_PROXIES: ${DEV_TRUSTED_PROXIES:-172.19.0.1}
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: ""
+      MAIL_URL: "null"
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+
     ports:
-      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-9200}:80"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-9200}:80"
 
     volumes:
       - .:/var/www/html
@@ -25,6 +75,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
     command:
       - /bin/sh
@@ -53,7 +105,6 @@ services:
 
           php artisan storage:link || true
           CACHE_STORE=file php artisan optimize:clear
-          php artisan migrate --force
 
           exec apache2-foreground
 
@@ -61,7 +112,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -fsS http://localhost/ >/dev/null || exit 1"
+          "curl -fsS http://localhost/up >/dev/null || exit 1"
         ]
       interval: 30s
       timeout: 10s
@@ -74,6 +125,9 @@ services:
     container_name: ${SCHEDULER_CONTAINER_NAME:-rf-scheduler}
     restart: unless-stopped
     working_dir: /var/www/html
+
+    healthcheck:
+      disable: true
 
     volumes:
       - .:/var/www/html
@@ -100,7 +154,7 @@ services:
     working_dir: /var/www/html
 
     ports:
-      - "${VITE_BIND_ADDRESS:-0.0.0.0}:${VITE_PORT:-9201}:${VITE_PORT:-9201}"
+      - "${VITE_BIND_ADDRESS:-127.0.0.1}:${VITE_PORT:-9201}:${VITE_PORT:-9201}"
 
     volumes:
       - .:/var/www/html
@@ -108,6 +162,7 @@ services:
 
     environment:
       APP_URL: ${APP_URL:-http://localhost:9200}
+      APP_DEV_GID: ${APP_DEV_GID:-1000}
       VITE_PORT: ${VITE_PORT:-9201}
       VITE_HOST: ${VITE_HOST:-0.0.0.0}
       VITE_DEV_SERVER_URL: ${VITE_DEV_SERVER_URL:-http://localhost:9201}
@@ -117,8 +172,21 @@ services:
       - /bin/sh
       - -ec
       - |
-          npm install --no-audit --no-fund
-          exec npm run dev -- --host "$$VITE_HOST" --port "$$VITE_PORT"
+          umask 0002
+          dev_uid="$${APP_DEV_UID:-1000}"
+          dev_gid="$${APP_DEV_GID:-1000}"
+          dev_home=/tmp/rfis-vite-home
+          command -v setpriv >/dev/null || { echo 'setpriv is required to run Vite as the host development user.' >&2; exit 1; }
+          for generated in resources/js/actions resources/js/routes resources/js/wayfinder; do
+            mkdir -p "$$generated"
+            chown -R "$$dev_uid:$$dev_gid" "$$generated"
+            find "$$generated" -type d -exec chmod 2775 {} +
+            find "$$generated" -type f -exec chmod 0664 {} +
+          done
+          mkdir -p "$$dev_home"
+          chown -R "$$dev_uid:$$dev_gid" node_modules "$$dev_home"
+          setpriv --reuid="$$dev_uid" --regid="$$dev_gid" --clear-groups -- env HOME="$$dev_home" npm run install:locked
+          exec setpriv --reuid="$$dev_uid" --regid="$$dev_gid" --clear-groups -- env HOME="$$dev_home" npm run dev -- --host "$$VITE_HOST" --port "$$VITE_PORT"
 
     healthcheck:
       test:
@@ -132,7 +200,12 @@ services:
       start_period: 60s
 
   db:
-    image: mysql:${MYSQL_VERSION:-8.4}
+    image: ${MYSQL_IMAGE:-rf-is:mysql-8.4.13}
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+      args:
+        MYSQL_BASE_IMAGE: ${MYSQL_BASE_IMAGE:-mysql:8.4.13}
 
     container_name: ${DB_CONTAINER_NAME:-rf-db}
     restart: unless-stopped
@@ -161,7 +234,12 @@ services:
       start_period: 60s
 
   phpmyadmin:
-    image: phpmyadmin:${PHPMYADMIN_VERSION:-5.2}
+    image: ${PHPMYADMIN_IMAGE:-rf-is:phpmyadmin}
+    build:
+      context: .
+      dockerfile: Dockerfile.phpmyadmin
+      args:
+        PHPMYADMIN_BASE_IMAGE: ${PHPMYADMIN_BASE_IMAGE:-phpmyadmin:5.2.3-apache}
 
     container_name: ${PHPMYADMIN_CONTAINER_NAME:-rf-phpmyadmin}
     restart: unless-stopped
@@ -181,7 +259,7 @@ services:
         condition: service_healthy
 
   mailpit:
-    image: axllent/mailpit:${MAILPIT_VERSION:-v1.30.5}
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.32.0}
     container_name: ${MAILPIT_CONTAINER_NAME:-rf-mailpit}
     restart: unless-stopped
 

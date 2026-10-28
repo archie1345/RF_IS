@@ -55,6 +55,7 @@ trait BuildsTrainingPayloads
 
             return [
                 'id' => $schedule->weekly_training_schedule_id,
+                'uuid' => $schedule->uuid,
                 'title' => $schedule->title,
                 'branch_id' => $schedule->branch_id,
                 'branch' => $schedule->branch?->branch_name ?? 'Belum ada lokasi',

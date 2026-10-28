@@ -6,11 +6,13 @@ import {
     store as profileAchievementStore,
     update as profileAchievementUpdate,
 } from '@/routes/profile/achievements';
+import { update as profileAthleteUpdate } from '@/routes/profile/athlete';
 import {
     destroy as profileCertificationDestroy,
     store as profileCertificationStore,
     update as profileCertificationUpdate,
 } from '@/routes/profile/certifications';
+import { update as profileCoachUpdate } from '@/routes/profile/coach';
 import { update as profileDetailsUpdate } from '@/routes/profile/details';
 import { update as userAccountUpdate } from '@/routes/users/account';
 import {
@@ -25,14 +27,12 @@ import {
     update as userCertificationUpdate,
 } from '@/routes/users/certifications';
 import { update as userCoachProfileUpdate } from '@/routes/users/coach-profile';
-import { update as userParentProfileUpdate } from '@/routes/users/parent-profile';
 import { update as userProfileUpdate } from '@/routes/users/profile';
 
 type ProfileContext = 'admin' | 'settings';
 
-function routeId(value: string | number): number {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+function routeId(value: string | number): string {
+    return String(value ?? '');
 }
 
 export function useProfileRoutes(options: {
@@ -95,9 +95,12 @@ export function useProfileRoutes(options: {
             : userAchievementDestroy.url({ user: userId.value, achievement: achievementId });
     };
 
-    const athleteProfileUpdateUrl = computed(() => userAthleteProfileUpdate.url(userId.value));
-    const coachProfileUpdateUrl = computed(() => userCoachProfileUpdate.url(userId.value));
-    const parentProfileUpdateUrl = computed(() => userParentProfileUpdate.url(userId.value));
+    const athleteProfileUpdateUrl = computed(() =>
+        isSettingsContext.value ? profileAthleteUpdate.url() : userAthleteProfileUpdate.url(userId.value),
+    );
+    const coachProfileUpdateUrl = computed(() =>
+        isSettingsContext.value ? profileCoachUpdate.url() : userCoachProfileUpdate.url(userId.value),
+    );
 
     return {
         isSettingsContext,
@@ -111,6 +114,5 @@ export function useProfileRoutes(options: {
         achievementDestroyUrl,
         athleteProfileUpdateUrl,
         coachProfileUpdateUrl,
-        parentProfileUpdateUrl,
     };
 }

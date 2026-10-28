@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Group;
 use App\Models\Payment;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function createBillingAthlete(string $name, Branch $branch, Group $group): Athlete
@@ -23,8 +24,6 @@ function createBillingAthlete(string $name, Branch $branch, Group $group): Athle
         'group_id' => $group->group_id,
         'height_cm' => 160,
         'weight_kg' => 50,
-        'nik_hash' => hash('sha256', $name.'-nik'),
-        'bpjs_hash' => hash('sha256', $name.'-bpjs'),
         'geup' => 'GEUP_10',
     ]);
 }
@@ -40,7 +39,7 @@ test('admin can open the billing settings workspace while non admin cannot', fun
             ->component('admin/BillingSettingsPage')
             ->has('setting')
             ->has('rules')
-            ->has('metrics', 4));
+            ->has('metrics', 2));
 
     $this->actingAs($athlete)
         ->get(route('admin.billing-settings.index'))
@@ -183,4 +182,156 @@ test('monthly rules with the same scope cannot overlap', function () {
         ->assertSessionHasErrors('effective_from');
 
     expect(BillingRule::query()->count())->toBe(1);
+});
+
+test('scheduled tuition command waits until the configured local day and time', function () {
+    $branch = Branch::query()->create(['branch_name' => 'Scheduled Branch', 'is_active' => true]);
+    $group = Group::query()->create([
+        'group_name' => 'Scheduled Group',
+        'branch_id' => $branch->branch_id,
+        'is_active' => true,
+    ]);
+    createBillingAthlete('Scheduled Athlete', $branch, $group);
+
+    BillingSetting::query()->updateOrCreate(
+        ['name' => 'monthly_tuition'],
+        [
+            'invoice_day' => 1,
+            'invoice_time' => '01:10:00',
+            'default_amount' => 150000,
+            'is_active' => true,
+        ],
+    );
+
+    $this->travelTo(Carbon::parse('2026-10-27 18:37:00', config('app.timezone')));
+    $this->artisan('tuition:generate-monthly')
+        ->expectsOutput('Monthly tuition generation is scheduled for day 1 at 01:10.')
+        ->assertExitCode(0);
+
+    expect(Payment::query()->count())->toBe(0);
+});
+
+test('scheduled tuition command creates monthly invoices once at the configured time', function () {
+    $branch = Branch::query()->create(['branch_name' => 'Due Branch', 'is_active' => true]);
+    $group = Group::query()->create([
+        'group_name' => 'Due Group',
+        'branch_id' => $branch->branch_id,
+        'is_active' => true,
+    ]);
+    $athlete = createBillingAthlete('Due Athlete', $branch, $group);
+
+    BillingSetting::query()->updateOrCreate(
+        ['name' => 'monthly_tuition'],
+        [
+            'invoice_day' => 1,
+            'invoice_time' => '01:10:00',
+            'default_amount' => 165000,
+            'is_active' => true,
+        ],
+    );
+
+    $this->travelTo(Carbon::parse('2026-10-01 01:10:00', config('app.timezone')));
+    $this->artisan('tuition:generate-monthly')
+        ->expectsOutput('Generated 1 monthly tuition bills. Skipped 0 existing bills.')
+        ->assertExitCode(0);
+    $this->artisan('tuition:generate-monthly')
+        ->expectsOutput('Generated 0 monthly tuition bills. Skipped 1 existing bills.')
+        ->assertExitCode(0);
+
+    $payment = Payment::query()->sole();
+    expect($payment->athlete_id)->toBe($athlete->athlete_id)
+        ->and((float) $payment->total_amount)->toBe(165000.0)
+        ->and($payment->payment_date?->toDateString())->toBe('2026-10-01');
+});
+
+test('scheduled commands for session generation, activity log pruning, failure handling, and overlap protection work as configured', function () {
+    $scheduleEvents = collect(\Illuminate\Support\Facades\Schedule::events());
+    $tuitionEvent = $scheduleEvents->first(fn ($event) => str_contains((string) $event->command, 'tuition:generate-monthly'));
+    $pruneEvent = $scheduleEvents->first(fn ($event) => str_contains((string) $event->command, 'activity-logs:prune --days=90'));
+    $sessionEvent = $scheduleEvents->first(fn ($event) => str_contains((string) $event->command, 'sessions:generate-from-weekly --days=14'));
+
+    expect($tuitionEvent)->not->toBeNull()
+        ->and($tuitionEvent->withoutOverlapping)->toBeTrue()
+        ->and($tuitionEvent->expression)->toBe('* * * * *')
+        ->and($pruneEvent)->not->toBeNull()
+        ->and($pruneEvent->expression)->toBe('0 2 * * *')
+        ->and($sessionEvent)->not->toBeNull()
+        ->and($sessionEvent->expression)->toBe('15 0 * * *');
+
+    $this->travelTo(Carbon::parse('2026-10-15 02:00:00', config('app.timezone')));
+
+    $oldLog = \App\Models\ActivityLog::query()->create([
+        'action' => 'audit.old',
+        'context' => 'test',
+        'description' => 'Older than 90 days',
+    ]);
+    \Illuminate\Support\Facades\DB::table('activity_logs')
+        ->where('id', $oldLog->id)
+        ->update(['created_at' => now()->subDays(91), 'updated_at' => now()->subDays(91)]);
+
+    $boundaryLog = \App\Models\ActivityLog::query()->create([
+        'action' => 'audit.boundary',
+        'context' => 'test',
+        'description' => 'Within 90 days',
+    ]);
+    \Illuminate\Support\Facades\DB::table('activity_logs')
+        ->where('id', $boundaryLog->id)
+        ->update(['created_at' => now()->subDays(89), 'updated_at' => now()->subDays(89)]);
+
+    $this->artisan('activity-logs:prune --days=90')
+        ->expectsOutput('Pruned 1 activity log entries older than 90 days.')
+        ->assertExitCode(0);
+
+    $this->artisan('activity-logs:prune --days=90')
+        ->expectsOutput('Pruned 0 activity log entries older than 90 days.')
+        ->assertExitCode(0);
+
+    expect(\App\Models\ActivityLog::query()->whereKey($oldLog->id)->exists())->toBeFalse()
+        ->and(\App\Models\ActivityLog::query()->whereKey($boundaryLog->id)->exists())->toBeTrue();
+
+    $coachUser = User::factory()->create(['role' => 'coach', 'account_status' => User::ACCOUNT_STATUS_ACTIVE]);
+    $coach = \App\Models\Coach::query()->create(['id' => $coachUser->id, 'status' => 'active']);
+    $branch = Branch::query()->create(['branch_name' => 'Scheduler Branch', 'is_active' => true]);
+    $group = Group::query()->create([
+        'group_name' => 'Scheduler Group',
+        'branch_id' => $branch->branch_id,
+        'coach_id' => $coach->coach_id,
+        'class_type' => 'reguler',
+        'is_active' => true,
+    ]);
+    \App\Models\WeeklyTrainingSchedule::query()->create([
+        'title' => 'Active Weekly Slot',
+        'branch_id' => $branch->branch_id,
+        'group_id' => $group->group_id,
+        'coach_id' => $coach->coach_id,
+        'session_type' => 'reguler',
+        'day_of_week' => 1,
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => true,
+    ]);
+    \App\Models\WeeklyTrainingSchedule::query()->create([
+        'title' => 'Inactive Weekly Slot',
+        'branch_id' => $branch->branch_id,
+        'group_id' => $group->group_id,
+        'coach_id' => $coach->coach_id,
+        'session_type' => 'reguler',
+        'day_of_week' => 2,
+        'start_time' => '16:00',
+        'end_time' => '18:00',
+        'is_active' => false,
+    ]);
+
+    $this->artisan('sessions:generate-from-weekly --from=2026-10-12 --days=14')
+        ->expectsOutput('Generated 2 weekly training sessions from 2026-10-12 to 2026-10-25. Skipped 0 duplicates.')
+        ->assertExitCode(0);
+
+    $this->artisan('sessions:generate-from-weekly --from=2026-10-12 --days=14')
+        ->expectsOutput('Generated 0 weekly training sessions from 2026-10-12 to 2026-10-25. Skipped 2 duplicates.')
+        ->assertExitCode(0);
+
+    expect(\App\Models\TrainingSession::query()->count())->toBe(2);
+
+    $this->artisan('tuition:generate-monthly --month=2026-10 --amount=0 --force')
+        ->assertExitCode(1);
 });

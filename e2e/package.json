@@ -1,0 +1,28 @@
+{
+    "name": "e2e",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "install:browsers": "node ./node_modules/playwright/cli.js install chromium",
+        "ci": "node ../scripts/verify-npm-lock-sources.mjs package-lock.json && npm ci --allow-remote=all",
+        "test": "node ./node_modules/playwright/cli.js test",
+        "test:headed": "node ./node_modules/playwright/cli.js test --headed",
+        "test:debug": "node ./node_modules/playwright/cli.js test --debug",
+        "test:isolated": "sh ./run-isolated.sh",
+        "test:roles": "node ./node_modules/playwright/cli.js test",
+        "test:mobile": "node ./node_modules/playwright/cli.js test --project=mobile-small-chromium --project=mobile-large-chromium"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "commonjs",
+    "packageManager": "npm@12.2.1",
+    "engines": {
+        "node": "24.22.1",
+        "npm": "12.2.1"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.64.1"
+    }
+}

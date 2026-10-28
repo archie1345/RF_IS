@@ -1,6 +1,6 @@
 import type { TableBadgeCell } from '@/types/resource-table';
 
-export type AppRole = 'admin' | 'coach' | 'parent' | 'athlete';
+export type AppRole = 'admin' | 'coach' | 'athlete';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'EXCUSED';
 export type PaymentProofStatus = 'NONE' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 

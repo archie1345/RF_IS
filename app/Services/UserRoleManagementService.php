@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Athlete;
 use App\Models\Coach;
-use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserRoleAssignment;
 use App\Support\RoleResolver;
@@ -29,7 +28,7 @@ class UserRoleManagementService
 
             $this->syncRoles($user, $roles);
 
-            return $user->fresh(['roleAssignments', 'athleteProfile', 'coachProfile', 'parentProfile']);
+            return $user->fresh(['roleAssignments', 'athleteProfile', 'coachProfile']);
         });
     }
 
@@ -47,7 +46,7 @@ class UserRoleManagementService
 
             $this->syncRoles($user, $roles);
 
-            return $user->fresh(['roleAssignments', 'athleteProfile', 'coachProfile', 'parentProfile']);
+            return $user->fresh(['roleAssignments', 'athleteProfile', 'coachProfile']);
         });
     }
 
@@ -66,12 +65,10 @@ class UserRoleManagementService
         }
 
         $this->syncAthleteProfile($user, in_array('athlete', $roles, true));
-        $this->syncParentProfile($user, in_array('parent', $roles, true));
         $this->syncCoachProfile($user, in_array('coach', $roles, true));
 
         $user->unsetRelation('roleAssignments');
         $user->unsetRelation('athleteProfile');
-        $user->unsetRelation('parentProfile');
         $user->unsetRelation('coachProfile');
     }
 
@@ -83,34 +80,6 @@ class UserRoleManagementService
 
         if ($enabled) {
             if ($profile?->trashed()) {
-                $profile->restore();
-            }
-
-            return;
-        }
-
-        if ($profile && ! $profile->trashed()) {
-            $profile->delete();
-        }
-    }
-
-    private function syncParentProfile(User $user, bool $enabled): void
-    {
-        $profile = ParentProfile::withTrashed()
-            ->where('id', $user->id)
-            ->first();
-
-        if ($enabled) {
-            if (! $profile) {
-                ParentProfile::query()->create([
-                    'id' => $user->id,
-                    'relation' => 'guardian',
-                ]);
-
-                return;
-            }
-
-            if ($profile->trashed()) {
                 $profile->restore();
             }
 

@@ -69,7 +69,9 @@ onBeforeUnmount(() => {
         >
             <div v-if="isVisible" class="pointer-events-none fixed inset-x-0 top-0 z-[240]" aria-hidden="true">
                 <div class="h-1 bg-primary/15">
-                    <div class="navigation-progress-bar h-full w-1/3 rounded-r-full bg-gradient-to-r from-primary via-primary/80 to-primary/20" />
+                    <div
+                        class="navigation-progress-bar h-full w-1/3 rounded-r-full bg-gradient-to-r from-primary via-primary/80 to-primary/20"
+                    />
                 </div>
             </div>
         </Transition>

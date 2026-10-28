@@ -27,6 +27,7 @@ class TrainingGroupController extends Controller
             ->get()
             ->map(fn (TrainingGroup $group) => [
                 'id' => $group->id,
+                'route_key' => $group->getRouteKey(),
                 'name' => $group->name,
                 'description' => $group->description,
                 'is_active' => (bool) $group->is_active,

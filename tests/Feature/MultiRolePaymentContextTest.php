@@ -34,8 +34,6 @@ test('coach athlete account sees tuition and payroll only in their matching acti
         'group_id' => $group->group_id,
         'height_cm' => 170,
         'weight_kg' => 65,
-        'nik_hash' => hash('sha256', 'payment-context-nik'),
-        'bpjs_hash' => hash('sha256', 'payment-context-bpjs'),
         'geup' => 'GEUP_1',
     ]);
     UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'coach']);
@@ -66,14 +64,11 @@ test('coach athlete account sees tuition and payroll only in their matching acti
     ]);
 
     $this->actingAs($user)
-        ->put(route('role-context.update'), ['role' => 'athlete'])
-        ->assertRedirect(route('dashboard'));
-
-    $this->get(route('payments.index'))
+        ->get(route('payments.index', ['mode' => 'athlete']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('PaymentsPage')
-            ->where('auth.user.activeRole', 'athlete')
+            ->where('role', 'athlete')
             ->where('isAdmin', false)
             ->where('canSubmitPaymentProof', true)
             ->has('rows', 1)
@@ -84,14 +79,12 @@ test('coach athlete account sees tuition and payroll only in their matching acti
             ->has('coaches', 0)
             ->where('invoiceTemplate', null));
 
-    $this->put(route('role-context.update'), ['role' => 'coach'])
-        ->assertRedirect(route('dashboard'));
-
-    $this->get(route('payments.index'))
+    $this->actingAs($user)
+        ->get(route('payments.index', ['mode' => 'coach']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('CoachPayrollPage')
-            ->where('auth.user.activeRole', 'coach')
+            ->where('role', 'coach')
             ->has('rows', 1)
             ->where('rows.0.payment_id', $payroll->payment_id)
             ->where('rows.0.bill_kind', 'PAYROLL'));

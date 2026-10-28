@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
+import { Camera, CheckCircle2, Loader2, QrCode, WifiOff, XCircle } from '@lucide/vue';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, CheckCircle2, Loader2, QrCode, Smartphone, WifiOff, XCircle } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { useAppToast } from '@/composables/useAppToast';
 import { show as attendanceScanShow, store as attendanceScanStore } from '@/routes/attendance/scan';
-import type { Auth } from '@/types/auth';
 
 type PendingScan = {
     id: string;
@@ -23,7 +22,7 @@ const PENDING_SCANS_STORAGE_KEY = 'rf-is.pending-attendance-scans';
 
 const scanner = ref<Html5Qrcode | null>(null);
 const scannerElementId = `athlete-qr-scanner-${Math.random().toString(36).slice(2)}`;
-const isPortableDevice = ref(false);
+const isCameraAvailable = ref(false);
 const isOnline = ref(true);
 const isSyncing = ref(false);
 const isScanning = ref(false);
@@ -34,8 +33,6 @@ const lastHandledTokenAt = ref(0);
 const manualQrUrl = ref('');
 const pendingScans = ref<PendingScan[]>([]);
 const toast = useAppToast();
-const page = usePage<{ auth?: Auth }>();
-
 const pendingScanCount = computed(() => pendingScans.value.length);
 const connectionLabel = computed(() => {
     if (!isOnline.value) {
@@ -80,10 +77,14 @@ function readPendingScans(): PendingScan[] {
             .map((entry): PendingScan | null => {
                 if (!entry || typeof entry !== 'object') return null;
 
-                const id = typeof (entry as Record<string, unknown>).id === 'string' ? (entry as Record<string, string>).id : '';
-                const token = typeof (entry as Record<string, unknown>).token === 'string'
-                    ? (entry as Record<string, string>).token
-                    : '';
+                const id =
+                    typeof (entry as Record<string, unknown>).id === 'string'
+                        ? (entry as Record<string, string>).id
+                        : '';
+                const token =
+                    typeof (entry as Record<string, unknown>).token === 'string'
+                        ? (entry as Record<string, string>).token
+                        : '';
                 const athleteIdValue = (entry as Record<string, unknown>).athleteId;
                 const athleteId =
                     typeof athleteIdValue === 'string'
@@ -120,22 +121,15 @@ function updatePendingScans(nextScans: PendingScan[]): void {
     const unique = nextScans.filter(
         (scan, index, all) =>
             index ===
-            all.findIndex(
-                (candidate) => candidate.token === scan.token && candidate.athleteId === scan.athleteId,
-            ),
+            all.findIndex((candidate) => candidate.token === scan.token && candidate.athleteId === scan.athleteId),
     );
 
     persistPendingScans(unique);
 }
 
 function queueScanForLater(token: string): void {
-    const athleteId =
-        page.props.auth?.activeChild?.athlete_id ??
-        page.props.auth?.children?.[0]?.athlete_id ??
-        null;
-    const alreadyQueued = pendingScans.value.some(
-        (scan) => scan.token === token && scan.athleteId === athleteId,
-    );
+    const athleteId = null;
+    const alreadyQueued = pendingScans.value.some((scan) => scan.token === token && scan.athleteId === athleteId);
 
     if (alreadyQueued) {
         toast.info('QR sudah disimpan', 'Scan ini sudah ada di antrean sinkronisasi.');
@@ -145,7 +139,10 @@ function queueScanForLater(token: string): void {
     const nextScans = [
         ...pendingScans.value,
         {
-            id: isBrowser() && 'randomUUID' in window.crypto ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            id:
+                isBrowser() && 'randomUUID' in window.crypto
+                    ? window.crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
             token,
             athleteId,
             capturedAt: new Date().toISOString(),
@@ -157,16 +154,6 @@ function queueScanForLater(token: string): void {
         'QR disimpan offline',
         `Perangkat sedang offline. ${nextScans.length} scan menunggu untuk dikirim ke server.`,
     );
-}
-
-function detectPhoneOrTablet(): void {
-    const agent = window.navigator.userAgent.toLowerCase();
-    const platform = window.navigator.platform.toLowerCase();
-    const hasTouch = window.navigator.maxTouchPoints > 1;
-
-    isPortableDevice.value =
-        /iphone|ipod|ipad|android|tablet|mobile|windows phone|iemobile|blackberry|bb10|opera mini/.test(agent) ||
-        (platform.includes('mac') && hasTouch);
 }
 
 function extractAttendanceScanToken(value: string): string | null {
@@ -228,9 +215,8 @@ function handleDecodedScan(decodedText: string): void {
         return;
     }
 
-    markTokenHandled(token);
-
     if (!isOnline.value) {
+        markTokenHandled(token);
         scannerError.value = null;
         queueScanForLater(token);
         return;
@@ -358,20 +344,12 @@ async function syncPendingScans(): Promise<void> {
     }
 
     if (syncedCount > 0) {
-        toast.success(
-            'Scan offline tersinkronisasi',
-            `${syncedCount} scan attendance berhasil dikirim ke server.`,
-        );
+        toast.success('Scan offline tersinkronisasi', `${syncedCount} scan attendance berhasil dikirim ke server.`);
     }
 }
 
 async function startScanner(): Promise<void> {
     scannerError.value = null;
-
-    if (!isPortableDevice.value) {
-        scannerError.value = 'QR scan menu is only available on phones and tablets.';
-        return;
-    }
 
     if (!isSecureCameraContext()) {
         scannerError.value = 'Camera access requires HTTPS, localhost, or a trusted secure tunnel.';
@@ -379,8 +357,7 @@ async function startScanner(): Promise<void> {
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-        scannerError.value =
-            'This browser cannot access the camera. Use Chrome/Edge/Safari on your phone or tablet, or paste the QR link below.';
+        scannerError.value = 'This browser cannot access the camera. Paste the QR link below instead.';
         return;
     }
 
@@ -405,7 +382,7 @@ async function startScanner(): Promise<void> {
         scannerError.value =
             message.toLowerCase().includes('permission') || message.toLowerCase().includes('notallowed')
                 ? 'Camera permission was denied. Allow camera access in the browser/site settings, then try again.'
-                : 'Camera could not start. Close other apps using the camera, use a phone/tablet browser, or paste the QR link below.';
+                : 'Camera could not start. Check that it is connected and not being used by another app, or paste the QR link below.';
         await stopScanner();
     }
 }
@@ -448,17 +425,15 @@ function submitManualQrUrl(): void {
 
 function handleOffline(): void {
     isOnline.value = false;
-    toast.warning('Koneksi terputus', 'Perangkat sedang offline. Scan baru akan disimpan lokal sementara.');
 }
 
 function handleOnline(): void {
     isOnline.value = true;
-    toast.info('Koneksi kembali aktif', 'Scan attendance yang tersimpan akan dikirim ke server otomatis.');
     void syncPendingScans();
 }
 
 onMounted(() => {
-    detectPhoneOrTablet();
+    isCameraAvailable.value = isSecureCameraContext() && Boolean(navigator.mediaDevices?.getUserMedia);
     isOnline.value = window.navigator.onLine;
     pendingScans.value = readPendingScans();
 
@@ -478,8 +453,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div v-if="isPortableDevice" class="rounded-3xl border bg-muted/40 p-5">
-        <div class="flex items-start gap-3">
+    <div class="min-w-0 rounded-3xl border bg-muted/40 p-4 sm:p-5">
+        <div class="flex min-w-0 items-start gap-3">
             <div class="rounded-2xl bg-brand-blue/15 p-3 text-brand-blue dark:bg-brand-blue/15 dark:text-brand-blue/80">
                 <QrCode class="size-7" />
             </div>
@@ -487,8 +462,8 @@ onBeforeUnmount(() => {
                 <p class="text-xs font-black tracking-[0.22em] text-blue-600 uppercase">QR scan menu</p>
                 <h2 class="mt-1 text-2xl font-black">Scan coach QR inside this page</h2>
                 <p class="mt-2 text-sm text-muted-foreground">
-                    Stay logged in as the athlete. Scan the coach QR here. The secure attendance page will open, verify
-                    eligibility, then save automatically.
+                    Use a camera on this device or paste a coach QR link. The secure attendance page will verify
+                    eligibility before saving.
                 </p>
             </div>
         </div>
@@ -508,12 +483,14 @@ onBeforeUnmount(() => {
                 <CheckCircle2 v-else class="size-4 shrink-0" />
                 <span class="truncate">{{ connectionLabel }}</span>
             </div>
-            <span class="shrink-0 rounded-full border border-current/20 bg-background/80 px-2.5 py-1 text-xs font-semibold">
+            <span
+                class="shrink-0 rounded-full border border-current/20 bg-background/80 px-2.5 py-1 text-xs font-semibold"
+            >
                 {{ pendingScanCount }} pending
             </span>
         </div>
 
-        <div class="mt-5 overflow-hidden rounded-3xl border bg-background">
+        <div v-if="isCameraAvailable" class="mt-5 overflow-hidden rounded-3xl border bg-background">
             <div
                 :id="scannerElementId"
                 class="min-h-72 w-full bg-black [&_video]:h-full [&_video]:w-full [&_video]:object-cover"
@@ -523,19 +500,19 @@ onBeforeUnmount(() => {
                 class="flex min-h-72 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground"
             >
                 <Camera class="size-10" />
-                <p>
-                    Open the scanner, allow camera permission, point your phone/tablet at the coach QR, then wait for
-                    the attendance page.
-                </p>
+                <p>Start the camera, allow access, then point it at the coach QR code.</p>
             </div>
+        </div>
+        <div v-else class="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            Camera access is unavailable in this browser or page context. Paste the coach QR link below to continue.
         </div>
 
         <div class="mt-4 grid gap-2 sm:grid-cols-2">
-            <Button v-if="!isScanning" type="button" :disabled="isOpening" @click="startScanner">
+            <Button v-if="isCameraAvailable && !isScanning" type="button" :disabled="isOpening" @click="startScanner">
                 <Loader2 v-if="isOpening" class="mr-2 size-4 animate-spin" />
                 Start scan
             </Button>
-            <Button v-else type="button" variant="outline" @click="stopScanner">Stop scan</Button>
+            <Button v-else-if="isScanning" type="button" variant="outline" @click="stopScanner">Stop scan</Button>
             <Button type="button" variant="outline" :disabled="isOpening" @click="submitManualQrUrl"
                 >Use pasted link</Button
             >
@@ -555,20 +532,6 @@ onBeforeUnmount(() => {
         >
             <XCircle class="mt-0.5 size-4 shrink-0" />
             <span>{{ scannerError }}</span>
-        </p>
-    </div>
-
-    <div v-else class="rounded-3xl border bg-muted/40 p-5 text-center">
-        <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-            <Smartphone class="size-7" />
-        </div>
-        <p class="mt-4 text-xs font-black tracking-[0.22em] text-muted-foreground uppercase">
-            QR scan hidden on desktop
-        </p>
-        <h2 class="mt-1 text-2xl font-black">Use a phone or tablet</h2>
-        <p class="mt-2 text-sm text-muted-foreground">
-            The QR scan menu is intentionally hidden on desktop. Open this attendance page from a phone or tablet to
-            scan.
         </p>
     </div>
 </template>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
-import { LoaderCircle } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -12,9 +11,6 @@ import {
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { useI18n } from '@/composables/useI18n';
 import type { NavItem, NavSection } from '@/types';
-import type { Auth } from '@/types/auth';
-import type { AppRole } from '@/types/resource-table';
-import { update as roleContextUpdate } from '@/routes/role-context';
 
 const props = withDefaults(
     defineProps<{
@@ -27,16 +23,8 @@ const props = withDefaults(
     },
 );
 
-const page = usePage<{ auth: Auth }>();
 const { isCurrentUrl } = useCurrentUrl();
 const { t } = useI18n();
-const switchingHref = ref<string | null>(null);
-
-const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
-const assignedRoles = computed<AppRole[]>(() => {
-    const roles = page.props.auth.user?.roles ?? [];
-    return roles.length > 0 ? roles : [activeRole.value];
-});
 
 const visibleSections = computed<NavSection[]>(() => {
     if (props.sections.length > 0) return props.sections.filter((section) => section.items.length > 0);
@@ -45,34 +33,6 @@ const visibleSections = computed<NavSection[]>(() => {
 
 function hrefText(href: unknown): string {
     return typeof href === 'string' ? href : String(href ?? '');
-}
-
-function requiredRole(roles?: AppRole[]): AppRole | null {
-    if (!roles?.length || roles.includes(activeRole.value)) return null;
-
-    return roles.find((role) => assignedRoles.value.includes(role)) ?? null;
-}
-
-function openDestination(event: MouseEvent, item: NavItem): void {
-    if (!item.href) return;
-    const role = requiredRole(item.roles);
-    if (!role || switchingHref.value) return;
-
-    event.preventDefault();
-    const dest = hrefText(item.href);
-    switchingHref.value = dest;
-
-    router.put(
-        roleContextUpdate.url(),
-        { role, redirect_to: dest },
-        {
-            preserveScroll: false,
-            preserveState: false,
-            onFinish: () => {
-                switchingHref.value = null;
-            },
-        },
-    );
 }
 </script>
 
@@ -89,11 +49,9 @@ function openDestination(event: MouseEvent, item: NavItem): void {
                     as-child
                     :is-active="isCurrentUrl(item.href)"
                     :tooltip="t(item.title)"
-                    :aria-busy="switchingHref === hrefText(item.href)"
                 >
-                    <Link :href="item.href" @click="openDestination($event, item)">
-                        <LoaderCircle v-if="switchingHref === hrefText(item.href)" class="animate-spin" />
-                        <component :is="item.icon" v-else-if="item.icon" />
+                    <Link :href="item.href">
+                        <component :is="item.icon" v-if="item.icon" />
                         <span>{{ t(item.title) }}</span>
                     </Link>
                 </SidebarMenuButton>

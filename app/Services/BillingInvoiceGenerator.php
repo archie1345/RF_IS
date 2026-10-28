@@ -7,8 +7,8 @@ use App\Models\BillingRule;
 use App\Models\BillingSetting;
 use App\Models\Payment;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -19,7 +19,7 @@ class BillingInvoiceGenerator
     /**
      * @return array{created:int, skipped:int}
      */
-    public function generateMonthly(Carbon $month, ?float $overrideAmount = null): array
+    public function generateMonthly(CarbonInterface $month, ?float $overrideAmount = null): array
     {
         $month = $month->copy()->startOfMonth();
         $setting = BillingSetting::query()->where('name', 'monthly_tuition')->first();
@@ -78,7 +78,7 @@ class BillingInvoiceGenerator
     /**
      * @return array{created:int, skipped:int}
      */
-    public function generateOneTime(BillingRule $rule, Carbon $issueDate): array
+    public function generateOneTime(BillingRule $rule, CarbonInterface $issueDate): array
     {
         if ($rule->charge_kind !== BillingRule::KIND_ONE_TIME || ! $rule->is_active) {
             throw new InvalidArgumentException('Only active one-time billing rules can be issued.');
@@ -141,7 +141,7 @@ class BillingInvoiceGenerator
             });
     }
 
-    private function monthlyNotes(Carbon $month, ?BillingRule $rule): string
+    private function monthlyNotes(CarbonInterface $month, ?BillingRule $rule): string
     {
         $label = $month->translatedFormat('F Y');
 

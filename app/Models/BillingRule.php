@@ -2,18 +2,17 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 
 class BillingRule extends Model
 {
     use HasUuids;
-
     use SoftDeletes;
 
     public const KIND_MONTHLY = 'MONTHLY';
@@ -49,7 +48,7 @@ class BillingRule extends Model
         ];
     }
 
-    public function scopeEffectiveOn(Builder $query, Carbon $date): Builder
+    public function scopeEffectiveOn(Builder $query, CarbonInterface $date): Builder
     {
         return $query
             ->where('is_active', true)
@@ -95,5 +94,4 @@ class BillingRule extends Model
     {
         return 'uuid';
     }
-
 }

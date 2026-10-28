@@ -2,9 +2,8 @@
 
 namespace App\Http\Middleware;
 
-use App\Services\ActiveRoleContextService;
-use App\Services\ParentChildContextService;
 use App\Services\PublicContactSettings;
+use App\Support\RoleResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
@@ -50,39 +49,23 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         if (! $user) {
-            return [
-                'user' => null,
-                'children' => [],
-                'activeChild' => null,
-            ];
+            return ['user' => null];
         }
 
-        $roleContext = app(ActiveRoleContextService::class);
-        $childContext = app(ParentChildContextService::class);
-
-        $roles = $roleContext->availableRoles($user);
-        $activeRole = $roleContext->activeRole($request, $user);
-        $primaryRole = $roles[0] ?? $activeRole;
-        $children = $activeRole === 'parent' ? $childContext->sharedChildrenFor($user) : [];
+        $roles = app(RoleResolver::class)->rolesFor($user);
 
         return [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => $activeRole,
-                'activeRole' => $activeRole,
-                'primaryRole' => $primaryRole,
+                // Highest-privilege assigned role; permissions always use the full `roles` list.
+                'role' => $roles[0] ?? 'athlete',
                 'roles' => $roles,
-                'isMultiRole' => count($roles) > 1,
                 'avatar' => $user->profile?->profile_picture_path
                     ? Storage::url($user->profile->profile_picture_path)
                     : null,
             ],
-            'children' => $children,
-            // Parent pages now show all children and filter locally instead of
-            // carrying one persistent child context through the application.
-            'activeChild' => null,
         ];
     }
 }

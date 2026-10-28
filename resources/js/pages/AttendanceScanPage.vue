@@ -2,7 +2,6 @@
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { CheckCircle2, Loader2, QrCode, Smartphone, XCircle } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import FormSelectField from '@/components/forms/FormSelectField.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -10,15 +9,8 @@ import { show as attendanceScanShow } from '@/routes/attendance/scan';
 import type { BreadcrumbItem } from '@/types';
 import type { PagePropsWithAttendanceScan } from './AttendanceScanPage.types';
 
-type ChildOption = {
-    value: string | number;
-    label: string;
-    current_status?: string | null;
-};
-
 const props = defineProps<{
     token: string;
-    deviceAllowed: boolean;
     state: string;
     message: string | null;
     canSubmit: boolean;
@@ -37,39 +29,24 @@ const props = defineProps<{
         name: string | null;
         current_status: string | null;
     } | null;
-    children?: ChildOption[];
 }>();
 
 const page = usePage<PagePropsWithAttendanceScan>();
 const isSubmitting = ref(false);
 const submitError = ref<string | null>(null);
-const selectedAthleteId = ref(String(props.athlete?.athlete_id ?? props.children?.[0]?.value ?? ''));
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'QR Attendance', href: attendanceScanShow.url(props.token) },
 ];
 
-const childOptions = computed(() => props.children ?? []);
-const isParentScan = computed(() => childOptions.value.length > 0);
-const selectedChild = computed(
-    () => childOptions.value.find((child) => String(child.value) === selectedAthleteId.value) ?? null,
-);
-const displayedAthleteName = computed(
-    () => selectedChild.value?.label ?? props.athlete?.name ?? 'Athlete login required',
-);
-const displayedAthleteStatus = computed(
-    () => selectedChild.value?.current_status ?? props.athlete?.current_status ?? null,
-);
+const displayedAthleteName = computed(() => props.athlete?.name ?? 'Athlete login required');
+const displayedAthleteStatus = computed(() => props.athlete?.current_status ?? null);
 const scanFlash = computed(() => page.props.flash?.attendanceScan ?? null);
 const pageErrors = computed(() => page.props.errors ?? {});
-const selectedChildAlreadyPresent = computed(
-    () => isParentScan.value && selectedChild.value?.current_status === 'PRESENT',
-);
 const hasSaved = computed(
     () =>
-        selectedChildAlreadyPresent.value ||
-        (!isParentScan.value && props.state === 'already_present') ||
+        props.state === 'already_present' ||
         scanFlash.value?.status === 'recorded' ||
         scanFlash.value?.status === 'already_recorded',
 );
@@ -82,48 +59,36 @@ const blockingError = computed(
         pageErrors.value.token ??
         null,
 );
-const parentSessionBlocked = computed(() => ['invalid', 'not_open', 'closed', 'revoked'].includes(props.state));
-const parentSelectionBlocked = computed(() => isParentScan.value && selectedAthleteId.value === '');
 const canRecordNow = computed(() => {
-    if (!props.deviceAllowed || isSubmitting.value || hasSaved.value || blockingError.value) return false;
-
-    if (isParentScan.value) {
-        return Boolean(props.session) && !parentSessionBlocked.value && !parentSelectionBlocked.value;
-    }
+    if (isSubmitting.value || hasSaved.value || blockingError.value) return false;
 
     return props.canSubmit;
 });
 
 const stepState = computed(() => {
-    if (!props.deviceAllowed) return 'blocked';
     if (
         blockingError.value ||
-        parentSessionBlocked.value ||
-        (!isParentScan.value &&
-            ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state))
+        ['invalid', 'not_open', 'closed', 'revoked', 'athlete_required', 'not_eligible'].includes(props.state)
     ) {
         return 'blocked';
     }
     if (hasSaved.value) return 'done';
     if (isSubmitting.value) return 'saving';
-    if (canRecordNow.value || (isParentScan.value && !parentSessionBlocked.value)) return 'prompt';
+    if (canRecordNow.value) return 'prompt';
 
     return 'waiting';
 });
 
 const headline = computed(() => {
-    if (stepState.value === 'done') return isParentScan.value ? 'Child attendance saved' : 'Attendance saved';
+    if (stepState.value === 'done') return 'Attendance saved';
     if (stepState.value === 'saving') return 'Saving attendance...';
-    if (stepState.value === 'prompt') return isParentScan.value ? 'Select child and save' : 'QR detected';
+    if (stepState.value === 'prompt') return 'QR detected';
     if (stepState.value === 'blocked') return 'Cannot record attendance';
 
     return 'QR attendance';
 });
 
 const statusMessage = computed(() => {
-    if (selectedChildAlreadyPresent.value) return 'This child is already checked in for this session.';
-    if (isParentScan.value && parentSelectionBlocked.value) return 'Select which child you want to check in.';
-
     return (
         scanFlash.value?.message ??
         blockingError.value ??
@@ -143,7 +108,7 @@ function recordAttendance() {
 
     router.post(
         attendanceScanShow.url(props.token),
-        isParentScan.value ? { athlete_id: selectedAthleteId.value } : {},
+        {},
         {
             preserveScroll: true,
             onError: (errors) => {
@@ -217,17 +182,6 @@ function recordAttendance() {
                         </div>
                     </div>
 
-                    <section v-if="isParentScan" class="rounded-3xl border bg-background p-4">
-                        <FormSelectField
-                            id="child-athlete"
-                            v-model="selectedAthleteId"
-                            label="Child to check in"
-                            :options="childOptions"
-                            placeholder="Select child"
-                            :multiple="false"
-                        />
-                    </section>
-
                     <Button
                         v-if="canRecordNow"
                         type="button"
@@ -236,13 +190,7 @@ function recordAttendance() {
                         @click="recordAttendance"
                     >
                         <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" />
-                        {{
-                            isSubmitting
-                                ? 'Saving attendance...'
-                                : isParentScan
-                                  ? 'Save child attendance now'
-                                  : 'Save attendance now'
-                        }}
+                        {{ isSubmitting ? 'Saving attendance...' : 'Save attendance now' }}
                     </Button>
 
                     <section v-if="props.session" class="rounded-3xl border bg-background p-4">
@@ -260,9 +208,7 @@ function recordAttendance() {
                     </section>
 
                     <section class="rounded-3xl border bg-background p-4">
-                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">
-                            {{ isParentScan ? 'Selected child' : 'Athlete' }}
-                        </p>
+                        <p class="text-xs font-bold tracking-wide text-muted-foreground uppercase">Athlete</p>
                         <p class="mt-1 text-lg font-black">{{ displayedAthleteName }}</p>
                         <p v-if="displayedAthleteStatus" class="mt-1 text-sm text-muted-foreground">
                             Current status: {{ displayedAthleteStatus }}

@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Models\UserRoleAssignment;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('shows athletes the full participant count and limits coach metrics to assigned events', function () {
+it('allows coach-athletes to register as athletes while pure coaches cannot self-register', function () {
     $user = User::factory()->create([
         'name' => 'Championship Multi Role',
         'role' => 'coach',
@@ -44,8 +44,6 @@ it('shows athletes the full participant count and limits coach metrics to assign
         'height_cm' => 170,
         'weight_kg' => 65,
         'geup' => 'GEUP_1',
-        'nik_hash' => hash('sha256', 'champ-role-nik'),
-        'bpjs_hash' => hash('sha256', 'champ-role-bpjs'),
     ]);
     UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'coach']);
     UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'athlete']);
@@ -86,8 +84,6 @@ it('shows athletes the full participant count and limits coach metrics to assign
         'height_cm' => 160,
         'weight_kg' => 55,
         'geup' => 'GEUP_5',
-        'nik_hash' => hash('sha256', 'other-champ-role-nik'),
-        'bpjs_hash' => hash('sha256', 'other-champ-role-bpjs'),
     ]);
     EventRegistration::query()->create([
         'event_id' => $unassignedEvent->event_id,
@@ -97,26 +93,30 @@ it('shows athletes the full participant count and limits coach metrics to assign
     ]);
 
     $this->actingAs($user)
-        ->put(route('role-context.update'), ['role' => 'athlete'])
-        ->assertRedirect(route('dashboard'));
-
-    $this->get(route('championships.index'))
+        ->get(route('championships.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('isAthlete', true)
             ->where('canRegister', true)
             ->has('athletes', 1)
-            ->where('athletes.0.value', $athlete->athlete_id)
-            ->where('metrics.1.value', '2'));
+            ->where('athletes.0.value', $athlete->athlete_id));
 
-    $this->put(route('role-context.update'), ['role' => 'coach'])
-        ->assertRedirect(route('dashboard'));
+    $pureCoach = User::factory()->create([
+        'name' => 'Pure Coach',
+        'role' => 'coach',
+        'email_verified_at' => now(),
+    ]);
+    Coach::query()->create([
+        'id' => $pureCoach->id,
+        'status' => 'active',
+    ]);
+    UserRoleAssignment::query()->create(['user_id' => $pureCoach->id, 'role' => 'coach']);
 
-    $this->get(route('championships.index'))
+    $this->actingAs($pureCoach)
+        ->get(route('championships.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('isAthlete', false)
             ->where('canRegister', false)
-            ->has('athletes', 0)
-            ->where('metrics.1.value', '1'));
+            ->has('athletes', 0));
 });

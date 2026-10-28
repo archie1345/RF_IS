@@ -1,0 +1,18 @@
+ARG MYSQL_BASE_IMAGE=mysql:8.4.13
+
+FROM golang:1.27.3-alpine3.23 AS gosu-builder
+
+RUN apk add --no-cache git \
+    && git clone https://github.com/tianon/gosu.git /src
+
+WORKDIR /src
+RUN git checkout --detach 29b939aa5bd4dc588af765b8248f6e39150d2565 \
+    && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/gosu .
+
+FROM ${MYSQL_BASE_IMAGE}
+
+COPY --from=gosu-builder /out/gosu /usr/local/bin/gosu
+
+RUN microdnf update --assumeyes \
+    && microdnf remove --assumeyes mysql-shell \
+    && microdnf clean all

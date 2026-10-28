@@ -31,7 +31,7 @@ class ChampionshipController extends Controller
     {
         $user = $request->user();
         $event->load([
-            'registrations.athlete.user:id,name,email',
+            'registrations.athlete.user:id,uuid,name,email',
             'coachRegistrations.coach.user:id,name,email',
         ]);
 
@@ -41,12 +41,8 @@ class ChampionshipController extends Controller
         $ownedAthleteIds = $this->ownedAthleteIds($user);
         $registrations = $event->registrations;
 
-        // Athletes can inspect the participant list. Parents keep access to
-        // linked children only, while staff access follows event ownership.
-        if ($user?->isParent() && ! $canManageEvent) {
-            $registrations = $registrations
-                ->filter(fn (EventRegistration $registration): bool => $ownedAthleteIds->contains((string) $registration->athlete_id));
-        } elseif (! $user?->isAthlete() && ! $canManageEvent) {
+        // Athletes can inspect the participant list; staff access follows event ownership.
+        if (! $user?->isAthlete() && ! $canManageEvent) {
             $registrations = collect();
         }
 
@@ -59,6 +55,7 @@ class ChampionshipController extends Controller
             'canAddRegistration' => $canAddRegistration,
             'event' => [
                 'id' => $event->event_id,
+                'uuid' => $event->uuid,
                 'name' => $event->e_name,
                 'date' => Carbon::parse($event->e_date)->format('d M Y'),
                 'location' => $event->location ?? '-',
@@ -74,7 +71,8 @@ class ChampionshipController extends Controller
                 return [
                     'id' => 'ATHREG-'.$registration->evrid,
                     'registration_id' => $registration->evrid,
-                    'athlete_user_id' => $registration->athlete?->user?->id,
+                    'registration_uuid' => $registration->uuid,
+                    'athlete_user_id' => $registration->athlete?->user?->uuid ?? $registration->athlete?->user?->id,
                     'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete',
                     'category' => $registration->category,
                     'classification' => $registration->classification ?? '-',
@@ -93,6 +91,7 @@ class ChampionshipController extends Controller
                 fn (EventCoachRegistration $registration): array => [
                     'id' => 'COAREG-'.$registration->id,
                     'registration_id' => $registration->id,
+                    'route_id' => $registration->uuid,
                     'coach' => $registration->coach?->user?->name ?? 'Unknown coach',
                     'role' => $registration->role ?? '-',
                 ],
@@ -164,18 +163,11 @@ class ChampionshipController extends Controller
     public function storeRegistration(Request $request): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user?->isAdmin() || $user?->isParent() || $user?->isAthlete(), 403);
+        abort_unless($user?->isAdmin() || $user?->isAthlete(), 403);
         $validated = $request->validate($this->registrationRules());
 
-        if ($user->isAthlete() && (string) $user->athleteProfile?->athlete_id !== (string) $validated['athlete_id']) {
+        if (! $user->isAdmin() && (string) $user->athleteProfile?->athlete_id !== (string) $validated['athlete_id']) {
             return back()->withErrors(['athlete_id' => 'Athlete can only register own account.']);
-        }
-
-        if ($user->isParent()) {
-            $childIds = $user->children()->pluck('athletes.athlete_id')->map(fn ($id) => (string) $id)->all();
-            if (! in_array((string) $validated['athlete_id'], $childIds, true)) {
-                return back()->withErrors(['athlete_id' => 'Parent can only register linked children.']);
-            }
         }
 
         $registration = DB::transaction(function () use ($validated): EventRegistration {
@@ -477,7 +469,6 @@ class ChampionshipController extends Controller
         if (! $bypassCapacity) {
             $registrationCount = EventRegistration::query()
                 ->where('event_id', $event->event_id)
-                ->lockForUpdate()
                 ->count();
 
             if ($registrationCount >= (int) $event->max_slots) {
@@ -614,22 +605,12 @@ class ChampionshipController extends Controller
 
     private function ownedAthleteIds($user): Collection
     {
-        if (! $user) {
+        if (! $user || ! $user->isAthlete()) {
             return collect();
         }
 
-        if ($user->isAthlete()) {
-            return collect([$user->athleteProfile?->athlete_id])
-                ->filter()
-                ->map(fn ($id): string => (string) $id);
-        }
-
-        if ($user->isParent()) {
-            return $user->children()
-                ->pluck('athletes.athlete_id')
-                ->map(fn ($id): string => (string) $id);
-        }
-
-        return collect();
+        return collect([$user->athleteProfile?->athlete_id])
+            ->filter()
+            ->map(fn ($id): string => (string) $id);
     }
 }

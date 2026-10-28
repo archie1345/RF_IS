@@ -20,25 +20,24 @@ use App\Models\User;
 use App\Models\UserAchievement;
 use App\Models\UserCertification;
 use App\Support\Domain\PaymentStatus;
+use Database\Seeders\Concerns\GuardsDemoSeeding;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 class FullSystemSimulationSeeder extends Seeder
 {
-    private const PASSWORD = '12345678';
+    use GuardsDemoSeeding;
 
     public function run(): void
     {
-        if (app()->environment('production')) {
-            throw new RuntimeException('FullSystemSimulationSeeder is intended for local, testing, and staging environments only.');
-        }
+        $this->guardDemoSeeding();
 
         $this->call(ApplicationDataSeeder::class);
 
         DB::transaction(function (): void {
             $this->seedPayrollSourceSessions();
+            $this->seedCurrentDayCoachCheckInSession();
             $this->seedAttendanceStatusMatrix();
             $this->seedCoachAttendanceStatusMatrix();
             $this->seedEventStatusMatrix();
@@ -48,13 +47,14 @@ class FullSystemSimulationSeeder extends Seeder
         });
 
         $this->command?->info('Full RFIS simulation data is ready.');
-        $this->command?->table(['Account', 'Password', 'Primary simulation use'], [
-            ['admin@rfis.test', self::PASSWORD, 'Administration, finance, payroll, reports, settings'],
-            ['coach@rfis.test', self::PASSWORD, 'Sessions, coach attendance, assigned athletes'],
-            ['parent@rfis.test', self::PASSWORD, 'All linked children, schedules, attendance, invoices'],
-            ['athlete@rfis.test', self::PASSWORD, 'Attendance, championships, profile, payments'],
-            ['multirole@rfis.test', self::PASSWORD, 'Combined coach, parent, and athlete dashboard'],
-            ['allroles@rfis.test', self::PASSWORD, 'Admin, coach, parent, and athlete access in one account'],
+        $this->command?->table(['Account', 'Roles', 'Primary simulation use'], [
+            ['admin@rfis.test', 'Admin', 'Administration, finance, payroll, reports, settings'],
+            ['coach@rfis.test', 'Coach', 'Sessions, coach attendance, assigned athletes'],
+            ['athlete@rfis.test', 'Athlete', 'Attendance, championships, profile, payments'],
+            ['multirole@rfis.test', 'Coach + Athlete', 'Combined coach and athlete dashboard'],
+            ['admincoach@rfis.test', 'Admin + Coach', 'Administrative and coach access union'],
+            ['adminathlete@rfis.test', 'Admin + Athlete', 'Administrative and athlete access union'],
+            ['allroles@rfis.test', 'Admin + Coach + Athlete', 'Full multirole access union'],
         ]);
     }
 
@@ -110,6 +110,44 @@ class FullSystemSimulationSeeder extends Seeder
                 ],
             );
         }
+    }
+
+    private function seedCurrentDayCoachCheckInSession(): void
+    {
+        $coachUser = User::query()->where('email', 'coach@rfis.test')->firstOrFail();
+        $coach = Coach::query()->where('id', $coachUser->id)->firstOrFail();
+        $group = Group::query()->where('group_name', 'Competition Team')->firstOrFail();
+        $branch = Branch::query()->findOrFail($group->branch_id);
+        $today = now(config('app.timezone', 'Asia/Jakarta'))->toDateString();
+
+        $session = TrainingSession::query()->updateOrCreate(
+            [
+                'title' => 'Simulation Current-Day Coach Check-In',
+                'coach_id' => $coach->coach_id,
+            ],
+            [
+                'weekly_training_schedule_id' => null,
+                'branch_id' => $branch->branch_id,
+                'group_id' => $group->group_id,
+                'session_type' => 'prestasi',
+                'dedicated_athlete_id' => null,
+                'location' => $branch->location,
+                'session_date' => $today,
+                'start_time' => '18:00:00',
+                'end_time' => '19:30:00',
+                'status' => 'CONFIRMED',
+                'metadata' => ['simulation' => true, 'e2e_coach_check_in' => true],
+            ],
+        );
+
+        $session->assignedCoaches()->syncWithoutDetaching([$coach->coach_id]);
+        app(InitializeSessionAttendance::class)->handle($session);
+
+        // Keep this named demo fixture available when the guarded seeder is run again.
+        CoachAttendance::withTrashed()
+            ->where('training_session_id', $session->training_session_id)
+            ->where('coach_id', $coach->coach_id)
+            ->forceDelete();
     }
 
     private function seedAttendanceStatusMatrix(): void
@@ -260,7 +298,6 @@ class FullSystemSimulationSeeder extends Seeder
     private function seedFinanceStatusMatrix(): void
     {
         $admin = User::query()->where('email', 'admin@rfis.test')->firstOrFail();
-        $parent = User::query()->where('email', 'parent@rfis.test')->firstOrFail();
         $adit = Athlete::query()->whereHas('user', fn ($query) => $query->where('email', 'athlete@rfis.test'))->firstOrFail();
         $nadia = Athlete::query()->whereHas('user', fn ($query) => $query->where('email', 'nadia@rfis.test'))->firstOrFail();
         $coachUser = User::query()->where('email', 'coach2@rfis.test')->firstOrFail();
@@ -270,7 +307,7 @@ class FullSystemSimulationSeeder extends Seeder
             [
                 'athlete_id' => $nadia->athlete_id,
                 'billable_user_id' => $nadia->id,
-                'payer_user_id' => $parent->id,
+                'payer_user_id' => $nadia->id,
                 'payment_type' => 'UNIFORM',
                 'amount' => 450000,
                 'total_amount' => 450000,
@@ -290,7 +327,7 @@ class FullSystemSimulationSeeder extends Seeder
             [
                 'athlete_id' => $adit->athlete_id,
                 'billable_user_id' => $adit->id,
-                'payer_user_id' => $parent->id,
+                'payer_user_id' => $adit->id,
                 'payment_type' => 'LICENSE',
                 'amount' => 600000,
                 'total_amount' => 600000,
@@ -375,7 +412,7 @@ class FullSystemSimulationSeeder extends Seeder
             [
                 'RFIS Simulation Expired Announcement',
                 'This announcement is retained for history but no longer shown on dashboards.',
-                'PARENT',
+                'ATHLETE',
                 true,
                 now()->subMonth(),
                 now()->subDay(),

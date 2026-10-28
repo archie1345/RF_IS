@@ -6,17 +6,16 @@ import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar';
+import { getVisibleSections, navigationSections } from '@/lib/navigation';
 import { dashboard } from '@/routes';
 import type { NavItem, NavSection } from '@/types';
 import type { Auth } from '@/types/auth';
 import type { AppRole } from '@/types/resource-table';
-import { getVisibleSections, navigationSections } from '@/lib/navigation';
 
 const page = usePage<{ auth: Auth }>();
-const activeRole = computed<AppRole>(() => page.props.auth.user?.activeRole ?? page.props.auth.user?.role ?? 'athlete');
 const assignedRoles = computed<AppRole[]>(() => {
     const roles = page.props.auth.user?.roles ?? [];
-    return roles.length > 0 ? roles : [activeRole.value];
+    return roles.length > 0 ? roles : [page.props.auth.user?.role ?? 'athlete'];
 });
 
 const mainNavSections = computed<NavSection[]>(() => getVisibleSections(navigationSections, assignedRoles.value));
@@ -25,7 +24,7 @@ const footerNavItems: NavItem[] = [];
 
 <template>
     <Sidebar>
-        <SidebarHeader class="min-w-0 p-2 border-b border-sidebar-border/40 shrink-0">
+        <SidebarHeader class="min-w-0 shrink-0 border-b border-sidebar-border/40 p-2">
             <Link
                 :href="dashboard.url()"
                 class="flex h-12 w-full min-w-0 items-center justify-center rounded-md px-2 transition group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:self-center group-data-[collapsible=icon]:p-0 hover:bg-sidebar-accent"

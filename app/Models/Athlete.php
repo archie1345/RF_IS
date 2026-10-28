@@ -32,8 +32,11 @@ class Athlete extends Model
         'id',
         'group_id',
         'training_group_id',
-        'parent_id',
         'branch_id',
+        // Guardian is plain contact info (no login). Admin uses it for WhatsApp reminders.
+        'guardian_name',
+        'guardian_phone',
+        'guardian_relation',
     ];
 
     protected static function booted(): void
@@ -75,11 +78,6 @@ class Athlete extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'branch_id');
-    }
-
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(ParentProfile::class, 'parent_id');
     }
 
     public function user(): BelongsTo
