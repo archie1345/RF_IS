@@ -10,6 +10,8 @@ RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guard
   - Partial attempt: Decoded the retained Playwright reports and residual proxy config. The full report is 120 tests with 113 pass, 2 fail, 5 skip; the alleged 43-test interrupted report is not retained. Temp schema/resource identities are derivable, but DB existence and source counts need Docker. [docs/DATABASE_BACKUP_AND_RECOVERY.md:75]
   - Partial attempt: Docker restored; read-only checks confirm 43 source tables, 1 user, 77 migrations batch 3. Exact interrupted run schema/user, two exited containers, and Caddyfile remain. [docs/DATABASE_BACKUP_AND_RECOVERY.md]
   - Partial attempt: Final production audit removed its own temporary schema, user, containers, and proxy directory; source counts remain 43/1/77/batch3. Earlier uniquely named orphan resources remain untouched under the no-destructive-database instruction. [docs/DATABASE_BACKUP_AND_RECOVERY.md]
+- [DONE] #0012 CI import/order misclassifies @/routes when Wayfinder files are absent [.github/workflows/lint.yml] -> Both workflows generate Wayfinder aliases before lint/type-check; final lint reports 0 errors and both type-checks/build pass. [.github/workflows/lint.yml] (fixed)
+  - Failed attempt: ESLint autofix without generated Wayfinder routes reordered 65 imports, but generated-route lint then rejected them. [resources/js]
 - [DONE] #0011 Mobile login helper page.goto to locale redirect aborts dashboard navigation and triggers false failed-request diagnostics [e2e/tests/mobile-workflows.test.ts:43] -> Mobile setup no longer races page navigation with locale redirect; both focused production tests passed. [e2e/tests/mobile-workflows.test.ts:43] (fixed)
 - [DONE] #0010 Mobile connection-toast test races exit and enter transitions; getByRole status sees two toasts [e2e/tests/mobile-workflows.test.ts:524] -> Toast test now waits for exit transition; focused production test passed. [e2e/tests/mobile-workflows.test.ts:524] (fixed)
 - [DONE] #0008 Docker engine unavailable in WSL blocks fresh guarded E2E verification and cleanup/schema checks for interrupted production audit. [docs/AUTHORIZATION_E2E_MATRIX.md:45] -> Docker Engine 29.9.2 is reachable; guarded production E2E and source-schema verification completed. [docs/REMAINING_WORK_AND_SECURITY_AUDIT.md] (fixed)
@@ -28,10 +30,7 @@ RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guard
   - Failed attempt: Production-mode mobile profile crop test expected the localized ready-to-save status, but rendered untranslated English. [e2e/tests/mobile-workflows.test.ts:660]
 - [DONE] #0002 Production audit role-navigation E2E times out after 30 seconds on admin's full authorized route walk. [e2e/tests/role-workflows.test.ts:152] -> The authorized route walk now passes in the complete production E2E suite. [e2e/tests/role-workflows.test.ts:152] (fixed)
   - Failed attempt: Full production-mode run reached Admin navigation test timeout while visiting authorized routes; failed at response wait for /announcements at 30s. [e2e/tests/role-workflows.test.ts:109]
-- [DONE] #0001 Production audit E2E fails at TR-04 schedule update (404), ID-07 localized crop button selector timeout, FI-09 expects HTML despite PDF response, and RP-04 assumes English/Indonesian card label. [e2e/tests/role-workflows.test.ts:2713] -> TR-04, ID-07, FI-09, and RP-04 production E2E flows pass with UUID schedule keys, Indonesian labels, PDF byte checks, and locale-aware card assertions. [e2e/tests/role-workflows.test.ts:2631] (fixed)
-  - Failed attempt: PDF byte assertion exposed invalid 1x1 PNG fixture: Dompdf omitted it from PDF output. Production image can render a normal GD-generated PNG.
-  - Failed attempt: Mobile ID-04 invitation acceptance test failed because it calls undefined logout(page) helper. [e2e/tests/mobile-workflows.test.ts:775]
-  - Failed attempt: Full production E2E exposed ID-07 asserting English crop-ready text on an Indonesian profile; browser rendered Foto 3×4 siap disimpan.
+- ...and 1 older fixed issue not shown (`pjm search`, or `get_issue(issue_id)` via MCP)
 
 ## Decisions
 - No decisions logged yet.

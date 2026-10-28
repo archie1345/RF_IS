@@ -48,6 +48,9 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate
 
+      - name: Generate Wayfinder route types
+        run: php artisan wayfinder:generate --with-form
+
       - name: Verify Laravel configuration and routes
         env:
           CACHE_STORE: file
