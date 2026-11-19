@@ -1094,6 +1094,7 @@ test('mobile session attendance sheet, coach check-in, offline QR queue and sync
     const queuedToast = page.getByRole('status');
     if ((await queuedToast.count()) > 0) {
         await queuedToast.first().getByRole('button').tap();
+    }
     await page.waitForSelector(":root[aria-live].hidden", { state: "hidden" });
 
     const syncResponsePromise = page.waitForResponse(
