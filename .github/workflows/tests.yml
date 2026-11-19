@@ -63,6 +63,9 @@ jobs:
           php artisan view:cache
           php artisan optimize:clear
 
+      - name: Install E2E dependencies for typecheck
+        run: npm --prefix e2e ci --ignore-scripts
+
       - name: Run frontend quality and production build
         run: npm run quality
 
