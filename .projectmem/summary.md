@@ -1,6 +1,6 @@
 # projectmem - RF_IS
 
-_Last updated: 2026-10-29_
+_Last updated: 2026-11-19_
 
 ## Project purpose
 RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guardian contact records, coach sessions and attendance, manual bill/invoice proof review, championships, and administrative data exports.
