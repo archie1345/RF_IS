@@ -241,3 +241,37 @@ Docker Engine 29.9.2 is reachable. `rf-db` was already running healthy after Doc
 
 The current development database remains unchanged: 42 tables, 13 users, 79 migrations in batch 1, five training groups, 18 sessions, 22 payments, and four events. The guarded development-role runner was not run because its helper executes `migrate:fresh --seed` against persistent `laravel`; its pre-reset dump is verified for restore integrity but the runner does not restore the original row set. Mailpit-backed invitation and verification flows need a disposable development clone or revised authorization.
 
+## Continued audit — 2026-10-29
+
+### Dependency and runtime state
+
+- All application and build stages in `Dockerfile.dev` and `Dockerfile.prod` use PHP **8.4.27**. This stays below the prior PHP 8.5 / PhpSpreadsheet compatibility boundary. The lock resolves Laravel **12.70.1**, Laravel Excel **3.1.70**, PhpSpreadsheet **1.30.7**, Symfony Mime **7.4.22**, and Symfony Polyfill Mbstring **1.43.3**.
+- `composer validate --strict` and `composer audit --locked` passed; Composer reported no advisories. Symfony Mime is patched in the lockfile. Root and E2E `npm audit` each reported zero vulnerabilities.
+- Root frontend lock resolves Vue **3.5.44**, Inertia Vue **2.3.27**, Vite **7.3.7**, TypeScript **5.9.3**, and `vue-tsc` **2.2.12**. `npm run quality` passed.
+- Host PHP remains **8.4.22**, below the repository's documented 8.4.27 patch floor. The local Docker command is unavailable, so image rebuild and container-start checks remain blocked. No dependency manifest changed in this continuation.
+
+### Security fixes and remaining risk
+
+- Coach class pages now limit classes and athlete choices to assigned groups; coach session creation rejects unassigned groups; manual attendance checks session eligibility. A coach must already manage an event before adding their own coach registration. Five isolated regression cases cover allowed, denied, and persisted behavior.
+- Combined single-sheet exports now pass values through formula-safe normalization. Backend test verifies formula-like input is prefixed; actual single-sheet workbook bytes remain without current E2E evidence.
+- Apache now rejects direct `/storage/user-files` requests before static-file handling. Authenticated downloads still work through `UserFileController`. Docker enables Apache `mod_rewrite` and `AllowOverride All`. The regression suite checks the rewrite rule and authorized legacy download, but Apache runtime behavior and production legacy-file inventory remain unverified.
+- The parent-role migration rollback no longer drops guardian contact columns. It still cannot recreate former parent links or restore suspended parent-only accounts; rollback is not a full data-model reversal.
+- The prior PHP 8.5 container mismatch is not present in current Dockerfiles. The Docker build was not run. Host PHP 8.4.22 remains a local toolchain risk, not the application container version.
+- The registered Codex Security scan continuation returned `Codex Security scan not found`; no completed repository-wide scan artifact was available. Manual review covered the changes and known findings above; this is not a complete fresh source audit. Conditional production data findings remain unverified without service access.
+
+### Current verification and coverage
+
+- Full isolated backend suite: **265 passed, 2,193 assertions, 0 skips, 0 failures**. It ran from a disposable source copy with SQLite `:memory:`, array cache/session, synchronous queue, and temporary storage. No persistent DB was read or changed. `composer check-platform-reqs --lock` and `composer test:lint` passed; Pint checked 388 PHP files.
+- Latest full production E2E remains the 2026-10-28 report: **120 total, 115 passed, 5 skipped, 0 failed, exit 0**. It predates these fixes. The Docker client shim exists, but Docker Desktop reports WSL integration inactive, so no guarded browser runner was invoked again. The current synthetic development DB and production resources were not touched; this turn could not query either schema.
+- Functional coverage is now **43/57 (75.4%)**, with **14 partial**: `ID-04`, `ID-05`, `ID-09`, `UI-01`, `TR-03`, `TR-04`, `TR-05`, `FI-07`, `EV-03`, `RP-01`, `RP-03`, `RP-04`, `BG-01`, and `INT-01`. `API-01` now has backend bearer-token coverage plus prior role-scoped browser evidence. Four rows were reclassified partial because their new security/combined-export paths have no current browser evidence.
+- High-priority browser gaps remain Mailpit invitation/verification/resend workflows, mobile weekly-schedule edit/delete validation, mobile QRIS proof submission, coach-scoped class/session and event workflows, combined single-sheet workbook verification, activity-log denial/failure handling, and localization-key completeness. Physical camera behavior remains simulated.
+
+### Host verification attempt — 2026-10-29
+
+- `composer validate --strict`, `composer audit --locked`, and `composer test:lint` passed. Pint checked 388 PHP files. Composer audit returned no advisories.
+- `npm audit --audit-level=low` and `npm --prefix e2e audit --audit-level=low` passed with zero vulnerabilities. `npm run quality` passed, including format, ESLint, Vue type-check, E2E TypeScript check, and production build.
+- `composer check-platform-reqs --lock` exited 2 on host PHP 8.4.22 because host lacks `ext-gd`. Both Dockerfiles install GD; no image build or container check was possible without Docker. Docker and CI PHP tags remain 8.4.27.
+- A fresh `sh tests/run-isolated.sh --compact` attempt exited 2: Pest reported **264 failed, 1 passed** because host PHP lacks `pdo_sqlite` (`could not find driver`) for the explicitly configured SQLite `:memory:` database. This run touched no persistent database. The earlier isolated suite remains **265 passed, 2,193 assertions, 0 skips, 0 failures**; no fresh run was possible.
+- The current lockfile resolves `symfony/mime` 7.4.22 (previous HEAD: 7.4.19) and `symfony/polyfill-mbstring` 1.43.3 (previous HEAD: 1.43.0). Composer audit reports no remaining advisories. Root and E2E npm audits also report none.
+- Current host verification did not change application code or dependencies. Latest full Playwright evidence remains 2026-10-28; Docker Desktop WSL integration is inactive, so E2E suites were not invoked again.
+

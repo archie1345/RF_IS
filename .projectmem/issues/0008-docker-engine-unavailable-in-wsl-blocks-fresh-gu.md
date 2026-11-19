@@ -5,3 +5,5 @@
 - 2026-10-28T14:25:12Z `attempt`: Read-only WSL diagnostics found Docker Desktop service stopped and docker-desktop distro stopped. Starting engine risks auto-restarting production rf-db (restart: unless-stopped); held pending user direction. [compose.prod.yaml:136] (partial)
 - 2026-10-28T14:33:39Z `attempt`: Docker Engine 29.9.2 is reachable from WSL. rf-db auto-runs healthy; no service was started by this continuation. [compose.prod.yaml] (worked)
 - 2026-10-28T15:28:14Z `fix`: Docker Engine 29.9.2 is reachable; guarded production E2E and source-schema verification completed. [docs/REMAINING_WORK_AND_SECURITY_AUDIT.md]
+- 2026-10-28T21:03:20Z `attempt`: Current host Pest run blocked: isolated SQLite test database cannot start because PHP lacks pdo_sqlite; Docker CLI unavailable. No persistent database touched. (failed)
+- 2026-10-29T05:37:11Z `fix`: Docker Desktop engine is reachable from WSL (Docker 29.9.2); isolated composer test profile built and passed without dependency services.

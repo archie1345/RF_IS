@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(TrainingSession::class, SessionPolicy::class);
         Route::model('session', TrainingSession::class);
-        if (config('app.env') === 'production') {
+        if (app()->environment(['production', 'staging']) || str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
     }
@@ -53,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
-        Password::defaults(fn (): ?Password => app()->isProduction()
+        Password::defaults(fn (): ?Password => app()->environment(['production', 'staging'])
             ? Password::min(12)
                 ->mixedCase()
                 ->letters()

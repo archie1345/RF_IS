@@ -3,6 +3,7 @@
 namespace App\Actions\Sessions;
 
 use App\Actions\Attendance\InitializeSessionAttendance;
+use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\SessionVisibilityService;
@@ -22,6 +23,15 @@ class CreateSession
 
         if (empty($validated['coach_id'])) {
             throw ValidationException::withMessages(['coach_id' => 'Coach is required for attendance session.']);
+        }
+
+        if (! $user->isAdmin() && ! empty($validated['group_id'])) {
+            $groupIsAssigned = Group::query()
+                ->assignedToCoach($validated['coach_id'])
+                ->where('group_id', $validated['group_id'])
+                ->exists();
+
+            abort_unless($groupIsAssigned, 403);
         }
 
         return DB::transaction(function () use ($validated): array {

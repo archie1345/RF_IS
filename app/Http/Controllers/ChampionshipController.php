@@ -306,7 +306,8 @@ class ChampionshipController extends Controller
     public function storeCoachRegistration(Request $request, Event $event): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
+        $isAdmin = $user?->isAdmin() ?? false;
+        abort_unless($isAdmin || ($user?->isCoach() && $this->eventAccess->canManage($user, $event)), 403);
 
         if (! in_array($event->status, ['SCHEDULED', 'ONGOING'], true)) {
             return back()->withErrors(['coach_id' => 'Coaches cannot be assigned to a closed event.']);
@@ -319,7 +320,7 @@ class ChampionshipController extends Controller
             ],
             'role' => ['nullable', 'string', 'max:120'],
         ]);
-        $coachId = $user->isAdmin()
+        $coachId = $isAdmin
             ? (string) ($validated['coach_id'] ?? '')
             : (string) ($user->coachProfile?->coach_id ?? '');
 

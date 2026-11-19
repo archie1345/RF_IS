@@ -58,14 +58,8 @@ return new class extends Migration
             });
         }
 
-        // Parent links and parent-only accounts are not restored automatically:
-        // guardian contacts stay on the athlete rows.
-        Schema::table('athletes', function (Blueprint $table): void {
-            $table->dropColumn(array_values(array_filter(
-                ['guardian_name', 'guardian_phone', 'guardian_relation'],
-                fn (string $column): bool => Schema::hasColumn('athletes', $column),
-            )));
-        });
+        // Parent links and parent-only accounts are not restored automatically.
+        // Keep guardian contacts because the former parent schema cannot hold them.
     }
 
     private function addGuardianColumns(): void

@@ -2,10 +2,12 @@
 
 namespace App\Actions\Attendance;
 
+use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Services\AttendanceVisibilityService;
+use App\Services\SessionEligibilityService;
 use App\Support\Domain\AttendanceStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,6 +18,7 @@ class CreateAttendanceRecord
 {
     public function __construct(
         private readonly AttendanceVisibilityService $attendanceVisibility,
+        private readonly SessionEligibilityService $sessionEligibility,
     ) {}
 
     /** Staff (admin/coach) record attendance on behalf of an athlete; athletes use QR check-in instead. */
@@ -31,6 +34,12 @@ class CreateAttendanceRecord
             $session = TrainingSession::query()->find($validated['training_session_id']);
             if (! $session || ! $this->attendanceVisibility->coachCanAccessSession($user, $session)) {
                 abort(403);
+            }
+
+            $athlete = Athlete::query()->findOrFail($athleteId);
+            $denialReason = $this->sessionEligibility->denialReason($athlete, $session);
+            if ($denialReason !== null) {
+                throw ValidationException::withMessages(['athlete_id' => $denialReason]);
             }
         }
 

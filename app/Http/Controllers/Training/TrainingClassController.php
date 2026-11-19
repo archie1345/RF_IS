@@ -23,7 +23,7 @@ class TrainingClassController extends Controller
         abort_unless($user?->isAdmin() || $user?->isCoach(), 403);
 
         $weeklySchedules = WeeklyTrainingSchedule::query()->get();
-        $groups = Group::query()
+        $groupsQuery = Group::query()
             ->with([
                 'branch',
                 'trainingGroup',
@@ -45,18 +45,28 @@ class TrainingClassController extends Controller
                     ->orderByDesc('start_time'),
             ])
             ->withCount('athletes')
-            ->orderBy('group_name')
-            ->get();
+            ->orderBy('group_name');
+        if (! $user?->isAdmin()) {
+            $groupsQuery->assignedToCoach($user?->coachProfile?->coach_id);
+        }
+        $groups = $groupsQuery->get();
         $branches = Branch::query()->where('is_active', true)->orderBy('branch_name')->get();
         $trainingGroups = TrainingGroup::query()
             ->where('is_active', true)
             ->whereRaw('LOWER(name) != ?', ['private'])
             ->orderBy('name')
             ->get();
-        $athletes = Athlete::query()
+        $athletesQuery = Athlete::query()
             ->with(['user:id,name', 'branch:branch_id,branch_name', 'trainingGroup'])
-            ->orderBy('athlete_id')
-            ->get();
+            ->orderBy('athlete_id');
+        if (! $user?->isAdmin()) {
+            $groupIds = $groups->pluck('group_id');
+            $privateAthleteIds = $groups->flatMap(fn (Group $group) => $group->privateAthletes->pluck('athlete_id'));
+            $athletesQuery->where(fn ($query) => $query
+                ->whereIn('group_id', $groupIds)
+                ->orWhereIn('athlete_id', $privateAthleteIds));
+        }
+        $athletes = $athletesQuery->get();
 
         return Inertia::render('AdminClassesPage', [
             'title' => 'Kelas Latihan',

@@ -522,7 +522,7 @@ test('mobile connection events produce one toast on the attendance screen', asyn
     await expect(offlineToast).toHaveCount(1);
     await expect(offlineToast).toContainText('Perangkat sedang offline. Perubahan belum dapat dikirim ke server.');
     await offlineToast.getByRole('button').tap();
-    await expect(offlineToast).toBeHidden();
+    await page.waitForSelector(":root[aria-live].hidden", { state: "hidden" });
 
     await page.context().setOffline(false);
     const onlineToast = page.getByRole('status');
@@ -1094,7 +1094,7 @@ test('mobile session attendance sheet, coach check-in, offline QR queue and sync
     const queuedToast = page.getByRole('status');
     if ((await queuedToast.count()) > 0) {
         await queuedToast.first().getByRole('button').tap();
-    }
+    await page.waitForSelector(":root[aria-live].hidden", { state: "hidden" });
 
     const syncResponsePromise = page.waitForResponse(
         (response) =>

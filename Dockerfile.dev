@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.5
-
 FROM composer:2.10.3 AS composer-bin
 
 FROM node:24.22.1-bookworm-slim AS node-runtime
@@ -195,6 +193,7 @@ COPY --from=php-deps /app/vendor ./vendor
 COPY --from=frontend-build /app/public/build ./public/build
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
 
+# Keep public uploads reachable when storage is supplied through tmpfs.
 RUN set -eux; \
     mkdir -p \
         /tmp/laravel \
@@ -205,6 +204,7 @@ RUN set -eux; \
         storage/logs \
         bootstrap/cache \
         public/build; \
+    ln -s ../storage/app/public public/storage; \
     composer dump-autoload \
         --no-dev \
         --classmap-authoritative \

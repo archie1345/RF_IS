@@ -400,7 +400,7 @@ class AdminDataExportService
                         $value = ($fields[$fieldKey]['value'])($record);
                         // Field index + 1 because index 0 is Source
                         $idx = $fieldIndexMap[$fieldKey] + 1;
-                        $row[$idx] = is_bool($value) ? ($value ? 'Yes' : 'No') : (string) $value;
+                        $row[$idx] = (string) $this->normalizeCell($value);
                     }
                     $data[] = $row;
                 }

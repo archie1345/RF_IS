@@ -58,6 +58,27 @@ it('allows an owner to download their private file', function () {
         ->assertDownload('certificate.pdf');
 });
 
+it('keeps legacy public files available through the authenticated download route', function () {
+    $owner = User::factory()->create(['email_verified_at' => now()]);
+    $path = 'user-files/'.$owner->id.'/legacy.pdf';
+    Storage::disk(UserFile::DISK_PUBLIC)->put($path, 'legacy document');
+    $file = UserFile::query()->create([
+        'user_id' => $owner->id,
+        'file_type' => 'CERTIFICATE',
+        'original_name' => 'legacy.pdf',
+        'file_path' => $path,
+        'mime_type' => 'application/pdf',
+        'size_bytes' => 15,
+    ]);
+
+    $this->get(route('user-files.download', $file))->assertRedirect(route('login'));
+
+    $this->actingAs($owner)
+        ->get(route('user-files.download', $file))
+        ->assertOk()
+        ->assertDownload('legacy.pdf');
+});
+
 it('allows an admin to download a private file but denies unrelated accounts', function () {
     $admin = User::factory()->create([
         'role' => 'admin',
@@ -82,4 +103,11 @@ it('allows an admin to download a private file but denies unrelated accounts', f
     $this->actingAs($unrelated)
         ->get(route('user-files.download', $file))
         ->assertForbidden();
+});
+
+it('blocks direct Apache access to legacy public user-file paths', function () {
+    $rewriteRules = file_get_contents(public_path('.htaccess'));
+
+    expect($rewriteRules)->toBeString()
+        ->toContain('RewriteRule ^storage/user-files(?:/|$) - [F,L,NC]');
 });

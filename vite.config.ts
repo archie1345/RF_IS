@@ -30,13 +30,15 @@ export default defineConfig(({ command, mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
 
     const isDevServer = command === 'serve';
+    const skipWayfinder = parseBoolean(env.SKIP_WAYFINDER, false);
 
-    const appUrl = parseUrl(env.APP_URL || 'http://localhost:9200', 'APP_URL');
+    const rawAppUrl = env.APP_URL?.trim() || (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'http://localhost:9200');
+    const appUrl = parseUrl(rawAppUrl, 'APP_URL');
 
     const vitePort = parsePort(env.VITE_PORT, 9201);
 
     const publicViteUrl = parseUrl(
-        env.VITE_DEV_SERVER_URL || `${appUrl.protocol}//${appUrl.hostname}:${vitePort}`,
+        env.VITE_DEV_SERVER_URL?.trim() || `${appUrl.protocol}//${appUrl.hostname}:${vitePort}`,
         'VITE_DEV_SERVER_URL',
     );
 
@@ -52,9 +54,13 @@ export default defineConfig(({ command, mode }) => {
 
             tailwindcss(),
 
-            wayfinder({
-                formVariants: true,
-            }),
+            ...(skipWayfinder
+                ? []
+                : [
+                      wayfinder({
+                          formVariants: true,
+                      }),
+                  ]),
 
             vue({
                 template: {

@@ -15,7 +15,7 @@ image=rf-is:e2e
 container="rfis-e2e-$$"
 network="rfis-e2e-net-$$"
 artifact_dir="$project_root/e2e/test-results"
-app_log="$artifact_dir/isolated-app.log"
+app_log="$artifact_dir/isolated-app-${container}.log"
 app_url="http://127.0.0.1:$port"
 
 if [ ! -f .env ]; then
@@ -48,6 +48,8 @@ docker network create \
     --driver bridge \
     --opt com.docker.network.bridge.enable_ip_masquerade=false \
     "$network" >/dev/null
+# Trust only the gateway on this isolated network for the fixture's synthetic client IPs.
+trusted_proxy=$(docker network inspect "$network" --format '{{(index .IPAM.Config 0).Gateway}}')
 
 cleanup() {
     exit_code=$?
@@ -64,9 +66,11 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+# The image healthcheck probes Apache on port 80; this runner serves port 8000 directly.
 docker run --detach \
     --name "$container" \
     --network "$network" \
+    --no-healthcheck \
     --publish "127.0.0.1:$port:8000" \
     --read-only \
     --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=64m \
@@ -89,6 +93,7 @@ docker run --detach \
     --env BROADCAST_CONNECTION=null \
     --env FILESYSTEM_DISK=local \
     --env LOG_CHANNEL=stderr \
+    --env TRUSTED_PROXIES="$trusted_proxy" \
     --env RFIS_ALLOW_DEMO_SEEDING=true \
     --env RFIS_DEMO_PASSWORD="$demo_password" \
     "$image" \

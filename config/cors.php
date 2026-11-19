@@ -19,9 +19,15 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://archie13.tailaed89a.ts.net'],
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGINS', env('APP_URL', ''))),
+    ))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CORS_ALLOWED_ORIGIN_PATTERNS', '')),
+    ))),
 
     'allowed_headers' => ['*'],
 

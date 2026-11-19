@@ -146,21 +146,71 @@ npm run build
 
 The Vite Wayfinder plugin generates frontend action/route files during builds. Generated Wayfinder output is ignored by ESLint in this project; regenerate it with the normal build/dev commands rather than hand-editing generated files.
 
-## Docker Notes
+## Docker & Container Environment
 
-Development and production use separate Compose files. Start development with `docker compose -f compose.dev.yaml up -d --build`. App startup does not apply database migrations; review pending migrations and verify a backup before applying them explicitly. The production stack is defined in `compose.prod.yaml`; it was not verified as a deployed system by this repository guide.
+The project provides isolated Docker environments for development, testing, and production. Configuration is split into `compose.dev.yaml` and `compose.prod.yaml`.
 
-Example image build:
+### Development Stack (`compose.dev.yaml`)
+
+The development Compose project (`rf-is-dev`) provisions the complete stack with loopback-bound ports:
+
+| Service | Container Name | Port Mapping | Description |
+|---|---|---|---|
+| `server` | `rf-server-dev` | `127.0.0.1:9200:80` | Apache + PHP 8.4 runtime with development INI & hot-reload mounts |
+| `vite` | `rf-vite-dev` | `127.0.0.1:9201:9201` | Vite frontend dev server with Hot Module Replacement (HMR) |
+| `phpmyadmin` | `rf-phpmyadmin-dev` | `127.0.0.1:9202:80` | Web database management for the local MySQL database |
+| `db` | `rf-db-dev` | `127.0.0.1:9203:3306` | MySQL 8.4 database with persistent named volume (`rf_is_dev_db-data`) |
+| `mailpit` | `rf-mailpit-dev` | `127.0.0.1:9204:8025` (Web)<br>`127.0.0.1:1025:1025` (SMTP) | Local email trap for invitations, password resets, and verification |
+| `scheduler` | `rf-scheduler-dev` | _internal_ | Runs `php artisan schedule:work` background scheduler |
+| `test` | _ephemeral_ | _none (isolated network)_ | Offline, read-only container for `composer test` (Pest / SQLite) |
+
+#### Common Development Docker Commands
 
 ```bash
-docker build -t rf-is:local .
+# Start all development services in background (build if images missing)
+docker compose -f compose.dev.yaml up -d --build
+
+# View real-time status of development services
+docker compose -f compose.dev.yaml ps
+
+# Inspect logs of all services (or specify service e.g. server, vite, db)
+docker compose -f compose.dev.yaml logs -f
+docker compose -f compose.dev.yaml logs -f server
+
+# Execute commands inside the app container (as www-data or default user)
+docker compose -f compose.dev.yaml exec server php artisan route:list
+docker compose -f compose.dev.yaml exec server php artisan migrate --force
+docker compose -f compose.dev.yaml exec server php artisan cache:clear
+
+# Execute MySQL queries directly inside db container
+docker compose -f compose.dev.yaml exec db mysql -u laravel -p laravel
+
+# Stop all development containers without losing database volume
+docker compose -f compose.dev.yaml down
+
+# WARNING: Routine cleanup should NEVER remove volumes (-v), as it destroys local development data!
 ```
 
-Example container run, assuming an external database is reachable from the container network:
+### Production Stack & Image Builds (`compose.prod.yaml` & `Dockerfile.prod`)
 
 ```bash
-docker run --rm -p 8080:80 --env-file .env rf-is:local
+# Build the production target image locally
+docker build -f Dockerfile.prod --target final -t rf-is:production .
+
+# Run production audit image build (used by guarded audit script)
+docker build -f Dockerfile.prod --target final -t rf-is:production-audit .
+
+# Start production stack (uses .env.production, Caddy reverse proxy on port 80/443, and isolated backend network)
+docker compose -f compose.prod.yaml up -d --build
+
+# Run one-shot production migrations and cache optimization
+docker compose -f compose.prod.yaml run --rm migrate
+
+# Run production admin seeder (isolated profile)
+docker compose -f compose.prod.yaml --profile tools run --rm seed-admin
 ```
+
+See [README.Docker.md](README.Docker.md) and [Development database backup and recovery](docs/DATABASE_BACKUP_AND_RECOVERY.md) for deeper architecture details and safe backup/restore procedures.
 
 ## Deployment Checklist
 
@@ -178,15 +228,77 @@ Before production/demo deployment:
 - Keep production secrets out of Git, docs, exports, and logs.
 - Back up the database before CSV imports or destructive admin operations.
 
-## Verification Commands
+## Verification and Quality Commands
 
 ```bash
-php artisan route:list
-composer run test:lint
-npm run lint:check
-npm run typecheck
-npm run build
-git status --short --branch
+# Code Style & Linting
+composer run test:lint        # Check PHP syntax and code styling (Laravel Pint)
+composer run lint             # Auto-fix PHP styling via Laravel Pint
+npm run format:check          # Check formatting of resources/ via Prettier
+npm run format                # Auto-fix formatting of resources/ via Prettier
+npm run lint:check            # Check JS/Vue files via ESLint
+npm run lint                  # Auto-fix JS/Vue files via ESLint
+
+# Type Checking
+npm run typecheck             # Check Vue and TypeScript components (vue-tsc)
+npm run typecheck:e2e         # Check Playwright test files in e2e/ via tsc
+
+# Comprehensive Quality Pipeline
+npm run quality               # Runs format:check, lint:check, typecheck, typecheck:e2e, and build
+
+# Dependency Security Audits
+composer audit --locked       # Security audit for Composer PHP dependencies
+npm audit --audit-level=low   # Security audit for root npm dependencies
+npm --prefix e2e audit        # Security audit for E2E npm dependencies
 ```
 
-Use the isolated backend and headed browser commands in [README.Docker.md](README.Docker.md). Do not use `migrate:fresh` as a test setup command; the feature suite uses the in-memory SQLite database forced by `phpunit.xml`.
+## Testing Suites & Guarded Runners
+
+> [!IMPORTANT]
+> Never run destructive test commands directly against a persistent development database. Always use the guarded scripts.
+
+```bash
+# Backend Feature & Unit Tests (Pest PHP, Isolated SQLite in Container)
+composer test                 # Runs Pint and isolated Pest tests inside compose.dev.yaml test runner
+
+# Guarded Development E2E (Playwright)
+# Backs up and reseeds the verified rf-is-dev database, runs desktop and mobile role suites, then restores dataset
+bash e2e/run-dev-roles.sh
+
+# Guarded Production-Mode Audit (Playwright)
+# Builds disposable MySQL schema and tmpfs storage, runs audit suite, and cleans up completely
+bash e2e/run-production-audit.sh
+
+# Targeted E2E Runs
+npm --prefix e2e run test:mobile                   # Runs mobile small (360x800) and large (412x915) Chromium viewports
+npm --prefix e2e run test:headed                   # Runs Playwright in headed mode (requires WSLg / DISPLAY)
+bash e2e/run-production-audit.sh -g "<pattern>"     # Runs only test titles matching regex pattern
+```
+
+## Database Management & Safe Reseeding
+
+```bash
+# Safe Development Reseed
+# Verifies container, saves a timestamped backup, executes fresh migration, and populates synthetic simulation data
+bash scripts/dev-reset-seed.sh
+
+# Standard Artisan Migration & Storage (Manual)
+php artisan migrate
+php artisan storage:link
+php artisan route:list
+```
+
+## Background Tasks & Scheduler
+
+```bash
+# Run Background Queue Listener
+php artisan queue:listen --tries=1
+
+# Run Scheduled Background Jobs
+php artisan schedule:run
+
+# Specific Scheduled Command Triggers
+php artisan sessions:generate-from-weekly --days=14  # Generate upcoming sessions from weekly schedule
+php artisan tuition:generate-monthly                # Generate monthly student tuition invoices
+php artisan activity-logs:prune --days=90           # Prune activity logs older than retention period
+```
