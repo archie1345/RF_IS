@@ -1,0 +1,48 @@
+ARG PHPMYADMIN_BASE_IMAGE=phpmyadmin:5.2.3-apache
+
+FROM ${PHPMYADMIN_BASE_IMAGE} AS libxml2-build
+
+COPY docker/libxml2/CVE-2026-86140.patch /tmp/CVE-2026-86140.patch
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
+COPY docker/libxml2/build-fixed-package.sh /usr/local/bin/build-fixed-libxml2
+RUN /usr/local/bin/build-fixed-libxml2
+
+FROM ${PHPMYADMIN_BASE_IMAGE} AS dependencies
+
+COPY --from=composer:2.10.3 /usr/bin/composer /usr/local/bin/composer
+
+WORKDIR /var/www/html
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends git unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && composer update twig/twig symfony/cache symfony/expression-language paragonie/sodium_compat \
+    --with twig/twig:3.27.1 \
+    --with symfony/cache:^5.4.52 \
+    --with symfony/expression-language:^5.4.54 \
+    --with paragonie/sodium_compat:^1.24.1 \
+    --with-dependencies \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --no-plugins \
+    --prefer-dist
+
+FROM ${PHPMYADMIN_BASE_IMAGE}
+
+COPY --from=libxml2-build /tmp/libxml2-fixed.deb /opt/libxml2-fixed.deb
+COPY docker/libxml2/verify-bounded-dtd-error.php /usr/local/libexec/verify-bounded-dtd-error.php
+
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && dpkg -i /opt/libxml2-fixed.deb \
+    && rm /opt/libxml2-fixed.deb \
+    && ldconfig \
+    && dpkg-query -W -f='${Package} ${Version}\n' libxml2 \
+    && php /usr/local/libexec/verify-bounded-dtd-error.php \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=dependencies /var/www/html/vendor /var/www/html/vendor

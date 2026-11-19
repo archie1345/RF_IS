@@ -290,6 +290,7 @@ class SessionController extends Controller
             ],
             'rows' => $attendance->map(fn (Attendance $row): array => [
                 'id' => 'ATT-'.$row->athlete_attendance_id,
+                'route_id' => $row->uuid,
                 'athlete' => $row->athlete?->user?->name ?? 'Unknown athlete',
                 'status' => $this->attendanceBadge((string) $row->status),
             ])->values(),
@@ -297,6 +298,7 @@ class SessionController extends Controller
             'groups' => Group::query()->orderBy('group_name')->get(['group_id as value', 'group_name as label']),
             'coachRows' => $coachAttendance->map(fn (CoachAttendance $row): array => [
                 'id' => 'SCA-'.$row->coach_attendance_id,
+                'route_id' => $row->uuid,
                 'coach' => $row->coach?->user?->name ?? 'Unknown coach',
                 'status' => $row->status === 'TEACH' && $row->checked_at
                     ? $this->badge('Teach', 'success')

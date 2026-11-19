@@ -1,6 +1,6 @@
 <?php
 
-use App\Exports\SelectedDataExport;
+use App\Exports\MultiSheetExport;
 use App\Models\User;
 use App\Services\AdminDataExportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,12 +56,14 @@ test('admin can choose the exact Excel columns to export', function () {
         ->get(route('admin.data-export.download', [
             'datasets' => ['accounts'],
             'fields' => ['accounts' => ['name', 'email', 'status']],
-            'status' => User::ACCOUNT_STATUS_SUSPENDED,
+            'status' => [User::ACCOUNT_STATUS_SUSPENDED],
         ]))
         ->assertOk();
 
-    Excel::assertDownloaded('accounts_20260728_103000.xlsx', function (SelectedDataExport $export): bool {
-        return $export->headings() === ['Name', 'Email', 'Account Status'];
+    Excel::assertDownloaded('System_Data_Export_2026-07-28_1030.xlsx', function (MultiSheetExport $export): bool {
+        $sheets = $export->sheets();
+
+        return count($sheets) === 1 && $sheets[0]->headings() === ['Name', 'Email', 'Account Status'];
     });
 });
 
@@ -114,7 +116,7 @@ test('selected data export rejects unknown columns and non-admin downloads', fun
             'datasets' => ['accounts'],
             'fields' => ['accounts' => ['password', 'two_factor_secret']],
         ]))
-        ->assertSessionHasErrors('fields.accounts.0');
+        ->assertSessionHasErrors('fields');
 
     $this->actingAs($athlete)
         ->get(route('admin.data-export.download', [
@@ -122,4 +124,45 @@ test('selected data export rejects unknown columns and non-admin downloads', fun
             'fields' => ['accounts' => ['name']],
         ]))
         ->assertForbidden();
+});
+
+test('selected athletes export maps profile address without missing relation errors', function () {
+    $branch = \App\Models\Branch::query()->create([
+        'branch_name' => 'Export Athlete Branch',
+        'location' => 'Malang',
+    ]);
+    $group = \App\Models\Group::query()->create([
+        'group_name' => 'Export Athlete Group',
+    ]);
+    $athleteUser = User::factory()->create([
+        'name' => 'Address Athlete',
+        'email' => 'address-athlete@example.com',
+        'role' => 'athlete',
+        'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+    ]);
+    $athleteUser->profile()->updateOrCreate(
+        ['user_id' => $athleteUser->id],
+        ['address' => 'Jl. Soekarno Hatta No. 10, Malang'],
+    );
+    \App\Models\Athlete::query()->create([
+        'id' => $athleteUser->id,
+        'branch_id' => $branch->branch_id,
+        'group_id' => $group->group_id,
+        'height_cm' => 168,
+        'weight_kg' => 58,
+        'geup' => 'GEUP_4',
+    ]);
+
+    $export = app(AdminDataExportService::class)->makeExport(
+        'athletes',
+        ['athlete_name', 'address'],
+        [],
+    );
+    $records = $export->query()->get();
+
+    expect($records)->toHaveCount(1)
+        ->and($export->map($records->first()))->toBe([
+            'Address Athlete',
+            'Jl. Soekarno Hatta No. 10, Malang',
+        ]);
 });

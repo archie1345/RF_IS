@@ -14,6 +14,8 @@
 .env
 .env.backup
 .env.production
+.env.staging
+.env.vercel
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -30,4 +32,10 @@ yarn-error.log
 
 db/password.txt
 package-lock.json
+!e2e/package-lock.json
 WSL.LOCALHOSTKALI-LINUXhomearch13codelaravelRF_ISstorageframeworkviews
+
+.projectmem/events.jsonl
+.projectmem/watch.pid
+.projectmem/watch.log
+.projectmem/structure.json

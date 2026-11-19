@@ -44,8 +44,6 @@ it('generates sequential member numbers per join date', function () {
             'branch_id' => $branch->branch_id,
             'height_cm' => 150,
             'weight_kg' => 45,
-            'nik_hash' => hash('sha256', $name.'-nik'),
-            'bpjs_hash' => hash('sha256', $name.'-bpjs'),
             'geup' => 'GEUP_10',
         ]);
     };
@@ -68,25 +66,24 @@ it('seeds the current application schema with representative role data', functio
         ->firstOrFail();
 
     expect($multiRoleUser->roleAssignments->pluck('role')->sort()->values()->all())
-        ->toBe(['athlete', 'coach', 'parent'])
+        ->toBe(['athlete', 'coach'])
         ->and($multiRoleUser->athleteProfile?->member_number)->toBe('G202201150001')
         ->and($multiRoleUser->athleteProfile?->joined_at?->toDateString())->toBe('2022-01-15');
 
     $allRoleUser = User::query()
-        ->with(['roleAssignments', 'athleteProfile', 'coachProfile', 'parentProfile'])
+        ->with(['roleAssignments', 'athleteProfile', 'coachProfile'])
         ->where('email', 'allroles@rfis.test')
         ->firstOrFail();
 
     expect($allRoleUser->roleAssignments->pluck('role')->sort()->values()->all())
-        ->toBe(['admin', 'athlete', 'coach', 'parent'])
+        ->toBe(['admin', 'athlete', 'coach'])
         ->and($allRoleUser->primaryRole())->toBe('admin')
         ->and($allRoleUser->athleteProfile)->not->toBeNull()
         ->and($allRoleUser->coachProfile)->not->toBeNull()
-        ->and($allRoleUser->parentProfile)->not->toBeNull()
         ->and($allRoleUser->athleteProfile?->member_number)->toBe('G202303010001')
         ->and($allRoleUser->athleteProfile?->joined_at?->toDateString())->toBe('2023-03-01');
 
-    expect(Athlete::query()->where('parent_id', $allRoleUser->parentProfile?->parent_id)->count())->toBeGreaterThan(0);
+    expect(Athlete::query()->whereNotNull('guardian_phone')->count())->toBeGreaterThan(0);
 
     $this->assertDatabaseHas('athletes', [
         'member_number' => 'G202407010001',

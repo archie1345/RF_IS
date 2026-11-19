@@ -18,7 +18,20 @@ type ShortcutState = {
     shift: boolean;
 };
 
-const modifierKeys = new Set(['ctrl', 'control', 'meta', 'cmd', 'command', 'super', 'win', 'windows', 'alt', 'option', 'shift', 'mod']);
+const modifierKeys = new Set([
+    'ctrl',
+    'control',
+    'meta',
+    'cmd',
+    'command',
+    'super',
+    'win',
+    'windows',
+    'alt',
+    'option',
+    'shift',
+    'mod',
+]);
 
 function resolveValue<T>(value: MaybeGetter<T> | undefined): T | undefined {
     if (typeof value === 'function') {
@@ -36,7 +49,12 @@ function isMacPlatform(): boolean {
     const platform = navigator.platform?.toLowerCase() ?? '';
     const userAgent = navigator.userAgent?.toLowerCase() ?? '';
 
-    return platform.includes('mac') || platform.includes('iphone') || platform.includes('ipad') || userAgent.includes('mac os');
+    return (
+        platform.includes('mac') ||
+        platform.includes('iphone') ||
+        platform.includes('ipad') ||
+        userAgent.includes('mac os')
+    );
 }
 
 function normalizeKey(key: string): string {

@@ -15,7 +15,7 @@ test('multi-role user receives one combined dashboard for every assigned role', 
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
             ->where('roles', ['admin', 'athlete'])
-            ->where('auth.user.isMultiRole', true)
+            ->where('auth.user.roles', ['admin', 'athlete'])
             ->where('metrics.0.label', fn (string $value): bool => str_starts_with($value, 'Admin · '))
             ->where('metrics.2.label', fn (string $value): bool => str_starts_with($value, 'Atlet · ')));
 });

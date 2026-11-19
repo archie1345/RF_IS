@@ -1,9 +1,5 @@
 <?php
 
-use App\Models\Athlete;
-use App\Models\Branch;
-use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\User;
 use App\Models\UserFile;
 use Illuminate\Http\UploadedFile;
@@ -62,40 +58,39 @@ it('allows an owner to download their private file', function () {
         ->assertDownload('certificate.pdf');
 });
 
-it('allows a linked parent to download a child file but denies unrelated accounts', function () {
-    $branch = Branch::query()->create([
-        'branch_name' => 'Private File Branch',
-        'location' => 'Malang',
+it('keeps legacy public files available through the authenticated download route', function () {
+    $owner = User::factory()->create(['email_verified_at' => now()]);
+    $path = 'user-files/'.$owner->id.'/legacy.pdf';
+    Storage::disk(UserFile::DISK_PUBLIC)->put($path, 'legacy document');
+    $file = UserFile::query()->create([
+        'user_id' => $owner->id,
+        'file_type' => 'CERTIFICATE',
+        'original_name' => 'legacy.pdf',
+        'file_path' => $path,
+        'mime_type' => 'application/pdf',
+        'size_bytes' => 15,
     ]);
-    $group = Group::query()->create([
-        'group_name' => 'Private File Group',
-    ]);
-    $parentUser = User::factory()->create([
-        'role' => 'parent',
+
+    $this->get(route('user-files.download', $file))->assertRedirect(route('login'));
+
+    $this->actingAs($owner)
+        ->get(route('user-files.download', $file))
+        ->assertOk()
+        ->assertDownload('legacy.pdf');
+});
+
+it('allows an admin to download a private file but denies unrelated accounts', function () {
+    $admin = User::factory()->create([
+        'role' => 'admin',
         'email_verified_at' => now(),
     ]);
-    $parent = ParentProfile::query()->create([
-        'id' => $parentUser->id,
-        'relation' => 'guardian',
-    ]);
-    $childUser = User::factory()->create([
+    $athleteUser = User::factory()->create([
         'role' => 'athlete',
         'email_verified_at' => now(),
     ]);
-    Athlete::query()->create([
-        'id' => $childUser->id,
-        'parent_id' => $parent->parent_id,
-        'branch_id' => $branch->branch_id,
-        'group_id' => $group->group_id,
-        'height_cm' => 150,
-        'weight_kg' => 45,
-        'geup' => 'GEUP_5',
-        'nik_hash' => hash('sha256', 'private-child-nik'),
-        'bpjs_hash' => hash('sha256', 'private-child-bpjs'),
-    ]);
-    $file = createUserFileFixture($childUser);
+    $file = createUserFileFixture($athleteUser);
 
-    $this->actingAs($parentUser)
+    $this->actingAs($admin)
         ->get(route('user-files.download', $file))
         ->assertOk()
         ->assertDownload('certificate.pdf');
@@ -108,4 +103,11 @@ it('allows a linked parent to download a child file but denies unrelated account
     $this->actingAs($unrelated)
         ->get(route('user-files.download', $file))
         ->assertForbidden();
+});
+
+it('blocks direct Apache access to legacy public user-file paths', function () {
+    $rewriteRules = file_get_contents(public_path('.htaccess'));
+
+    expect($rewriteRules)->toBeString()
+        ->toContain('RewriteRule ^storage/user-files(?:/|$) - [F,L,NC]');
 });

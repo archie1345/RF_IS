@@ -49,7 +49,7 @@ class AdminEventFeatureController extends BaseAdminFeatureController
 
         return Inertia::render('EventHistoryPage', [
             'events' => $events->map(fn (Event $event) => [
-                'id' => $event->event_id,
+                'id' => $event->uuid ?? $event->event_id,
                 'name' => $event->e_name,
                 'date' => optional($event->e_date)->format('d M Y') ?? '-',
                 'date_raw' => optional($event->e_date)->format('Y-m-d') ?? '',
@@ -61,7 +61,7 @@ class AdminEventFeatureController extends BaseAdminFeatureController
                 'results_count' => $event->results_count,
                 'detail_url' => route('championships.show', $event, false),
                 'registrations' => $event->registrations->map(fn (EventRegistration $registration) => [
-                    'id' => $registration->evrid,
+                    'id' => $registration->uuid ?? $registration->evrid,
                     'athlete' => $registration->athlete?->user?->name ?? 'Unknown athlete',
                     'classification' => $registration->classification ?? '-',
                     'entry_category' => $registration->category ?? '-',

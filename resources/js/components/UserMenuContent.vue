@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Link, router, usePage } from '@inertiajs/vue3';
-import { Check, LogOut, Settings, UsersRound, Globe } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
+import { LogOut, Settings, Globe } from '@lucide/vue';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -14,49 +13,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import UserInfo from '@/components/UserInfo.vue';
 
-import { logout } from '@/routes';
-import { update as roleContextUpdate } from '@/routes/role-context';
-import type { Auth } from '@/types/auth';
-import type { AppRole } from '@/types/resource-table';
-import type { Props } from './UserMenuContent.types';
 import { useI18n } from '@/composables/useI18n';
+import { logout } from '@/routes';
+import type { Props } from './UserMenuContent.types';
 
-const page = usePage<{ auth: Auth }>();
 const { t } = useI18n();
-const isSwitchingRole = ref(false);
-const roles = computed<AppRole[]>(() => page.props.auth.user.roles ?? []);
-const activeRole = computed<AppRole>(() => page.props.auth.user.activeRole ?? page.props.auth.user.role ?? 'athlete');
-const isMultiRole = computed(() => roles.value.length > 1);
-
-const roleLabels: Record<AppRole, string> = {
-    admin: 'Admin',
-    coach: 'Pelatih',
-    parent: 'Orang tua',
-    athlete: 'Atlet',
-};
 
 const handleLogout = () => {
     router.flushAll();
 };
-
-function switchRole(role: AppRole): void {
-    if (role === activeRole.value || isSwitchingRole.value) return;
-
-    router.put(
-        roleContextUpdate.url(),
-        { role },
-        {
-            preserveState: false,
-            preserveScroll: false,
-            onStart: () => {
-                isSwitchingRole.value = true;
-            },
-            onFinish: () => {
-                isSwitchingRole.value = false;
-            },
-        },
-    );
-}
 
 defineProps<Props>();
 </script>
@@ -67,26 +32,6 @@ defineProps<Props>();
             <UserInfo :user="user" :show-email="true" />
         </div>
     </DropdownMenuLabel>
-
-    <template v-if="isMultiRole">
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <UsersRound class="size-4" />
-            {{ t('Gunakan peran') }}
-        </DropdownMenuLabel>
-        <DropdownMenuGroup>
-            <DropdownMenuItem
-                v-for="role in roles"
-                :key="role"
-                :disabled="isSwitchingRole"
-                class="cursor-pointer"
-                @select.prevent="switchRole(role)"
-            >
-                <Check class="mr-2 size-4" :class="role === activeRole ? 'opacity-100' : 'opacity-0'" />
-                {{ t(roleLabels[role]) }}
-            </DropdownMenuItem>
-        </DropdownMenuGroup>
-    </template>
 
     <DropdownMenuSeparator />
 

@@ -1,4 +1,4 @@
-export type AppRole = 'admin' | 'coach' | 'parent' | 'athlete';
+export type AppRole = 'admin' | 'coach' | 'athlete';
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 

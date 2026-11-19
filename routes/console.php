@@ -115,7 +115,10 @@ Artisan::command('app:database-audit', function () {
         'users' => ['id', 'email', 'role', 'deleted_at'],
         'user_role_assignments' => ['user_id', 'role'],
         'user_files' => ['id', 'user_id', 'file_path', 'disk', 'mime_type', 'size_bytes'],
-        'athletes' => ['athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'group_id', 'training_group_id'],
+        'athletes' => [
+            'athlete_id', 'member_number', 'joined_at', 'id', 'branch_id', 'group_id', 'training_group_id',
+            'guardian_name', 'guardian_phone', 'guardian_relation',
+        ],
         'member_number_sequences' => ['joined_on', 'last_sequence'],
         'coaches' => ['coach_id', 'id', 'status'],
         'branches' => ['branch_id', 'branch_name', 'is_active'],

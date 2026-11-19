@@ -4,8 +4,8 @@ import { computed, type PropType } from 'vue';
 import DashboardAnnouncementWidget from '@/components/dashboard/DashboardAnnouncementWidget.vue';
 import DashboardHeroSection from '@/components/dashboard/DashboardHeroSection.vue';
 import DashboardOverviewSections from '@/components/dashboard/DashboardOverviewSections.vue';
-import { useLiveReload } from '@/composables/useLiveReload';
 import { useI18n } from '@/composables/useI18n';
+import { useLiveReload } from '@/composables/useLiveReload';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -29,14 +29,13 @@ const props = defineProps({
 });
 
 const activeRole = computed<AppRole>(() => {
-    const value = page.props.auth?.user?.activeRole ?? page.props.auth?.user?.role;
-    return value === 'admin' || value === 'coach' || value === 'parent' || value === 'athlete' ? value : 'athlete';
+    const value = page.props.auth?.user?.role;
+    return value === 'admin' || value === 'coach' || value === 'athlete' ? value : 'athlete';
 });
 const dashboardRoles = computed<AppRole[]>(() => (props.roles.length > 0 ? props.roles : [activeRole.value]));
 const roleLabels: Record<AppRole, string> = {
     admin: 'Operasional admin',
     coach: 'Kepelatihan',
-    parent: 'Keluarga',
     athlete: 'Aktivitas atlet',
 };
 

@@ -32,8 +32,6 @@ it('shows dashboard announcements for every assigned role on a multi-role accoun
         'group_id' => $group->group_id,
         'height_cm' => 170,
         'weight_kg' => 65,
-        'nik_hash' => hash('sha256', 'announcement-widget-nik'),
-        'bpjs_hash' => hash('sha256', 'announcement-widget-bpjs'),
         'geup' => 'GEUP_1',
     ]);
 
@@ -53,30 +51,14 @@ it('shows dashboard announcements for every assigned role on a multi-role accoun
     }
 
     $this->actingAs($user)
-        ->put(route('role-context.update'), ['role' => 'athlete'])
-        ->assertRedirect(route('dashboard'));
-
-    $this->get(route('dashboard'))
+        ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dashboard')
-            ->where('auth.user.activeRole', 'athlete')
             ->has('announcements', 3)
             ->where('announcements.0.title', 'Athlete widget')
             ->where('announcements.0.target', 'Atlet')
             ->where('announcements.1.title', 'Coach widget')
             ->where('announcements.1.target', 'Pelatih')
-            ->where('announcements.2.title', 'Shared widget'));
-
-    $this->put(route('role-context.update'), ['role' => 'coach'])
-        ->assertRedirect(route('dashboard'));
-
-    $this->get(route('dashboard'))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('auth.user.activeRole', 'coach')
-            ->has('announcements', 3)
-            ->where('announcements.0.title', 'Athlete widget')
-            ->where('announcements.1.title', 'Coach widget')
             ->where('announcements.2.title', 'Shared widget'));
 });

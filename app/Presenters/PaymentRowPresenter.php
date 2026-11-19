@@ -17,7 +17,11 @@ class PaymentRowPresenter
 
     public function row(Payment $payment, bool $includeWhatsApp = false): array
     {
-        $phone = $payment->athlete?->user?->phone ?? $payment->billableUser?->phone ?? $payment->payeeUser?->phone ?? '';
+        $phone = $payment->athlete?->user?->phone
+            ?: $payment->athlete?->guardian_phone
+            ?: $payment->billableUser?->phone
+            ?: $payment->payeeUser?->phone
+            ?: '';
         $paidAmount = (float) ($payment->paid_amount ?? 0);
         $remainingAmount = (float) ($payment->remaining_amount ?? 0);
         $ledgerPaidAmount = $this->ledgerPaidAmount($payment);

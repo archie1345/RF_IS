@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { CheckCircle2, CircleAlert, Info, X, AlertTriangle } from '@lucide/vue';
-import { provide } from 'vue';
 import { Button } from '@/components/ui/button';
-import { appToastKey, createAppToastProviderValue, type AppToastTone } from '@/composables/useAppToast';
+import { useAppToast, type AppToastTone } from '@/composables/useAppToast';
 import { useI18n } from '@/composables/useI18n';
 
-const toast = createAppToastProviderValue();
+const toast = useAppToast();
 const { t } = useI18n();
-
-provide(appToastKey, toast);
 
 const icon: Record<AppToastTone, typeof CheckCircle2> = {
     success: CheckCircle2,

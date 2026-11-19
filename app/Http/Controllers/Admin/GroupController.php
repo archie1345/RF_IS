@@ -238,7 +238,13 @@ class GroupController extends Controller
                     ->where('status', 'active')
                     ->whereNull('deleted_at')),
             ],
-            'dedicated_athlete_ids' => ['nullable', 'required_if:class_type,private', 'array', 'min:1'],
+            'dedicated_athlete_ids' => [
+                'nullable',
+                'exclude_unless:class_type,private',
+                'required_if:class_type,private',
+                'array',
+                'min:1',
+            ],
             'dedicated_athlete_ids.*' => [
                 'required',
                 'string',

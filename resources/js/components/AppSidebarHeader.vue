@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
-import RoleSwitcher from '@/components/RoleSwitcher.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import type { BreadcrumbItem } from '@/types';
 
@@ -26,7 +25,5 @@ withDefaults(
                 :breadcrumbs="breadcrumbs"
             />
         </div>
-
-        <RoleSwitcher class="ml-auto shrink-0" />
     </header>
 </template>

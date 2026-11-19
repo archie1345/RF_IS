@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
+import { Check, Copy, QrCode, ShieldCheck, X } from '@lucide/vue';
 import QRCode from 'qrcode';
 import { computed, ref, watch } from 'vue';
-import { Check, Copy, QrCode, ShieldCheck, X } from '@lucide/vue';
 import CopyToClipboardButton from '@/components/shared/CopyToClipboardButton.vue';
 import { Button } from '@/components/ui/button';
 import { useAppPopup } from '@/composables/useAppPopup';

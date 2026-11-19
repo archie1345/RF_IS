@@ -19,6 +19,7 @@ import {
     show as championshipShow,
 } from '@/routes/championships';
 import { destroy as championshipCoachDestroy, store as championshipCoachStore } from '@/routes/championships/coaches';
+import { store as championshipParticipantStore } from '@/routes/championships/participants';
 import {
     destroy as championshipRegistrationDestroy,
     result as championshipRegistrationResult,
@@ -37,6 +38,7 @@ const props = defineProps<{
     canAddRegistration: boolean;
     event: {
         id: string;
+        uuid: string;
         name: string;
         date: string;
         location: string;
@@ -57,7 +59,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Beranda', href: dashboard.url() },
     { title: 'Kejuaraan & UKT', href: championshipsIndex.url() },
     { title: 'Daftar Kejuaraan', href: championshipsIndex.url() },
-    { title: props.event.name, href: championshipShow.url(props.event.id) },
+    { title: props.event.name, href: championshipShow.url(props.event.uuid) },
 ];
 
 const athleteColumns: TableColumn[] = [
@@ -90,7 +92,7 @@ const participantModalOpen = ref(false);
 const coachModalOpen = ref(false);
 const resultModalOpen = ref(false);
 const editModalOpen = ref(false);
-const activeRegistrationId = ref<number | null>(null);
+const activeRegistrationId = ref<number | string | null>(null);
 const editingOwnRegistration = ref(false);
 
 const participantForm = useForm({
@@ -103,7 +105,7 @@ const participantForm = useForm({
     create_payment: false,
 });
 const coachForm = useForm({ coach_id: '', role: '' });
-const resultForm = useForm({ medal: 'NONE', class_name: '', division: '', category: '' });
+const resultForm = useForm({ medal: 'NONE', class_name: '', division: '', category: '', result: '' });
 const editForm = useForm({
     category: 'KYORUGI',
     classification: '',
@@ -125,7 +127,7 @@ function openParticipantModal(): void {
 }
 
 function submitParticipant(): void {
-    participantForm.post(`/championships/${props.event.id}/participants`, {
+    participantForm.post(championshipParticipantStore.url(props.event.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             participantModalOpen.value = false;
@@ -135,7 +137,7 @@ function submitParticipant(): void {
 }
 
 function addCoach(): void {
-    coachForm.post(championshipCoachStore.url(props.event.id), {
+    coachForm.post(championshipCoachStore.url(props.event.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             coachForm.reset();
@@ -145,7 +147,7 @@ function addCoach(): void {
 }
 
 function openRegistrationEdit(row: TableRow): void {
-    const registrationId = routeId(row.registration_id ?? row.id);
+    const registrationId = routeId(row.registration_uuid ?? row.registration_id ?? row.id);
     if (registrationId === null) return;
 
     activeRegistrationId.value = registrationId;
@@ -162,7 +164,7 @@ function openRegistrationEdit(row: TableRow): void {
 
 function saveRegistrationEdit(): void {
     if (activeRegistrationId.value === null) return;
-    editForm.put(championshipRegistrationUpdate.url(activeRegistrationId.value), {
+    editForm.put(championshipRegistrationUpdate.url(String(activeRegistrationId.value)), {
         preserveScroll: true,
         onSuccess: () => {
             editModalOpen.value = false;
@@ -172,7 +174,7 @@ function saveRegistrationEdit(): void {
 }
 
 function openResultForm(row: TableRow): void {
-    const registrationId = routeId(row.registration_id ?? row.id);
+    const registrationId = routeId(row.registration_uuid ?? row.registration_id ?? row.id);
     if (registrationId === null) return;
 
     activeRegistrationId.value = registrationId;
@@ -186,7 +188,7 @@ function openResultForm(row: TableRow): void {
 
 function saveResult(): void {
     if (activeRegistrationId.value === null) return;
-    resultForm.post(championshipRegistrationResult.url(activeRegistrationId.value), {
+    resultForm.post(championshipRegistrationResult.url(String(activeRegistrationId.value)), {
         preserveScroll: true,
         onSuccess: () => {
             resultModalOpen.value = false;
@@ -197,11 +199,11 @@ function saveResult(): void {
 
 function athleteProfileUrl(row: TableRow): string | null {
     const userId = routeId(row.athlete_user_id);
-    return userId === null ? null : userShow.url(userId);
+    return userId === null ? null : userShow.url(String(userId));
 }
 
 async function removeRegistration(row: TableRow): Promise<void> {
-    const registrationId = routeId(row.registration_id ?? row.id);
+    const registrationId = routeId(row.registration_uuid ?? row.registration_id ?? row.id);
     if (registrationId === null) return;
     const confirmed = await popup.confirm({
         title: 'Hapus peserta?',
@@ -209,7 +211,7 @@ async function removeRegistration(row: TableRow): Promise<void> {
         tone: 'danger',
         confirmLabel: 'Hapus peserta',
     });
-    if (confirmed) router.delete(championshipRegistrationDestroy.url(registrationId), { preserveScroll: true });
+    if (confirmed) router.delete(championshipRegistrationDestroy.url(String(registrationId)), { preserveScroll: true });
 }
 
 async function removeCoach(row: TableRow): Promise<void> {
@@ -221,7 +223,10 @@ async function removeCoach(row: TableRow): Promise<void> {
         tone: 'danger',
         confirmLabel: 'Hapus penugasan',
     });
-    if (confirmed) router.delete(championshipCoachDestroy.url(registrationId), { preserveScroll: true });
+    const coachRegistrationId = Number(registrationId);
+    if (confirmed && Number.isSafeInteger(coachRegistrationId)) {
+        router.delete(championshipCoachDestroy.url(coachRegistrationId), { preserveScroll: true });
+    }
 }
 </script>
 
@@ -248,10 +253,10 @@ async function removeCoach(row: TableRow): Promise<void> {
                         Tambah pelatih
                     </Button>
                     <Button v-if="props.canManageCoaches" as-child type="button" variant="outline">
-                        <a :href="championshipExport.url(props.event.id)">Ekspor CSV</a>
+                        <a :href="championshipExport.url(props.event.uuid)">Ekspor CSV</a>
                     </Button>
                     <Button v-if="props.isAdmin" as-child type="button" variant="outline" class="gap-2">
-                        <a :href="`/championships/${props.event.id}/photos`"><Download class="size-4" /> Foto 3×4</a>
+                        <a :href="`/championships/${props.event.uuid}/photos`"><Download class="size-4" /> Foto 3×4</a>
                     </Button>
                     <Button as-child type="button" variant="ghost">
                         <Link :href="championshipsIndex.url()">Kembali</Link>
@@ -547,6 +552,9 @@ async function removeCoach(row: TableRow): Promise<void> {
                         label="Kategori"
                         :error="resultForm.errors.category"
                     />
+                    <p v-if="resultForm.errors.result" class="text-sm text-destructive">
+                        {{ resultForm.errors.result }}
+                    </p>
                     <div class="flex justify-end gap-2">
                         <Button type="button" variant="outline" @click="resultModalOpen = false">Batal</Button
                         ><Button type="submit" :disabled="resultForm.processing">Simpan hasil</Button>

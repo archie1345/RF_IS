@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Concerns\ResolvesUuidRouteBindings;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CoachAttendance extends Model
 {
-    use HasUuids;
-
+    use HasUuids, ResolvesUuidRouteBindings {
+        ResolvesUuidRouteBindings::resolveRouteBindingQuery insteadof HasUuids;
+    }
     use SoftDeletes;
 
     protected $table = 'coach_attendance';
@@ -50,5 +52,4 @@ class CoachAttendance extends Model
     {
         return 'uuid';
     }
-
 }

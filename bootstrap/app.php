@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
@@ -32,6 +32,18 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $trustedProxiesRaw = trim((string) env('TRUSTED_PROXIES', ''));
+
+        if ($trustedProxiesRaw === '' && (env('VERCEL') || env('VERCEL_ENV'))) {
+            $trustedProxiesRaw = '*';
+        }
+
+        $trustedProxies = match ($trustedProxiesRaw) {
+            '' => null,
+            '*', '**' => $trustedProxiesRaw,
+            default => array_values(array_filter(array_map('trim', explode(',', $trustedProxiesRaw)))),
+        };
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->alias([
@@ -48,7 +60,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->trustProxies(
-            at: '*',
+            at: $trustedProxies,
             headers: Request::HEADER_X_FORWARDED_FOR |
                 Request::HEADER_X_FORWARDED_HOST |
                 Request::HEADER_X_FORWARDED_PORT |
@@ -87,3 +99,9 @@ return Application::configure(basePath: dirname(__DIR__))
             return $errorResponse;
         });
     })->create();
+
+if ($storagePath = env('APP_STORAGE_PATH') ?: (isset($_ENV['VERCEL']) || isset($_SERVER['VERCEL']) ? '/tmp/storage' : null)) {
+    $app->useStoragePath($storagePath);
+}
+
+return $app;

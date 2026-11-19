@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,7 +14,7 @@ class AdminPageController extends Controller
         abort_unless(request()->user()?->isAdmin(), 403);
 
         $users = User::query()
-            ->select(['id', 'name', 'email', 'role', 'account_status', 'created_at', 'deleted_at'])
+            ->select(['id', 'uuid', 'name', 'email', 'role', 'account_status', 'created_at', 'deleted_at'])
             ->withTrashed()
             ->with([
                 'roleAssignments:id,user_id,role',
@@ -23,13 +22,6 @@ class AdminPageController extends Controller
                     ->select(['athlete_id', 'id', 'branch_id'])
                     ->with('branch:branch_id,branch_name'),
                 'coachProfile:coach_id,id',
-                'parentProfile' => fn ($query) => $query
-                    ->select(['parent_id', 'id'])
-                    ->with([
-                        'athletes' => fn ($athletes) => $athletes
-                            ->select(['athlete_id', 'parent_id', 'branch_id'])
-                            ->with('branch:branch_id,branch_name'),
-                    ]),
             ])
             ->latest('id')
             ->get();
@@ -37,6 +29,7 @@ class AdminPageController extends Controller
         return Inertia::render('AdminPage', [
             'users' => $users->map(fn (User $user): array => [
                 'id' => $user->id,
+                'uuid' => $user->uuid,
                 'name' => $user->name ?? 'Unnamed user',
                 'email' => $user->email,
                 'role' => $user->role,
@@ -53,14 +46,6 @@ class AdminPageController extends Controller
     {
         if ($user->hasRole('athlete')) {
             return $user->athleteProfile?->branch?->branch_name ?? 'Unassigned';
-        }
-
-        if ($user->hasRole('parent')) {
-            return $user->parentProfile?->athletes
-                ?->pluck('branch.branch_name')
-                ->filter()
-                ->unique()
-                ->implode(', ') ?: 'Linked by child';
         }
 
         if ($user->hasRole('coach')) {

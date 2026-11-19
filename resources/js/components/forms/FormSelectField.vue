@@ -132,8 +132,17 @@ function handleOutsidePointerDown(event: PointerEvent): void {
     closeDropdown();
 }
 
+function handleEscape(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || !open.value) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    closeDropdown();
+}
+
 onMounted(() => {
     window.addEventListener(closeEventName, handleOtherDropdownOpened);
+    window.addEventListener('keydown', handleEscape, true);
     document.addEventListener('pointerdown', handleOutsidePointerDown);
     window.addEventListener('resize', updateDropdownPosition);
     window.addEventListener('scroll', updateDropdownPosition, true);
@@ -141,6 +150,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     window.removeEventListener(closeEventName, handleOtherDropdownOpened);
+    window.removeEventListener('keydown', handleEscape, true);
     document.removeEventListener('pointerdown', handleOutsidePointerDown);
     window.removeEventListener('resize', updateDropdownPosition);
     window.removeEventListener('scroll', updateDropdownPosition, true);
@@ -221,7 +231,7 @@ function removeValue(value: string | number): void {
         <Teleport to="body">
             <div
                 v-if="open"
-                class="fixed z-[100] min-w-0 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl"
+                class="pointer-events-auto fixed z-[1000] min-w-0 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-xl"
                 :style="{
                     left: `${dropdownPosition.left}px`,
                     width: `${dropdownPosition.width}px`,

@@ -1,106 +1,31 @@
-# Active Role Context
+# Roles and View Modes
 
-## Purpose
+RF_IS supports `admin`, `coach`, and `athlete` roles. A user may hold more than one role. The removed parent login/portal is not part of the current application; guardian name, phone, and relation are contact fields on an athlete profile.
 
-An account may have one or several assigned roles. The application must not merge every role's page content, navigation, and data scope into one screen. Instead, each authenticated request runs under one explicit active role.
+## Authorization model
 
-Supported roles:
+- `RoleResolver::rolesFor()` returns all assigned roles in privilege order. Legacy `users.role` is used only when there are no role-assignment rows.
+- `User::hasRole()` and the `role:*` middleware check role membership, not a session-selected role.
+- The shared Inertia `auth.user.role` is the highest-privilege assigned role for presentation; `auth.user.roles` lists all assigned roles.
+- Permissions are cumulative across assigned roles. UI visibility is not an authorization boundary: controllers, policies, and scoped queries enforce access on the server.
+- Public self-registration is disabled. Administrators create accounts and invite users.
 
-- `admin`
-- `coach`
-- `parent`
-- `athlete`
+## View modes
 
-## Core invariants
+Some pages have meaningfully different layouts for users with multiple roles. Attendance and payments support a stateless `?mode=` query parameter. `RoleResolver::viewRoleFor()` accepts a requested mode only when the user has that role; otherwise it falls back to the highest-privilege assigned role. This changes page presentation and query scope only where the controller explicitly supports a mode. It never changes role assignments or grants permissions.
 
-1. `User::assignedRoles()` and `User::hasRole()` represent all roles assigned to the account.
-2. `auth.user.roles` is the complete role list used by the role switcher.
-3. `auth.user.activeRole` is the role currently used for page presentation and data scoping.
-4. `auth.user.role` is a compatibility alias for `activeRole`; frontend code must not treat it as the legacy database column.
-5. `auth.user.primaryRole` is the account's default/first assigned role and is not necessarily the active role.
-6. `User::isAdmin()`, `isCoach()`, `isParent()`, and `isAthlete()` evaluate the active role for the current authenticated web request.
-7. Outside the current authenticated web request, role membership checks fall back to the complete assignment list so background and administrative operations remain deterministic.
-8. Switching to an unassigned role returns HTTP 403.
-9. Changing active role never adds or removes a role assignment.
-10. Role-specific authorization, navigation, page props, and query visibility must use the active role.
+For example, a coach-athlete account may choose the coach or athlete view on attendance/payments pages. The user retains the union of permissions attached to both assigned roles on every request.
 
-## Request flow
+## Frontend and backend entry points
 
-1. `ActiveRoleContextService` resolves assigned roles.
-2. It reads `active_role` from the authenticated session.
-3. Missing or invalid session values fall back to the first assigned role.
-4. `HandleInertiaRequests` shares the active role and available roles with every authenticated Inertia page.
-5. `RoleSwitcher.vue` and the shared user menu call `role-context.update`.
-6. The switch endpoint validates membership, stores the role in the session, and redirects to the dashboard.
-7. Controllers, policies, services, layouts, and pages evaluate the selected role on the next request.
+- Backend role ordering and membership: `app/Support/RoleResolver.php` and `app/Models/User.php`.
+- Shared Inertia role props: `app/Http/Middleware/HandleInertiaRequests.php`.
+- Frontend presentation helpers: `resources/js/composables/useRole.ts`.
+- Attendance and payment view-mode parsing: `AttendanceController` and `PaymentPageController`.
+- Route-level access: `routes/web.php`, `routes/settings.php`, and middleware in `app/Http/Middleware`.
 
-## Frontend usage
+Prefer `hasRole()` for permission checks. Use `viewRoleFor()` only on pages that explicitly support a presentation mode. Scope data in the backend before returning Inertia props; do not return hidden-role records and rely on Vue to hide them.
 
-Use the global composable when page-specific role props are unnecessary:
+## Regression coverage
 
-```ts
-const { role, availableRoles, isMultiRole, isAdmin, isCoach, isParent, isAthlete } = useRole();
-```
-
-A page that already receives an explicit role may continue to pass it:
-
-```ts
-const { isCoach, isAthlete } = useRole(toRef(props, 'role'));
-```
-
-Do not combine navigation for every assigned role. Render `navByRole[activeRole]`.
-
-## Backend usage
-
-Use active-role helpers for page behavior and permissions:
-
-```php
-if ($request->user()->isCoach()) {
-    // Coach-mode behavior only.
-}
-```
-
-Use cumulative membership only when the business rule explicitly concerns assignment rather than the current operating context:
-
-```php
-if ($request->user()->hasRole('coach')) {
-    // The account owns a coach assignment, regardless of active role.
-}
-```
-
-Use an explicit mode argument in visibility services when a controller intentionally resolves a role before querying:
-
-```php
-$payments = $paymentVisibility->visiblePaymentsQuery($request, $activeRole);
-$attendance = $attendanceVisibility->scopedAttendanceQuery($request, $activeRole);
-```
-
-## Multi-role examples
-
-### Coach and athlete
-
-- Coach mode: assigned coaching sessions, coach attendance, coach-specific navigation and payments.
-- Athlete mode: personal QR attendance, athlete schedule, tuition, achievements, and registrations.
-- Coach attendance and athlete attendance remain separate records.
-
-### Parent and athlete
-
-- Parent mode: linked children, child attendance, and child tuition.
-- Athlete mode: only the account owner's athlete data.
-- Child context is not shared outside parent mode.
-
-### Admin and another role
-
-- Admin mode: administration pages and system-wide records.
-- Non-admin mode: admin routes and actions are unavailable even though the assignment still exists.
-- The account can return to admin mode through the global role switcher.
-
-## Adding a new page
-
-Before adding a role-sensitive page:
-
-1. Identify whether the rule depends on active role or cumulative assignment.
-2. Scope backend queries before serializing Inertia props.
-3. Avoid returning hidden-role data and merely hiding it in Vue.
-4. Use `useRole()` or `auth.user.activeRole` for presentation.
-5. Add tests for at least one single-role account and one relevant multi-role combination.
+Use `tests/Feature/RoleResolutionTest.php`, `MultiRoleRouteAccessTest.php`, `CombinedMultiRoleDashboardTest.php`, `AttendancePaymentAchievementFixTest.php`, and `MultiRolePaymentContextTest.php` when changing role resolution or view-mode behavior. Add both single-role and multi-role cases for changes that affect scoping.

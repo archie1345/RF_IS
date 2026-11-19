@@ -25,7 +25,7 @@ export const achievementColumns: TableColumn[] = [
 
 export function certificationRows(certifications: ProfileCertification[]): TableRow[] {
     return certifications.map((cert) => ({
-        id: String(cert.id),
+        id: cert.route_id,
         cert_type: cert.cert_type,
         title: cert.title,
         issuer: cert.issuer ?? '-',
@@ -39,7 +39,7 @@ export function certificationRows(certifications: ProfileCertification[]): Table
 
 export function achievementRows(achievements: ProfileAchievement[]): TableRow[] {
     return achievements.map((ach) => ({
-        id: String(ach.id),
+        id: ach.route_id,
         championship_name: ach.championship_name,
         medal: ach.medal,
         location: ach.location ?? '-',

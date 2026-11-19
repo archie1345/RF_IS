@@ -21,13 +21,6 @@ export const coachRosterColumns: TableColumn[] = [
     { key: 'specialization', label: 'Specialization' },
 ];
 
-export const parentRosterColumns: TableColumn[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'email', label: 'Email' },
-    { key: 'relation', label: 'Relation' },
-    { key: 'children', label: 'Children' },
-];
-
 export const geupOptions = [
     'GEUP_10',
     'GEUP_9',

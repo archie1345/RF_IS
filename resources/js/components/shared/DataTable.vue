@@ -3,9 +3,9 @@ import { ArrowDownUp, ChevronLeft, ChevronRight, Search } from '@lucide/vue';
 import { computed, reactive, ref, useSlots, watch } from 'vue';
 import FormSelectField from '@/components/forms/FormSelectField.vue';
 import StatusBadge from '@/components/shared/StatusBadge.vue';
-import { useI18n } from '@/composables/useI18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/composables/useI18n';
 import type {
     SelectOption,
     TableBadgeCell,

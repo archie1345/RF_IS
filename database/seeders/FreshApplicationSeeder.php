@@ -11,7 +11,6 @@ use App\Models\Coach;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\TrainingGroup;
@@ -22,23 +21,26 @@ use App\Models\UserCertification;
 use App\Models\UserProfile;
 use App\Models\UserRoleAssignment;
 use App\Models\WeeklyTrainingSchedule;
+use Database\Seeders\Concerns\GuardsDemoSeeding;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class FreshApplicationSeeder extends Seeder
 {
-    private const PASSWORD = '12345678';
+    use GuardsDemoSeeding;
 
     public function run(): void
     {
+        $this->guardDemoSeeding();
+
         DB::transaction(function (): void {
             $users = $this->seedUsers();
-            [$parents, $coaches] = $this->seedRoleProfiles($users);
+            $coaches = $this->seedRoleProfiles($users);
             $branches = $this->seedBranches();
             $categories = $this->seedTrainingGroups();
             $classes = $this->seedClasses($branches, $categories, $coaches);
-            $athletes = $this->seedAthletes($users, $parents, $branches, $categories, $classes);
+            $athletes = $this->seedAthletes($users, $branches, $categories, $classes);
 
             $classes['private']->forceFill([
                 'dedicated_athlete_id' => $athletes['putri']->athlete_id,
@@ -56,14 +58,13 @@ class FreshApplicationSeeder extends Seeder
             $this->seedProfileRecords($users);
         });
 
-        $this->command?->info('RFIS demo data seeded. Password for all demo accounts: '.self::PASSWORD);
+        $this->command?->info('RFIS demo data seeded. Shared development password is configured in RFIS_DEMO_PASSWORD.');
         $this->command?->table(['Account', 'Roles'], [
             ['admin@rfis.test', 'Admin'],
             ['coach@rfis.test', 'Coach'],
             ['coach2@rfis.test', 'Coach'],
-            ['parent@rfis.test', 'Parent'],
             ['athlete@rfis.test', 'Athlete'],
-            ['multirole@rfis.test', 'Coach + Parent + Athlete'],
+            ['multirole@rfis.test', 'Coach + Athlete'],
         ]);
     }
 
@@ -73,12 +74,11 @@ class FreshApplicationSeeder extends Seeder
             'admin' => ['Admin RFIS', 'admin@rfis.test', ['admin'], 'MALE', '1990-01-10'],
             'coach1' => ['Budi Santoso', 'coach@rfis.test', ['coach'], 'MALE', '1988-07-21'],
             'coach2' => ['Siti Rahma', 'coach2@rfis.test', ['coach'], 'FEMALE', '1990-11-02'],
-            'parent' => ['Rina Putri', 'parent@rfis.test', ['parent'], 'FEMALE', '1985-03-15'],
             'athlete' => ['Adit Pratama', 'athlete@rfis.test', ['athlete'], 'MALE', '2012-05-14'],
             'nadia' => ['Nadia Kirana', 'nadia@rfis.test', ['athlete'], 'FEMALE', '2013-09-18'],
             'rafi' => ['Rafi Mahendra', 'rafi@rfis.test', ['athlete'], 'MALE', '2011-01-08'],
             'putri' => ['Putri Anindya', 'putri@rfis.test', ['athlete'], 'FEMALE', '2011-03-27'],
-            'multi' => ['Dewi Multi Peran', 'multirole@rfis.test', ['coach', 'parent', 'athlete'], 'FEMALE', '1998-08-08'],
+            'multi' => ['Dewi Multi Peran', 'multirole@rfis.test', ['coach', 'athlete'], 'FEMALE', '1998-08-08'],
             'multiChild' => ['Raka Multi', 'child@rfis.test', ['athlete'], 'MALE', '2014-04-12'],
         ];
         $users = [];
@@ -86,7 +86,7 @@ class FreshApplicationSeeder extends Seeder
         foreach ($definitions as $index => [$name, $email, $roles, $gender, $birthday]) {
             $user = User::query()->updateOrCreate(['email' => $email], [
                 'name' => $name,
-                'password' => self::PASSWORD,
+                'password' => config('app.demo_password'),
                 'gender' => $gender,
                 'role' => $roles[0],
                 'bday' => $birthday,
@@ -95,6 +95,11 @@ class FreshApplicationSeeder extends Seeder
             ]);
             $user->forceFill(['email_verified_at' => now()])->save();
             $users[$index] = $user;
+
+            UserRoleAssignment::query()
+                ->where('user_id', $user->id)
+                ->whereNotIn('role', $roles)
+                ->delete();
 
             foreach ($roles as $role) {
                 UserRoleAssignment::query()->updateOrCreate([
@@ -109,19 +114,7 @@ class FreshApplicationSeeder extends Seeder
 
     private function seedRoleProfiles(array $users): array
     {
-        $parents = [
-            'parent' => ParentProfile::query()->updateOrCreate(['id' => $users['parent']->id], [
-                'relation' => 'mother',
-                'occupation' => 'Accountant',
-                'notes' => 'Primary demo parent.',
-            ]),
-            'multi' => ParentProfile::query()->updateOrCreate(['id' => $users['multi']->id], [
-                'relation' => 'guardian',
-                'occupation' => 'Coach',
-                'notes' => 'Multi-role parent profile.',
-            ]),
-        ];
-        $coaches = [
+        return [
             'budi' => Coach::query()->updateOrCreate(['id' => $users['coach1']->id], [
                 'specialization' => 'Kyorugi and youth development',
                 'bio' => 'Junior sparring coach.',
@@ -138,8 +131,6 @@ class FreshApplicationSeeder extends Seeder
                 'status' => 'active',
             ]),
         ];
-
-        return [$parents, $coaches];
     }
 
     private function seedBranches(): array
@@ -240,26 +231,28 @@ class FreshApplicationSeeder extends Seeder
         return $classes;
     }
 
-    private function seedAthletes(array $users, array $parents, array $branches, array $categories, array $classes): array
+    private function seedAthletes(array $users, array $branches, array $categories, array $classes): array
     {
         $definitions = [
-            'adit' => [$users['athlete'], $classes['junior'], $categories['junior'], $parents['parent'], $branches['central'], 150.5, 42.3, 'GEUP_8', '2024-07-01'],
-            'nadia' => [$users['nadia'], $classes['junior'], $categories['junior'], $parents['parent'], $branches['central'], 147.0, 39.8, 'GEUP_9', '2024-07-01'],
+            'adit' => [$users['athlete'], $classes['junior'], $categories['junior'], ['Rina Putri', '080000000004', 'mother'], $branches['central'], 150.5, 42.3, 'GEUP_8', '2024-07-01'],
+            'nadia' => [$users['nadia'], $classes['junior'], $categories['junior'], ['Rina Putri', '080000000004', 'mother'], $branches['central'], 147.0, 39.8, 'GEUP_9', '2024-07-01'],
             'rafi' => [$users['rafi'], $classes['competition'], $categories['competition'], null, $branches['east'], 154.2, 45.1, 'GEUP_5', '2025-01-10'],
             'putri' => [$users['putri'], $classes['competition'], $categories['competition'], null, $branches['east'], 156.3, 47.4, 'GEUP_6', '2025-01-10'],
             'multi' => [$users['multi'], $classes['competition'], $categories['competition'], null, $branches['east'], 165.0, 55.0, 'DAN', '2022-01-15'],
-            'multiChild' => [$users['multiChild'], $classes['junior'], $categories['junior'], $parents['multi'], $branches['central'], 140.0, 35.0, 'GEUP_10', '2026-07-23'],
+            'multiChild' => [$users['multiChild'], $classes['junior'], $categories['junior'], ['Dewi Multi Peran', $users['multi']->phone, 'guardian'], $branches['central'], 140.0, 35.0, 'GEUP_10', '2026-07-23'],
         ];
         $athletes = [];
 
-        foreach ($definitions as $key => [$user, $class, $category, $parent, $branch, $height, $weight, $belt, $joinedAt]) {
+        foreach ($definitions as $key => [$user, $class, $category, $guardian, $branch, $height, $weight, $belt, $joinedAt]) {
             $identifier = 'RFIS-DEMO-'.strtoupper($key);
             $athletes[$key] = Athlete::query()->updateOrCreate(['id' => $user->id], [
                 'joined_at' => $joinedAt,
                 'group_id' => $class->group_id,
                 'training_group_id' => $category->id,
-                'parent_id' => $parent?->parent_id,
                 'branch_id' => $branch->branch_id,
+                'guardian_name' => $guardian[0] ?? null,
+                'guardian_phone' => $guardian[1] ?? null,
+                'guardian_relation' => $guardian[2] ?? null,
                 'height_cm' => $height,
                 'weight_kg' => $weight,
                 'school_origin' => 'Sekolah Demo RFIS',
@@ -354,17 +347,11 @@ class FreshApplicationSeeder extends Seeder
         $nextReference = function () use (&$reference): int {
             return $reference++;
         };
-        $parentByAthlete = [
-            'adit' => $users['parent']->id,
-            'nadia' => $users['parent']->id,
-            'multiChild' => $users['multi']->id,
-        ];
-
         foreach ($athletes as $key => $athlete) {
             $completed = Payment::query()->create([
                 'athlete_id' => $athlete->athlete_id,
                 'billable_user_id' => $athlete->id,
-                'payer_user_id' => $parentByAthlete[$key] ?? $athlete->id,
+                'payer_user_id' => $athlete->id,
                 'bill_kind' => 'INVOICE',
                 'payment_type' => 'TUITION',
                 'amount' => 300000,
@@ -390,7 +377,7 @@ class FreshApplicationSeeder extends Seeder
             Payment::query()->create([
                 'athlete_id' => $athlete->athlete_id,
                 'billable_user_id' => $athlete->id,
-                'payer_user_id' => $parentByAthlete[$key] ?? $athlete->id,
+                'payer_user_id' => $athlete->id,
                 'bill_kind' => 'INVOICE',
                 'payment_type' => 'TUITION',
                 'amount' => 300000,
@@ -515,7 +502,7 @@ class FreshApplicationSeeder extends Seeder
         foreach ([
             ['Selamat datang di RFIS', 'Gunakan menu sesuai tugas Anda. Data demo tersedia untuk setiap peran.', 'ALL'],
             ['Briefing pelatih', 'Periksa sesi dan kehadiran yang ditugaskan.', 'COACH'],
-            ['Pengingat pembayaran', 'Periksa tagihan anak melalui menu Keuangan.', 'PARENT'],
+            ['Pengingat pembayaran', 'Periksa tagihan melalui menu Keuangan.', 'ATHLETE'],
             ['Persiapan kejuaraan', 'Pastikan profil dan dokumen kompetisi sudah diperbarui.', 'ATHLETE'],
             ['Pemeriksaan operasional', 'Tinjau pembayaran, absensi, dan agenda mendatang.', 'ADMIN'],
         ] as [$title, $message, $target]) {

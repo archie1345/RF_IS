@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -29,25 +30,39 @@ class UpdateAthleteProfile
                 'height_cm' => $data['height_cm'] ?? 0,
                 'weight_kg' => $data['weight_kg'] ?? 0,
                 'geup' => $data['geup'],
-                'alamat' => $data['alamat'] ?? null,
-                'school_origin' => $data['school_origin'] ?? null,
+                'school_origin' => $data['school_origin'] ?? $athlete?->school_origin,
                 'branch_id' => $branchId,
                 'group_id' => $groupId,
             ];
 
+            foreach (['guardian_name', 'guardian_phone', 'guardian_relation'] as $guardianKey) {
+                if (array_key_exists($guardianKey, $data)) {
+                    $payload[$guardianKey] = $this->nullableString($data[$guardianKey] ?? null);
+                }
+            }
+
+            Athlete::query()->updateOrCreate(['id' => $user->id], $payload);
+
+            $profilePayload = [];
+            if (array_key_exists('alamat', $data)) {
+                $profilePayload['address'] = $this->nullableString($data['alamat'] ?? null);
+            }
+
             if (array_key_exists('nik', $data)) {
                 $nik = $this->nullableString($data['nik'] ?? null);
-                $payload['nik_hash'] = $nik ? hash('sha256', preg_replace('/\s+/', '', $nik)) : null;
-                $payload['nik_ciphertext'] = $nik;
+                $profilePayload['nik_hash'] = $nik ? hash('sha256', preg_replace('/\s+/', '', $nik)) : null;
+                $profilePayload['nik_ciphertext'] = $nik;
             }
 
             if (array_key_exists('bpjs', $data)) {
                 $bpjs = $this->nullableString($data['bpjs'] ?? null);
-                $payload['bpjs_hash'] = $bpjs ? hash('sha256', preg_replace('/\s+/', '', $bpjs)) : null;
-                $payload['bpjs_ciphertext'] = $bpjs;
+                $profilePayload['bpjs_hash'] = $bpjs ? hash('sha256', preg_replace('/\s+/', '', $bpjs)) : null;
+                $profilePayload['bpjs_ciphertext'] = $bpjs;
             }
 
-            Athlete::query()->updateOrCreate(['id' => $user->id], $payload);
+            if ($profilePayload !== []) {
+                UserProfile::query()->updateOrCreate(['user_id' => $user->id], $profilePayload);
+            }
         });
     }
 

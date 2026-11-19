@@ -10,6 +10,9 @@ export type AthleteProfile = {
     bday?: string;
     gender?: string;
     alamat?: string;
+    guardian_name?: string | null;
+    guardian_phone?: string | null;
+    guardian_relation?: string | null;
     branch_id?: string | null;
     group_id?: string | null;
     branch?: { branch_name: string };
@@ -32,21 +35,9 @@ export type CoachProfile = {
     bpjsHash?: string | null;
 };
 
-export type ParentProfile = {
-    phone?: string;
-    relation?: string;
-    occupation?: string;
-    notes?: string;
-    athletes?: Array<{
-        id: number | string;
-        name: string;
-        branch?: { branch_name: string };
-        group?: { group_name: string };
-    }>;
-};
-
 export type ProfileCertification = {
     id: string;
+    route_id: string;
     cert_type: string;
     title: string;
     issuer?: string;
@@ -59,6 +50,7 @@ export type ProfileCertification = {
 
 export type ProfileAchievement = {
     id: string;
+    route_id: string;
     championship_name: string;
     medal: string;
     location?: string;
@@ -84,7 +76,6 @@ export type ProfileUser = {
     profilePictureUrl?: string | null;
     athleteProfile?: AthleteProfile | null;
     coachProfile?: CoachProfile | null;
-    parentProfile?: ParentProfile | null;
     achievements: ProfileAchievement[];
     certifications: ProfileCertification[];
 };

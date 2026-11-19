@@ -1,5 +1,7 @@
 # RF IS System Health and Performance Check
 
+> Historical review from an earlier branch. This is not a current runbook: the role model, Compose files, database state, and test setup have changed since it was written. In particular, do not copy its migration, Compose build/restart, or deployment commands without checking current configuration and data safety first. Use `README.Docker.md` for the current development test workflow.
+
 This document records the system-wide review performed before the next landing-page redesign. It covers the public entry flow, authentication, Laravel request handling, database access, frontend delivery, production containers, and automated validation.
 
 ## Changes applied during the review

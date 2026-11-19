@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { CalendarRange, ClipboardCheck, CreditCard, Dumbbell, Trophy, UserCog, UsersRound } from '@lucide/vue';
+import { CalendarRange, ClipboardCheck, CreditCard, Dumbbell, Trophy, UserCog } from '@lucide/vue';
 import { computed } from 'vue';
 import PageSection from '@/components/shared/PageSection.vue';
+// This imported component is consumed in the SFC template, which the TS unused check does not resolve.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import StatCard from '@/components/shared/StatCard.vue';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/composables/useI18n';
 import { classes as adminClasses, index as adminIndex } from '@/routes/admin';
 import { index as attendanceIndex } from '@/routes/attendance';
 import { index as championshipsIndex } from '@/routes/championships';
-import { index as parentChildrenIndex } from '@/routes/parent/children';
-import { index as paymentsIndex } from '@/routes/payments';
 import { index as sessionsIndex } from '@/routes/sessions';
 import { index as trainingScheduleIndex } from '@/routes/training-schedule';
 import type { Auth } from '@/types/auth';
@@ -34,7 +34,6 @@ const isMultiRole = computed(() => dashboardRoles.value.length > 1);
 const roleLabels: Record<AppRole, string> = {
     admin: 'Admin',
     coach: 'Pelatih',
-    parent: 'Orang tua',
     athlete: 'Atlet',
 };
 
@@ -44,7 +43,6 @@ const heading = computed(() => {
     const keys: Record<AppRole, string> = {
         admin: 'Selamat datang, :name',
         coach: 'Siap untuk latihan hari ini, :name?',
-        parent: 'Ringkasan keluarga Anda',
         athlete: 'Tetap konsisten, :name',
     };
 
@@ -61,7 +59,6 @@ const description = computed(() => {
     const keys: Record<AppRole, string> = {
         admin: 'Kondisi operasional klub, tindak lanjut, dan aktivitas terbaru dalam satu ringkasan.',
         coach: 'Sesi, absensi, agenda kejuaraan, dan honor yang terhubung ke akun Anda.',
-        parent: 'Jadwal, kehadiran, tagihan, dan agenda semua anak yang terhubung.',
         athlete: 'Latihan berikutnya, kehadiran, pembayaran, dan agenda kejuaraan Anda.',
     };
 
@@ -87,12 +84,6 @@ const quickActions = computed(() => {
         actions.push(
             { label: 'Sesi latihan', href: sessionsIndex.url(), icon: Dumbbell },
             { label: 'Absensi', href: attendanceIndex.url(), icon: ClipboardCheck },
-        );
-    }
-    if (roles.includes('parent')) {
-        actions.push(
-            { label: 'Profil anak', href: parentChildrenIndex.url(), icon: UsersRound },
-            { label: 'Pembayaran', href: paymentsIndex.url(), icon: CreditCard },
         );
     }
     if (roles.includes('athlete')) {

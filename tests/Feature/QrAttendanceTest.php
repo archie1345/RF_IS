@@ -5,7 +5,6 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Coach;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Support\Domain\AttendanceStatus;
@@ -50,12 +49,9 @@ function makeQrAthlete(Branch $branch, Group $group, array $overrides = []): arr
     $athlete = Athlete::create([
         'id' => $user->id,
         'group_id' => $overrides['group_id'] ?? $group->group_id,
-        'parent_id' => $overrides['parent_id'] ?? null,
         'branch_id' => $overrides['branch_id'] ?? $branch->branch_id,
         'height_cm' => 150,
         'weight_kg' => 45,
-        'nik_hash' => hash('sha256', $user->email.'-nik'),
-        'bpjs_hash' => hash('sha256', $user->email.'-bpjs'),
         'geup' => 'GEUP_1',
     ]);
 
@@ -127,7 +123,7 @@ it('regenerates and revokes QR tokens', function () {
         ->assertNotFound();
 });
 
-it('requires authentication and allows parents to record linked child QR attendance', function () {
+it('requires authentication and allows eligible athletes to record QR attendance', function () {
     [$session, $branch, $group] = makeQrSession();
     $admin = makeQrUser('admin');
     $token = generateQrForSession($this, $admin, $session);
@@ -135,16 +131,14 @@ it('requires authentication and allows parents to record linked child QR attenda
 
     $this->post(route('attendance.scan.store', $token))->assertRedirect('/login');
 
-    $parentUser = makeQrUser('parent');
-    $parentProfile = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'guardian']);
-    [, $linkedAthlete] = makeQrAthlete($branch, $group, ['parent_id' => $parentProfile->parent_id]);
+    [$athleteUser, $athlete] = makeQrAthlete($branch, $group);
 
-    $this->actingAs($parentUser)
-        ->post(route('attendance.scan.store', $token), ['athlete_id' => $linkedAthlete->athlete_id])
+    $this->actingAs($athleteUser)
+        ->post(route('attendance.scan.store', $token))
         ->assertRedirect();
 
     $this->assertDatabaseHas('athlete_attendance', [
-        'athlete_id' => $linkedAthlete->athlete_id,
+        'athlete_id' => $athlete->athlete_id,
         'training_session_id' => $session->training_session_id,
         'status' => AttendanceStatus::PRESENT,
     ]);
@@ -164,6 +158,34 @@ it('shows a valid scan confirmation page for an eligible athlete', function () {
             ->where('session.id', $session->training_session_id)
             ->where('athlete.athlete_id', $athlete->athlete_id)
             ->where('canSubmit', true));
+});
+
+it('allows an eligible athlete to view and submit QR attendance from a desktop browser', function () {
+    [$session, $branch, $group] = makeQrSession();
+    $admin = makeQrUser('admin');
+    [$athleteUser, $athlete] = makeQrAthlete($branch, $group);
+    $token = generateQrForSession($this, $admin, $session);
+    $desktopAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36';
+
+    $this->actingAs($athleteUser)
+        ->withHeader('User-Agent', $desktopAgent)
+        ->get(route('attendance.scan.show', $token))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('AttendanceScanPage')
+            ->where('canSubmit', true));
+
+    $this->actingAs($athleteUser)
+        ->withHeader('User-Agent', $desktopAgent)
+        ->post(route('attendance.scan.store', $token))
+        ->assertRedirect()
+        ->assertSessionHas('attendanceScan.status', 'recorded');
+
+    $this->assertDatabaseHas('athlete_attendance', [
+        'athlete_id' => $athlete->athlete_id,
+        'training_session_id' => $session->training_session_id,
+        'status' => AttendanceStatus::PRESENT,
+    ]);
 });
 
 it('updates an existing default absent row during QR check in without inserting a duplicate', function () {
@@ -305,18 +327,15 @@ it('does not overwrite an explicit staff correction through a QR scan', function
     ]);
 });
 
-it('lets parents view the resulting attendance through active-child filtering', function () {
+it('lets athletes view their resulting attendance on the attendance page', function () {
     [$session, $branch, $group] = makeQrSession();
     $admin = makeQrUser('admin');
-    $parentUser = makeQrUser('parent');
-    $parentProfile = ParentProfile::create(['id' => $parentUser->id, 'relation' => 'guardian']);
-    [$athleteUser, $athlete] = makeQrAthlete($branch, $group, ['parent_id' => $parentProfile->parent_id]);
+    [$athleteUser, $athlete] = makeQrAthlete($branch, $group);
     $token = generateQrForSession($this, $admin, $session);
 
     $this->actingAs($athleteUser)->post(route('attendance.scan.store', $token))->assertRedirect();
 
-    $this->actingAs($parentUser)
-        ->withSession(['active_child_id' => $athlete->athlete_id])
+    $this->actingAs($athleteUser)
         ->get(route('attendance.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page

@@ -82,7 +82,7 @@ const activeStatusOptions = computed<ExportOption[]>(() => {
 
         return activeDatasets.value[0].statusOptions ?? [];
     }
-    
+
     return [];
 });
 
@@ -93,24 +93,24 @@ const activeRoleOptions = computed<ExportOption[]>(() => {
     return [];
 });
 
-const supportsDateRange = computed(() => activeDatasets.value.some(d => d.supportsDateRange));
-const supportsDeleted = computed(() => activeDatasets.value.some(d => d.supportsDeleted));
-const supportsBranch = computed(() => activeDatasets.value.some(d => d.supportsBranch));
-const supportsGroup = computed(() => activeDatasets.value.some(d => d.supportsGroup));
+const supportsDateRange = computed(() => activeDatasets.value.some((d) => d.supportsDateRange));
+const supportsDeleted = computed(() => activeDatasets.value.some((d) => d.supportsDeleted));
+const supportsBranch = computed(() => activeDatasets.value.some((d) => d.supportsBranch));
+const supportsGroup = computed(() => activeDatasets.value.some((d) => d.supportsGroup));
 
 const totalSelectedFields = computed(() => Object.values(selectedFields).flat().length);
 const totalAvailableFields = computed(() => activeDatasets.value.reduce((acc, curr) => acc + curr.fields.length, 0));
 
 function resetDatasetSelection(): void {
-    const activeKeys = new Set(activeDatasets.value.map(d => d.key));
-    
+    const activeKeys = new Set(activeDatasets.value.map((d) => d.key));
+
     for (const key of Object.keys(selectedFields)) {
         if (!activeKeys.has(key)) {
             delete selectedFields[key];
         }
     }
-    
-    activeDatasets.value.forEach(dataset => {
+
+    activeDatasets.value.forEach((dataset) => {
         if (!selectedFields[dataset.key]) {
             selectedFields[dataset.key] = dataset.fields.map((field) => field.key);
         }
@@ -123,7 +123,7 @@ function resetDatasetSelection(): void {
     if (activeRoleOptions.value.length === 0) {
         role.value = [];
     }
-    
+
     if (!supportsBranch.value) branch.value = [];
     if (!supportsGroup.value) group.value = [];
     if (!supportsDateRange.value) {
@@ -133,7 +133,7 @@ function resetDatasetSelection(): void {
     if (!supportsDeleted.value) {
         includeDeleted.value = false;
     }
-    
+
     validationMessage.value = '';
 }
 
@@ -151,14 +151,14 @@ function toggleField(datasetKey: string, field: string): void {
 }
 
 function selectAllFields(): void {
-    activeDatasets.value.forEach(dataset => {
+    activeDatasets.value.forEach((dataset) => {
         selectedFields[dataset.key] = dataset.fields.map((field) => field.key);
     });
     validationMessage.value = '';
 }
 
 function clearFields(): void {
-    activeDatasets.value.forEach(dataset => {
+    activeDatasets.value.forEach((dataset) => {
         selectedFields[dataset.key] = [];
     });
 }
@@ -170,16 +170,16 @@ function downloadExport(): void {
     }
 
     const params = new URLSearchParams();
-    datasetKeys.value.forEach(key => params.append('datasets[]', key));
-    
+    datasetKeys.value.forEach((key) => params.append('datasets[]', key));
+
     Object.entries(selectedFields).forEach(([key, fields]) => {
-        fields.forEach(field => params.append(`fields[${key}][]`, field));
+        fields.forEach((field) => params.append(`fields[${key}][]`, field));
     });
 
-    status.value.forEach(val => params.append('status[]', val));
-    role.value.forEach(val => params.append('role[]', val));
-    branch.value.forEach(val => params.append('branch[]', val));
-    group.value.forEach(val => params.append('group[]', val));
+    status.value.forEach((val) => params.append('status[]', val));
+    role.value.forEach((val) => params.append('role[]', val));
+    branch.value.forEach((val) => params.append('branch[]', val));
+    group.value.forEach((val) => params.append('group[]', val));
 
     if (dateFrom.value) params.set('date_from', dateFrom.value);
     if (dateTo.value) params.set('date_to', dateTo.value);
@@ -228,7 +228,11 @@ watch(datasetKeys, resetDatasetSelection, { immediate: true });
                     />
 
                     <div v-if="activeDatasets.length > 0" class="flex flex-col gap-2">
-                        <p v-for="dataset in activeDatasets" :key="dataset.key" class="rounded-lg bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+                        <p
+                            v-for="dataset in activeDatasets"
+                            :key="dataset.key"
+                            class="rounded-lg bg-muted/40 p-3 text-sm leading-6 text-muted-foreground"
+                        >
                             <span class="font-semibold">{{ dataset.label }}:</span> {{ dataset.description }}
                         </p>
                     </div>
@@ -303,12 +307,16 @@ watch(datasetKeys, resetDatasetSelection, { immediate: true });
                         <input v-model="singleSheet" type="checkbox" class="mt-0.5 size-4 rounded border-input" />
                         <span>
                             <span class="block font-semibold">Combine into single sheet</span>
-                            <span class="mt-1 block leading-5 text-muted-foreground">Places all selected columns from multiple sources into a single sheet instead of multiple tabs.</span>
+                            <span class="mt-1 block leading-5 text-muted-foreground"
+                                >Places all selected columns from multiple sources into a single sheet instead of
+                                multiple tabs.</span
+                            >
                         </span>
                     </label>
                     <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                         <p class="text-xs leading-5 text-muted-foreground">
-                            The export is generated from a server-side query and downloaded as .xlsx. Each selected dataset will be placed in its own sheet. Large exports are processed in chunks.
+                            The export is generated from a server-side query and downloaded as .xlsx. Each selected
+                            dataset will be placed in its own sheet. Large exports are processed in chunks.
                         </p>
                         <Button
                             type="button"
@@ -344,7 +352,9 @@ watch(datasetKeys, resetDatasetSelection, { immediate: true });
                     </div>
 
                     <div v-for="dataset in activeDatasets" :key="dataset.key" class="mt-6">
-                        <h3 class="mb-3 font-medium text-sm text-muted-foreground uppercase tracking-wider">{{ dataset.label }} Columns</h3>
+                        <h3 class="mb-3 text-sm font-medium tracking-wider text-muted-foreground uppercase">
+                            {{ dataset.label }} Columns
+                        </h3>
                         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             <button
                                 v-for="field in dataset.fields"
@@ -374,8 +384,6 @@ watch(datasetKeys, resetDatasetSelection, { immediate: true });
                     >
                         {{ validationMessage }}
                     </p>
-
-                    
                 </section>
             </div>
         </div>

@@ -2,16 +2,25 @@
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
     "type": "module",
+    "packageManager": "npm@12.2.1",
+    "engines": {
+        "node": "24.22.1",
+        "npm": "12.2.1"
+    },
     "scripts": {
         "build": "vite build",
         "build:ssr": "vite build && vite build --ssr",
         "dev": "vite",
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",
-        "lint": "eslint . --fix",
-        "lint:check": "eslint .",
+        "lint": "eslint resources/js --fix",
+        "lint:check": "eslint resources/js",
         "typecheck": "vue-tsc --noEmit",
-        "quality": "npm run format:check && npm run lint:check && npm run typecheck && npm run build"
+        "typecheck:e2e": "tsc --noEmit --strict --skipLibCheck --target ES2022 --module commonjs --moduleResolution node --types node e2e/playwright.config.ts e2e/tests/fixtures.ts e2e/tests/role-coverage.ts e2e/tests/role-workflows.test.ts e2e/tests/mobile-workflows.test.ts e2e/tests/smoke.test.ts",
+        "test:e2e": "npm --prefix e2e run test:isolated",
+        "install:locked": "node scripts/verify-npm-lock-sources.mjs package-lock.json && npm ci --allow-remote=all",
+        "test:e2e:roles": "npm --prefix e2e run test:roles",
+        "quality": "npm run format:check && npm run lint:check && npm run typecheck && npm run typecheck:e2e && npm run build"
     },
     "devDependencies": {
         "@eslint/js": "^9.19.0",
@@ -41,6 +50,7 @@
         "@vueuse/core": "^12.8.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "gsap": "^3.15.0",
         "html5-qrcode": "^2.3.8",
         "laravel-vite-plugin": "^2.0.0",
         "leaflet": "^1.9.4",
@@ -57,8 +67,12 @@
         "@rollup/rollup-linux-x64-gnu": "4.9.5",
         "@rollup/rollup-win32-x64-msvc": "4.9.5",
         "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
-        "@tailwindcss/oxide-win32-x64-gnu": "^4.0.1",
         "lightningcss-linux-x64-gnu": "^1.29.1",
         "lightningcss-win32-x64-msvc": "^1.29.1"
+    },
+    "allowScripts": {
+        "esbuild@0.28.1": true,
+        "unrs-resolver@1.12.2": true,
+        "vue-demi@0.14.10": true
     }
 }

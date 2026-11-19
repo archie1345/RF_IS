@@ -14,21 +14,19 @@ Read in this order: `routes/web.php`; the controller for one route; its FormRequ
 
 ## Attendance
 
-`AttendancePage.vue` is the general attendance and linked-child experience. `SessionAttendancePage.vue` is the roster and coach-attendance sheet for one training session. `AttendanceScanPage.vue` handles the QR confirmation flow; the token service, QR actions, visibility service, policy, and linked-child context enforce eligibility server-side. The `ATT-` and `SCA-` prefixes are display-row identifiers, not route keys.
+`AttendancePage.vue` is the general attendance experience. `SessionAttendancePage.vue` is the roster and coach-attendance sheet for one training session. `AttendanceScanPage.vue` handles the QR confirmation flow; the token service, QR actions, visibility service, policy, and eligibility service enforce eligibility server-side. The `ATT-` and `SCA-` prefixes are display-row identifiers, not route keys.
 
 Trace a manual update from the named `attendance.*` route to `AttendanceController`, an attendance FormRequest, the corresponding Action, the models, and `AttendanceRowPresenter`. Trace QR from the throttled scan route through `AttendanceScanController`, `AttendanceQrTokenService`, and `RecordQrAttendance`.
 
 ## Payments
 
-`PaymentController` serves `PaymentsPage.vue` and delegates mutations to payment actions. `PaymentVisibilityService` scopes records by role/context, `PaymentPolicy` authorizes record operations, and `PaymentRowPresenter` creates the table shape. Proof submission/review and transaction history have dedicated requests/actions/components. Parents and athletes must remain restricted to tuition-related payments; never reproduce or loosen that rule only in Vue.
+`PaymentController` serves `PaymentsPage.vue` and delegates mutations to payment actions. `PaymentVisibilityService` scopes records by role, `PaymentPolicy` authorizes record operations, and `PaymentRowPresenter` creates the table shape. Proof submission/review and transaction history have dedicated requests/actions/components. Athlete payment visibility is enforced server-side; never reproduce or loosen that rule only in Vue.
 
 Monthly tuition generation is also a console/scheduled flow. Read `GenerateMonthlyTuitionBills` and the schedule in `routes/console.php` before altering billing behavior.
 
-## Parents and linked children
+## Athlete guardian contacts
 
-An administrator links parent and athlete records. `ParentChildContextService` computes eligible children and the active child; `ParentChildContextController` switches/clears that context. `useActiveChild.ts` consumes the shared browser context. Profile, payment, attendance, and QR access must query the same linked-child boundary rather than trusting an athlete ID from a form.
-
-The best characterization tests are `ParentChildContextTest`, `ParentChildProfileAccessTest`, and `QrAttendanceTest`.
+Guardian contact information is stored with the athlete profile. It is contact data, not a separate login identity or portal. Keep profile validation and authorization in the server request/action boundary and avoid introducing a browser-selected athlete scope.
 
 ## Classes, schedules, and sessions
 

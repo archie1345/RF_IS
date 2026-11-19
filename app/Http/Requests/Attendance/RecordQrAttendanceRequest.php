@@ -10,14 +10,11 @@ class RecordQrAttendanceRequest extends FormRequest
     {
         $user = $this->user();
 
-        return (bool) $user
-            && (($user->isAthlete() && $user->athleteProfile !== null) || $user->isParent());
+        return (bool) $user && $user->isAthlete() && $user->athleteProfile !== null;
     }
 
     public function rules(): array
     {
-        return [
-            'athlete_id' => ['nullable', 'string'],
-        ];
+        return [];
     }
 }

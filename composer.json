@@ -10,16 +10,16 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "barryvdh/laravel-dompdf": "*",
+        "barryvdh/laravel-dompdf": "^3.1",
         "inertiajs/inertia-laravel": "^2.0",
-        "intervention/image": "*",
-        "intervention/image-laravel": "*",
+        "intervention/image": "^4.0",
+        "intervention/image-laravel": "^4.0",
         "laravel/fortify": "^1.30",
         "laravel/framework": "^12.0",
-        "laravel/sanctum": "*",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
-        "maatwebsite/excel": "*"
+        "maatwebsite/excel": "^3.1.70"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^3.15",
@@ -50,8 +50,7 @@
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
-            "@php artisan migrate --force",
-            "npm install",
+            "npm run install:locked",
             "npm run build"
         ],
         "dev": [
@@ -70,9 +69,8 @@
             "pint --parallel --test"
         ],
         "test": [
-            "@php artisan config:clear --ansi",
-            "@test:lint",
-            "@php artisan test"
+            "Composer\\Config::disableProcessTimeout",
+            "docker compose -f compose.dev.yaml --profile testing run --rm --no-deps --build --entrypoint /bin/sh test -ec 'mkdir -p /tmp/laravel storage/framework/cache/data storage/framework/sessions storage/framework/views storage/framework/testing storage/logs bootstrap/cache && vendor/bin/pint --parallel --test && sh tests/run-isolated.sh --cache-directory=/tmp/phpunit-cache'"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

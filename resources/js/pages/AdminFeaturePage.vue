@@ -94,8 +94,8 @@ const dayCards = [
 
 const showLocationForm = ref(false);
 const showClassForm = ref(false);
-const editingLocationId = ref<number | null>(null);
-const editingClassId = ref<number | null>(null);
+const editingLocationId = ref<number | string | null>(null);
+const editingClassId = ref<number | string | null>(null);
 
 const billingForm = useForm({
     invoice_day: props.billingSettings?.invoice_day ?? 1,
@@ -265,7 +265,7 @@ function saveLocation() {
             editingLocationId.value = null;
         },
     };
-    if (editingLocationId.value) locationForm.put(branchUpdate.url(editingLocationId.value), options);
+    if (editingLocationId.value) locationForm.put(branchUpdate.url(String(editingLocationId.value)), options);
     else locationForm.post(branchStore.url(), options);
 }
 
@@ -312,7 +312,7 @@ function saveClass() {
             editingClassId.value = null;
         },
     };
-    if (editingClassId.value) classForm.put(groupUpdate.url(editingClassId.value), options);
+    if (editingClassId.value) classForm.put(groupUpdate.url(String(editingClassId.value)), options);
     else classForm.post(groupStore.url(), options);
 }
 
@@ -329,6 +329,10 @@ async function deleteClass(item: ManagedClass): Promise<void> {
 
 function isExternalUrl(value: unknown): value is string {
     return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function isInternalPath(value: unknown): value is string {
+    return typeof value === 'string' && value.startsWith('/');
 }
 
 function linkLabel(value: string) {
@@ -730,6 +734,11 @@ function linkLabel(value: string) {
                                         rel="noreferrer"
                                         class="font-semibold text-primary hover:underline"
                                         >{{ linkLabel(row[column]) }}</a
+                                    ><Link
+                                        v-else-if="isInternalPath(row[column])"
+                                        :href="row[column]"
+                                        class="font-semibold text-primary hover:underline"
+                                        >Profil</Link
                                     ><span v-else>{{ row[column] ?? '-' }}</span>
                                 </td>
                             </tr>

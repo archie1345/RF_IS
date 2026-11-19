@@ -27,6 +27,7 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
     const cropperRef = ref<CropperInstance | null>(null);
     const profilePictureError = ref('');
     const profilePictureReady = ref(false);
+    const cropperReady = ref(false);
     const profilePictureFileInput = ref<HTMLInputElement | null>(null);
 
     function setCroppedFile(file: File | null) {
@@ -48,6 +49,7 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
     function clearSelectedImage() {
         revokeSelectedImageObjectUrl();
         selectedImage.value = null;
+        cropperReady.value = false;
         profilePictureError.value = '';
         markCropDirty();
 
@@ -78,6 +80,7 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
         markCropDirty();
 
         revokeSelectedImageObjectUrl();
+        cropperReady.value = false;
         selectedImageObjectUrl.value = URL.createObjectURL(file);
         selectedImage.value = selectedImageObjectUrl.value;
     }
@@ -86,12 +89,22 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
         if (!profilePictureUrl) return;
 
         revokeSelectedImageObjectUrl();
+        cropperReady.value = false;
         selectedImage.value = profilePictureUrl;
         profilePictureError.value = '';
         markCropDirty();
     }
 
+    function markCropperReady() {
+        cropperReady.value = true;
+    }
+
     async function applyCrop(): Promise<File | null> {
+        if (!cropperReady.value) {
+            profilePictureError.value = 'Wait for the image to finish loading before cropping.';
+            return null;
+        }
+
         const canvas = cropperRef.value?.getResult?.()?.canvas;
 
         if (!canvas) {
@@ -140,16 +153,22 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
     }
 
     function zoomCrop(factor: number) {
+        if (!cropperReady.value) return;
+
         cropperRef.value?.zoom?.(factor);
         markCropDirty();
     }
 
     function rotateCrop() {
+        if (!cropperReady.value) return;
+
         cropperRef.value?.rotate?.(90);
         markCropDirty();
     }
 
     function resetCrop() {
+        if (!cropperReady.value) return;
+
         cropperRef.value?.reset?.();
         markCropDirty();
     }
@@ -163,12 +182,14 @@ export function useProfilePictureCropper(options: UseProfilePictureCropperOption
         cropperRef,
         profilePictureError,
         profilePictureReady,
+        cropperReady,
         profilePictureFileInput,
         profilePictureWidth,
         profilePictureHeight,
         clearSelectedImage,
         onProfilePictureChange,
         editCurrentProfilePicture,
+        markCropperReady,
         applyCrop,
         zoomCrop,
         rotateCrop,

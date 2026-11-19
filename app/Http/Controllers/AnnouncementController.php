@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Announcement;
-use App\Services\ActiveRoleContextService;
 use App\Support\ActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,16 +15,16 @@ class AnnouncementController extends Controller
 {
     use FormatsPresentationData;
 
-    public function __construct(
-        private readonly ActiveRoleContextService $activeRoleContext,
-    ) {}
-
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $activeRole = $this->activeRoleContext->activeRole($request, $user);
-        $isAdmin = $activeRole === 'admin';
-        $roleTargets = collect([strtoupper($activeRole), 'ALL']);
+        $roles = $user?->assignedRoles() ?? [];
+        $isAdmin = $user?->isAdmin() ?? false;
+        $roleTargets = collect($roles)
+            ->map(fn (string $role): string => strtoupper($role))
+            ->push('ALL')
+            ->unique()
+            ->all();
 
         $announcements = Announcement::query()
             ->with('creator:id,name')
@@ -121,7 +120,7 @@ class AnnouncementController extends Controller
         return [
             'title' => ['required', 'string', 'max:120'],
             'message' => ['required', 'string', 'max:5000'],
-            'target_role' => ['required', Rule::in(['ALL', 'ADMIN', 'COACH', 'PARENT', 'ATHLETE'])],
+            'target_role' => ['required', Rule::in(['ALL', 'ADMIN', 'COACH', 'ATHLETE'])],
             'publish_at' => ['nullable', 'date'],
             'expire_at' => $expireRules,
             'is_active' => ['sometimes', 'boolean'],
@@ -145,7 +144,6 @@ class AnnouncementController extends Controller
         return match ($targetRole) {
             'ADMIN' => 'Admin',
             'COACH' => 'Pelatih',
-            'PARENT' => 'Orang tua',
             'ATHLETE' => 'Atlet',
             default => 'Semua pengguna',
         };

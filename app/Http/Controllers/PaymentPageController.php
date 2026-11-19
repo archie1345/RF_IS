@@ -9,9 +9,9 @@ use App\Models\Payment;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use App\Presenters\PaymentRowPresenter;
-use App\Services\ActiveRoleContextService;
 use App\Services\PaymentVisibilityService;
 use App\Support\Domain\PaymentStatus;
+use App\Support\RoleResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -25,13 +25,14 @@ class PaymentPageController extends Controller
     public function __construct(
         private readonly PaymentVisibilityService $paymentVisibility,
         private readonly PaymentRowPresenter $paymentRows,
-        private readonly ActiveRoleContextService $activeRoleContext,
+        private readonly RoleResolver $roleResolver,
     ) {}
 
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        $role = $this->activeRoleContext->activeRole($request, $user);
+        $availableModes = $this->roleResolver->rolesFor($user);
+        $role = $this->roleResolver->viewRoleFor($user, (string) $request->query('mode', ''));
         $isAdmin = $role === 'admin';
         $payments = $this->paymentVisibility
             ->visiblePaymentsQuery($request, $role)
@@ -47,6 +48,8 @@ class PaymentPageController extends Controller
 
         if ($role === 'coach') {
             return Inertia::render('CoachPayrollPage', [
+                'role' => $role,
+                'availableModes' => $availableModes,
                 'canSubmitPaymentProof' => false,
                 'metrics' => $this->coachPayrollMetrics($payments),
                 'rows' => $payments->map(fn (Payment $payment) => $this->paymentRows->row($payment))->values(),
@@ -58,8 +61,10 @@ class PaymentPageController extends Controller
         $financeAttention = $isAdmin ? $this->financeAttention($payments) : null;
 
         return Inertia::render('PaymentsPage', [
+            'role' => $role,
+            'availableModes' => $availableModes,
             'isAdmin' => $isAdmin,
-            'canSubmitPaymentProof' => in_array($role, ['athlete', 'parent'], true),
+            'canSubmitPaymentProof' => $role === 'athlete',
             'metrics' => $isAdmin
                 ? $this->adminFinanceMetrics($payments, $financeAttention)
                 : [

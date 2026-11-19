@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Props } from './Heading.types';
 import { useI18n } from '@/composables/useI18n';
+import type { Props } from './Heading.types';
 
 withDefaults(defineProps<Props>(), {
     variant: 'default',

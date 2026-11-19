@@ -10,14 +10,14 @@ uses(RefreshDatabase::class);
 
 test('shared primary role uses assignments instead of a stale legacy role', function () {
     $user = User::factory()->create(['role' => 'athlete']);
-    UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'parent']);
+    UserRoleAssignment::query()->create(['user_id' => $user->id, 'role' => 'coach']);
 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('auth.user.role', 'parent')
-            ->where('auth.user.roles', ['parent']));
+            ->where('auth.user.role', 'coach')
+            ->where('auth.user.roles', ['coach']));
 });
 
 test('every role can reach its shared self service pages', function (string $role, array $routes) {
@@ -29,7 +29,6 @@ test('every role can reach its shared self service pages', function (string $rol
 })->with([
     'admin' => ['admin', ['dashboard', 'training-schedule.index', 'sessions.index', 'payments.index', 'attendance.index', 'announcements.index']],
     'coach' => ['coach', ['dashboard', 'training-schedule.index', 'sessions.index', 'payments.index', 'attendance.index', 'championships.index', 'achievements.index', 'announcements.index']],
-    'parent' => ['parent', ['dashboard', 'training-schedule.index', 'parent.children.index', 'payments.index', 'attendance.index', 'championships.index', 'achievements.index', 'announcements.index']],
     'athlete' => ['athlete', ['dashboard', 'training-schedule.index', 'payments.index', 'attendance.index', 'championships.index', 'achievements.index', 'announcements.index']],
 ]);
 
@@ -39,7 +38,7 @@ test('the athlete directory and its sensitive record endpoint are admin only', f
 
     $this->actingAs($viewer)->get(route('users.index'))->assertForbidden();
     $this->actingAs($viewer)->get(route('users.athlete-record.show', $subject))->assertForbidden();
-})->with(['coach', 'parent', 'athlete']);
+})->with(['coach', 'athlete']);
 
 test('non admins never receive activity log previews on their dashboard', function (string $role) {
     $admin = User::factory()->create(['role' => 'admin']);
@@ -55,4 +54,4 @@ test('non admins never receive activity log previews on their dashboard', functi
         ->get(route('dashboard'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('activityPreviewRows', []));
-})->with(['coach', 'parent', 'athlete']);
+})->with(['coach', 'athlete']);

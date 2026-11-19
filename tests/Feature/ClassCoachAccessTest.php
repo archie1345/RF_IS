@@ -85,7 +85,7 @@ it('prevents an unrelated coach from reading another class athlete roster', func
     $group->coaches()->attach($assignedCoach->coach_id);
 
     $this->actingAs($unrelatedUser)
-        ->get(route('admin.groups.athletes', $group))
+        ->get(route('api.admin.groups.athletes', $group))
         ->assertForbidden();
 });
 
@@ -94,7 +94,7 @@ it('keeps class update and deletion admin only at the route boundary', function 
         ->toContain('role:admin,coach');
     expect(Route::getRoutes()->getByName('admin.groups.store')?->gatherMiddleware())
         ->toContain('role:admin,coach');
-    expect(Route::getRoutes()->getByName('admin.groups.athletes')?->gatherMiddleware())
+    expect(Route::getRoutes()->getByName('api.admin.groups.athletes')?->gatherMiddleware())
         ->toContain('role:admin,coach');
     expect(Route::getRoutes()->getByName('admin.groups.update')?->gatherMiddleware())
         ->toContain('role:admin');

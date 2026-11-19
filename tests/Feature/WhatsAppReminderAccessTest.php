@@ -2,7 +2,6 @@
 
 use App\Models\Payment;
 use App\Models\User;
-use App\Services\ActiveRoleContextService;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function createWhatsAppReminderPayment(User $recipient): Payment
@@ -21,7 +20,7 @@ function createWhatsAppReminderPayment(User $recipient): Payment
     ]);
 }
 
-test('only an active admin receives WhatsApp reminder links in payment rows', function () {
+test('only an admin in admin view mode receives WhatsApp reminder links in payment rows', function () {
     $user = User::factory()->create([
         'role' => 'admin',
         'phone' => '081234567890',
@@ -33,8 +32,7 @@ test('only an active admin receives WhatsApp reminder links in payment rows', fu
     $payment = createWhatsAppReminderPayment($user);
 
     $this->actingAs($user)
-        ->withSession([ActiveRoleContextService::SESSION_KEY => 'athlete'])
-        ->get(route('payments.index'))
+        ->get(route('payments.index', ['mode' => 'athlete']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('PaymentsPage')
@@ -43,8 +41,7 @@ test('only an active admin receives WhatsApp reminder links in payment rows', fu
             ->where('rows.0.whatsapp_url', null));
 
     $this->actingAs($user)
-        ->withSession([ActiveRoleContextService::SESSION_KEY => 'admin'])
-        ->get(route('payments.index'))
+        ->get(route('payments.index', ['mode' => 'admin']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('PaymentsPage')

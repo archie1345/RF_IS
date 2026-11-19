@@ -6,8 +6,8 @@ use App\Http\Controllers\Concerns\FormatsPresentationData;
 use App\Models\Athlete;
 use App\Models\Branch;
 use App\Models\Group;
-use App\Models\ParentProfile;
 use App\Models\User;
+use App\Models\UserProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,27 +26,22 @@ class UserDirectoryController extends Controller
         abort_unless($user?->isAdmin(), 403);
 
         $athletes = Athlete::query()
-            ->with(['user:id,name,email', 'branch:branch_id,branch_name', 'group:group_id,group_name', 'parent.user:id,name'])
+            ->with(['user:id,name,email', 'branch:branch_id,branch_name', 'group:group_id,group_name'])
             ->latest('athlete_id')
             ->get();
 
         $athleteUsers = User::query()
             ->withRole('athlete')
             ->with([
+                'profile',
                 'athleteProfile.branch:branch_id,branch_name',
                 'athleteProfile.group:group_id,group_name',
-                'athleteProfile.parent.user:id,name',
             ])
             ->get();
 
         $coachUsers = User::query()
             ->withRole('coach')
             ->with('coachProfile')
-            ->get();
-
-        $parentUsers = User::query()
-            ->withRole('parent')
-            ->with('parentProfile.athletes.user:id,name')
             ->get();
 
         return Inertia::render('AthletesPage', [
@@ -58,9 +53,9 @@ class UserDirectoryController extends Controller
                     'tone' => 'success',
                 ],
                 [
-                    'label' => 'Athletes without parent links',
-                    'value' => (string) $athletes->whereNull('parent_id')->count(),
-                    'detail' => 'Optional parent connections not set',
+                    'label' => 'Athletes without guardian contact',
+                    'value' => (string) $athletes->filter(fn (Athlete $a) => blank($a->guardian_name) && blank($a->guardian_phone))->count(),
+                    'detail' => 'Optional guardian contact not set',
                     'tone' => 'info',
                 ],
                 [
@@ -72,6 +67,9 @@ class UserDirectoryController extends Controller
             ],
             'rows' => $athleteUsers->map(function (User $directoryUser) {
                 $athlete = $directoryUser->athleteProfile;
+                $guardianSummary = collect([$athlete?->guardian_name, $athlete?->guardian_phone])
+                    ->filter()
+                    ->implode(' · ');
 
                 return [
                     'id' => $directoryUser->uuid,
@@ -81,7 +79,12 @@ class UserDirectoryController extends Controller
                     'joined_at' => $athlete?->joined_at?->format('d M Y') ?? '-',
                     'athlete' => $directoryUser->name ?? 'Unknown athlete',
                     'account_email' => $directoryUser->email ?? '-',
-                    'parent' => $athlete?->parent?->user?->name ?? 'Not linked',
+                    'guardian' => $guardianSummary !== '' ? $guardianSummary : 'Not set',
+                    'guardian_name' => $athlete?->guardian_name ?? '',
+                    'guardian_phone' => $athlete?->guardian_phone ?? '',
+                    'guardian_relation' => $athlete?->guardian_relation ?? '',
+                    'branch_id' => $athlete?->branch_id !== null ? (string) $athlete->branch_id : '',
+                    'group_id' => $athlete?->group_id !== null ? (string) $athlete->group_id : '',
                     'branch' => $athlete?->branch?->branch_name ?? 'Unassigned',
                     'group' => $athlete?->group?->group_name ?? 'Unassigned',
                     'height_cm' => $athlete?->height_cm !== null
@@ -90,8 +93,8 @@ class UserDirectoryController extends Controller
                     'weight_kg' => $athlete?->weight_kg !== null
                         ? number_format((float) $athlete->weight_kg, 1).' kg'
                         : '-',
-                    'nik' => $athlete?->user?->displayNik() ?? 'Not stored',
-                    'bpjs' => $athlete?->user?->displayBpjs() ?? 'Not stored',
+                    'nik' => $directoryUser->displayNik() ?: 'Not stored',
+                    'bpjs' => $directoryUser->displayBpjs() ?: 'Not stored',
                     'geup' => str_replace('_', ' ', $athlete?->geup ?? 'GEUP_10'),
                     'status' => $athlete
                         ? $this->badge('Active', 'success')
@@ -114,30 +117,6 @@ class UserDirectoryController extends Controller
                     ];
                 })
                 ->values(),
-            'parentRows' => $parentUsers
-                ->map(function (User $directoryUser) {
-                    $parent = $directoryUser->parentProfile;
-
-                    return [
-                        'id' => $directoryUser->uuid,
-                        'user_id' => $directoryUser->uuid,
-                        'parent_id' => $parent?->parent_id,
-                        'name' => $directoryUser->name ?? 'Unknown parent',
-                        'email' => $directoryUser->email ?? '-',
-                        'role' => 'Parent',
-                        'relation' => $parent?->relation ?? 'Guardian',
-                        'occupation' => $parent?->occupation ?? '-',
-                        'children' => $parent?->athletes
-                            ?->map(fn (Athlete $athlete) => $athlete->user?->name ?? 'Unknown athlete')
-                            ->filter()
-                            ->implode(', ') ?: '-',
-                        'child_ids' => $parent?->athletes
-                            ?->pluck('athlete_id')
-                            ->map(fn ($id) => (string) $id)
-                            ->implode(',') ?? '',
-                    ];
-                })
-                ->values(),
             'branches' => Branch::query()
                 ->orderBy('branch_name')
                 ->get(['branch_id as value', 'branch_name as label']),
@@ -150,73 +129,14 @@ class UserDirectoryController extends Controller
                     'label' => trim(($athlete->member_number ? $athlete->member_number.' · ' : '').($athlete->user?->name ?? 'Unknown athlete')),
                 ])
                 ->values(),
-            'parents' => ParentProfile::query()
-                ->with('user:id,name')
-                ->orderBy('parent_id')
-                ->get()
-                ->map(fn (ParentProfile $parent) => [
-                    'value' => $parent->parent_id,
-                    'label' => $parent->user?->name ?? 'Unknown parent',
-                ])
-                ->values(),
             'canViewSensitiveIdentifiers' => true,
         ]);
     }
 
-    public function linkParent(Request $request, Athlete $athlete): RedirectResponse
-    {
-        abort_unless($request->user()?->isAdmin(), 403);
-        $validated = $request->validate([
-            'parent_id' => ['nullable', 'exists:parents,parent_id'],
-        ]);
-        $athlete->update(['parent_id' => $validated['parent_id'] ?? null]);
-
-        return redirect()->route('users.index');
-    }
-
-    public function syncParentChildren(Request $request, ParentProfile $parent): RedirectResponse
-    {
-        abort_unless($request->user()?->isAdmin(), 403);
-        $validated = $request->validate([
-            'athlete_ids' => ['nullable', 'array'],
-            'athlete_ids.*' => ['string', 'distinct', 'exists:athletes,athlete_id'],
-        ]);
-        $athleteIds = collect($validated['athlete_ids'] ?? [])->filter()->unique()->values();
-
-        DB::transaction(function () use ($parent, $athleteIds): void {
-            Athlete::query()
-                ->where(function ($query) use ($parent, $athleteIds): void {
-                    $query->where('parent_id', $parent->parent_id);
-
-                    if ($athleteIds->isNotEmpty()) {
-                        $query->orWhereIn('athlete_id', $athleteIds->all());
-                    }
-                })
-                ->lockForUpdate()
-                ->get(['athlete_id']);
-
-            $currentChildren = Athlete::query()->where('parent_id', $parent->parent_id);
-
-            if ($athleteIds->isNotEmpty()) {
-                $currentChildren->whereNotIn('athlete_id', $athleteIds->all());
-            }
-
-            $currentChildren->update(['parent_id' => null]);
-
-            if ($athleteIds->isNotEmpty()) {
-                Athlete::query()
-                    ->whereIn('athlete_id', $athleteIds->all())
-                    ->update(['parent_id' => $parent->parent_id]);
-            }
-        });
-
-        return redirect()->route('users.index');
-    }
-
-
     public function showByUser(Request $request, User $user): JsonResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
+        $user->loadMissing('profile');
         $athlete = Athlete::query()->where('id', $user->id)->first();
 
         if (! $athlete) {
@@ -232,13 +152,15 @@ class UserDirectoryController extends Controller
                 'phone' => $user->phone ?? '',
                 'height_cm' => '',
                 'weight_kg' => '',
-                'alamat' => '',
+                'alamat' => $user->profile?->address ?? '',
                 'branch_id' => '',
                 'group_id' => '',
                 'geup' => 'GEUP_10',
-                'parent_id' => '',
-                'nik' => '',
-                'bpjs' => '',
+                'guardian_name' => '',
+                'guardian_phone' => '',
+                'guardian_relation' => '',
+                'nik' => $user->displayNik(),
+                'bpjs' => $user->displayBpjs(),
             ]);
         }
 
@@ -265,6 +187,24 @@ class UserDirectoryController extends Controller
                 ['id' => $user->id],
                 $this->athleteRecordPayload($validated),
             );
+
+            $profilePayload = [
+                'address' => $validated['alamat'] ?? null,
+            ];
+
+            if (! empty($validated['nik'])) {
+                $nik = preg_replace('/\s+/', '', $validated['nik']);
+                $profilePayload['nik_hash'] = hash('sha256', $nik);
+                $profilePayload['nik_ciphertext'] = $nik;
+            }
+
+            if (! empty($validated['bpjs'])) {
+                $bpjs = preg_replace('/\s+/', '', $validated['bpjs']);
+                $profilePayload['bpjs_hash'] = hash('sha256', $bpjs);
+                $profilePayload['bpjs_ciphertext'] = $bpjs;
+            }
+
+            UserProfile::query()->updateOrCreate(['user_id' => $user->id], $profilePayload);
         });
 
         return redirect()->route('users.index');
@@ -284,7 +224,9 @@ class UserDirectoryController extends Controller
             'geup' => ['required', Rule::in(['GEUP_1', 'GEUP_2', 'GEUP_3', 'GEUP_4', 'GEUP_5', 'GEUP_6', 'GEUP_7', 'GEUP_8', 'GEUP_9', 'GEUP_10', 'DAN'])],
             'branch_id' => ['required', 'exists:branches,branch_id'],
             'group_id' => ['required', 'exists:class_groups,group_id'],
-            'parent_id' => ['nullable', 'exists:parents,parent_id'],
+            'guardian_name' => ['nullable', 'string', 'max:120'],
+            'guardian_phone' => ['nullable', 'string', 'max:30'],
+            'guardian_relation' => ['nullable', 'string', 'max:50'],
             'nik' => ['nullable', 'regex:/^\d{16}$/'],
             'bpjs' => ['nullable', 'regex:/^\d{13}$/'],
         ]);
@@ -292,29 +234,16 @@ class UserDirectoryController extends Controller
 
     private function athleteRecordPayload(array $validated): array
     {
-        $payload = [
+        return [
             'group_id' => $validated['group_id'],
             'branch_id' => $validated['branch_id'],
-            'parent_id' => $validated['parent_id'] ?? null,
             'height_cm' => $validated['height_cm'],
             'weight_kg' => $validated['weight_kg'],
-            'alamat' => $validated['alamat'] ?? null,
             'geup' => $validated['geup'],
+            'guardian_name' => $validated['guardian_name'] ?? null,
+            'guardian_phone' => $validated['guardian_phone'] ?? null,
+            'guardian_relation' => $validated['guardian_relation'] ?? null,
         ];
-
-        if (! empty($validated['nik'])) {
-            $nik = preg_replace('/\s+/', '', $validated['nik']);
-            $payload['nik_hash'] = hash('sha256', $nik);
-            $payload['nik_ciphertext'] = $nik;
-        }
-
-        if (! empty($validated['bpjs'])) {
-            $bpjs = preg_replace('/\s+/', '', $validated['bpjs']);
-            $payload['bpjs_hash'] = hash('sha256', $bpjs);
-            $payload['bpjs_ciphertext'] = $bpjs;
-        }
-
-        return $payload;
     }
 
     private function athleteFormPayload(Athlete $athlete): array
@@ -331,11 +260,13 @@ class UserDirectoryController extends Controller
             'phone' => $athlete->user?->phone ?? '',
             'height_cm' => (string) ($athlete->height_cm ?? ''),
             'weight_kg' => (string) ($athlete->weight_kg ?? ''),
-            'alamat' => $athlete->alamat ?? '',
+            'alamat' => $athlete->user?->profile?->address ?? $athlete->alamat ?? '',
             'branch_id' => (string) ($athlete->branch_id ?? ''),
             'group_id' => (string) ($athlete->group_id ?? ''),
             'geup' => $athlete->geup ?? 'GEUP_10',
-            'parent_id' => (string) ($athlete->parent_id ?? ''),
+            'guardian_name' => (string) ($athlete->guardian_name ?? ''),
+            'guardian_phone' => (string) ($athlete->guardian_phone ?? ''),
+            'guardian_relation' => (string) ($athlete->guardian_relation ?? ''),
             'nik' => $athlete->user?->displayNik() ?? '',
             'bpjs' => $athlete->user?->displayBpjs() ?? '',
         ];

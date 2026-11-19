@@ -3,13 +3,21 @@
 namespace App\Support;
 
 use App\Models\User;
-use App\Services\ActiveRoleContextService;
 use Illuminate\Support\Collection;
 
+/**
+ * Single source of truth for role membership.
+ *
+ * An account may hold several roles. Authorization is evaluated against the
+ * UNION of those roles: there is no per-session "active role", so a request
+ * can never change what a user is allowed to do.
+ */
 class RoleResolver
 {
-    public const ROLES = ['admin', 'coach', 'parent', 'athlete'];
+    /** Ordered from highest to lowest privilege. */
+    public const ROLES = ['admin', 'coach', 'athlete'];
 
+    /** @return array<int, string> assigned roles, highest privilege first */
     public function rolesFor(?User $user): array
     {
         if (! $user) {
@@ -27,21 +35,28 @@ class RoleResolver
             : [];
     }
 
+    /** Highest-privilege assigned role. Deterministic: never depends on the request or session. */
     public function primaryRoleFor(?User $user, string $default = 'athlete'): string
     {
-        $roles = $this->rolesFor($user);
+        return $this->rolesFor($user)[0] ?? $default;
+    }
 
-        if ($this->requestCanProvideRoleContext($user)) {
-            $storedRole = $this->normalizeRole(
-                request()->session()->get(ActiveRoleContextService::SESSION_KEY),
-            );
+    /**
+     * The role whose page layout/data a screen should present.
+     *
+     * Pages that have meaningfully different layouts per role (attendance,
+     * payments) let the user pick one with a stateless `?mode=` query value.
+     * Anything the user does not hold falls back to the primary role.
+     */
+    public function viewRoleFor(?User $user, ?string $requested = null): string
+    {
+        $requested = $this->normalizeRole($requested);
 
-            if ($storedRole !== null && in_array($storedRole, $roles, true)) {
-                return $storedRole;
-            }
+        if ($requested !== null && $this->hasRole($user, $requested)) {
+            return $requested;
         }
 
-        return $roles[0] ?? $default;
+        return $this->primaryRoleFor($user);
     }
 
     public function hasRole(?User $user, string $role): bool
@@ -71,16 +86,5 @@ class RoleResolver
         $normalized = strtolower(trim((string) $role));
 
         return in_array($normalized, self::ROLES, true) ? $normalized : null;
-    }
-
-    private function requestCanProvideRoleContext(?User $user): bool
-    {
-        if (! $user || ! app()->bound('request')) {
-            return false;
-        }
-
-        $request = request();
-
-        return $request->hasSession() && (int) $request->user()?->id === (int) $user->id;
     }
 }

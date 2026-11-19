@@ -4,37 +4,25 @@ import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig, loadEnv } from 'vite';
 
-function parseBoolean(
-    value: string | undefined,
-    fallback: boolean,
-): boolean {
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
     if (value === undefined || value.trim() === '') {
         return fallback;
     }
 
-    return ['true', '1', 'yes', 'on'].includes(
-        value.trim().toLowerCase(),
-    );
+    return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
-function parsePort(
-    value: string | undefined,
-    fallback: number,
-): number {
+function parsePort(value: string | undefined, fallback: number): number {
     const port = Number(value);
 
-    return Number.isInteger(port) && port >= 1 && port <= 65535
-        ? port
-        : fallback;
+    return Number.isInteger(port) && port >= 1 && port <= 65535 ? port : fallback;
 }
 
 function parseUrl(value: string, variableName: string): URL {
     try {
         return new URL(value);
     } catch {
-        throw new Error(
-            `${variableName} must be a valid absolute URL. Received: ${value}`,
-        );
+        throw new Error(`${variableName} must be a valid absolute URL. Received: ${value}`);
     }
 }
 
@@ -42,24 +30,19 @@ export default defineConfig(({ command, mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
 
     const isDevServer = command === 'serve';
+    const skipWayfinder = parseBoolean(env.SKIP_WAYFINDER, false);
 
-    const appUrl = parseUrl(
-        env.APP_URL || 'http://localhost:9200',
-        'APP_URL',
-    );
+    const rawAppUrl = env.APP_URL?.trim() || (env.VERCEL_URL ? `https://${env.VERCEL_URL}` : 'http://localhost:9200');
+    const appUrl = parseUrl(rawAppUrl, 'APP_URL');
 
     const vitePort = parsePort(env.VITE_PORT, 9201);
 
     const publicViteUrl = parseUrl(
-        env.VITE_DEV_SERVER_URL ||
-            `${appUrl.protocol}//${appUrl.hostname}:${vitePort}`,
+        env.VITE_DEV_SERVER_URL?.trim() || `${appUrl.protocol}//${appUrl.hostname}:${vitePort}`,
         'VITE_DEV_SERVER_URL',
     );
 
-    const hmrEnabled = parseBoolean(
-        env.VITE_HMR_ENABLED,
-        isDevServer,
-    );
+    const hmrEnabled = parseBoolean(env.VITE_HMR_ENABLED, isDevServer);
 
     return {
         plugins: [
@@ -71,9 +54,13 @@ export default defineConfig(({ command, mode }) => {
 
             tailwindcss(),
 
-            wayfinder({
-                formVariants: true,
-            }),
+            ...(skipWayfinder
+                ? []
+                : [
+                      wayfinder({
+                          formVariants: true,
+                      }),
+                  ]),
 
             vue({
                 template: {
@@ -99,21 +86,23 @@ export default defineConfig(({ command, mode }) => {
             hmr: hmrEnabled
                 ? {
                       host: publicViteUrl.hostname,
-                      protocol:
-                          publicViteUrl.protocol === 'https:'
-                              ? 'wss'
-                              : 'ws',
-                      clientPort: parsePort(
-                          publicViteUrl.port,
-                          publicViteUrl.protocol === 'https:'
-                              ? 443
-                              : 80,
-                      ),
+                      protocol: publicViteUrl.protocol === 'https:' ? 'wss' : 'ws',
+                      clientPort: parsePort(publicViteUrl.port, publicViteUrl.protocol === 'https:' ? 443 : 80),
                   }
                 : false,
 
             watch: {
                 usePolling: true,
+                ignored: [
+                    '**/app/**',
+                    '**/bootstrap/cache/**',
+                    '**/database/**',
+                    '**/e2e/**',
+                    'routes/**',
+                    '**/storage/**',
+                    '**/tests/**',
+                    '**/vendor/**',
+                ],
             },
         },
     };

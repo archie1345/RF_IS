@@ -20,17 +20,32 @@ it('seeds a complete role and status simulation for the application', function (
     expect(User::query()->whereIn('email', [
         'admin@rfis.test',
         'coach@rfis.test',
-        'parent@rfis.test',
         'athlete@rfis.test',
         'multirole@rfis.test',
+        'admincoach@rfis.test',
+        'adminathlete@rfis.test',
         'allroles@rfis.test',
-    ])->count())->toBe(6);
+    ])->count())->toBe(7);
+
+    $roleCombinations = [
+        'admin@rfis.test' => ['admin'],
+        'coach@rfis.test' => ['coach'],
+        'athlete@rfis.test' => ['athlete'],
+        'multirole@rfis.test' => ['coach', 'athlete'],
+        'admincoach@rfis.test' => ['admin', 'coach'],
+        'adminathlete@rfis.test' => ['admin', 'athlete'],
+        'allroles@rfis.test' => ['admin', 'coach', 'athlete'],
+    ];
+
+    foreach ($roleCombinations as $email => $roles) {
+        expect(User::query()->where('email', $email)->firstOrFail()->assignedRoles())->toBe($roles);
+    }
 
     $allRoleUser = User::query()->where('email', 'allroles@rfis.test')->firstOrFail();
     expect(UserRoleAssignment::query()
         ->where('user_id', $allRoleUser->id)
-        ->whereIn('role', ['admin', 'coach', 'parent', 'athlete'])
-        ->count())->toBe(4);
+        ->whereIn('role', ['admin', 'coach', 'athlete'])
+        ->count())->toBe(3);
 
     expect(Attendance::query()->where('status', 'PRESENT')->exists())->toBeTrue()
         ->and(Attendance::query()->where('status', 'LATE')->exists())->toBeTrue()
@@ -52,11 +67,32 @@ it('seeds a complete role and status simulation for the application', function (
         ->and(Payment::query()->where('bill_kind', 'PAYROLL')->where('payroll_bonus_amount', '>', 0)->exists())->toBeTrue()
         ->and(Payment::query()->where('bill_kind', 'PAYROLL')->where('status', 'COMPLETED')->exists())->toBeTrue();
 
-    foreach (['ALL', 'ADMIN', 'COACH', 'PARENT', 'ATHLETE'] as $target) {
+    foreach (['ALL', 'ADMIN', 'COACH', 'ATHLETE'] as $target) {
         expect(Announcement::query()->where('target_role', $target)->exists())->toBeTrue();
     }
 
     expect(UserCertification::query()->whereDate('expires_at', '<', today())->exists())->toBeTrue();
+});
+
+it('refuses demo seeding on a non-isolated database without local opt-in', function () {
+    $originalConfig = [
+        'app.env' => config('app.env'),
+        'app.demo_seeding_enabled' => config('app.demo_seeding_enabled'),
+        'database.default' => config('database.default'),
+    ];
+
+    try {
+        config([
+            'app.env' => 'local',
+            'app.demo_seeding_enabled' => false,
+            'database.default' => 'mysql',
+        ]);
+
+        expect(fn () => app(FullSystemSimulationSeeder::class)->run())
+            ->toThrow(RuntimeException::class, 'Demo seeding requires SQLite :memory: tests');
+    } finally {
+        config($originalConfig);
+    }
 });
 
 it('keeps table row actions icon based and accessible', function () {

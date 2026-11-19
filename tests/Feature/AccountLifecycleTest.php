@@ -160,9 +160,15 @@ it('loads a valid invitation page and rejects invalid expired or accepted invita
         ->assertOk()
         ->assertInertia(fn ($page) => $page->component('auth/AcceptInvitation')->where('email', $user->email));
 
-    $this->get(route('invitations.show', 'invalid-token'))->assertRedirect(route('login'));
-    $this->get(route('invitations.show', 'expired-token'))->assertRedirect(route('login'));
-    $this->get(route('invitations.show', 'accepted-token'))->assertRedirect(route('login'));
+    $this->get(route('invitations.show', 'invalid-token'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors(['invitation' => 'This invitation link is invalid.']);
+    $this->get(route('invitations.show', 'expired-token'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors(['invitation' => 'This invitation has expired.']);
+    $this->get(route('invitations.show', 'accepted-token'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors(['invitation' => 'This invitation has already been accepted.']);
 });
 
 it('accepts an invitation once and activates the user with a verified email', function () {

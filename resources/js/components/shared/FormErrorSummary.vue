@@ -12,30 +12,35 @@ const props = withDefaults(
     }>(),
     {
         title: 'Form Validation / Validasi Form',
-        description: 'Please review the fields below and fix the backend validation errors. / Periksa kolom berikut dan perbaiki error validasi backend.',
+        description:
+            'Please review the fields below and fix the backend validation errors. / Periksa kolom berikut dan perbaiki error validasi backend.',
     },
 );
 
 const summary = computed(() =>
-    Object.entries(props.errors ?? {})
-        .flatMap(([field, value]) => {
-            if (!value) return [];
-            const messages = Array.isArray(value) ? value : [value];
+    Object.entries(props.errors ?? {}).flatMap(([field, value]) => {
+        if (!value) return [];
+        const messages = Array.isArray(value) ? value : [value];
 
-            return messages
-                .filter((message) => typeof message === 'string' && message.trim() !== '')
-                .map((message) => ({
-                    field,
-                    message: message.trim(),
-                }));
-        }),
+        return messages
+            .filter((message) => typeof message === 'string' && message.trim() !== '')
+            .map((message) => ({
+                field,
+                message: message.trim(),
+            }));
+    }),
 );
 </script>
 
 <template>
-    <section v-if="summary.length > 0" class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-50">
+    <section
+        v-if="summary.length > 0"
+        class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-50"
+    >
         <div class="flex items-start gap-3">
-            <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300">
+            <div
+                class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300"
+            >
                 <AlertTriangle class="size-5" />
             </div>
             <div class="min-w-0 flex-1">

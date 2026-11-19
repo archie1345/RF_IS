@@ -52,16 +52,17 @@ it('does not allow callers to mass assign a member number', function () {
         ->not->toBe('G199901010001');
 });
 
-it('never serializes sensitive hashes or encrypted identifiers', function () {
-    $athlete = athletePrivacyFixture([
+it('never serializes sensitive hashes or encrypted identifiers on user profiles', function () {
+    $athlete = athletePrivacyFixture();
+    $profile = $athlete->user->profile()->create([
         'nik_hash' => hash('sha256', '1234567890123456'),
         'bpjs_hash' => hash('sha256', '1234567890123'),
     ]);
 
-    $serialized = $athlete->fresh()->toArray();
+    $serialized = $profile->fresh()->toArray();
 
     expect($serialized)
         ->not->toHaveKeys(['nik_hash', 'nik_ciphertext', 'bpjs_hash', 'bpjs_ciphertext']);
-    expect($athlete->fresh()->displayValue('nik'))->toBe('Stored as hash only');
-    expect($athlete->fresh()->displayValue('bpjs'))->toBe('Stored as hash only');
+    expect($profile->fresh()->displayNik())->toBe('Stored as hash only');
+    expect($profile->fresh()->displayBpjs())->toBe('Stored as hash only');
 });

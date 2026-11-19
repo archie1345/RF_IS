@@ -73,6 +73,30 @@ function deactivationSession(Branch $branch, Group $group, Coach $coach, WeeklyT
     ]);
 }
 
+it('updates a training group using its UUID route key', function () {
+    $admin = User::factory()->create([
+        'role' => 'admin',
+        'email_verified_at' => now(),
+    ]);
+    $trainingGroup = TrainingGroup::query()->create([
+        'name' => 'Category Before Update',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('admin.training-groups.update', $trainingGroup), [
+            'name' => 'Category After Update',
+            'description' => 'Updated through the same UUID route binding used by the UI.',
+            'is_active' => true,
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('training_groups', [
+        'id' => $trainingGroup->id,
+        'name' => 'Category After Update',
+    ]);
+});
+
 beforeEach(function (): void {
     Carbon::setTestNow('2026-07-24 10:00:00');
 });

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Actions\Profiles\SaveUserAchievement;
 use App\Models\UserAchievement;
-use App\Services\ActiveRoleContextService;
 use App\Support\Profile\ProfileFormRules;
 use App\Support\Profile\ProfileMedia;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +14,6 @@ use Inertia\Response;
 class UserAchievementController extends Controller
 {
     public function __construct(
-        private readonly ActiveRoleContextService $activeRoleContext,
         private readonly SaveUserAchievement $saveUserAchievement,
         private readonly ProfileMedia $profileMedia,
     ) {}
@@ -23,32 +21,22 @@ class UserAchievementController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $role = $this->activeRoleContext->activeRole($request, $user);
-        $isParent = $role === 'parent';
-        $childUserIds = $isParent
-            ? $user->children()->pluck('athletes.id')->map(fn ($id) => (int) $id)->all()
-            : [];
 
         $achievements = UserAchievement::query()
             ->with(['user:id,name', 'file'])
-            ->when(
-                $isParent,
-                fn ($query) => $query->whereIn('user_id', $childUserIds),
-                fn ($query) => $query->where('user_id', $user->id),
-            )
+            ->where('user_id', $user->id)
             ->latest('event_date')
             ->latest('id')
             ->get();
 
         return Inertia::render('AchievementsPage', [
-            'canCreate' => ! $isParent,
-            'pageTitle' => $isParent ? 'Prestasi anak' : 'Prestasi saya',
-            'pageDescription' => $isParent
-                ? 'Lihat prestasi dari semua anak yang terhubung. Mode orang tua bersifat hanya-baca.'
-                : 'Kelola prestasi yang dicatat secara manual. Hasil otomatis dikelola dari halaman kejuaraan.',
+            'canCreate' => true,
+            'pageTitle' => 'Prestasi saya',
+            'pageDescription' => 'Kelola prestasi yang dicatat secara manual. Hasil otomatis dikelola dari halaman kejuaraan.',
             'achievements' => $achievements->map(fn (UserAchievement $achievement) => [
                 'id' => $achievement->id,
                 'achievement_id' => $achievement->id,
+                'route_id' => $achievement->uuid,
                 'subject' => $achievement->user?->name ?? 'Unknown user',
                 'championship_name' => $achievement->championship_name,
                 'medal' => $achievement->medal,
@@ -59,8 +47,7 @@ class UserAchievementController extends Controller
                 'category' => $achievement->category ?? '-',
                 'notes' => $achievement->notes ?? '',
                 'is_auto_recorded' => $achievement->is_auto_recorded,
-                'can_manage' => ! $isParent
-                    && (int) $achievement->user_id === (int) $user->id
+                'can_manage' => (int) $achievement->user_id === (int) $user->id
                     && ! $achievement->is_auto_recorded,
                 'file_name' => $achievement->file?->original_name ?? '-',
                 'file_url' => $achievement->file
@@ -72,8 +59,6 @@ class UserAchievementController extends Controller
 
     public function storeAchievement(Request $request, ProfileFormRules $profileFormRules): RedirectResponse
     {
-        abort_if($this->activeRoleContext->isActive($request, 'parent'), 403);
-
         $this->saveUserAchievement->store(
             $request->user(),
             $request->validate($profileFormRules->achievement()),
@@ -111,7 +96,6 @@ class UserAchievementController extends Controller
 
     private function authorizeManualAchievement(Request $request, UserAchievement $achievement): void
     {
-        abort_if($this->activeRoleContext->isActive($request, 'parent'), 403);
         abort_unless((int) $achievement->user_id === (int) $request->user()?->id, 403);
         abort_if($achievement->is_auto_recorded, 403, 'Automatic achievements must be managed from championship results.');
     }

@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Concerns\ResolvesUuidRouteBindings;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EventRegistration extends Model
 {
-    use HasUuids;
-
+    use HasUuids, ResolvesUuidRouteBindings {
+        ResolvesUuidRouteBindings::resolveRouteBindingQuery insteadof HasUuids;
+    }
     use SoftDeletes;
 
     protected $table = 'event_registrations';
@@ -51,5 +53,4 @@ class EventRegistration extends Model
     {
         return 'uuid';
     }
-
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    BadgeCheck,
     Camera,
     CheckCircle2,
     Dumbbell,
@@ -14,7 +13,6 @@ import {
     Scale,
     ShieldCheck,
     UserRound,
-    UsersRound,
     ZoomIn,
     ZoomOut,
 } from '@lucide/vue';
@@ -30,7 +28,12 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import ProfileAchievementsSection from '@/pages/profiles/components/ProfileAchievementsSection.vue';
 import ProfileCertificationsSection from '@/pages/profiles/components/ProfileCertificationsSection.vue';
 import { useProfileRoutes } from '@/pages/profiles/composables/useProfileRoutes';
-import { coachStatusOptions, genderOptions, geupOptions, parentRelationOptions } from '@/pages/profiles/profileOptions';
+import {
+    coachStatusOptions,
+    genderOptions,
+    geupOptions,
+    guardianRelationOptions,
+} from '@/pages/profiles/profileOptions';
 import type { ProfileSelectOption, ProfileUser } from '@/pages/profiles/types';
 import type { BreadcrumbItem } from '@/types';
 import 'vue-advanced-cropper/dist/style.css';
@@ -61,20 +64,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Profil', href: '/settings/profile' },
 ];
 
-const {
-    certificationUpdateUrl,
-    achievementUpdateUrl,
-    athleteProfileUpdateUrl,
-    coachProfileUpdateUrl,
-    parentProfileUpdateUrl,
-} = useProfileRoutes({
-    user: props.user,
-    context: 'settings',
-    accountUpdateUrl: props.accountUpdateUrl,
-    profileUpdateUrl: props.profileUpdateUrl,
-    certificationStoreUrl: props.certificationStoreUrl,
-    achievementStoreUrl: props.achievementStoreUrl,
-});
+const { certificationUpdateUrl, achievementUpdateUrl, athleteProfileUpdateUrl, coachProfileUpdateUrl } =
+    useProfileRoutes({
+        user: props.user,
+        context: 'settings',
+        accountUpdateUrl: props.accountUpdateUrl,
+        profileUpdateUrl: props.profileUpdateUrl,
+        certificationStoreUrl: props.certificationStoreUrl,
+        achievementStoreUrl: props.achievementStoreUrl,
+    });
 
 const accountForm = useForm({
     name: props.user.name ?? '',
@@ -101,6 +99,9 @@ const athleteForm = useForm({
     alamat: props.user.athleteProfile?.alamat ?? '',
     branch_id: String(props.user.athleteProfile?.branch_id ?? ''),
     group_id: String(props.user.athleteProfile?.group_id ?? ''),
+    guardian_name: props.user.athleteProfile?.guardian_name ?? '',
+    guardian_phone: props.user.athleteProfile?.guardian_phone ?? '',
+    guardian_relation: props.user.athleteProfile?.guardian_relation ?? '',
 });
 
 const coachForm = useForm({
@@ -109,30 +110,24 @@ const coachForm = useForm({
     bio: props.user.coachProfile?.bio ?? '',
 });
 
-const parentForm = useForm({
-    phone: props.user.parentProfile?.phone ?? props.user.phone ?? '',
-    relation: props.user.parentProfile?.relation ?? 'guardian',
-    occupation: props.user.parentProfile?.occupation ?? '',
-    notes: props.user.parentProfile?.notes ?? '',
-});
-
 const editingAccount = ref(false);
 const editingProfile = ref(false);
 const editingAthlete = ref(false);
 const editingCoach = ref(false);
-const editingParent = ref(false);
 
 const {
     selectedImage,
     cropperRef,
     profilePictureError,
     profilePictureReady,
+    cropperReady,
     profilePictureFileInput,
     profilePictureWidth,
     profilePictureHeight,
     clearSelectedImage,
     onProfilePictureChange,
     editCurrentProfilePicture,
+    markCropperReady,
     applyCrop,
     zoomCrop,
     rotateCrop,
@@ -147,7 +142,6 @@ const {
 const roleLabels: Record<string, string> = {
     admin: 'Admin',
     coach: 'Pelatih',
-    parent: 'Orang tua',
     athlete: 'Atlet',
 };
 
@@ -250,16 +244,6 @@ function saveCoach(): void {
     });
 }
 
-function saveParent(): void {
-    parentForm.put(parentProfileUpdateUrl.value, {
-        preserveScroll: true,
-        onSuccess: () => {
-            editingParent.value = false;
-        },
-        onError: (errors) => showErrors('Data orang tua belum tersimpan', errors),
-    });
-}
-
 function cancelAccount(): void {
     accountForm.reset();
     accountForm.clearErrors();
@@ -283,12 +267,6 @@ function cancelCoach(): void {
     coachForm.reset();
     coachForm.clearErrors();
     editingCoach.value = false;
-}
-
-function cancelParent(): void {
-    parentForm.reset();
-    parentForm.clearErrors();
-    editingParent.value = false;
 }
 
 function editCurrentPhoto(): void {
@@ -517,6 +495,7 @@ function editCurrentPhoto(): void {
                                             class="h-80 w-full sm:h-96"
                                             image-restriction="stencil"
                                             @change="markCropDirty"
+                                            @ready="markCropperReady"
                                         />
                                     </div>
                                     <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -525,6 +504,7 @@ function editCurrentPhoto(): void {
                                             variant="outline"
                                             size="sm"
                                             class="gap-2"
+                                            :disabled="!cropperReady"
                                             @click="zoomCrop(1.1)"
                                             ><ZoomIn class="size-4" /> Perbesar</Button
                                         >
@@ -533,6 +513,7 @@ function editCurrentPhoto(): void {
                                             variant="outline"
                                             size="sm"
                                             class="gap-2"
+                                            :disabled="!cropperReady"
                                             @click="zoomCrop(0.9)"
                                             ><ZoomOut class="size-4" /> Perkecil</Button
                                         >
@@ -541,13 +522,24 @@ function editCurrentPhoto(): void {
                                             variant="outline"
                                             size="sm"
                                             class="gap-2"
+                                            :disabled="!cropperReady"
                                             @click="rotateCrop"
                                             ><RotateCw class="size-4" /> Putar</Button
                                         >
-                                        <Button type="button" variant="outline" size="sm" @click="resetCrop"
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            :disabled="!cropperReady"
+                                            @click="resetCrop"
                                             >Reset</Button
                                         >
-                                        <Button type="button" size="sm" class="col-span-2 gap-2" @click="applyCrop"
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            class="col-span-2 gap-2"
+                                            :disabled="!cropperReady"
+                                            @click="applyCrop"
                                             ><CheckCircle2 class="size-4" /> Gunakan crop 3×4</Button
                                         >
                                     </div>
@@ -562,7 +554,11 @@ function editCurrentPhoto(): void {
 
                             <div v-if="editingProfile" class="grid gap-2 sm:flex sm:justify-end">
                                 <Button type="button" variant="outline" @click="cancelProfile">Batal</Button>
-                                <Button type="submit" :disabled="profileForm.processing">Simpan foto dan bio</Button>
+                                <Button
+                                    type="submit"
+                                    :disabled="profileForm.processing || (!!selectedImage && !cropperReady)"
+                                    >Simpan foto dan bio</Button
+                                >
                             </div>
                         </form>
                     </section>
@@ -685,6 +681,31 @@ function editCurrentPhoto(): void {
                             :disabled="!editingAthlete"
                             :error="athleteForm.errors.alamat"
                         />
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <FormInputField
+                                id="profile-athlete-guardian-name"
+                                v-model="athleteForm.guardian_name"
+                                label="Nama orang tua / wali"
+                                :disabled="!editingAthlete"
+                                :error="athleteForm.errors.guardian_name"
+                            />
+                            <FormInputField
+                                id="profile-athlete-guardian-phone"
+                                v-model="athleteForm.guardian_phone"
+                                label="Telepon wali (WhatsApp)"
+                                type="tel"
+                                :disabled="!editingAthlete"
+                                :error="athleteForm.errors.guardian_phone"
+                            />
+                            <FormSelectField
+                                id="profile-athlete-guardian-relation"
+                                v-model="athleteForm.guardian_relation"
+                                label="Hubungan wali"
+                                :options="guardianRelationOptions"
+                                :disabled="!editingAthlete"
+                                :error="athleteForm.errors.guardian_relation"
+                            />
+                        </div>
                         <div v-if="editingAthlete" class="grid gap-2 sm:flex sm:justify-end">
                             <Button type="button" variant="outline" @click="cancelAthlete">Batal</Button
                             ><Button type="submit" :disabled="athleteForm.processing">Simpan data atlet</Button>
@@ -750,94 +771,6 @@ function editCurrentPhoto(): void {
                             <div v-if="editingCoach" class="grid gap-2 sm:flex sm:justify-end">
                                 <Button type="button" variant="outline" @click="cancelCoach">Batal</Button
                                 ><Button type="submit" :disabled="coachForm.processing">Simpan data pelatih</Button>
-                            </div>
-                        </form>
-                    </section>
-
-                    <section
-                        v-if="props.user.roles.includes('parent')"
-                        class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5"
-                    >
-                        <div class="mb-5 flex items-start justify-between gap-3">
-                            <div class="flex items-start gap-3">
-                                <span class="rounded-xl bg-primary/10 p-2 text-primary"
-                                    ><UsersRound class="size-5"
-                                /></span>
-                                <div>
-                                    <h2 class="font-semibold">Data orang tua</h2>
-                                    <p class="text-sm text-muted-foreground">
-                                        Hubungan keluarga dan daftar anak tertaut.
-                                    </p>
-                                </div>
-                            </div>
-                            <Button
-                                v-if="!editingParent"
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                @click="editingParent = true"
-                                >Ubah</Button
-                            >
-                        </div>
-                        <form class="grid gap-4" @submit.prevent="saveParent">
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <FormInputField
-                                    id="profile-parent-phone"
-                                    v-model="parentForm.phone"
-                                    label="Nomor telepon"
-                                    :disabled="!editingParent"
-                                    :error="parentForm.errors.phone"
-                                /><FormSelectField
-                                    id="profile-parent-relation"
-                                    v-model="parentForm.relation"
-                                    label="Hubungan"
-                                    :options="parentRelationOptions"
-                                    :disabled="!editingParent"
-                                    :error="parentForm.errors.relation"
-                                />
-                            </div>
-                            <FormInputField
-                                id="profile-parent-occupation"
-                                v-model="parentForm.occupation"
-                                label="Pekerjaan"
-                                :disabled="!editingParent"
-                                :error="parentForm.errors.occupation"
-                            />
-                            <div class="grid gap-2">
-                                <label for="profile-parent-notes" class="text-sm font-medium">Catatan</label
-                                ><textarea
-                                    id="profile-parent-notes"
-                                    v-model="parentForm.notes"
-                                    rows="3"
-                                    :disabled="!editingParent"
-                                    class="rounded-xl border border-input bg-background px-3 py-2 text-sm disabled:opacity-60"
-                                />
-                            </div>
-                            <div class="rounded-xl border bg-muted/20 p-3">
-                                <p class="text-sm font-semibold">Anak tertaut</p>
-                                <div v-if="props.user.parentProfile?.athletes?.length" class="mt-3 grid gap-2">
-                                    <div
-                                        v-for="athlete in props.user.parentProfile.athletes"
-                                        :key="athlete.id"
-                                        class="flex items-start gap-3 rounded-lg bg-background p-3 text-sm"
-                                    >
-                                        <BadgeCheck class="mt-0.5 size-4 shrink-0 text-primary" />
-                                        <div>
-                                            <p class="font-medium">{{ athlete.name }}</p>
-                                            <p class="text-xs text-muted-foreground">
-                                                {{ athlete.branch?.branch_name ?? 'Tanpa cabang' }} ·
-                                                {{ athlete.group?.group_name ?? 'Tanpa kelas' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p v-else class="mt-2 text-sm text-muted-foreground">
-                                    Belum ada akun anak yang tertaut.
-                                </p>
-                            </div>
-                            <div v-if="editingParent" class="grid gap-2 sm:flex sm:justify-end">
-                                <Button type="button" variant="outline" @click="cancelParent">Batal</Button
-                                ><Button type="submit" :disabled="parentForm.processing">Simpan data orang tua</Button>
                             </div>
                         </form>
                     </section>

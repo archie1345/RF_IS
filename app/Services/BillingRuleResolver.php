@@ -4,12 +4,12 @@ namespace App\Services;
 
 use App\Models\Athlete;
 use App\Models\BillingRule;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 
 class BillingRuleResolver
 {
-    public function monthlyRuleFor(Athlete $athlete, Carbon $month): ?BillingRule
+    public function monthlyRuleFor(Athlete $athlete, CarbonInterface $month): ?BillingRule
     {
         return BillingRule::query()
             ->with(['branch', 'group'])

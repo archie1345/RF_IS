@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
 import { Check, Copy, Eye, MessageCircleMore, RotateCcw } from '@lucide/vue';
+import { computed } from 'vue';
 import FormInputField from '@/components/forms/FormInputField.vue';
 import CopyToClipboardButton from '@/components/shared/CopyToClipboardButton.vue';
 import FormErrorSummary from '@/components/shared/FormErrorSummary.vue';

@@ -1,7 +1,7 @@
 name: ${COMPOSE_PROJECT_NAME:-rf-is}
 
 x-app-common: &app-common
-  image: ${APP_IMAGE:-rf-is:production}
+  image: ${PROD_APP_IMAGE:-rf-is:production}
   build:
     context: .
     dockerfile: Dockerfile.prod
@@ -10,6 +10,8 @@ x-app-common: &app-common
       VITE_APP_NAME: ${APP_NAME:-RF Information System}
   env_file:
     - ${APP_ENV_FILE:-.env.production}
+  environment:
+    TRUSTED_PROXIES: ${CADDY_PROXY_IP:-172.18.0.254}
   networks:
     - backend
   volumes:
@@ -124,7 +126,12 @@ services:
         condition: service_completed_successfully
 
   db:
-    image: mysql:${MYSQL_VERSION:-8.4}
+    image: ${MYSQL_IMAGE:-rf-is:mysql-8.4.13}
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+      args:
+        MYSQL_BASE_IMAGE: ${MYSQL_BASE_IMAGE:-mysql:8.4.13}
     container_name: ${DB_CONTAINER_NAME:-rf-db}
     restart: unless-stopped
     command:
@@ -151,11 +158,12 @@ services:
       start_period: 60s
 
   caddy:
-    image: caddy:2-alpine
+    image: ${PROD_CADDY_IMAGE:-rf-is:caddy}
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
     container_name: ${CADDY_CONTAINER_NAME:-rf-caddy}
     restart: unless-stopped
-    env_file:
-      - ${APP_ENV_FILE:-.env.production}
     environment:
       APP_DOMAIN: ${APP_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
@@ -168,7 +176,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     networks:
-      - backend
+      backend:
+        ipv4_address: ${CADDY_PROXY_IP:-172.18.0.254}
     depends_on:
       server:
         condition: service_healthy
@@ -176,6 +185,9 @@ services:
 networks:
   backend:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${BACKEND_SUBNET:-172.18.0.0/16}
 
 volumes:
   db_data:

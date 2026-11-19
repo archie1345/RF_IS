@@ -2,50 +2,41 @@
 
 namespace App\Actions\Attendance;
 
-use App\Models\Athlete;
 use App\Models\Attendance;
 use App\Models\TrainingSession;
 use App\Models\User;
-use App\Services\ParentChildContextService;
+use App\Services\SessionEligibilityService;
 use App\Support\Domain\AttendanceStatus;
-use App\Support\Domain\BeltRank;
 use App\Support\Domain\SessionStatus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class RecordQrAttendance
 {
-    public function __construct(private readonly ParentChildContextService $childContext) {}
+    public function __construct(private readonly SessionEligibilityService $eligibility) {}
 
-    public function handle(User $user, TrainingSession $session, ?Athlete $selectedAthlete = null): array
+    public function handle(User $user, TrainingSession $session): array
     {
-        $athlete = $user->isParent() ? $selectedAthlete : $user->athleteProfile;
-
-        if ($user->isParent()) {
-            if (! $athlete || ! $this->childContext->belongsToParent($user, $athlete)) {
-                throw ValidationException::withMessages([
-                    'athlete_id' => 'Select a child linked to this parent account.',
-                ]);
-            }
-        }
+        $athlete = $user->isAthlete() ? $user->athleteProfile : null;
 
         if (! $athlete) {
             throw ValidationException::withMessages([
-                'attendance' => 'Only athlete accounts or linked parent accounts can record QR attendance.',
+                'attendance' => 'Only athlete accounts can record QR attendance.',
             ]);
         }
 
+        $session->refresh();
+        $this->validateSession($session);
+
+        $denialReason = $this->eligibility->denialReason($athlete, $session);
+        if ($denialReason !== null) {
+            throw ValidationException::withMessages(['attendance' => $denialReason]);
+        }
+
         return DB::transaction(function () use ($athlete, $session): array {
-            $lockedSession = TrainingSession::query()
-                ->lockForUpdate()
-                ->findOrFail($session->training_session_id);
-
-            $this->validateSession($lockedSession);
-            $this->validateEligibility($athlete, $lockedSession);
-
             $attendance = Attendance::withTrashed()
                 ->where('athlete_id', $athlete->athlete_id)
-                ->where('training_session_id', $lockedSession->training_session_id)
+                ->where('training_session_id', $session->training_session_id)
                 ->lockForUpdate()
                 ->first();
 
@@ -53,13 +44,13 @@ class RecordQrAttendance
                 $attendance = Attendance::withTrashed()
                     ->where('athlete_id', $athlete->athlete_id)
                     ->whereNull('training_session_id')
-                    ->whereDate('date', $lockedSession->session_date)
+                    ->whereDate('date', $session->session_date)
                     ->lockForUpdate()
                     ->first();
             }
 
             $alreadyRecorded = $attendance?->status === AttendanceStatus::PRESENT
-                && (int) $attendance?->training_session_id === (int) $lockedSession->training_session_id;
+                && (int) $attendance?->training_session_id === (int) $session->training_session_id;
 
             if ($attendance && in_array($attendance->status, [AttendanceStatus::EXCUSED, AttendanceStatus::LATE], true)) {
                 throw ValidationException::withMessages([
@@ -78,8 +69,8 @@ class RecordQrAttendance
             }
 
             if (! $alreadyRecorded) {
-                $attendance->training_session_id = $lockedSession->training_session_id;
-                $attendance->date = $lockedSession->session_date;
+                $attendance->training_session_id = $session->training_session_id;
+                $attendance->date = $session->session_date;
                 $attendance->status = AttendanceStatus::PRESENT;
                 $attendance->checked_in_at = now();
                 $attendance->notes = trim((string) $attendance->notes) !== ''
@@ -108,52 +99,6 @@ class RecordQrAttendance
 
         if ($session->attendance_closes_at && now()->gt($session->attendance_closes_at)) {
             throw ValidationException::withMessages(['attendance' => 'Attendance is closed for this session.']);
-        }
-    }
-
-    private function validateEligibility(Athlete $athlete, TrainingSession $session): void
-    {
-        $session->loadMissing('group.trainingGroup', 'group.privateAthletes');
-        $athlete->loadMissing('group.trainingGroup', 'trainingGroup');
-
-        if ((string) $athlete->branch_id !== (string) $session->branch_id) {
-            throw ValidationException::withMessages(['attendance' => 'This athlete is not eligible for this session branch.']);
-        }
-
-        if (($session->group?->class_type ?? null) === 'private') {
-            $allowedAthleteIds = $session->group
-                ->privateAthletes
-                ->pluck('athlete_id')
-                ->map(fn ($id) => (string) $id);
-
-            if (! $allowedAthleteIds->contains((string) $athlete->athlete_id)) {
-                throw ValidationException::withMessages(['attendance' => 'This athlete is not assigned to this private session.']);
-            }
-
-            return;
-        }
-
-        if ($session->dedicated_athlete_id !== null && (string) $athlete->athlete_id !== (string) $session->dedicated_athlete_id) {
-            throw ValidationException::withMessages(['attendance' => 'This athlete is not the assigned athlete for this private session.']);
-        }
-
-        $requiredTrainingGroupId = $session->group?->training_group_id;
-        if ($requiredTrainingGroupId !== null) {
-            $athleteTrainingGroupId = $athlete->training_group_id ?? $athlete->group?->training_group_id;
-
-            if ((string) $athleteTrainingGroupId !== (string) $requiredTrainingGroupId) {
-                throw ValidationException::withMessages(['attendance' => 'This athlete is not in the required group category for this session.']);
-            }
-
-            return;
-        }
-
-        if ($session->group_id !== null && (string) $athlete->group_id !== (string) $session->group_id) {
-            $minimumBelt = $session->group?->min_belt;
-
-            if (blank($minimumBelt) || ! BeltRank::eligible($athlete->geup, $minimumBelt)) {
-                throw ValidationException::withMessages(['attendance' => 'This athlete is not eligible for this session group.']);
-            }
         }
     }
 }

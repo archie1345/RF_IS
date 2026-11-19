@@ -1,4 +1,4 @@
-import { inject, readonly, reactive } from 'vue';
+import { readonly, reactive } from 'vue';
 
 export type AppToastTone = 'info' | 'success' | 'warning' | 'danger';
 
@@ -25,8 +25,6 @@ export type AppToastApi = {
     warning: (title: string, message?: string, duration?: number) => number;
     error: (title: string, message?: string, duration?: number) => number;
 };
-
-export const appToastKey = Symbol('AppToast');
 
 const toastState = reactive<ToastEntry[]>([]);
 const toastTimers = new Map<number, number>();
@@ -61,7 +59,10 @@ function pushToast(options: AppToastOptions): number {
     toastState.unshift(toast);
 
     if (toast.duration > 0) {
-        toastTimers.set(id, window.setTimeout(() => dismissToast(id), toast.duration));
+        toastTimers.set(
+            id,
+            window.setTimeout(() => dismissToast(id), toast.duration),
+        );
     }
 
     return id;
@@ -88,21 +89,5 @@ const sharedToastApi: AppToastApi = {
 };
 
 export function useAppToast(): AppToastApi {
-    return inject(appToastKey, sharedToastApi);
-}
-
-export function createAppToastProviderValue(): AppToastApi {
-    return {
-        state: readonly(toastState),
-        show: pushToast,
-        dismiss: dismissToast,
-        clear: clearToasts,
-        info: (title: string, message?: string, duration?: number) => pushToast({ title, message, tone: 'info', duration }),
-        success: (title: string, message?: string, duration?: number) =>
-            pushToast({ title, message, tone: 'success', duration }),
-        warning: (title: string, message?: string, duration?: number) =>
-            pushToast({ title, message, tone: 'warning', duration }),
-        error: (title: string, message?: string, duration?: number) =>
-            pushToast({ title, message, tone: 'danger', duration }),
-    };
+    return sharedToastApi;
 }

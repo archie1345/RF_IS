@@ -17,9 +17,6 @@ class ProfilePageData
             'athleteProfile.branch',
             'athleteProfile.group',
             'coachProfile',
-            'parentProfile.athletes.branch',
-            'parentProfile.athletes.group',
-            'parentProfile.athletes.user',
             'achievements.file',
             'certifications.file',
             'roleAssignments',
@@ -51,10 +48,9 @@ class ProfilePageData
     {
         $athlete = $user->athleteProfile;
         $coach = $user->coachProfile;
-        $parent = $user->parentProfile;
 
         return [
-            'id' => $user->id,
+            'id' => $user->uuid,
             'name' => $user->name,
             'email' => $user->email,
             'gender' => $user->gender,
@@ -69,14 +65,17 @@ class ProfilePageData
                 'height_cm' => $athlete->height_cm !== null ? (string) $athlete->height_cm : null,
                 'weight_kg' => $athlete->weight_kg !== null ? (string) $athlete->weight_kg : null,
                 'geup' => $athlete->geup,
-                'nik' => $this->editableSensitiveValue($athlete->user?->displayNik() ?? ''),
-                'bpjs' => $this->editableSensitiveValue($athlete->user?->displayBpjs() ?? ''),
+                'nik' => $this->editableSensitiveValue($user->displayNik()),
+                'bpjs' => $this->editableSensitiveValue($user->displayBpjs()),
                 'phone' => $user->phone,
                 'bday' => $user->bday?->format('Y-m-d'),
                 'gender' => $user->gender,
-                'alamat' => $athlete->alamat,
+                'alamat' => $user->profile?->address ?? $athlete->alamat,
                 'branch_id' => $athlete->branch_id !== null ? (string) $athlete->branch_id : null,
                 'group_id' => $athlete->group_id !== null ? (string) $athlete->group_id : null,
+                'guardian_name' => $athlete->guardian_name,
+                'guardian_phone' => $athlete->guardian_phone,
+                'guardian_relation' => $athlete->guardian_relation,
                 'branch' => $athlete->branch ? [
                     'branch_id' => $athlete->branch->branch_id,
                     'branch_name' => $athlete->branch->branch_name,
@@ -92,26 +91,9 @@ class ProfilePageData
                 'bio' => $coach->bio,
                 'nik' => $this->editableSensitiveValue($coach->displayValue('nik')),
             ] : null,
-            'parentProfile' => $parent ? [
-                'phone' => $user->phone,
-                'relation' => $parent->relation,
-                'occupation' => $parent->occupation,
-                'notes' => $parent->notes,
-                'athletes' => $parent->athletes->map(fn ($child) => [
-                    'id' => $child->athlete_id,
-                    'name' => $child->user?->name ?? 'Unknown athlete',
-                    'branch' => $child->branch ? [
-                        'branch_id' => $child->branch->branch_id,
-                        'branch_name' => $child->branch->branch_name,
-                    ] : null,
-                    'group' => $child->group ? [
-                        'group_id' => $child->group->group_id,
-                        'group_name' => $child->group->group_name,
-                    ] : null,
-                ])->values(),
-            ] : null,
             'achievements' => $user->achievements->map(fn ($achievement) => [
                 'id' => $achievement->id,
+                'route_id' => $achievement->uuid,
                 'championship_name' => $achievement->championship_name,
                 'medal' => $achievement->medal,
                 'location' => $achievement->location,
@@ -126,6 +108,7 @@ class ProfilePageData
             ])->values(),
             'certifications' => $user->certifications->map(fn ($certification) => [
                 'id' => $certification->id,
+                'route_id' => $certification->uuid,
                 'cert_type' => $certification->cert_type,
                 'title' => $certification->title,
                 'issuer' => $certification->issuer,

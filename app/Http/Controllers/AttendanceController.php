@@ -16,9 +16,9 @@ use App\Models\Group;
 use App\Models\TrainingSession;
 use App\Models\User;
 use App\Presenters\AttendanceRowPresenter;
-use App\Services\ActiveRoleContextService;
 use App\Services\AttendanceVisibilityService;
 use App\Support\ActivityLogger;
+use App\Support\RoleResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ class AttendanceController extends Controller
     use FormatsPresentationData;
 
     public function __construct(
-        private readonly ActiveRoleContextService $activeRoleContext,
+        private readonly RoleResolver $roleResolver,
         private readonly AttendanceVisibilityService $attendanceVisibility,
         private readonly AttendanceRowPresenter $attendanceRows,
         private readonly CreateAttendanceRecord $createAttendance,
@@ -77,7 +77,6 @@ class AttendanceController extends Controller
             'coaches' => [],
             'role' => $mode,
             'availableModes' => $availableModes,
-            'activeAthleteId' => null,
         ]);
     }
 
@@ -248,22 +247,15 @@ class AttendanceController extends Controller
 
     private function availableModes(?User $user): array
     {
-        if (! $user) {
-            return [];
-        }
-
-        return collect(['admin', 'coach', 'parent', 'athlete'])
-            ->filter(fn (string $role): bool => $user->hasRole($role))
-            ->values()
-            ->all();
+        return $this->roleResolver->rolesFor($user);
     }
 
     private function selectedMode(Request $request, ?User $user, array $availableModes): string
     {
-        $activeRole = $this->activeRoleContext->activeRole($request, $user);
+        $requested = $this->roleResolver->viewRoleFor($user, (string) $request->query('mode', ''));
 
-        return in_array($activeRole, $availableModes, true)
-            ? $activeRole
+        return in_array($requested, $availableModes, true)
+            ? $requested
             : ($availableModes[0] ?? 'athlete');
     }
 
@@ -331,6 +323,7 @@ class AttendanceController extends Controller
                 return [
                     'id' => 'SES-'.$session->training_session_id,
                     'session_id' => $session->training_session_id,
+                    'session_uuid' => $session->uuid,
                     'session' => $session->title,
                     'branch' => $session->branch?->branch_name ?? 'No branch',
                     'group' => $session->group?->group_name ?? 'All groups',
