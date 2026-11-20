@@ -35,4 +35,7 @@ if [ -z "${APP_KEY:-}" ] && ! grep -q '^APP_KEY=base64:' .env; then
 fi
 
 mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions bootstrap/cache
+if [ -n "${VIEW_COMPILED_PATH:-}" ]; then
+    mkdir -p "$VIEW_COMPILED_PATH"
+fi
 npm run build
