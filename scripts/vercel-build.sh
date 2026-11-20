@@ -22,7 +22,7 @@ if [ ! -f vendor/autoload.php ]; then
         COMPOSER_BIN="composer"
     fi
 
-    $COMPOSER_BIN install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+    $COMPOSER_BIN install --no-dev --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=php
 fi
 
 # Provide a minimal .env for Artisan CLI during build if none is present.
