@@ -1,6 +1,6 @@
 # projectmem - RF_IS
 
-_Last updated: 2026-11-19_
+_Last updated: 2026-11-20_
 
 ## Project purpose
 RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guardian contact records, coach sessions and attendance, manual bill/invoice proof review, championships, and administrative data exports.
@@ -32,7 +32,6 @@ RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guard
 - No decisions logged yet.
 
 ## Notes
-- Attendance (#35)
 - Stage (#36)
 - Merge branch 'attendance' into stage
 - Merge branch 'stage'
@@ -42,6 +41,7 @@ RF IS is a Laravel 12 + Inertia + Vue application for managing athlete and guard
 - 202607091444
 - gotcha: RP-04 legacy instructor summary has no profile-link action in AdminPeopleFeatureController; member rows do link by UUID. Do not infer an instructor-link feature without a requirement.
 - New feature: add prefix [.github/workflows/tests.yml]
+- Merge: Merge branch 'main' into staging-preparation
 
 ## Key files
 - `resources/js/pages/AdminFeaturePage.vue`

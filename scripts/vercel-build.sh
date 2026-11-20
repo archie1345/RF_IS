@@ -34,4 +34,5 @@ if [ -z "${APP_KEY:-}" ] && ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force --no-interaction
 fi
 
+mkdir -p storage/framework/views storage/framework/cache storage/framework/sessions bootstrap/cache
 npm run build
