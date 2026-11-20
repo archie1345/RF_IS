@@ -42,3 +42,6 @@ if [ -n "${VIEW_COMPILED_PATH:-}" ]; then
     mkdir -p "$VIEW_COMPILED_PATH"
 fi
 npm run build
+
+# Prevent Vercel's static file server from serving public/index.php as a raw PHP download on `/`.
+rm -f public/index.php
