@@ -39,7 +39,7 @@ const sampleValues: Record<string, string> = {
     total_amount: 'Rp 150.000',
     remaining_amount: 'Rp 150.000',
     due_date: '15 Agustus 2026',
-    payment_url: 'http://localhost:9200/payments',
+    payment_url: typeof window !== 'undefined' ? `${window.location.origin}/payments` : '/payments',
 };
 
 const preview = computed(() =>

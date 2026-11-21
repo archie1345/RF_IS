@@ -312,7 +312,9 @@ const visibleRows = computed(() => {
 const displayStart = computed(() =>
     visibleRows.value.length === 0 ? 0 : (currentPage.value - 1) * activePageSize.value + 1,
 );
-const displayEnd = computed(() => displayStart.value + visibleRows.value.length - 1);
+const displayEnd = computed(() =>
+    visibleRows.value.length === 0 ? 0 : displayStart.value + visibleRows.value.length - 1,
+);
 
 watch(
     normalizedFilters,
