@@ -20,16 +20,16 @@ FROM php:8.4.27-cli AS php-deps
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN export TERM=xterm \
+    && apt-get update && apt-get install -y --no-install-recommends \
     git \
     unzip \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libonig-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath \
+    && docker-php-ext-install -j"$(nproc)" gd zip pdo_mysql bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer-bin /usr/bin/composer /usr/local/bin/composer
@@ -49,15 +49,15 @@ WORKDIR /app
 
 COPY --from=node-runtime /usr/local/ /usr/local/
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN export TERM=xterm \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libonig-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql bcmath \
+    && docker-php-ext-install -j"$(nproc)" gd zip pdo_mysql bcmath \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=php-deps /app/vendor ./vendor
@@ -99,23 +99,22 @@ ENV APP_ENV=production \
     LOG_CHANNEL=stderr \
     COMPOSER_ALLOW_SUPERUSER=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN export TERM=xterm \
+    && apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libzip-dev \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libonig-dev \
     libsqlite3-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" mbstring gd zip pdo pdo_mysql pdo_sqlite bcmath opcache \
+    && docker-php-ext-install -j"$(nproc)" gd zip pdo_mysql pdo_sqlite bcmath opcache \
     && a2enmod rewrite headers expires deflate \
     && apt-get purge -y \
         libzip-dev \
         libpng-dev \
         libjpeg62-turbo-dev \
         libfreetype6-dev \
-        libonig-dev \
         libsqlite3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
