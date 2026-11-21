@@ -28,13 +28,17 @@ final class PublicContactSettings
             self::CACHE_KEY,
             now()->addHour(),
             function (): array {
-                if (! Schema::hasTable('message_templates')) {
-                    return $this->defaults();
-                }
+                try {
+                    $settings = MessageTemplate::query()
+                        ->whereIn('key', [self::CONTACT_KEY, self::BUBBLE_ENABLED_KEY])
+                        ->pluck('body', 'key');
+                } catch (\Throwable $exception) {
+                    if (! Schema::hasTable('message_templates')) {
+                        return $this->defaults();
+                    }
 
-                $settings = MessageTemplate::query()
-                    ->whereIn('key', [self::CONTACT_KEY, self::BUBBLE_ENABLED_KEY])
-                    ->pluck('body', 'key');
+                    throw $exception;
+                }
 
                 $rawEnabled = strtolower(trim((string) ($settings[self::BUBBLE_ENABLED_KEY] ?? '1')));
 

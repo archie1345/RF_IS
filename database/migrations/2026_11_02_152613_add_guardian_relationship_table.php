@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('guardian_relationship', function (Blueprint $table) {
             $table->id();
             $table->foreignId('guardian_id')->constrained('users', 'id')->onDelete('cascade');
-            $table->foreignId('athlete_id')->constrained('athletes', 'athlete_id')->onDelete('cascade');
+            $table->foreignUlid('athlete_id')->constrained('athletes', 'athlete_id')->onDelete('cascade');
             $table->enum('relation_type', ['parent', 'legal_guardian', 'authorized']);
             $table->dateTime('authorized_at');
             $table->timestamps();

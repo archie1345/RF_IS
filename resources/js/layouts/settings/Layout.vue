@@ -66,11 +66,11 @@ function active(item: (typeof navigation)[number]): boolean {
                 </nav>
             </aside>
 
-            <main class="min-w-0">
+            <div class="min-w-0">
                 <section class="min-w-0 rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-6">
                     <slot />
                 </section>
-            </main>
+            </div>
         </div>
     </div>
 </template>

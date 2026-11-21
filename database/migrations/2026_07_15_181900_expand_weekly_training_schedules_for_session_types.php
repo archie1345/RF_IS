@@ -32,7 +32,7 @@ return new class extends Migration
 
         if (! Schema::hasColumn('weekly_training_schedules', 'dedicated_athlete_id')) {
             Schema::table('weekly_training_schedules', function (Blueprint $table): void {
-                $table->string('dedicated_athlete_id', 26)->nullable()->after('group_id');
+                $table->ulid('dedicated_athlete_id')->nullable()->after('group_id');
             });
         }
 
@@ -94,7 +94,7 @@ return new class extends Migration
             return false;
         }
 
-        return in_array(strtolower((string) $column->DATA_TYPE), ['char', 'varchar'], true)
+        return strtolower((string) $column->DATA_TYPE) === 'char'
             && (int) $column->CHARACTER_MAXIMUM_LENGTH === 26;
     }
 

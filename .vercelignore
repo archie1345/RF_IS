@@ -11,8 +11,10 @@ vendor
 e2e
 tests
 db
-docker
+docker/*
+!docker/libxml2
 Dockerfile*
+!Dockerfile.vercel
 compose*.yaml
 storage/logs/*
 storage/framework/cache/*
