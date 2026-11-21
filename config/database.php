@@ -64,7 +64,10 @@ return [
                         ? '/etc/ssl/certs/ca-certificates.crt'
                         : null
                 ),
-            ]) : [],
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT : \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT) => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') !== null
+                    ? filter_var(env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                    : null,
+            ], fn (mixed $value): bool => $value !== null) : [],
         ],
 
         'mariadb' => [
@@ -88,7 +91,10 @@ return [
                         ? '/etc/ssl/certs/ca-certificates.crt'
                         : null
                 ),
-            ]) : [],
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT : \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT) => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') !== null
+                    ? filter_var(env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                    : null,
+            ], fn (mixed $value): bool => $value !== null) : [],
         ],
 
         'pgsql' => [

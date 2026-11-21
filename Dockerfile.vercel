@@ -244,6 +244,7 @@ RUN mkdir -p \
         storage/framework/views \
         storage/logs \
         bootstrap/cache \
+    && php artisan package:discover --ansi \
     && chown -R www-data:www-data \
         storage \
         bootstrap/cache \
@@ -262,4 +263,4 @@ RUN rm -f public/hot public/build/hot
 EXPOSE 80
 
 
-CMD ["sh", "-c", "PORT=${PORT:-80}; STORAGE_DIR=${APP_STORAGE_PATH:-/tmp/storage}; mkdir -p \"${STORAGE_DIR}/app/private\" \"${STORAGE_DIR}/app/public\" \"${STORAGE_DIR}/framework/cache/data\" \"${STORAGE_DIR}/framework/cache/laravel-excel\" \"${STORAGE_DIR}/framework/sessions\" \"${STORAGE_DIR}/framework/views\" \"${STORAGE_DIR}/logs\" && chown -R www-data:www-data \"${STORAGE_DIR}\" && sed -i \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf && sed -i \"s/<VirtualHost \\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf && (php artisan storage:link || true) && exec apache2-foreground"]
+CMD ["sh", "-c", "PORT=${PORT:-80}; STORAGE_DIR=${APP_STORAGE_PATH:-/tmp/storage}; mkdir -p \"${STORAGE_DIR}/app/private\" \"${STORAGE_DIR}/app/public\" \"${STORAGE_DIR}/framework/cache/data\" \"${STORAGE_DIR}/framework/cache/laravel-excel\" \"${STORAGE_DIR}/framework/sessions\" \"${STORAGE_DIR}/framework/views\" \"${STORAGE_DIR}/logs\" && sed -i \"s/Listen 80/Listen ${PORT}/\" /etc/apache2/ports.conf && sed -i \"s/<VirtualHost \\*:80>/<VirtualHost *:${PORT}>/\" /etc/apache2/sites-available/000-default.conf && (php artisan storage:link || true) && php artisan config:cache && php artisan route:clear && php artisan view:cache && chown -R www-data:www-data bootstrap/cache \"${STORAGE_DIR}\" && exec apache2-foreground"]
