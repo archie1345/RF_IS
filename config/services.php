@@ -39,4 +39,8 @@ return [
         ],
     ],
 
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];
