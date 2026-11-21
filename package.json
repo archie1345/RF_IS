@@ -4,7 +4,7 @@
     "type": "module",
     "packageManager": "npm@12.2.1",
     "engines": {
-        "node": "^24.0.0",
+        "node": "^26.0.0",
         "npm": ">=11.0.0 <13.0.0"
     },
     "scripts": {

@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+export DEBIAN_FRONTEND=noninteractive
 
 # Debian Trixie has postponed CVE-2026-86140. Backport GNOME's upstream fix
 # (d1686f91dbda141a752200419d35639fd6b38340) to its ABI-compatible source.
@@ -34,6 +35,7 @@ multiarch="$(gcc -print-multiarch)"
 CFLAGS="-g -O2 -Wno-array-bounds -Wno-address" ./configure \
     --prefix=/usr \
     --libdir="/usr/lib/$multiarch" \
+    --disable-maintainer-mode \
     --disable-static \
     --enable-shared \
     --with-legacy \

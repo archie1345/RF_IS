@@ -1,11 +1,11 @@
 FROM composer:2.10.3 AS composer-bin
 
-FROM node:24.22.1-bookworm-slim AS node-runtime
+FROM node:26.13.1-bookworm-slim AS node-runtime
 
 COPY scripts/install-patched-npm-undici.sh /usr/local/bin/install-patched-npm-undici
 RUN npm install --global npm@12.2.1 \
     && sh /usr/local/bin/install-patched-npm-undici \
-    && test "$(node --version)" = "v24.22.1" \
+    && test "$(node --version)" = "v26.13.1" \
     && test "$(npm --version)" = "12.2.1" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/undici/package.json").version')" = "6.29.1"
 
